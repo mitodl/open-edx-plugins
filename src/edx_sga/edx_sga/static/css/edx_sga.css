@@ -1,0 +1,9 @@
+/* CSS for StaffGradedAssignmentXBlock */
+
+.edx_sga_block .count {
+    font-weight: bold;
+}
+
+.edx_sga_block p {
+    cursor: pointer;
+}
