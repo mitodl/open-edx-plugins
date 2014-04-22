@@ -3,23 +3,51 @@
 import pkg_resources
 
 from xblock.core import XBlock
-from xblock.fields import Scope, Integer
+from xblock.fields import Scope, String, Float
 from xblock.fragment import Fragment
+
+from xmodule.progress import Progress
 
 
 class StaffGradedAssignmentXBlock(XBlock):
     """
-    TO-DO: document what your XBlock does.
+    This block defines a Staff Graded Assignment.  Students are shown a rubric
+    and invited to upload a file which is then graded by staff.
     """
+    has_score = True
+    icon_class = 'problem'
 
-    # Fields are defined on the class.  You can access them in your code as
-    # self.<fieldname>.
+    display_name = String(
+        default='Staff Graded Assignment', scope=Scope.settings,
+        help="Long title for the block.")
 
-    # TO-DO: delete count, and define your own fields.
-    count = Integer(
-        default=0, scope=Scope.user_state,
-        help="A simple counter, to show something happening",
+    weight = Float(
+        display_name="Problem Weight",
+        help=("Defines the number of points each problem is worth. "
+              "If the value is not set, the problem is worth the sum of the "
+              "option point values."),
+        values={"min": 0, "step": .1},
+        scope=Scope.settings
     )
+
+    score = Float(
+        display_name="Grade score",
+        default=0,
+        help=("Grade score given to assignment by staff."),
+        values={"min": 0, "step": .1},
+        scope=Scope.user_state
+    )
+
+    score_maximum = Float(
+        display_name="Maximum score",
+        help=("Maximum grade score given to assignment by staff."),
+        values={"min": 0, "step": .1},
+        default=100,
+        scope=Scope.settings
+    )
+
+    def max_score(self):
+        return self.score_maximum
 
     def resource_string(self, path):
         """Handy helper for getting resources from our kit."""
@@ -39,6 +67,8 @@ class StaffGradedAssignmentXBlock(XBlock):
         frag.initialize_js('StaffGradedAssignmentXBlock')
         return frag
 
+    studio_view = student_view
+
     # TO-DO: change this handler to perform your own actions.  You may need more
     # than one handler, or you may not need any handlers at all.
     @XBlock.json_handler
@@ -51,18 +81,3 @@ class StaffGradedAssignmentXBlock(XBlock):
 
         self.count += 1
         return {"count": self.count}
-
-    # TO-DO: change this to create the scenarios you'd like to see in the
-    # workbench while developing your XBlock.
-    @staticmethod
-    def workbench_scenarios():
-        """A canned scenario for display in the workbench."""
-        return [
-            ("StaffGradedAssignmentXBlock",
-             """<vertical_demo>
-                <edx_sga/>
-                <edx_sga/>
-                <edx_sga/>
-                </vertical_demo>
-             """),
-        ]
