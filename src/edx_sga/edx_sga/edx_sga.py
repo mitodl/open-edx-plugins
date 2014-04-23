@@ -8,6 +8,8 @@ import pkg_resources
 from django.template.context import Context
 from django.template.loader import get_template
 
+from webob.response import Response
+
 from xblock.core import XBlock
 from xblock.fields import Scope, String, Float
 from xblock.fragment import Fragment
@@ -53,6 +55,18 @@ class StaffGradedAssignmentXBlock(XBlock):
         scope=Scope.user_state
     )
 
+    uploaded_sha1 = String(
+        display_name="Upload SHA1",
+        scope=Scope.user_state,
+        default=None,
+        help="sha1 of the file uploaded by the student for this assignment.")
+
+    uploaded_filename = String(
+        display_name="Upload file name",
+        scope=Scope.user_state,
+        default=None,
+        help="The name of the file uploaded for this assignment.")
+
     def max_score(self):
         return self.points
 
@@ -61,12 +75,12 @@ class StaffGradedAssignmentXBlock(XBlock):
         The primary view of the StaffGradedAssignmentXBlock, shown to students
         when viewing courses.
         """
-        html = _resource_string("static/html/edx_sga.html")
-        frag = Fragment(html.format(self=self))
-        frag.add_css(_resource_string("static/css/edx_sga.css"))
-        frag.add_javascript(_resource_string("static/js/src/edx_sga.js"))
-        frag.initialize_js('StaffGradedAssignmentXBlock')
-        return frag
+        template = get_template("staff_graded_assignment/show.html")
+        fragment = Fragment(template.render(Context({})))
+        fragment.add_css(_resource("static/css/edx_sga.css"))
+        fragment.add_javascript(_resource("static/js/src/edx_sga.js"))
+        fragment.initialize_js('StaffGradedAssignmentXBlock')
+        return fragment
 
     def studio_view(self, context=None):
         try:
@@ -84,7 +98,7 @@ class StaffGradedAssignmentXBlock(XBlock):
             fragment = Fragment(template.render(Context({
                 "fields": edit_fields
             })))
-            fragment.add_javascript(_resource_string("static/js/src/studio.js"))
+            fragment.add_javascript(_resource("static/js/src/studio.js"))
             fragment.initialize_js('StaffGradedAssignmentXBlock')
             return fragment
         except:
@@ -92,23 +106,18 @@ class StaffGradedAssignmentXBlock(XBlock):
             raise
 
     @XBlock.json_handler
-    def increment_count(self, data, suffix=''):
-        """
-        An example handler, which increments the data.
-        """
-        # Just to show data coming in...
-        assert data['hello'] == 'world'
-
-        self.count += 1
-        return {"count": self.count}
-
-    @XBlock.json_handler
     def save_sga(self, data, suffix=''):
         for name in ('display_name', 'points', 'weight'):
             setattr(self, name, data.get(name, getattr(self, name)))
 
+    @XBlock.handler
+    def upload_assignment(self, request, suffix=''):
+        upload = request.params['assignment']
+        log.info(upload.file.read())
+        return Response(json_body="OK")
 
-def _resource_string(path):
+
+def _resource(path):
     """Handy helper for getting resources from our kit."""
     data = pkg_resources.resource_string(__name__, path)
     return data.decode("utf8")

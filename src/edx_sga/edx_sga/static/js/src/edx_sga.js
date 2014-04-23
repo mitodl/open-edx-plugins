@@ -1,22 +1,15 @@
 /* Javascript for StaffGradedAssignmentXBlock. */
 function StaffGradedAssignmentXBlock(runtime, element) {
-
-    function updateCount(result) {
-        $('.count', element).text(result.count);
-    }
-
-    var handlerUrl = runtime.handlerUrl(element, 'increment_count');
-
-    $('p', element).click(function(eventObject) {
-        $.ajax({
-            type: "POST",
-            url: handlerUrl,
-            data: JSON.stringify({"hello": "world"}),
-            success: updateCount
+    require(["jquery", "jquery.fileupload"], function($) {
+        var uploadUrl = runtime.handlerUrl(element, 'upload_assignment');
+        $(element).find("#fileupload").fileupload({
+            url: uploadUrl,
+            done: function(e, data) {
+                $.each(data.files, function(index, file) {
+                    $(element).append("p")
+                        .text("Successfully uploaded: " + file.name);
+                })
+            }
         });
-    });
-
-    $(function ($) {
-        /* Here's where you'd do things on page load. */
     });
 }
