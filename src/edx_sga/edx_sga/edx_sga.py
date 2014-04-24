@@ -5,6 +5,7 @@ and invited to upload a file which is then graded by staff.
 import logging
 import pkg_resources
 
+from django.conf import settings
 from django.template.context import Context
 from django.template.loader import get_template
 
@@ -112,8 +113,13 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def upload_assignment(self, request, suffix=''):
+        blobs = settings.BLOB_STORAGE()
         upload = request.params['assignment']
-        log.info(upload.file.read())
+        prev = self.uploaded_sha1
+        self.uploaded_sha1 = blobs.store(upload.file)
+        self.uploaded_filename = upload.file.name
+        if prev:
+            blobs.remove(prev)
         return Response(json_body="OK")
 
 
