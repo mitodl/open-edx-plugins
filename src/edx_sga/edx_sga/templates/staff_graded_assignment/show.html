@@ -1,3 +1,15 @@
-<div class="edx_sga_block">
-  <p><input id="fileupload" type="file" name="assignment"/></p>
+<div class="sga-block" data-state="{{ student_state }}">
+  <script type="text/template" id="sga-tmpl">
+    <% if (uploaded) { %>
+      <p>File uploaded: 
+        <a href="<%= downloadUrl %>"><%= uploaded.filename %></a></p>
+    <% } else { %>
+      <p>No file has been uploaded yet.</p>
+    <% } %>
+    <p id="do-upload">
+      Upload a file <input id="fileupload" type="file" name="assignment"/>
+    </p>
+  </script>
+  <div id="sga-content">
+  </div>
 </div>

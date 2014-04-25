@@ -2,8 +2,12 @@
 This block defines a Staff Graded Assignment.  Students are shown a rubric
 and invited to upload a file which is then graded by staff.
 """
+import json
 import logging
+import mimetypes
 import pkg_resources
+
+from functools import partial
 
 from django.conf import settings
 from django.template.context import Context
@@ -68,6 +72,12 @@ class StaffGradedAssignmentXBlock(XBlock):
         default=None,
         help="The name of the file uploaded for this assignment.")
 
+    uploaded_mimetype = String(
+        display_name="Mime type of uploaded file",
+        scope=Scope.user_state,
+        default=None,
+        help="The mimetype of the file uploaded for this assignment.")
+
     def max_score(self):
         return self.points
 
@@ -77,11 +87,29 @@ class StaffGradedAssignmentXBlock(XBlock):
         when viewing courses.
         """
         template = get_template("staff_graded_assignment/show.html")
-        fragment = Fragment(template.render(Context({})))
+        fragment = Fragment(template.render(Context({
+            "student_state": json.dumps(self.student_state())
+        })))
         fragment.add_css(_resource("static/css/edx_sga.css"))
         fragment.add_javascript(_resource("static/js/src/edx_sga.js"))
         fragment.initialize_js('StaffGradedAssignmentXBlock')
         return fragment
+
+    def student_state(self):
+        """
+        Returns a JSON serializable representation of student's state for
+        rendering in client view.
+        """
+        if self.uploaded_sha1:
+            uploaded = {
+                "filename": self.uploaded_filename,
+            }
+        else:
+            uploaded = None
+
+        return {
+            "uploaded": uploaded
+        }
 
     def studio_view(self, context=None):
         try:
@@ -115,12 +143,22 @@ class StaffGradedAssignmentXBlock(XBlock):
     def upload_assignment(self, request, suffix=''):
         blobs = settings.BLOB_STORAGE()
         upload = request.params['assignment']
-        prev = self.uploaded_sha1
         self.uploaded_sha1 = blobs.store(upload.file)
         self.uploaded_filename = upload.file.name
-        if prev:
-            blobs.remove(prev)
-        return Response(json_body="OK")
+        self.uploaded_mimetype = mimetypes.guess_type(upload.file.name)[0]
+        return Response(json_body=self.student_state())
+
+    @XBlock.handler
+    def download_assignment(self, request, suffix=''):
+        BLOCK_SIZE = 2**10 * 8 # 8kb
+        blobs = settings.BLOB_STORAGE()
+        upload = blobs.retrieve(self.uploaded_sha1)
+        app_iter = iter(partial(upload.read, BLOCK_SIZE), '')
+        return Response(
+            app_iter=app_iter,
+            content_type=self.uploaded_mimetype,
+            content_disposition="attachment; filename=" +
+                self.uploaded_filename)
 
 
 def _resource(path):
