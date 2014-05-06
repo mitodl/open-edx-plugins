@@ -2,6 +2,7 @@
 This block defines a Staff Graded Assignment.  Students are shown a rubric
 and invited to upload a file which is then graded by staff.
 """
+import hashlib
 import json
 import logging
 import mimetypes
@@ -9,7 +10,8 @@ import pkg_resources
 
 from functools import partial
 
-from django.conf import settings
+from django.core.files import File
+from django.core.files.storage import default_storage
 from django.template.context import Context
 from django.template.loader import get_template
 
@@ -141,24 +143,44 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def upload_assignment(self, request, suffix=''):
-        blobs = settings.BLOB_STORAGE()
         upload = request.params['assignment']
-        self.uploaded_sha1 = blobs.store(upload.file)
+        self.uploaded_sha1 = _get_sha1(upload.file)
         self.uploaded_filename = upload.file.name
         self.uploaded_mimetype = mimetypes.guess_type(upload.file.name)[0]
+        self._store_file(upload.file)
         return Response(json_body=self.student_state())
 
     @XBlock.handler
     def download_assignment(self, request, suffix=''):
         BLOCK_SIZE = 2**10 * 8 # 8kb
-        blobs = settings.BLOB_STORAGE()
-        upload = blobs.retrieve(self.uploaded_sha1)
+        upload = self._retrieve_file()
         app_iter = iter(partial(upload.read, BLOCK_SIZE), '')
         return Response(
             app_iter=app_iter,
             content_type=self.uploaded_mimetype,
             content_disposition="attachment; filename=" +
                 self.uploaded_filename)
+
+    def _file_storage_path(self):
+        return '/'.join(filter(None, self.location[1:]) + (self.uploaded_sha1,))
+
+    def _store_file(self, file):
+        path = self._file_storage_path()
+        if not default_storage.exists(path):
+            default_storage.save(path, File(file))
+
+    def _retrieve_file(self):
+        path = self._file_storage_path()
+        return default_storage.open(path)
+
+
+def _get_sha1(file):
+    BLOCK_SIZE = 2**10 * 8 # 8kb
+    sha1 = hashlib.sha1()
+    for block in iter(partial(file.read, BLOCK_SIZE), ''):
+        sha1.update(block)
+    file.seek(0)
+    return sha1.hexdigest()
 
 
 def _resource(path):
