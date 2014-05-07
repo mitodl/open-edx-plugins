@@ -2,13 +2,17 @@
 This block defines a Staff Graded Assignment.  Students are shown a rubric
 and invited to upload a file which is then graded by staff.
 """
+import datetime
 import hashlib
 import json
 import logging
 import mimetypes
 import pkg_resources
+import pytz
 
 from functools import partial
+
+from courseware.models import StudentModule
 
 from django.core.files import File
 from django.core.files.storage import default_storage
@@ -18,7 +22,7 @@ from django.template.loader import get_template
 from webob.response import Response
 
 from xblock.core import XBlock
-from xblock.fields import Scope, String, Float
+from xblock.fields import DateTime, Scope, String, Float
 from xblock.fragment import Fragment
 
 log = logging.getLogger(__name__)
@@ -80,6 +84,12 @@ class StaffGradedAssignmentXBlock(XBlock):
         default=None,
         help="The mimetype of the file uploaded for this assignment.")
 
+    uploaded_timestamp = DateTime(
+        display_name="Timestamp",
+        scope=Scope.user_state,
+        default=None,
+        help="When the file was uploaded")
+
     def max_score(self):
         return self.points
 
@@ -118,19 +128,22 @@ class StaffGradedAssignmentXBlock(XBlock):
         }
 
     def staff_grading_data(self):
+        def get_student_data(module):
+            state = json.loads(module.state)
+            return {
+                'username': module.student.username,
+                'fullname': module.student.profile.name,
+                'filename': state.get("uploaded_filename"),
+                'timestamp': state.get("uploaded_timestamp"),
+                'score': state.get("score")
+            }
+
+        query = StudentModule.objects.filter(
+            course_id=self.xmodule_runtime.course_id,
+            module_state_key=self.location.url())
+
         return {
-            'assignments': [
-                {"username": "FredFlintstone",
-                 "fullname": "Fred Flinstone",
-                 "filename": "foo.txt",
-                 "timestamp": "xmas",
-                 "grade": 10},
-                {"username": "BarneyRubble",
-                 "fullname": "Barney Rubble",
-                 "filename": "bar.txt",
-                 "timestamp": "easter",
-                 "grade": 8}
-            ]
+            'assignments': [get_student_data(module) for module in query],
         }
 
     def studio_view(self, context=None):
@@ -167,6 +180,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         self.uploaded_sha1 = _get_sha1(upload.file)
         self.uploaded_filename = upload.file.name
         self.uploaded_mimetype = mimetypes.guess_type(upload.file.name)[0]
+        self.uploaded_timestamp = _now()
         self.store_file(upload.file)
         return Response(json_body=self.student_state())
 
@@ -216,3 +230,7 @@ def _resource(path):
     """Handy helper for getting resources from our kit."""
     data = pkg_resources.resource_string(__name__, path)
     return data.decode("utf8")
+
+
+def _now():
+    return datetime.datetime.utcnow().replace(tzinfo=pytz.utc)

@@ -4,8 +4,7 @@
     position: fixed;
     z-index:100;
     display: none;
-    left:10%; 
-    top:10%; 
+    width: 80%;
     overflow:auto;
 }
 
