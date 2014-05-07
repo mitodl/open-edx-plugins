@@ -132,6 +132,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         def get_student_data(module):
             state = json.loads(module.state)
             return {
+                'module_id': module.id,
                 'username': module.student.username,
                 'fullname': module.student.profile.name,
                 'filename': state.get("uploaded_filename"),
@@ -183,41 +184,55 @@ class StaffGradedAssignmentXBlock(XBlock):
         self.uploaded_mimetype = mimetypes.guess_type(upload.file.name)[0]
         self.uploaded_timestamp = _now()
         self.store_file(upload.file)
+        path = _file_storage_path(
+            self.location.url(), self.uploaded_sha1, self.uploaded_filename)
+        if not default_storage.exists(path):
+            default_storage.save(path, File(file))
         return Response(json_body=self.student_state())
 
     @XBlock.handler
     def download_assignment(self, request, suffix=''):
+        path = _file_storage_path(
+            self.location.url(), self.uploaded_sha1, self.uploaded_filename)
+        return self.download(path,
+            self.uploaded_mimetype,
+            self.uploaded_filename)
+
+    def download(self, path, mimetype, filename):
         BLOCK_SIZE = 2**10 * 8 # 8kb
-        upload = self.retrieve_file()
-        app_iter = iter(partial(upload.read, BLOCK_SIZE), '')
+        file = default_storage.open(path)
+        app_iter = iter(partial(file.read, BLOCK_SIZE), '')
         return Response(
             app_iter=app_iter,
-            content_type=self.uploaded_mimetype,
-            content_disposition="attachment; filename=" +
-                self.uploaded_filename)
+            content_type=mimetype,
+            content_disposition="attachment; filename=" + filename)
+
+    @XBlock.handler
+    def staff_download(self, request, suffix=''):
+        module = StudentModule.objects.get(pk=request.params['module_id'])
+        state = json.loads(module.state)
+        path = _file_storage_path(
+            module.module_state_key, state['uploaded_sha1'],
+            state['uploaded_filename'])
+        return self.download(path,
+            state['uploaded_mimetype'],
+            state['uploaded_filename'])
 
     @XBlock.handler
     def get_staff_grading_data(self, request, suffix=''):
         return Response(json_body=self.staff_grading_data())
 
-    def file_storage_path(self):
-        path = '/'.join(filter(None, self.location[1:]) + (self.uploaded_sha1,))
-        path += os.path.splitext(self.uploaded_filename)[1]
-        return path
-
-    def store_file(self, file):
-        path = self.file_storage_path()
-        if not default_storage.exists(path):
-            default_storage.save(path, File(file))
-
-    def retrieve_file(self):
-        path = self.file_storage_path()
-        return default_storage.open(path)
-
     def show_staff_grading_interface(self):
         is_course_staff = getattr(self.xmodule_runtime, 'user_is_staff', False)
         in_studio_preview = self.scope_ids.user_id is None
         return is_course_staff and not in_studio_preview
+
+
+def _file_storage_path(url, sha1, filename):
+    assert url.startswith("i4x://")
+    path = url[6:] + '/' + sha1
+    path += os.path.splitext(filename)[1]
+    return path
 
 
 def _get_sha1(file):

@@ -3,6 +3,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
     function xblock($, _) {
         var uploadUrl = runtime.handlerUrl(element, 'upload_assignment');
         var downloadUrl = runtime.handlerUrl(element, 'download_assignment');
+        var staffDownloadUrl = runtime.handlerUrl(element, 'staff_download');
         var template = _.template($(element).find("#sga-tmpl").text());
         var gradingTemplate;
 
@@ -32,6 +33,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         }
 
         function renderStaffGrading(data) {
+            data.downloadUrl = staffDownloadUrl;
             $(element).find("#grade-info").html(gradingTemplate(data));
         }
 

@@ -14,6 +14,10 @@
     </p>
   </script>
 
+  <div id="sga-content">
+  </div>
+
+  {% if is_course_staff %}
   <script type="text/template" id="sga-grading-tmpl">
     <table class="gridtable">
       <tr>
@@ -25,10 +29,16 @@
       </tr>
       <% for (var i = 0; i < assignments.length; i++) { %>
       <%     var assignment = assignments[i]; %>
-        <tr>
+        <tr data-module-id="<%= assignment.module_id %>">
           <td><%= assignment.username %></td>
           <td><%= assignment.fullname %></td>
-          <td><%= assignment.filename %></td>
+          <td>
+            <% if (assignment.filename) { %>
+              <a href="<%= downloadUrl %>?module_id=<%= assignment.module_id %>">
+                <%= assignment.filename %>
+              </a>
+            <% } %>
+          </td>
           <td><%= assignment.timestamp %></td>
           <td><%= assignment.score %></td>
           <td>{% trans "Enter grade" %}</td>
@@ -38,14 +48,11 @@
     </table>
   </script>
 
-  <div id="sga-content">
-  </div>
-
-  {% if is_course_staff %}
   <div aria-hidden="true" class="wrap-instructor-info">
     <a class="instructor-info-action" id="grade-submissions-button"
        href="#{{ id }}-grade">{% trans "Grade Submissions" %}</a>
   </div>
+
   <section aria-hidden="true" class="modal staff-modal" id="{{ id }}-grade">
     <div class="inner-wrapper" style="color: black">
       <header><h2>{% trans "Staff Graded Assignment" %}</h2></header>
