@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import mimetypes
+import os
 import pkg_resources
 import pytz
 
@@ -200,7 +201,9 @@ class StaffGradedAssignmentXBlock(XBlock):
         return Response(json_body=self.staff_grading_data())
 
     def file_storage_path(self):
-        return '/'.join(filter(None, self.location[1:]) + (self.uploaded_sha1,))
+        path = '/'.join(filter(None, self.location[1:]) + (self.uploaded_sha1,))
+        path += os.path.splitext(self.uploaded_filename)[1]
+        return path
 
     def store_file(self, file):
         path = self.file_storage_path()
