@@ -4,6 +4,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         var uploadUrl = runtime.handlerUrl(element, 'upload_assignment');
         var downloadUrl = runtime.handlerUrl(element, 'download_assignment');
         var template = _.template($(element).find("#sga-tmpl").text());
+        var gradingTemplate;
 
         function render(state) {
             state.downloadUrl = downloadUrl;
@@ -30,9 +31,28 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             });
         }
 
+        function renderStaffGrading(data) {
+            $(element).find("#grade-info").html(gradingTemplate(data));
+        }
+
         $(function($) { // onLoad
-            var state = $(element).find(".sga-block").attr("data-state");
+            var block = $(element).find(".sga-block");
+            var state = block.attr("data-state");
             render(JSON.parse(state));
+
+            var is_staff = block.attr("data-staff") == "True";
+            if (is_staff) {
+                gradingTemplate = _.template(
+                    $(element).find("#sga-grading-tmpl").text());
+                block.find("#grade-submissions-button")
+                    .leanModal()
+                    .on("click", function() {
+                        $.ajax({
+                            url: runtime.handlerUrl(element, 'get_staff_grading_data'),
+                            success: renderStaffGrading
+                        });
+                    });
+            }
         });
     }
 

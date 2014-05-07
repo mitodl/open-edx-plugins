@@ -1,4 +1,7 @@
-<div class="sga-block" data-state="{{ student_state }}">
+{% load i18n %}
+
+<div class="sga-block" data-state="{{ student_state }}" 
+     data-staff="{{ is_course_staff }}">
   <script type="text/template" id="sga-tmpl">
     <% if (uploaded) { %>
       <p>File uploaded: 
@@ -10,6 +13,47 @@
       Upload a file <input id="fileupload" type="file" name="assignment"/>
     </p>
   </script>
+
+  <script type="text/template" id="sga-grading-tmpl">
+    <table class="gridtable">
+      <tr>
+        <th>Username</th>
+        <th>Name</th>
+        <th>Filename</th>
+        <th>Uploaded</th>
+        <th>Grade</th>
+      </tr>
+      <% for (var i = 0; i < assignments.length; i++) { %>
+      <%     var assignment = assignments[i]; %>
+        <tr>
+          <td><%= assignment.username %></td>
+          <td><%= assignment.fullname %></td>
+          <td><%= assignment.filename %></td>
+          <td><%= assignment.timestamp %></td>
+          <td><%= assignment.grade %></td>
+          <td>{% trans "Enter grade" %}</td>
+          <td>{% trans "Remove grade" %}</td>
+        </tr>
+      <% } %>
+    </table>
+  </script>
+
   <div id="sga-content">
   </div>
+
+  {% if is_course_staff %}
+  <div aria-hidden="true" class="wrap-instructor-info">
+    <a class="instructor-info-action" id="grade-submissions-button"
+       href="#{{ id }}-grade">{% trans "Grade Submissions" %}</a>
+  </div>
+  <section aria-hidden="true" class="modal staff-modal" id="{{ id }}-grade">
+    <div class="inner-wrapper" style="color: black">
+      <header><h2>{% trans "Staff Graded Assignment" %}</h2></header>
+      <br/>
+      <div id="grade-info" style="display: block;">
+        Loading...
+      </div>
+    </div>
+  </section>
+  {% endif %}
 </div>

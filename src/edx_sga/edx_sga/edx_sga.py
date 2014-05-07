@@ -89,9 +89,13 @@ class StaffGradedAssignmentXBlock(XBlock):
         when viewing courses.
         """
         template = get_template("staff_graded_assignment/show.html")
-        fragment = Fragment(template.render(Context({
-            "student_state": json.dumps(self.student_state())
-        })))
+        context = {
+            "student_state": json.dumps(self.student_state()),
+            "id": "_".join(filter(None, self.location))
+        }
+        if self.show_staff_grading_interface():
+            context['is_course_staff'] = True
+        fragment = Fragment(template.render(Context(context)))
         fragment.add_css(_resource("static/css/edx_sga.css"))
         fragment.add_javascript(_resource("static/js/src/edx_sga.js"))
         fragment.initialize_js('StaffGradedAssignmentXBlock')
@@ -111,6 +115,22 @@ class StaffGradedAssignmentXBlock(XBlock):
 
         return {
             "uploaded": uploaded
+        }
+
+    def staff_grading_data(self):
+        return {
+            'assignments': [
+                {"username": "FredFlintstone",
+                 "fullname": "Fred Flinstone",
+                 "filename": "foo.txt",
+                 "timestamp": "xmas",
+                 "grade": 10},
+                {"username": "BarneyRubble",
+                 "fullname": "Barney Rubble",
+                 "filename": "bar.txt",
+                 "timestamp": "easter",
+                 "grade": 8}
+            ]
         }
 
     def studio_view(self, context=None):
@@ -147,13 +167,13 @@ class StaffGradedAssignmentXBlock(XBlock):
         self.uploaded_sha1 = _get_sha1(upload.file)
         self.uploaded_filename = upload.file.name
         self.uploaded_mimetype = mimetypes.guess_type(upload.file.name)[0]
-        self._store_file(upload.file)
+        self.store_file(upload.file)
         return Response(json_body=self.student_state())
 
     @XBlock.handler
     def download_assignment(self, request, suffix=''):
         BLOCK_SIZE = 2**10 * 8 # 8kb
-        upload = self._retrieve_file()
+        upload = self.retrieve_file()
         app_iter = iter(partial(upload.read, BLOCK_SIZE), '')
         return Response(
             app_iter=app_iter,
@@ -161,17 +181,26 @@ class StaffGradedAssignmentXBlock(XBlock):
             content_disposition="attachment; filename=" +
                 self.uploaded_filename)
 
-    def _file_storage_path(self):
+    @XBlock.handler
+    def get_staff_grading_data(self, request, suffix=''):
+        return Response(json_body=self.staff_grading_data())
+
+    def file_storage_path(self):
         return '/'.join(filter(None, self.location[1:]) + (self.uploaded_sha1,))
 
-    def _store_file(self, file):
-        path = self._file_storage_path()
+    def store_file(self, file):
+        path = self.file_storage_path()
         if not default_storage.exists(path):
             default_storage.save(path, File(file))
 
-    def _retrieve_file(self):
-        path = self._file_storage_path()
+    def retrieve_file(self):
+        path = self.file_storage_path()
         return default_storage.open(path)
+
+    def show_staff_grading_interface(self):
+        is_course_staff = getattr(self.xmodule_runtime, 'user_is_staff', False)
+        in_studio_preview = self.scope_ids.user_id is None
+        return is_course_staff and not in_studio_preview
 
 
 def _get_sha1(file):
