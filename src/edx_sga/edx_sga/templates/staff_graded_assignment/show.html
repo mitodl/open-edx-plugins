@@ -9,6 +9,11 @@
     <% } else { %>
       <p>No file has been uploaded yet.</p>
     <% } %>
+    <% if (graded) { %>
+      <p>Your score is <%= graded.score %> / <%= max_score %></p>
+      <p><b>Instructor comment</b> <%= graded.comment %></p>
+      <p>Published? <%= published %></p>
+    <% } %>
     <p id="do-upload">
       Upload a file <input id="fileupload" type="file" name="assignment"/>
     </p>
@@ -29,7 +34,7 @@
       </tr>
       <% for (var i = 0; i < assignments.length; i++) { %>
       <%     var assignment = assignments[i]; %>
-        <tr data-module-id="<%= assignment.module_id %>">
+        <tr id="row-<%= assignment.module_id %>">
           <td><%= assignment.username %></td>
           <td><%= assignment.fullname %></td>
           <td>
@@ -40,8 +45,15 @@
             <% } %>
           </td>
           <td><%= assignment.timestamp %></td>
-          <td><%= assignment.score %></td>
-          <td>{% trans "Enter grade" %}</td>
+          <td>
+            <%= assignment.score %> /
+            <%= max_score %>
+          </td>
+          <td>
+            <a class="enter-grade-button" href="#{{ id }}-enter-grade">
+              {% trans "Enter grade" %}
+            </a>
+          </td>
           <td>{% trans "Remove grade" %}</td>
         </tr>
       <% } %>
@@ -59,6 +71,27 @@
       <br/>
       <div id="grade-info" style="display: block;">
         Loading...
+      </div>
+    </div>
+  </section>
+
+  <section aria-hidden="true" class="modal grade-modal" id="{{ id }}-enter-grade">
+    <div class="inner-wrapper" style="color: black">
+      <header><h2>{% trans "Enter Grade" %}</h2></header>
+      <br/>
+      <div style="display: block;">
+        <form id="enter-grade-form">
+          <input id="module_id-input" type="hidden" name="module_id"/>
+          <div>Grade for <span id="student-name"/></div>
+          <div>Grade: <input id="grade-input" name="grade"/></div>
+          <div>Comment: <textarea id="comment-input" name="comment" rows="4"></textarea></div>
+          <div>
+            <button type="submit">{% trans "Submit" %}</button>
+            <button type="button" id="enter-grade-cancel">
+              {% trans "Cancel" %}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </section>

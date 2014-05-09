@@ -23,7 +23,7 @@ from django.template.loader import get_template
 from webob.response import Response
 
 from xblock.core import XBlock
-from xblock.fields import DateTime, Scope, String, Float
+from xblock.fields import Boolean, DateTime, Scope, String, Float
 from xblock.fragment import Fragment
 
 log = logging.getLogger(__name__)
@@ -64,8 +64,19 @@ class StaffGradedAssignmentXBlock(XBlock):
         default=0,
         help=("Grade score given to assignment by staff."),
         values={"min": 0, "step": .1},
-        scope=Scope.user_state
-    )
+        scope=Scope.user_state)
+
+    score_published = Boolean(
+        display_name="Whether score has been published.",
+        help=("This is a terrible hack, an implementation detail."),
+        default=True,
+        scope=Scope.user_state)
+
+    comment = String(
+        display_name="Instructor comment",
+        default='',
+        scope=Scope.user_state,
+        help="Feedback given to student by instructor.")
 
     uploaded_sha1 = String(
         display_name="Upload SHA1",
@@ -99,6 +110,17 @@ class StaffGradedAssignmentXBlock(XBlock):
         The primary view of the StaffGradedAssignmentXBlock, shown to students
         when viewing courses.
         """
+        # Ideally we would do this when the score is entered.  This write on
+        # read pattern is pretty bad.  Currently, though, the code in the
+        # courseware application that handles the grade event will puke if the
+        # user_id for the event is other than the logged in user.
+        if not self.score_published:
+            self.runtime.publish(self, 'grade', {
+                'value': self.score,
+                'max_value': self.max_score(),
+            })
+            self.score_published = True
+
         template = get_template("staff_graded_assignment/show.html")
         context = {
             "student_state": json.dumps(self.student_state()),
@@ -118,14 +140,20 @@ class StaffGradedAssignmentXBlock(XBlock):
         rendering in client view.
         """
         if self.uploaded_sha1:
-            uploaded = {
-                "filename": self.uploaded_filename,
-            }
+            uploaded = {"filename": self.uploaded_filename}
         else:
             uploaded = None
 
+        if self.score is not None:
+            graded = {'score': self.score, 'comment': self.comment}
+        else:
+            graded = None
+
         return {
-            "uploaded": uploaded
+            "uploaded": uploaded,
+            "graded": graded,
+            "max_score": self.max_score(),
+            "published": self.score_published,
         }
 
     def staff_grading_data(self):
@@ -137,7 +165,9 @@ class StaffGradedAssignmentXBlock(XBlock):
                 'fullname': module.student.profile.name,
                 'filename': state.get("uploaded_filename"),
                 'timestamp': state.get("uploaded_timestamp"),
-                'score': state.get("score")
+                'published': state.get("score_published"),
+                'score': state.get("score"),
+                'comment': state.get("comment"),
             }
 
         query = StudentModule.objects.filter(
@@ -146,6 +176,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
         return {
             'assignments': [get_student_data(module) for module in query],
+            'max_score': self.max_score(),
         }
 
     def studio_view(self, context=None):
@@ -183,11 +214,10 @@ class StaffGradedAssignmentXBlock(XBlock):
         self.uploaded_filename = upload.file.name
         self.uploaded_mimetype = mimetypes.guess_type(upload.file.name)[0]
         self.uploaded_timestamp = _now()
-        self.store_file(upload.file)
         path = _file_storage_path(
             self.location.url(), self.uploaded_sha1, self.uploaded_filename)
         if not default_storage.exists(path):
-            default_storage.save(path, File(file))
+            default_storage.save(path, File(upload.file))
         return Response(json_body=self.student_state())
 
     @XBlock.handler
@@ -220,6 +250,25 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def get_staff_grading_data(self, request, suffix=''):
+        return Response(json_body=self.staff_grading_data())
+
+    @XBlock.handler
+    def enter_grade(self, request, suffix=''):
+        module = StudentModule.objects.get(pk=request.params['module_id'])
+        state = json.loads(module.state)
+        state['score'] = float(request.params['grade'])
+        state['comment'] = request.params.get('comment', '')
+        state['score_published'] = False    # see student_view
+        module.state = json.dumps(state)
+
+        # This is how we'd like to do it.  See student_view
+        #self.runtime.publish(self, 'grade', {
+        #    'value': state['score'],
+        #    'max_value': self.max_score(),
+        #    'user_id': module.student.id
+        #})
+
+        module.save()
         return Response(json_body=self.staff_grading_data())
 
     def show_staff_grading_interface(self):
