@@ -3,27 +3,30 @@ function StaffGradedAssignmentXBlock(runtime, element) {
     function xblock($, _) {
         var uploadUrl = runtime.handlerUrl(element, 'upload_assignment');
         var downloadUrl = runtime.handlerUrl(element, 'download_assignment');
+        var annotatedUrl = runtime.handlerUrl(element, 'download_annotated');
         var getStaffGradingUrl = runtime.handlerUrl(element, 'get_staff_grading_data');
         var staffDownloadUrl = runtime.handlerUrl(element, 'staff_download');
+        var staffAnnotatedUrl = runtime.handlerUrl(element, 'staff_download_annotated');
+        var staffUploadUrl = runtime.handlerUrl(element, 'staff_upload_annotated');
         var enterGradeUrl = runtime.handlerUrl(element, 'enter_grade');
         var template = _.template($(element).find("#sga-tmpl").text());
         var gradingTemplate;
 
         function render(state) {
-            // Add download url to template context
+            // Add download urls to template context
             state.downloadUrl = downloadUrl;
+            state.annotatedUrl = annotatedUrl;
 
             // Render template
             var content = $(element).find("#sga-content").html(template(state));
 
             // Set up file upload
-            $(content).find("#fileupload").fileupload({
+            $(content).find(".fileupload").fileupload({
                 url: uploadUrl,
                 add: function(e, data) {
-                    var do_upload = $(content).find("#do-upload")
-                        .text("Upload " + data.files[0].name + " ");
+                    var do_upload = $(content).find(".upload").html('');
                     $('<button/>')
-                        .text('Upload now')
+                        .text('Upload ' + data.files[0].name)
                         .appendTo(do_upload)
                         .click(function() {
                             do_upload.text("Uploading...");
@@ -32,7 +35,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 },
                 progressall: function(e, data) {
                     var percent = parseInt(data.loaded / data.total * 100, 10);
-                    $(content).find("#do-upload").text(
+                    $(content).find(".upload").text(
                         "Uploading... " + percent + "%");
                 },
                 done: function(e, data) { render(data.result); }
@@ -42,8 +45,9 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         function renderStaffGrading(data) {
             $(".grade-modal").hide();
 
-            // Add download url to template context
+            // Add download urls to template context
             data.downloadUrl = staffDownloadUrl;
+            data.annotatedUrl = staffAnnotatedUrl;
 
             // Render template
             $(element).find("#grade-info")
@@ -60,6 +64,38 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             $(element).find(".enter-grade-button")
                 .leanModal({closeButton: "#enter-grade-cancel"})
                 .on("click", handleGradeEntry);
+
+            // Set up annotated file upload
+            $(element).find("#grade-info .fileupload").each(function() {
+                var row = $(this).parents("tr");
+                var url = staffUploadUrl + "?module_id=" + row.data("module_id");
+                $(this).fileupload({
+                    url: url,
+                    /*
+                    add: function(e, data) {
+                        var upload = $(this).parents(".upload").html('');
+                        $('<button/>')
+                            .text('Upload ' + data.files[0].name)
+                            .appendTo(upload)
+                            .click(function() {
+                                upload.text("Uploading...");
+                                data.submit();
+                            });
+                    },
+                    */
+                    progressall: function(e, data) {
+                        var percent = parseInt(data.loaded / data.total * 100, 10);
+                        row.find(".upload").text("Uploading... " + percent + "%");
+                    },
+                    done: function(e, data) { 
+                        // Add a time delay so user will notice upload finishing
+                        // for small files
+                        setTimeout(
+                            function() { renderStaffGrading(data.result); }, 
+                            3000)
+                    }
+                });
+            });
         }
 
         /* Click event handler for "enter grade" */

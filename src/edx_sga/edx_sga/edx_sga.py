@@ -48,16 +48,14 @@ class StaffGradedAssignmentXBlock(XBlock):
               "If the value is not set, the problem is worth the sum of the "
               "option point values."),
         values={"min": 0, "step": .1},
-        scope=Scope.settings
-    )
+        scope=Scope.settings)
 
     points = Float(
         display_name="Maximum score",
         help=("Maximum grade score given to assignment by staff."),
         values={"min": 0, "step": .1},
         default=100,
-        scope=Scope.settings
-    )
+        scope=Scope.settings)
 
     score = Float(
         display_name="Grade score",
@@ -102,6 +100,31 @@ class StaffGradedAssignmentXBlock(XBlock):
         default=None,
         help="When the file was uploaded")
 
+    annotated_sha1 = String(
+        display_name="Annotated SHA1",
+        scope=Scope.user_state,
+        default=None,
+        help=("sha1 of the annotated file uploaded by the instructor for "
+              "this assignment."))
+
+    annotated_filename = String(
+        display_name="Annotated file name",
+        scope=Scope.user_state,
+        default=None,
+        help="The name of the annotated file uploaded for this assignment.")
+
+    annotated_mimetype = String(
+        display_name="Mime type of annotated file",
+        scope=Scope.user_state,
+        default=None,
+        help="The mimetype of the annotated file uploaded for this assignment.")
+
+    annotated_timestamp = DateTime(
+        display_name="Timestamp",
+        scope=Scope.user_state,
+        default=None,
+        help="When the annotated file was uploaded")
+
     def max_score(self):
         return self.points
 
@@ -144,6 +167,11 @@ class StaffGradedAssignmentXBlock(XBlock):
         else:
             uploaded = None
 
+        if self.annotated_sha1:
+            annotated = {"filename": self.annotated_filename}
+        else:
+            annotated = None
+
         if self.score is not None:
             graded = {'score': self.score, 'comment': self.comment}
         else:
@@ -151,6 +179,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
         return {
             "uploaded": uploaded,
+            "annotated": annotated,
             "graded": graded,
             "max_score": self.max_score(),
             "published": self.score_published,
@@ -167,6 +196,7 @@ class StaffGradedAssignmentXBlock(XBlock):
                 'timestamp': state.get("uploaded_timestamp"),
                 'published': state.get("score_published"),
                 'score': state.get("score"),
+                'annotated': state.get("annotated_filename"),
                 'comment': state.get("comment"),
             }
 
@@ -221,12 +251,36 @@ class StaffGradedAssignmentXBlock(XBlock):
         return Response(json_body=self.student_state())
 
     @XBlock.handler
+    def staff_upload_annotated(self, request, suffix=''):
+        upload = request.params['annotated']
+        module = StudentModule.objects.get(pk=request.params['module_id'])
+        state = json.loads(module.state)
+        state['annotated_sha1'] = sha1 =  _get_sha1(upload.file)
+        state['annotated_filename'] = filename = upload.file.name
+        state['annotated_mimetype'] = mimetypes.guess_type(upload.file.name)[0]
+        state['annotated_timestamp'] = _now().strftime(DateTime.DATETIME_FORMAT);
+        path = _file_storage_path(self.location.url(), sha1, filename)
+        if not default_storage.exists(path):
+            default_storage.save(path, File(upload.file))
+        module.state = json.dumps(state)
+        module.save()
+        return Response(json_body=self.staff_grading_data())
+
+    @XBlock.handler
     def download_assignment(self, request, suffix=''):
         path = _file_storage_path(
             self.location.url(), self.uploaded_sha1, self.uploaded_filename)
         return self.download(path,
             self.uploaded_mimetype,
             self.uploaded_filename)
+
+    @XBlock.handler
+    def download_annotated(self, request, suffix=''):
+        path = _file_storage_path(
+            self.location.url(), self.annotated_sha1, self.annotated_filename)
+        return self.download(path,
+            self.annotated_mimetype,
+            self.annotated_filename)
 
     def download(self, path, mimetype, filename):
         BLOCK_SIZE = 2**10 * 8 # 8kb
@@ -247,6 +301,17 @@ class StaffGradedAssignmentXBlock(XBlock):
         return self.download(path,
             state['uploaded_mimetype'],
             state['uploaded_filename'])
+
+    @XBlock.handler
+    def staff_download_annotated(self, request, suffix=''):
+        module = StudentModule.objects.get(pk=request.params['module_id'])
+        state = json.loads(module.state)
+        path = _file_storage_path(
+            module.module_state_key, state['annotated_sha1'],
+            state['annotated_filename'])
+        return self.download(path,
+            state['annotated_mimetype'],
+            state['annotated_filename'])
 
     @XBlock.handler
     def get_staff_grading_data(self, request, suffix=''):
