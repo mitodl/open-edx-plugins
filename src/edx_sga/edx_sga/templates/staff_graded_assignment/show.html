@@ -104,7 +104,8 @@
         <form id="enter-grade-form">
           <input id="module_id-input" type="hidden" name="module_id"/>
           <div>Grade for <span id="student-name"/></div>
-          <div>Grade: <input id="grade-input" name="grade"/></div>
+          <div>Grade: <input id="grade-input" name="grade"/>
+            <span class="error"></span></div>
           <div>Comment: <textarea id="comment-input" name="comment" rows="4"></textarea></div>
           <div>
             <button type="submit">{% trans "Submit" %}</button>

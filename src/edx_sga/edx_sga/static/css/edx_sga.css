@@ -56,3 +56,7 @@
     padding: 3px;
     width: 100%;
 }
+
+.sga-block .error {
+    color: red;
+}

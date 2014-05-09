@@ -107,9 +107,23 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             form.find("#grade-input").val(row.data("score"));
             form.find("#comment-input").text(row.data("comment"));
             form.on("submit", function() {
+                var max_score = row.parents("#grade-info").data("max_score");
+                var score = Number(form.find("#grade-input").val());
                 event.preventDefault();
-                $.post(enterGradeUrl, form.serialize())
-                    .success(renderStaffGrading);
+                if (isNaN(score)) {
+                    form.find(".error").html("<br/>Grade must be a number.");
+                } 
+                else if (score < 0) {
+                    form.find(".error").html("<br/>Grade must be positive.");
+                }
+                else if (score > max_score) {
+                    form.find(".error").html("<br/>Maximum score is " + max_score);
+                }
+                else {
+                    // No errors
+                    $.post(enterGradeUrl, form.serialize())
+                        .success(renderStaffGrading);
+                }
             });
         }
 
