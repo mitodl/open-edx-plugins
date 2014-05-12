@@ -282,15 +282,6 @@ class StaffGradedAssignmentXBlock(XBlock):
             self.annotated_mimetype,
             self.annotated_filename)
 
-    def download(self, path, mimetype, filename):
-        BLOCK_SIZE = 2**10 * 8 # 8kb
-        file = default_storage.open(path)
-        app_iter = iter(partial(file.read, BLOCK_SIZE), '')
-        return Response(
-            app_iter=app_iter,
-            content_type=mimetype,
-            content_disposition="attachment; filename=" + filename)
-
     @XBlock.handler
     def staff_download(self, request, suffix=''):
         module = StudentModule.objects.get(pk=request.params['module_id'])
@@ -313,6 +304,15 @@ class StaffGradedAssignmentXBlock(XBlock):
             state['annotated_mimetype'],
             state['annotated_filename'])
 
+    def download(self, path, mimetype, filename):
+        BLOCK_SIZE = 2**10 * 8 # 8kb
+        file = default_storage.open(path)
+        app_iter = iter(partial(file.read, BLOCK_SIZE), '')
+        return Response(
+            app_iter=app_iter,
+            content_type=mimetype,
+            content_disposition="attachment; filename=" + filename)
+
     @XBlock.handler
     def get_staff_grading_data(self, request, suffix=''):
         return Response(json_body=self.staff_grading_data())
@@ -333,6 +333,21 @@ class StaffGradedAssignmentXBlock(XBlock):
         #    'user_id': module.student.id
         #})
 
+        module.save()
+        return Response(json_body=self.staff_grading_data())
+
+    @XBlock.handler
+    def remove_grade(self, request, suffix=''):
+        module = StudentModule.objects.get(pk=request.params['module_id'])
+        state = json.loads(module.state)
+        state['score'] = None
+        state['comment'] = ''
+        state['score_published'] = False    # see student_view
+        state['annotated_sha1'] = None
+        state['annotated_filename'] = None
+        state['annotated_mimetype'] = None
+        state['annotated_timestamp'] = None
+        module.state = json.dumps(state)
         module.save()
         return Response(json_body=self.staff_grading_data())
 

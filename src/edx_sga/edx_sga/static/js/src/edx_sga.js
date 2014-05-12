@@ -9,6 +9,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         var staffAnnotatedUrl = runtime.handlerUrl(element, 'staff_download_annotated');
         var staffUploadUrl = runtime.handlerUrl(element, 'staff_upload_annotated');
         var enterGradeUrl = runtime.handlerUrl(element, 'enter_grade');
+        var removeGradeUrl = runtime.handlerUrl(element, 'remove_grade');
         var template = _.template($(element).find("#sga-tmpl").text());
         var gradingTemplate;
 
@@ -124,6 +125,10 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                     $.post(enterGradeUrl, form.serialize())
                         .success(renderStaffGrading);
                 }
+            });
+            form.find("#remove-grade").on("click", function() {
+                var url = removeGradeUrl + "?module_id=" + row.data("module_id");
+                $.get(url).success(renderStaffGrading);
             });
         }
 
