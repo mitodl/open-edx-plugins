@@ -369,7 +369,10 @@ class StaffGradedAssignmentXBlock(XBlock):
         return self.is_course_staff() and not in_studio_preview
 
     def past_due(self):
-        return _now() > get_extended_due_date(self)
+        due = get_extended_due_date(self)
+        if due is not None:
+            return _now() > due
+        return False
 
     def upload_allowed(self):
         return not self.past_due() and self.score is None
