@@ -26,6 +26,8 @@ from xblock.core import XBlock
 from xblock.fields import Boolean, DateTime, Scope, String, Float
 from xblock.fragment import Fragment
 
+from xmodule.util.duedate import get_extended_due_date
+
 log = logging.getLogger(__name__)
 
 
@@ -59,7 +61,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     score = Float(
         display_name="Grade score",
-        default=0,
+        default=None,
         help=("Grade score given to assignment by staff."),
         values={"min": 0, "step": .1},
         scope=Scope.user_state)
@@ -183,6 +185,7 @@ class StaffGradedAssignmentXBlock(XBlock):
             "graded": graded,
             "max_score": self.max_score(),
             "published": self.score_published,
+            "upload_allowed": self.upload_allowed(),
         }
 
     def staff_grading_data(self):
@@ -239,6 +242,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def upload_assignment(self, request, suffix=''):
+        assert self.upload_allowed()
         upload = request.params['assignment']
         self.uploaded_sha1 = _get_sha1(upload.file)
         self.uploaded_filename = upload.file.name
@@ -252,6 +256,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def staff_upload_annotated(self, request, suffix=''):
+        assert self.is_course_staff()
         upload = request.params['annotated']
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
@@ -284,6 +289,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def staff_download(self, request, suffix=''):
+        assert self.is_course_staff()
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
         path = _file_storage_path(
@@ -295,6 +301,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def staff_download_annotated(self, request, suffix=''):
+        assert self.is_course_staff()
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
         path = _file_storage_path(
@@ -315,10 +322,12 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def get_staff_grading_data(self, request, suffix=''):
+        assert self.is_course_staff()
         return Response(json_body=self.staff_grading_data())
 
     @XBlock.handler
     def enter_grade(self, request, suffix=''):
+        assert self.is_course_staff()
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
         state['score'] = float(request.params['grade'])
@@ -338,6 +347,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def remove_grade(self, request, suffix=''):
+        assert self.is_course_staff()
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
         state['score'] = None
@@ -351,10 +361,18 @@ class StaffGradedAssignmentXBlock(XBlock):
         module.save()
         return Response(json_body=self.staff_grading_data())
 
+    def is_course_staff(self):
+        return getattr(self.xmodule_runtime, 'user_is_staff', False)
+
     def show_staff_grading_interface(self):
-        is_course_staff = getattr(self.xmodule_runtime, 'user_is_staff', False)
         in_studio_preview = self.scope_ids.user_id is None
-        return is_course_staff and not in_studio_preview
+        return self.is_course_staff() and not in_studio_preview
+
+    def past_due(self):
+        return _now() > get_extended_due_date(self)
+
+    def upload_allowed(self):
+        return not self.past_due() and self.score is None
 
 
 def _file_storage_path(url, sha1, filename):

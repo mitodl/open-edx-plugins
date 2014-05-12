@@ -7,24 +7,34 @@
       <p><b>File uploaded</b> 
         <a href="<%= downloadUrl %>"><%= uploaded.filename %></a></p>
     <% } else { %>
-      <p>No file has been uploaded yet.</p>
+      <p>No file has been uploaded.</p>
     <% } %>
     <% if (graded) { %>
       <p>Your score is <%= graded.score %> / <%= max_score %><br/>
-        <b>Instructor comment</b> <%= graded.comment %>
-      <% if (annotated) { %><br/>
-        <b>Annotated file from instructor</b>
-        <a href="<%= annotatedUrl %>"><%= annotated.filename %></a>
-      <% } %>
+        <% if (graded.comment) { %>
+          <b>Instructor comment</b> <%= graded.comment %>
+        <% } %>
+        <% if (annotated) { %><br/>
+          <b>Annotated file from instructor</b>
+          <a href="<%= annotatedUrl %>"><%= annotated.filename %></a>
+        <% } %>
       </p>
+    <% } else if (uploaded) { %>
+      {% trans "This assignment has not yet been graded." %}
     <% } %>
+    <% if (upload_allowed) { %>
     <p>
-      Upload a file:
+      <% if (uploaded) { %>
+        {% trans "Upload a different file" %}
+      <% } else { %>
+        {% trans "Upload your assignment" %}
+      <% } %>
       <div class="upload">
         <input class="fileupload" type="file" name="assignment"/>
         <button>Select a file</button>
       </div>
     </p>
+    <% } %>
   </script>
 
   <div id="sga-content">
