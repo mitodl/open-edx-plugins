@@ -200,7 +200,7 @@ class StaffGradedAssignmentXBlock(XBlock):
                 'published': state.get("score_published"),
                 'score': state.get("score"),
                 'annotated': state.get("annotated_filename"),
-                'comment': state.get("comment"),
+                'comment': state.get("comment", ''),
             }
 
         query = StudentModule.objects.filter(
