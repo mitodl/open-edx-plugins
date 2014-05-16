@@ -83,3 +83,24 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         self.runtime.publish.assert_called_once_with(block, 'grade', {
             'value': 9, 'max_value': 10})
         self.assertEqual(block.score_published, True)
+
+    @mock.patch('edx_sga.sga._resource', DummyResource)
+    @mock.patch('edx_sga.sga.get_template')
+    @mock.patch('edx_sga.sga.Fragment')
+    def test_student_view_with_upload(self, Fragment, get_template):
+        block = self._make_one(uploaded_sha1='foo', uploaded_filename='foo.bar')
+        block.student_view()
+        context = get_template.return_value.render.call_args[0][0]
+        student_state = json.loads(context['student_state'])
+        self.assertEqual(student_state['uploaded'], {'filename': 'foo.bar'})
+
+    @mock.patch('edx_sga.sga._resource', DummyResource)
+    @mock.patch('edx_sga.sga.get_template')
+    @mock.patch('edx_sga.sga.Fragment')
+    def test_student_view_with_annotated(self, Fragment, get_template):
+        block = self._make_one(
+            annotated_sha1='foo', annotated_filename='foo.bar')
+        block.student_view()
+        context = get_template.return_value.render.call_args[0][0]
+        student_state = json.loads(context['student_state'])
+        self.assertEqual(student_state['annotated'], {'filename': 'foo.bar'})
