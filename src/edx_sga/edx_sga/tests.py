@@ -104,3 +104,37 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         context = get_template.return_value.render.call_args[0][0]
         student_state = json.loads(context['student_state'])
         self.assertEqual(student_state['annotated'], {'filename': 'foo.bar'})
+
+    @mock.patch('edx_sga.sga._resource', DummyResource)
+    @mock.patch('edx_sga.sga.get_template')
+    @mock.patch('edx_sga.sga.Fragment')
+    def test_studio_view(self, Fragment, get_template):
+        block = self._make_one()
+        fragment = block.studio_view()
+        get_template.assert_called_once_with(
+            "staff_graded_assignment/edit.html")
+        cls = type(block)
+        context = get_template.return_value.render.call_args[0][0]
+        self.assertEqual(tuple(context['fields']), (
+            (cls.display_name, 'Staff Graded Assignment', 'string'),
+            (cls.points, 100, 'number'),
+            (cls.weight, '', 'number')
+        ))
+        fragment.add_javascript.assert_called_once_with(
+            DummyResource("static/js/src/studio.js"))
+        fragment.initialize_js.assert_called_once_with(
+            "StaffGradedAssignmentXBlock")
+
+    def test_save_sga(self):
+        block = self._make_one()
+        block.save_sga(mock.Mock(body='{}'))
+        self.assertEqual(block.display_name, "Staff Graded Assignment")
+        self.assertEqual(block.points, 100)
+        self.assertEqual(block.weight, None)
+        block.save_sga(mock.Mock(body=json.dumps({
+            "display_name": "Test Block",
+            "points": 23,
+            "weight": 11})))
+        self.assertEqual(block.display_name, "Test Block")
+        self.assertEqual(block.points, 23)
+        self.assertEqual(block.weight, 11)
