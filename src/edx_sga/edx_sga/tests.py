@@ -1,12 +1,14 @@
 import json
 import mock
+import os
+import pkg_resources
 import unittest
 
 from xblock.field_data import DictFieldData
 
 
 class DummyLocation(object):
-    parts = ('foo', 'bar', 'baz')
+    parts = ('i4x', 'foo', 'bar', 'baz')
 
     def url(self):
         (first, second), rest = self.parts[:2], self.parts[2:]
@@ -23,6 +25,20 @@ class DummyResource(object):
 
     def __eq__(self, other):
         return isinstance(other, DummyResource) and self.path == other.path
+
+
+class DummyUpload(object):
+
+    def __init__(self, path, name):
+        self.stream = open(path, 'rb')
+        self.name = name
+        self.size = os.path.getsize(path)
+
+    def read(self, n=None):
+        return self.stream.read(n)
+
+    def seek(self, n):
+        return self.stream.seek(n)
 
 
 class StaffGradedAssignmentXblockTests(unittest.TestCase):
@@ -59,7 +75,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
             "staff_graded_assignment/show.html")
         context = get_template.return_value.render.call_args[0][0]
         self.assertEqual(context['is_course_staff'], True)
-        self.assertEqual(context['id'], 'foo_bar_baz')
+        self.assertEqual(context['id'], 'i4x_foo_bar_baz')
         student_state = json.loads(context['student_state'])
         self.assertEqual(student_state['uploaded'], None)
         self.assertEqual(student_state['annotated'], None)
@@ -138,3 +154,12 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         self.assertEqual(block.display_name, "Test Block")
         self.assertEqual(block.points, 23)
         self.assertEqual(block.weight, 11)
+
+    def test_upload_download_assignment(self):
+        path = pkg_resources.resource_filename(__package__, 'tests.py')
+        expected = open(path, 'rb').read()
+        upload = mock.Mock(file=DummyUpload(path, 'test.txt'))
+        block = self._make_one()
+        block.upload_assignment(mock.Mock(params={'assignment': upload}))
+        response = block.download_assignment(None)
+        self.assertEqual(response.body, expected)
