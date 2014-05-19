@@ -1,9 +1,16 @@
+import datetime
 import json
 import mock
 import os
 import pkg_resources
+import pytz
+import tempfile
 import unittest
 
+from courseware.models import StudentModule
+from django.contrib.auth.models import User
+from django.core.files.storage import FileSystemStorage
+from student.models import UserProfile
 from xblock.field_data import DictFieldData
 
 
@@ -44,10 +51,16 @@ class DummyUpload(object):
 class StaffGradedAssignmentXblockTests(unittest.TestCase):
 
     def setUp(self):
-        self.runtime = mock.Mock()
+        self.runtime = mock.Mock(course_id='test_course')
         self.scope_ids = mock.Mock()
+        tmp = tempfile.mkdtemp()
+        patcher = mock.patch(
+            "edx_sga.sga.default_storage",
+            FileSystemStorage(tmp))
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
-    def _make_one(self, **kw):
+    def make_one(self, **kw):
         from edx_sga.sga import StaffGradedAssignmentXBlock as cls
         field_data = DictFieldData(kw)
         block = cls(self.runtime, field_data, self.scope_ids)
@@ -55,21 +68,45 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         block.xmodule_runtime = self.runtime
         return block
 
+    def make_student_module(self, block, name, **state):
+        user = User(username=name)
+        user.save()
+        profile = UserProfile(user=user, name=name)
+        profile.save()
+        module = StudentModule(
+            module_state_key=block.location.url(),
+            student=user,
+            course_id=block.xmodule_runtime.course_id,
+            state=json.dumps(state))
+        module.save()
+
+        self.addCleanup(profile.delete)
+        self.addCleanup(module.delete)
+        self.addCleanup(user.delete)
+
+        return module
+
+    def personalize(self, block, student_module):
+        student_module = StudentModule.objects.get(pk=student_module.id)
+        state = json.loads(student_module.state)
+        for k, v in state.items():
+            setattr(block, k, v)
+
     def test_ctor(self):
-        block = self._make_one(points=10, score=9)
+        block = self.make_one(points=10, score=9)
         self.assertEqual(block.display_name, "Staff Graded Assignment")
         self.assertEqual(block.points, 10)
         self.assertEqual(block.score, 9)
 
     def test_max_score(self):
-        block = self._make_one(points=20)
+        block = self.make_one(points=20)
         self.assertEqual(block.max_score(), 20)
 
     @mock.patch('edx_sga.sga._resource', DummyResource)
     @mock.patch('edx_sga.sga.get_template')
     @mock.patch('edx_sga.sga.Fragment')
     def test_student_view(self, Fragment, get_template):
-        block = self._make_one()
+        block = self.make_one()
         fragment = block.student_view()
         get_template.assert_called_once_with(
             "staff_graded_assignment/show.html")
@@ -94,7 +131,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
     @mock.patch('edx_sga.sga.get_template')
     @mock.patch('edx_sga.sga.Fragment')
     def test_student_view_publish_grade(self, Fragment, get_template):
-        block = self._make_one(score=9, points=10, score_published=False)
+        block = self.make_one(score=9, points=10, score_published=False)
         block.student_view()
         self.runtime.publish.assert_called_once_with(block, 'grade', {
             'value': 9, 'max_value': 10})
@@ -104,7 +141,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
     @mock.patch('edx_sga.sga.get_template')
     @mock.patch('edx_sga.sga.Fragment')
     def test_student_view_with_upload(self, Fragment, get_template):
-        block = self._make_one(uploaded_sha1='foo', uploaded_filename='foo.bar')
+        block = self.make_one(uploaded_sha1='foo', uploaded_filename='foo.bar')
         block.student_view()
         context = get_template.return_value.render.call_args[0][0]
         student_state = json.loads(context['student_state'])
@@ -114,7 +151,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
     @mock.patch('edx_sga.sga.get_template')
     @mock.patch('edx_sga.sga.Fragment')
     def test_student_view_with_annotated(self, Fragment, get_template):
-        block = self._make_one(
+        block = self.make_one(
             annotated_sha1='foo', annotated_filename='foo.bar')
         block.student_view()
         context = get_template.return_value.render.call_args[0][0]
@@ -125,7 +162,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
     @mock.patch('edx_sga.sga.get_template')
     @mock.patch('edx_sga.sga.Fragment')
     def test_studio_view(self, Fragment, get_template):
-        block = self._make_one()
+        block = self.make_one()
         fragment = block.studio_view()
         get_template.assert_called_once_with(
             "staff_graded_assignment/edit.html")
@@ -142,7 +179,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
             "StaffGradedAssignmentXBlock")
 
     def test_save_sga(self):
-        block = self._make_one()
+        block = self.make_one()
         block.save_sga(mock.Mock(body='{}'))
         self.assertEqual(block.display_name, "Staff Graded Assignment")
         self.assertEqual(block.points, 100)
@@ -159,7 +196,99 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         path = pkg_resources.resource_filename(__package__, 'tests.py')
         expected = open(path, 'rb').read()
         upload = mock.Mock(file=DummyUpload(path, 'test.txt'))
-        block = self._make_one()
+        block = self.make_one()
         block.upload_assignment(mock.Mock(params={'assignment': upload}))
         response = block.download_assignment(None)
         self.assertEqual(response.body, expected)
+
+    def test_staff_upload_download_annotated(self):
+        path = pkg_resources.resource_filename(__package__, 'tests.py')
+        expected = open(path, 'rb').read()
+        upload = mock.Mock(file=DummyUpload(path, 'test.txt'))
+        block = self.make_one()
+        fred = self.make_student_module(block, "fred")
+        block.staff_upload_annotated(mock.Mock(params={
+            'annotated': upload,
+            'module_id': fred.id}))
+        response = block.staff_download_annotated(mock.Mock(params={
+            'module_id': fred.id}))
+        self.assertEqual(response.body, expected)
+
+    def test_download_annotated(self):
+        path = pkg_resources.resource_filename(__package__, 'tests.py')
+        expected = open(path, 'rb').read()
+        upload = mock.Mock(file=DummyUpload(path, 'test.txt'))
+        block = self.make_one()
+        fred = self.make_student_module(block, "fred")
+        block.staff_upload_annotated(mock.Mock(params={
+            'annotated': upload,
+            'module_id': fred.id}))
+        self.personalize(block, fred)
+        response = block.download_annotated(None)
+        self.assertEqual(response.body, expected)
+
+    def test_staff_download(self):
+        path = pkg_resources.resource_filename(__package__, 'tests.py')
+        expected = open(path, 'rb').read()
+        upload = mock.Mock(file=DummyUpload(path, 'test.txt'))
+        block = self.make_one()
+        block.upload_assignment(mock.Mock(params={'assignment': upload}))
+        fred = self.make_student_module(
+            block, "fred",
+            uploaded_sha1=block.uploaded_sha1,
+            uploaded_filename=block.uploaded_filename,
+            uploaded_mimetype=block.uploaded_mimetype)
+        response = block.staff_download(mock.Mock(params={
+            'module_id': fred.id}))
+        self.assertEqual(response.body, expected)
+
+    def test_get_staff_grading_data(self):
+        block = self.make_one()
+        barney = self.make_student_module(
+            block, "barney",
+            uploaded_filename="foo.txt",
+            score=10,
+            annotated_filename="foo_corrected.txt",
+            comment="Good work!")
+        fred = self.make_student_module(block, "fred")
+        data = block.get_staff_grading_data(None).json_body
+        assignments = sorted(data['assignments'], key=lambda x: x['username'])
+        self.assertEqual(assignments[0]['module_id'], barney.id)
+        self.assertEqual(assignments[0]['username'], 'barney')
+        self.assertEqual(assignments[0]['fullname'], 'barney')
+        self.assertEqual(assignments[0]['filename'], 'foo.txt')
+        self.assertEqual(assignments[0]['score'], 10)
+        self.assertEqual(assignments[0]['annotated'], 'foo_corrected.txt')
+        self.assertEqual(assignments[0]['comment'], 'Good work!')
+        self.assertEqual(assignments[1]['module_id'], fred.id)
+        self.assertEqual(assignments[1]['username'], 'fred')
+        self.assertEqual(assignments[1]['fullname'], 'fred')
+        self.assertEqual(assignments[1]['filename'], None)
+        self.assertEqual(assignments[1]['score'], None)
+        self.assertEqual(assignments[1]['annotated'], None)
+        self.assertEqual(assignments[1]['comment'], '')
+
+    def test_enter_grade(self):
+        block = self.make_one()
+        fred = self.make_student_module(block, "fred")
+        block.enter_grade(mock.Mock(params={
+            'module_id': fred.id,
+            'grade': 9,
+            'comment': "Good!"}))
+        state = json.loads(StudentModule.objects.get(pk=fred.id).state)
+        self.assertEqual(state['score'], 9)
+        self.assertEqual(state['comment'], 'Good!')
+
+    def test_remove_grade(self):
+        block = self.make_one()
+        fred = self.make_student_module(
+            block, "fred", grade=9, comment='Good!')
+        block.remove_grade(mock.Mock(params={'module_id': fred.id}))
+        state = json.loads(StudentModule.objects.get(pk=fred.id).state)
+        self.assertEqual(state['score'], None)
+        self.assertEqual(state['comment'], '')
+
+    def test_past_due(self):
+        block = self.make_one()
+        block.due = datetime.datetime(2010, 5, 12, 2, 42, tzinfo=pytz.utc)
+        self.assertTrue(block.past_due())

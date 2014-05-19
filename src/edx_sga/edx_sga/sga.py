@@ -394,7 +394,7 @@ def _get_sha1(file):
     return sha1.hexdigest()
 
 
-def _resource(path):
+def _resource(path):  # pragma NO COVER
     """Handy helper for getting resources from our kit."""
     data = pkg_resources.resource_string(__name__, path)
     return data.decode("utf8")
