@@ -126,7 +126,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             form.find("#module_id-input").val(row.data("module_id"));
             form.find("#grade-input").val(row.data("score"));
             form.find("#comment-input").text(row.data("comment"));
-            form.on("submit", function() {
+            form.off("submit").on("submit", function(event) {
                 var max_score = row.parents("#grade-info").data("max_score");
                 var score = Number(form.find("#grade-input").val());
                 event.preventDefault();
