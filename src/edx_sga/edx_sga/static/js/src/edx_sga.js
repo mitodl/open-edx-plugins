@@ -17,6 +17,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             // Add download urls to template context
             state.downloadUrl = downloadUrl;
             state.annotatedUrl = annotatedUrl;
+            state.error = state.error ? state.error : false;
 
             // Render template
             var content = $(element).find("#sga-content").html(template(state));
@@ -39,7 +40,25 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                     $(content).find(".upload").text(
                         "Uploading... " + percent + "%");
                 },
-                done: function(e, data) { render(data.result); }
+                done: function(e, data) { 
+                    /* When you try to upload a file that exceeds Django's size
+                     * limit for file uploads, Django helpfully returns a 200 OK
+                     * response with a JSON payload of the form:
+                     * 
+                     *   {'success': '<error message'}
+                     * 
+                     * This is perfectly reasonable.  Unimpeachable even.  Makes
+                     * perfect sense.
+                     */
+                    if (data.result.success !== undefined) {
+                        // Actually, this is an error
+                        state.error = data.result.success;
+                        render(state);
+                    }
+                    else {
+                        render(data.result); 
+                    }
+                }
             });
         }
 
