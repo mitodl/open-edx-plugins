@@ -19,5 +19,6 @@ installation:
   "Settings" -> "Advanced Settings".  Extend the key "advanced_modules" to 
   include "edx_sga" in the list modules.  
   
-"Staff Graded Asssignment" will now be available to add to a course in Studio 
-under "Advanced".
+Now when you add an "Advanced" unit in Studio, "Staff Graded Asssignment" will be an option:
+
+.. image:: /../screenshots/img/screenshot-studio-new-unit.png?raw=tru
