@@ -149,7 +149,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         template = get_template("staff_graded_assignment/show.html")
         context = {
             "student_state": json.dumps(self.student_state()),
-            "id": "_".join(filter(None, self.location))
+            "id": self.location.name
         }
         if self.show_staff_grading_interface():
             context['is_course_staff'] = True
@@ -205,7 +205,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
         query = StudentModule.objects.filter(
             course_id=self.xmodule_runtime.course_id,
-            module_state_key=self.location.url())
+            module_state_key=self.location)
 
         return {
             'assignments': [get_student_data(module) for module in query],
@@ -249,7 +249,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         self.uploaded_mimetype = mimetypes.guess_type(upload.file.name)[0]
         self.uploaded_timestamp = _now()
         path = _file_storage_path(
-            self.location.url(), self.uploaded_sha1, self.uploaded_filename)
+            self.location.to_deprecated_string(), self.uploaded_sha1, self.uploaded_filename)
         if not default_storage.exists(path):
             default_storage.save(path, File(upload.file))
         return Response(json_body=self.student_state())
@@ -264,7 +264,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         state['annotated_filename'] = filename = upload.file.name
         state['annotated_mimetype'] = mimetypes.guess_type(upload.file.name)[0]
         state['annotated_timestamp'] = _now().strftime(DateTime.DATETIME_FORMAT);
-        path = _file_storage_path(self.location.url(), sha1, filename)
+        path = _file_storage_path(self.location.to_deprecated_string(), sha1, filename)
         if not default_storage.exists(path):
             default_storage.save(path, File(upload.file))
         module.state = json.dumps(state)
@@ -274,7 +274,7 @@ class StaffGradedAssignmentXBlock(XBlock):
     @XBlock.handler
     def download_assignment(self, request, suffix=''):
         path = _file_storage_path(
-            self.location.url(), self.uploaded_sha1, self.uploaded_filename)
+            self.location.to_deprecated_string(), self.uploaded_sha1, self.uploaded_filename)
         return self.download(path,
             self.uploaded_mimetype,
             self.uploaded_filename)
@@ -282,7 +282,7 @@ class StaffGradedAssignmentXBlock(XBlock):
     @XBlock.handler
     def download_annotated(self, request, suffix=''):
         path = _file_storage_path(
-            self.location.url(), self.annotated_sha1, self.annotated_filename)
+            self.location.to_deprecated_string(), self.annotated_sha1, self.annotated_filename)
         return self.download(path,
             self.annotated_mimetype,
             self.annotated_filename)
@@ -293,7 +293,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
         path = _file_storage_path(
-            module.module_state_key, state['uploaded_sha1'],
+            module.module_state_key.to_deprecated_string(), state['uploaded_sha1'],
             state['uploaded_filename'])
         return self.download(path,
             state['uploaded_mimetype'],
@@ -305,7 +305,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
         path = _file_storage_path(
-            module.module_state_key, state['annotated_sha1'],
+            module.module_state_key.to_deprecated_string(), state['annotated_sha1'],
             state['annotated_filename'])
         return self.download(path,
             state['annotated_mimetype'],
