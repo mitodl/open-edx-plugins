@@ -175,7 +175,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         self.assertEqual(block.display_name, "Staff Graded Assignment")
         self.assertEqual(block.points, 100)
         self.assertEqual(block.weight, None)
-        block.save_sga(mock.Mock(body=json.dumps({
+        block.save_sga(mock.Mock(method="POST", body=json.dumps({
             "display_name": "Test Block",
             "points": 23,
             "weight": 11})))
