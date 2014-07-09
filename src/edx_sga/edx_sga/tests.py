@@ -13,6 +13,7 @@ from django.core.files.storage import FileSystemStorage
 from student.models import UserProfile
 from xblock.field_data import DictFieldData
 from opaque_keys.edx.locations import Location, SlashSeparatedCourseKey
+from .sga import render_template
 
 
 class DummyResource(object):
@@ -94,14 +95,15 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         self.assertEqual(block.max_score(), 20)
 
     @mock.patch('edx_sga.sga._resource', DummyResource)
-    @mock.patch('edx_sga.sga.get_template')
+    @mock.patch('edx_sga.sga.render_template')
     @mock.patch('edx_sga.sga.Fragment')
-    def test_student_view(self, Fragment, get_template):
+    def test_student_view(self, Fragment, render_template):
         block = self.make_one()
         fragment = block.student_view()
-        get_template.assert_called_once_with(
-            "staff_graded_assignment/show.html")
-        context = get_template.return_value.render.call_args[0][0]
+        render_template.assert_called_once
+        template_arg = render_template.call_args[0][0]
+        self.assertEqual(template_arg, 'templates/staff_graded_assignment/show.html')
+        context = render_template.call_args[0][1]
         self.assertEqual(context['is_course_staff'], True)
         self.assertEqual(context['id'], 'name')
         student_state = json.loads(context['student_state'])
@@ -119,9 +121,8 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
             "StaffGradedAssignmentXBlock")
 
     @mock.patch('edx_sga.sga._resource', DummyResource)
-    @mock.patch('edx_sga.sga.get_template')
     @mock.patch('edx_sga.sga.Fragment')
-    def test_student_view_publish_grade(self, Fragment, get_template):
+    def test_student_view_publish_grade(self, Fragment):
         block = self.make_one(score=9, points=10, score_published=False)
         block.student_view()
         self.runtime.publish.assert_called_once_with(block, 'grade', {
@@ -129,36 +130,37 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         self.assertEqual(block.score_published, True)
 
     @mock.patch('edx_sga.sga._resource', DummyResource)
-    @mock.patch('edx_sga.sga.get_template')
+    @mock.patch('edx_sga.sga.render_template')
     @mock.patch('edx_sga.sga.Fragment')
-    def test_student_view_with_upload(self, Fragment, get_template):
+    def test_student_view_with_upload(self, Fragment, render_template):
         block = self.make_one(uploaded_sha1='foo', uploaded_filename='foo.bar')
         block.student_view()
-        context = get_template.return_value.render.call_args[0][0]
+        context = render_template.call_args[0][1]
         student_state = json.loads(context['student_state'])
         self.assertEqual(student_state['uploaded'], {'filename': 'foo.bar'})
 
     @mock.patch('edx_sga.sga._resource', DummyResource)
-    @mock.patch('edx_sga.sga.get_template')
+    @mock.patch('edx_sga.sga.render_template')
     @mock.patch('edx_sga.sga.Fragment')
-    def test_student_view_with_annotated(self, Fragment, get_template):
+    def test_student_view_with_annotated(self, Fragment, render_template):
         block = self.make_one(
             annotated_sha1='foo', annotated_filename='foo.bar')
         block.student_view()
-        context = get_template.return_value.render.call_args[0][0]
+        context = render_template.call_args[0][1]
         student_state = json.loads(context['student_state'])
         self.assertEqual(student_state['annotated'], {'filename': 'foo.bar'})
 
     @mock.patch('edx_sga.sga._resource', DummyResource)
-    @mock.patch('edx_sga.sga.get_template')
+    @mock.patch('edx_sga.sga.render_template')
     @mock.patch('edx_sga.sga.Fragment')
-    def test_studio_view(self, Fragment, get_template):
+    def test_studio_view(self, Fragment, render_template):
         block = self.make_one()
         fragment = block.studio_view()
-        get_template.assert_called_once_with(
-            "staff_graded_assignment/edit.html")
+        render_template.assert_called_once
+        template_arg = render_template.call_args[0][0]
+        self.assertEqual(template_arg, 'templates/staff_graded_assignment/edit.html')
         cls = type(block)
-        context = get_template.return_value.render.call_args[0][0]
+        context = render_template.call_args[0][1]
         self.assertEqual(tuple(context['fields']), (
             (cls.display_name, 'Staff Graded Assignment', 'string'),
             (cls.points, 100, 'number'),

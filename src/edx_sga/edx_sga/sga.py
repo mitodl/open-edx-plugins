@@ -17,8 +17,7 @@ from courseware.models import StudentModule
 
 from django.core.files import File
 from django.core.files.storage import default_storage
-from django.template.context import Context
-from django.template.loader import get_template
+from django.template import Context, Template
 
 from webob.response import Response
 
@@ -146,14 +145,15 @@ class StaffGradedAssignmentXBlock(XBlock):
             })
             self.score_published = True
 
-        template = get_template("staff_graded_assignment/show.html")
         context = {
             "student_state": json.dumps(self.student_state()),
             "id": self.location.name.replace('.','_')
         }
         if self.show_staff_grading_interface():
             context['is_course_staff'] = True
-        fragment = Fragment(template.render(Context(context)))
+
+        fragment = Fragment()
+        fragment.add_content(render_template('templates/staff_graded_assignment/show.html', context))
         fragment.add_css(_resource("static/css/edx_sga.css"))
         fragment.add_javascript(_resource("static/js/src/edx_sga.js"))
         fragment.initialize_js('StaffGradedAssignmentXBlock')
@@ -224,10 +224,11 @@ class StaffGradedAssignmentXBlock(XBlock):
                     (cls.points, 'number'),
                     (cls.weight, 'number')))
 
-            template = get_template("staff_graded_assignment/edit.html")
-            fragment = Fragment(template.render(Context({
-                "fields": edit_fields
-            })))
+            context = {
+                'fields': edit_fields
+            }
+            fragment = Fragment()
+            fragment.add_content(render_template('templates/staff_graded_assignment/edit.html', context))
             fragment.add_javascript(_resource("static/js/src/studio.js"))
             fragment.initialize_js('StaffGradedAssignmentXBlock')
             return fragment
@@ -260,7 +261,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         upload = request.params['annotated']
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
-        state['annotated_sha1'] = sha1 =  _get_sha1(upload.file)
+        state['annotated_sha1'] = sha1 = _get_sha1(upload.file)
         state['annotated_filename'] = filename = upload.file.name
         state['annotated_mimetype'] = mimetypes.guess_type(upload.file.name)[0]
         state['annotated_timestamp'] = _now().strftime(DateTime.DATETIME_FORMAT);
@@ -402,3 +403,20 @@ def _resource(path):  # pragma NO COVER
 
 def _now():
     return datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
+
+
+def load_resource(resource_path):
+    """
+    Gets the content of a resource
+    """
+    resource_content = pkg_resources.resource_string(__name__, resource_path)
+    return unicode(resource_content)
+
+
+def render_template(template_path, context={}):
+    """
+    Evaluate a template by resource path, applying the provided context
+    """
+    template_str = load_resource(template_path)
+    template = Template(template_str)
+    return template.render(Context(context))
