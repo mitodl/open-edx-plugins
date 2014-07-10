@@ -16,7 +16,7 @@ def package_data(pkg, root_list):
 
 setup(
     name='edx-sga',
-    version='0.2.0',
+    version='0.3.0',
     description='edx-sga XBlock',
     packages=find_packages(),
     include_package_data=True,
