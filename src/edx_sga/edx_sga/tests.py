@@ -13,7 +13,6 @@ from django.core.files.storage import FileSystemStorage
 from student.models import UserProfile
 from xblock.field_data import DictFieldData
 from opaque_keys.edx.locations import Location, SlashSeparatedCourseKey
-from .sga import render_template
 
 
 class DummyResource(object):
@@ -42,7 +41,9 @@ class DummyUpload(object):
 class StaffGradedAssignmentXblockTests(unittest.TestCase):
 
     def setUp(self):
-        self.course_id = SlashSeparatedCourseKey.from_deprecated_string('foo/bar/baz')
+        self.course_id = SlashSeparatedCourseKey.from_deprecated_string(
+            'foo/bar/baz'
+        )
         self.runtime = mock.Mock(course_id=self.course_id)
         self.scope_ids = mock.Mock()
         tmp = tempfile.mkdtemp()
@@ -56,7 +57,9 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         from edx_sga.sga import StaffGradedAssignmentXBlock as cls
         field_data = DictFieldData(kw)
         block = cls(self.runtime, field_data, self.scope_ids)
-        block.location = Location('org', 'course', 'run', 'category', 'name', 'revision')
+        block.location = Location(
+            'org', 'course', 'run', 'category', 'name', 'revision'
+        )
         block.xmodule_runtime = self.runtime
         return block
 
@@ -68,7 +71,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         module = StudentModule(
             module_state_key=block.location,
             student=user,
-            course_id= self.course_id,
+            course_id=self.course_id,
             state=json.dumps(state))
         module.save()
 
@@ -102,7 +105,10 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         fragment = block.student_view()
         render_template.assert_called_once
         template_arg = render_template.call_args[0][0]
-        self.assertEqual(template_arg, 'templates/staff_graded_assignment/show.html')
+        self.assertEqual(
+            template_arg,
+            'templates/staff_graded_assignment/show.html'
+        )
         context = render_template.call_args[0][1]
         self.assertEqual(context['is_course_staff'], True)
         self.assertEqual(context['id'], 'name')
@@ -158,7 +164,10 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         fragment = block.studio_view()
         render_template.assert_called_once
         template_arg = render_template.call_args[0][0]
-        self.assertEqual(template_arg, 'templates/staff_graded_assignment/edit.html')
+        self.assertEqual(
+            template_arg,
+            'templates/staff_graded_assignment/edit.html'
+        )
         cls = type(block)
         context = render_template.call_args[0][1]
         self.assertEqual(tuple(context['fields']), (
