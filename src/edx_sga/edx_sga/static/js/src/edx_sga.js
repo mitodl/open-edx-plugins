@@ -175,6 +175,25 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 var url = removeGradeUrl + "?module_id=" + row.data("module_id");
                 $.get(url).success(renderStaffGrading);
             });
+            form.find("#enter-grade-cancel").on("click", function() {
+                /* We're kind of stretching the limits of leanModal, here,
+                 * by nesting modals one on top of the other.  One side effect
+                 * is that when the enter grade modal is closed, it hides
+                 * the overlay for itself and for the staff grading modal,
+                 * so the overlay is no longer present to click on to close
+                 * the staff grading modal.  Since leanModal uses a fade out
+                 * time of 200ms to hide the overlay, our work around is to 
+                 * wait 225ms and then just "click" the 'Grade Submissions'
+                 * button again.  It would also probably be pretty 
+                 * straightforward to submit a patch to leanModal so that it
+                 * would work properly with nested modals.
+                 *
+                 * See: https://github.com/mitodl/edx-sga/issues/13
+                 */
+                setTimeout(function() {
+                    $("#grade-submissions-button").click(); 
+                }, 225);
+            });
         }
 
         $(function($) { // onLoad
