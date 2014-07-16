@@ -52,6 +52,7 @@
         <th>Filename</th>
         <th>Uploaded</th>
         <th>Grade</th>
+        <th>Instructor's comments</th>
         <th>Annotated</th>
       </tr>
       <% for (var i = 0; i < assignments.length; i++) { %>
@@ -71,6 +72,7 @@
             <%= assignment.score %> /
             <%= max_score %>
           </td>
+          <td><%= assignment.comment %></td>
           <td>
             <% if (assignment.annotated) { %>
               <a href="<%= annotatedUrl %>?module_id=<%= assignment.module_id %>">
