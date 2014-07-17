@@ -159,7 +159,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         # read pattern is pretty bad.  Currently, though, the code in the
         # courseware application that handles the grade event will puke if the
         # user_id for the event is other than the logged in user.
-        if not self.score_published:
+        if not self.score_published and self.score_approved:
             self.runtime.publish(self, 'grade', {
                 'value': self.score,
                 'max_value': self.max_score(),
