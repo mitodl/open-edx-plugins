@@ -69,8 +69,13 @@
           </td>
           <td><%= assignment.timestamp %></td>
           <td>
-            <%= assignment.score %> /
-            <%= max_score %>
+            <% if (assignment.score !== null) { %>
+              <%= assignment.score %> /
+              <%= max_score %>
+              <% if (! assignment.approved) { %>
+                ({% trans "Awaiting instructor approval" %})
+              <% } %>
+            <% } %>
           </td>
           <td><%= assignment.comment %></td>
           <td>
@@ -81,9 +86,15 @@
             <% } %>
           </td>
           <td>
-            <a class="enter-grade-button" href="#{{ id }}-enter-grade">
-              {% trans "Enter grade" %}
-            </a>
+            <% if (assignment.may_grade) { %>
+              <a class="enter-grade-button" href="#{{ id }}-enter-grade">
+                <% if (assignment.needs_approval) { %>
+                  {% trans "Approve grade" %}
+                <% } else { %>
+                  {% trans "Enter grade" %}
+                <% } %>
+              </a>
+            <% } %>
           </td>
           <td>
             <div class="upload">
@@ -113,7 +124,9 @@
 
   <section aria-hidden="true" class="modal grade-modal" id="{{ id }}-enter-grade">
     <div class="inner-wrapper" style="color: black">
-      <header><h2>{% trans "Enter Grade" %}</h2></header>
+      <header><h2>
+        {% trans "Enter Grade" %}
+      </h2></header>
       <br/>
       <div style="display: block;">
         <form id="enter-grade-form">

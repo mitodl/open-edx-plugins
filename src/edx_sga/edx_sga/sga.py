@@ -76,6 +76,14 @@ class StaffGradedAssignmentXBlock(XBlock):
         scope=Scope.user_state
     )
 
+    score_approved = Boolean(
+        display_name="Whether the score has been approved by an instructor",
+        help=("Course staff may submit grades but an instructor must approve "
+              "grades before they become visible."),
+        default=False,
+        scope=Scope.user_state
+    )
+
     comment = String(
         display_name="Instructor comment",
         default='',
@@ -192,7 +200,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         else:
             annotated = None
 
-        if self.score is not None:
+        if self.score is not None and self.score_approved:
             graded = {'score': self.score, 'comment': self.comment}
         else:
             graded = None
@@ -209,6 +217,9 @@ class StaffGradedAssignmentXBlock(XBlock):
     def staff_grading_data(self):
         def get_student_data(module):
             state = json.loads(module.state)
+            instructor = self.is_instructor()
+            score = state.get('score')
+            approved = state.get('score_approved')
             return {
                 'module_id': module.id,
                 'username': module.student.username,
@@ -216,7 +227,11 @@ class StaffGradedAssignmentXBlock(XBlock):
                 'filename': state.get("uploaded_filename"),
                 'timestamp': state.get("uploaded_timestamp"),
                 'published': state.get("score_published"),
-                'score': state.get("score"),
+                'score': score,
+                'approved': approved,
+                'needs_approval': instructor and score is not None
+                                  and not approved,
+                'may_grade': instructor or not approved,
                 'annotated': state.get("annotated_filename"),
                 'comment': state.get("comment", ''),
             }
@@ -387,6 +402,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         state['score'] = float(request.params['grade'])
         state['comment'] = request.params.get('comment', '')
         state['score_published'] = False    # see student_view
+        state['score_approved'] = self.is_instructor()
         module.state = json.dumps(state)
 
         # This is how we'd like to do it.  See student_view
@@ -407,6 +423,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         state['score'] = None
         state['comment'] = ''
         state['score_published'] = False    # see student_view
+        state['score_approved'] = False
         state['annotated_sha1'] = None
         state['annotated_filename'] = None
         state['annotated_mimetype'] = None
@@ -417,6 +434,9 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     def is_course_staff(self):
         return getattr(self.xmodule_runtime, 'user_is_staff', False)
+
+    def is_instructor(self):
+        return self.xmodule_runtime.get_user_role() == 'instructor'
 
     def show_staff_grading_interface(self):
         in_studio_preview = self.scope_ids.user_id is None
