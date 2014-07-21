@@ -62,7 +62,7 @@
           <td><%= assignment.fullname %></td>
           <td>
             <% if (assignment.filename) { %>
-              <a href="<%= downloadUrl %>?module_id=<%= assignment.module_id %>">
+              <a href="<%= downloadUrl %>?student_id=<%= assignment.student_id %>">
                 <%= assignment.filename %>
               </a>
             <% } %>
@@ -158,6 +158,7 @@
       <div style="display: block;">
         <form id="enter-grade-form">
           <input id="module_id-input" type="hidden" name="module_id"/>
+          <input id="submission_id-input" type="hidden" name="submission_id"/>
           <div>Grade for <span id="student-name"/></div>
           <div>Grade: <input id="grade-input" name="grade"/>
             <span class="error"></span></div>
