@@ -26,7 +26,7 @@ from submissions.models import StudentItem as SubmissionsStudent
 from webob.response import Response
 
 from xblock.core import XBlock
-from xblock.fields import Boolean, DateTime, Scope, String, Float, Integer
+from xblock.fields import DateTime, Scope, String, Float, Integer
 from xblock.fragment import Fragment
 
 from xmodule.util.duedate import get_extended_due_date
@@ -135,6 +135,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         """
         if id is None:
             id = self.xmodule_runtime.anonymous_student_id
+            assert id != 'MOCK', "Forgot to call 'personalize' in test."
         return {
             "student_id": id,
             "course_id": self.course_id,
