@@ -110,6 +110,8 @@
   <div aria-hidden="true" class="wrap-instructor-info">
     <a class="instructor-info-action" id="grade-submissions-button"
        href="#{{ id }}-grade">{% trans "Grade Submissions" %}</a>
+    <a class="instructor-info-action" id="staff-debug-info-button"
+       href="#{{ id }}-debug">{% trans "Staff Debug Info" %}</a>
   </div>
 
   <section aria-hidden="true" class="modal staff-modal" id="{{ id }}-grade" style="height: 75%">
@@ -118,6 +120,31 @@
       <br/>
       <div id="grade-info" style="display: block;">
         Loading...
+      </div>
+    </div>
+  </section>
+
+  <section aria-hidden="true" class="modal staff-modal" 
+           style="height: 80%" id="{{ id }}-debug">
+    <div class="inner-wrapper" style="color: black">
+      <header><h2>{% trans "Staff Debug" %}</h2></header>
+      <br/>
+      <div class="staff_info" style="display: block; white-space: normal">
+        is_released = {{ is_released }}<br/>
+        location = {{ location }}<br/>
+        <br/>
+        <table summary="${_('Module Fields')}">
+          <tr><th>{% trans "Module Fields" %}</th></tr>
+          {% for name, field in fields %}
+          <tr>
+            <td>{{name}}</td>
+            <td>
+              <pre style="display:inline-block; margin: 0;">{{field}}</pre>
+            </td>
+          </tr>
+          {% endfor %}
+        </table><br/>
+        category = {{category}}
       </div>
     </div>
   </section>

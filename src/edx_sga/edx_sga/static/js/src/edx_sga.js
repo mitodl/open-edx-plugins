@@ -213,6 +213,8 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                             success: renderStaffGrading
                         });
                     });
+                block.find("#staff-debug-info-button")
+                    .leanModal();
             }
         });
     }

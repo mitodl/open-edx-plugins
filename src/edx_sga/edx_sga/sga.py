@@ -27,6 +27,7 @@ from xblock.fragment import Fragment
 
 from xmodule.util.duedate import get_extended_due_date
 
+
 log = logging.getLogger(__name__)
 
 
@@ -172,6 +173,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         }
         if self.show_staff_grading_interface():
             context['is_course_staff'] = True
+            self.update_staff_debug_context(context)
 
         fragment = Fragment()
         fragment.add_content(
@@ -184,6 +186,15 @@ class StaffGradedAssignmentXBlock(XBlock):
         fragment.add_javascript(_resource("static/js/src/edx_sga.js"))
         fragment.initialize_js('StaffGradedAssignmentXBlock')
         return fragment
+
+    def update_staff_debug_context(self, context):
+        published = self.published_date
+        context['is_released'] = published and published < _now()
+        context['location'] = self.location
+        context['category'] = type(self).__name__
+        context['fields'] = [
+            (name, field.read_from(self))
+            for name, field in self.fields.items()]
 
     def student_state(self):
         """
