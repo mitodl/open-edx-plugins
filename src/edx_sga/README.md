@@ -22,7 +22,7 @@ Note that this package is both an XBlock and a Django application. For installat
     ```
 
 2. Install Package using Pip install (with VM running)
-    - `pip install -e git+https://github.com/mitodl/edx-sga@master#egg=edx-sga`
+    - `pip install -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sga`
 3. Add edx_sga to INSTALLED_APPS in Django settings. Enable an XBlock for testing in your devstack.
     - In `edx-platform/lms/envs/common.py`, uncomment:
     ```sh
