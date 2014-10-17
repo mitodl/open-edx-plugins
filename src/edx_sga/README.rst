@@ -6,36 +6,25 @@ provides a staff graded assignment. Students are invited to upload files
 which encapsulate their work on the assignment. Instructors are then
 able to download the files and enter grades for the assignment.
 
-Note that this package is both an XBlock and a Django application. For
-installation:
+Note that this package is both an XBlock and a Django application. 
 
-1. `edX Developer Stack
-   Installation <https://github.com/edx/configuration/wiki/edX-Developer-Stack>`__:
-   Install Vagrant, Pip, & VirtualBox
+Installation
+============
 
-   1. Install Virtual Box (Version 4.3.12).
-   2. Install Pip ``sudo easy_install pip``
-   3. Install Vagrant (Version 1.6.3).
-   4. Install Vagrant plugin.
 
-      1. Download the Vagrantfile.
-      2. Get the virtual machine running.
+1. Install Package 
 
-         .. code:: sh
+   with pip for evaluation:
 
-             mkdir devstack
-             cd devstack
-             curl –L https://raw.githubusercontent.com/edx/configuration/master/vagrant/release/devstack/Vagrantfile > Vagrantfile
-             vagrant plugin install vagrant-vbguest
-             vagrant up
-             vagrant ssh
-
-2. Install Package using Pip install (with VM running)
-
+   -  ``sudo su - edxapp -s /bin/bash``
+   -  ``. edxapp_env``
    -  ``pip install -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sga``
 
-3. Add edx\_sga to INSTALLED\_APPS in Django settings. Enable an XBlock
-   for testing in your devstack.
+   in production:
+	
+   - add to requirements file
+
+2. Enable advanced components in LMS and Studio (CMS).
 
    -  In ``edx-platform/lms/envs/common.py``, uncomment:
 
@@ -55,41 +44,90 @@ installation:
 
       .. code:: sh
 
-          ‘ALLOW_ALL_ADVANCED_COMPONENTS’: False,
+          'ALLOW_ALL_ADVANCED_COMPONENTS': False,
 
       to
 
       .. code:: sh
 
-          ‘ALLOW_ALL_ADVANCED_COMPONENTS’: True,
+          'ALLOW_ALL_ADVANCED_COMPONENTS': True,
+          
+3. Configure file uploads
 
-4. Log in to studio (with VM running).
 
-   1. Login
+Course Authoring in edX Studio
+==============================
 
-      .. code:: sh
-
-          sudo su edxapp
-          paver devstack studio
-
-   2. Open a browser and navigate to the following link.
-      http://localhost:8001/
-   3. Login through the user interface using one of the following
-      accounts.
-
-      -  ``staff@example.com / edx``
-      -  ``verified@example.com / edx``
-      -  ``audit@example.com / edx``
-      -  ``honor@example.com / edx``
-
-5. Change Advanced Settings
+1. Change Advanced Settings
 
    1. Open a course you are authoring and select "Settings" ⇒ "Advanced
       Settings
-   2. Navigate to the section titled “Advanced Modules”
-   3. Add “edx\_sga” to module list.
-   4. Now when you add an “Advanced” unit in Studio, “Staff Graded
-      Assignment” will be an option.
+   2. Navigate to the section titled "Advanced Modules"
+   3. Add "edx\_sga" to module list.
+   4. Studio should save your changes automatically.
+   
+2. Create an SGA XBlock
+
+   1. Return to the Course Outline
+   2. Create a Section, Sub-section and Unit, if you haven't already
+   3. In the "Add New Component" interface, you should now see an "Advanced" 
+      button
+   4. Click "Advanced" and choose "Staff Graded Assignment"
+   
+3. Write a question with an SGA response
+
+   Since the Staff Graded Assignment doesn't support text within the problem, 
+   it is recommended to precede the SGA XBlock with a Text or HTML XBlock with 
+   instructions for the student. We recommend something using the following 
+   template:
+   
+       Use the "Select a File" button below to choose the file you wish to have 
+       graded. After you have chosen the file the button will change to the 
+       name of the file. Click the button again to Upload.
+       
+       When the upload is complete, a link will appear with the name of your 
+       file. Click it to confirm that the upload was successful. You can replace
+       this file by simply selecting another file and uploading it. After
+       the due date has passed, you will no longer be able to upload files. 
+ 
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
+   :alt: image
+ 
+4. Settings
+
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
+   :alt: image
+ 
+       
+Course Authoring in XML
+=======================
+ 
+   TBD
+ 
+Staff Grading
+=============
+
+1. Navigate to the student view (LMS) of the course and find the vertical with 
+   your Staff Graded Assignment. (If you are in Studio, click "View Live"). 
+   
+2. If you are Course Staff or an Instructor for the course, you will see a 
+   "Grade Submissions" button in the lower right corner of the XBlock (Be sure 
+   you are in "Staff View" indicated by a red label in the upper right corner of
+   the page; if it says "Student View" in green, click on it once.)
+   
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
+   :alt: image
+
+3. Describe columns
+
+4. Describe Staff workflow
+
+5. Describe Student workflow
+
+Advanced
+========
+
+Access to files?
 
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
    :alt: image
