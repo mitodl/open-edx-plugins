@@ -52,7 +52,29 @@ Installation
 
           'ALLOW_ALL_ADVANCED_COMPONENTS': True,
           
-3. Configure file uploads
+3. Configure file storage
+
+   devstack defaults to local storage, but fullstack defaults to S3. You have 
+   two options in fullstack:
+   
+   1. Use local storage (useful for evaluation and testing)
+   
+      In ``edx-platform/lms/envs/aws.py`` after:
+      
+      .. code:: sh
+
+          DEFAULT_FILE_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
+      
+      add:
+      
+      .. code:: sh
+
+          del DEFAULT_FILE_STORAGE
+          MEDIA_ROOT = "/edx/var/edxapp/uploads"
+   
+   2. Use S3 storage (default)
+   
+      - TBD directions for changing S3 settings
 
 
 Course Authoring in edX Studio
