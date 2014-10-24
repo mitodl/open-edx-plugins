@@ -62,9 +62,12 @@ Course Authoring in edX Studio
 
    1. Open a course you are authoring and select "Settings" ⇒ "Advanced
       Settings
-   2. Navigate to the section titled "Advanced Modules"
+   2. Navigate to the section titled "Advanced Module List"
    3. Add "edx\_sga" to module list.
    4. Studio should save your changes automatically.
+   
+.. figure:: https://github.com/mitodl/edx-sga/blob/screenshots/img/screenshot-studio-advanced-settings.png
+   :alt: the Advanced Module List section in Advanced Settings
    
 2. Create an SGA XBlock
 
@@ -74,6 +77,9 @@ Course Authoring in edX Studio
       button
    4. Click "Advanced" and choose "Staff Graded Assignment"
    
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
+   :alt: image
+
 3. Write a question with an SGA response
 
    Since the Staff Graded Assignment doesn't support text within the problem, 
@@ -90,10 +96,15 @@ Course Authoring in edX Studio
        this file by simply selecting another file and uploading it. After
        the due date has passed, you will no longer be able to upload files. 
  
-.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
-   :alt: image
- 
 4. Settings
+
++----------------+--------------------------------------------------------------------------+
+| display_name   | The name appears in the horizontal navigation at the top of the page     |
++----------------+--------------------------------------------------------------------------+
+| Maximum Score  | Maximum grade score given to assignment by staff                         |
++----------------+--------------------------------------------------------------------------+
+| Problem Weight | Defines the number of points each problem is worth.                      |
++----------------+--------------------------------------------------------------------------+
 
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
    :alt: image
