@@ -14,13 +14,13 @@ Installation
 
 1. Install Package 
 
-   with pip for evaluation and testing:
+   installing manually for evaluation and testing:
 
    -  ``sudo su - edxapp -s /bin/bash``
    -  ``. edxapp_env``
    -  ``pip install -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sga``
 
-   in production:
+   installing in production:
 	
    - In ``/edx/app/edxapp/edx-platform/requirements/edx/github.txt``, add:
    
