@@ -14,7 +14,7 @@ Installation
 
 1. Install Package 
 
-   with pip for evaluation:
+   with pip for evaluation and testing:
 
    -  ``sudo su - edxapp -s /bin/bash``
    -  ``. edxapp_env``
@@ -22,7 +22,11 @@ Installation
 
    in production:
 	
-   - add to requirements file
+   - In ``/edx/app/edxapp/edx-platform/requirements/edx/github.txt``, add:
+   
+     .. code:: sh
+   
+          -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sga
 
 2. Enable advanced components in LMS and Studio (CMS).
 
