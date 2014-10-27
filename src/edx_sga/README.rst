@@ -58,6 +58,10 @@ Installation
           
 3. Configure file storage
 
+   For file storage, SGA uses the same file storage configuration as other
+   applications in edX, such as the comments server. If you change these
+   settings to SGA it will also affect those other applications.
+
    devstack defaults to local storage, but fullstack defaults to S3. You have 
    two options in fullstack:
    
