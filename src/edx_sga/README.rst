@@ -30,21 +30,21 @@ Installation
 
 2. Enable advanced components in LMS and Studio (CMS).
 
-   -  In ``edx-platform/lms/envs/common.py``, uncomment:
+   -  In ``/edx/app/edxapp/edx-platform/lms/envs/common.py``, uncomment:
 
       .. code:: sh
 
           # from xmodule.x_module import prefer_xmodules  
           # XBLOCK_SELECT_FUNCTION = prefer_xmodules  
 
-   -  In ``edx-platform/cms/envs/common.py``, uncomment:
+   -  In ``/edx/app/edxapp/edx-platform/cms/envs/common.py``, uncomment:
 
       .. code:: sh
 
           # from xmodule.x_module import prefer_xmodules  
           # XBLOCK_SELECT_FUNCTION = prefer_xmodules  
 
-   -  In ``edx-platform/cms/envs/common.py``, change:
+   -  In ``/edx/app/edxapp/edx-platform/cms/envs/common.py``, change:
 
       .. code:: sh
 
@@ -63,7 +63,7 @@ Installation
    
    1. Use local storage (useful for evaluation and testing)
    
-      In ``edx-platform/lms/envs/aws.py`` after:
+      In ``/edx/app/edxapp/edx-platform/lms/envs/aws.py`` after:
       
       .. code:: sh
 
