@@ -63,23 +63,30 @@ Installation
    
    1. Use local storage (useful for evaluation and testing)
    
-      In ``/edx/app/edxapp/edx-platform/lms/envs/aws.py`` after:
+      In ``/edx/app/edxapp/edx-platform/lms/envs/aws.py`` change:
       
       .. code:: sh
 
           DEFAULT_FILE_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
       
-      add:
+      to:
       
       .. code:: sh
 
-          del DEFAULT_FILE_STORAGE
-          MEDIA_ROOT = "/edx/var/edxapp/uploads"
+          DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+          MEDIA_ROOT = '/edx/var/edxapp/uploads'
    
    2. Use S3 storage (default)
    
-      - TBD directions for changing S3 settings
+      To enable S3 storage, set the following values in your
+      ``/edx/app/edxapp/lms.auth.json`` file or, preferably, in your
+      additional yaml overrides in your edx/configuration setup.
 
+      .. code:: sh
+
+          "AWS_ACCESS_KEY_ID": "your bucket AWS access key ID",
+          "AWS_SECRET_ACCESS_KEY": "Your bucket AWS access key secret",
+          "AWS_STORAGE_BUCKET_NAME": "Your upload bucket name",
 
 Course Authoring in edX Studio
 ==============================
