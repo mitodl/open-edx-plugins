@@ -149,9 +149,17 @@ Course Authoring in edX Studio
        
 Course Authoring in XML
 =======================
- 
-   TBD
- 
+
+XML for an SGA XBlock consists of one tag with the three attributes mentioned
+above. It is recommended to also include a url_name attribute. For example:
+
+.. code:: XML
+
+        <vertical display_name="Staff Graded Assignment">
+            <edx_sga url_name="sga_example" weight="10.0" display_name="SGA Example" points="100.0" />
+        </vertical>
+
+
 Staff Grading
 =============
 
