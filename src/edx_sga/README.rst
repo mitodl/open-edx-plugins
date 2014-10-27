@@ -28,7 +28,15 @@ Installation
    
           -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sga
 
-2. Enable advanced components in LMS and Studio (CMS).
+2. Add edx\_sga to installed Django apps
+
+   - In ``/edx/app/edxapp/edx-platform/cms/envs/common.py``, add ``'edx_sga'``
+     to OPTIONAL_APPS
+
+   - In ``/edx/app/edxapp/edx-platform/lms/envs/common.py``, add ``'edx_sga'``
+     to OPTIONAL_APPS
+
+3. Enable advanced components in LMS and Studio (CMS).
 
    -  In ``/edx/app/edxapp/edx-platform/lms/envs/common.py``, uncomment:
 
@@ -56,7 +64,7 @@ Installation
 
           'ALLOW_ALL_ADVANCED_COMPONENTS': True,
           
-3. Configure file storage
+4. Configure file storage
 
    For file storage, SGA uses the same file storage configuration as other
    applications in edX, such as the comments server. If you change these
