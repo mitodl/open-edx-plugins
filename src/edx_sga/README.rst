@@ -9,7 +9,7 @@ able to download the files and enter grades for the assignment.
 Note that this package is both an XBlock and a Django application. 
 
 Installation
-============
+------------
 
 
 1. Install Package 
@@ -93,7 +93,7 @@ Installation
           "AWS_STORAGE_BUCKET_NAME": "Your upload bucket name",
 
 Course Authoring in edX Studio
-==============================
+------------------------------
 
 1. Change Advanced Settings
 
@@ -148,7 +148,7 @@ Course Authoring in edX Studio
  
        
 Course Authoring in XML
-=======================
+-----------------------
 
 XML for an SGA XBlock consists of one tag with the three attributes mentioned
 above. It is recommended to also include a url_name attribute. For example:
@@ -161,7 +161,7 @@ above. It is recommended to also include a url_name attribute. For example:
 
 
 Staff Grading
-=============
+-------------
 
 1. Navigate to the student view (LMS) of the course and find the vertical with 
    your Staff Graded Assignment. (If you are in Studio, click "View Live"). 
@@ -181,7 +181,7 @@ Staff Grading
 5. Describe Student workflow
 
 Advanced
-========
+--------
 
 Access to files?
 
