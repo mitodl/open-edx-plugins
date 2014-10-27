@@ -103,7 +103,7 @@ Course Authoring in edX Studio
    3. Add "edx\_sga" to module list.
    4. Studio should save your changes automatically.
    
-.. figure:: https://github.com/mitodl/edx-sga/blob/screenshots/img/screenshot-studio-advanced-settings.png
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-advanced-settings.png
    :alt: the Advanced Module List section in Advanced Settings
    
 2. Create an SGA XBlock
@@ -113,9 +113,12 @@ Course Authoring in edX Studio
    3. In the "Add New Component" interface, you should now see an "Advanced" 
       button
    4. Click "Advanced" and choose "Staff Graded Assignment"
-   
+
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
-   :alt: image
+   :alt: buttons for problems types, including advanced types
+
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-sga-in-advanced-list.png
+   :alt: List of advanced problem types
 
 3. Write a question with an SGA response
 
@@ -143,8 +146,8 @@ Course Authoring in edX Studio
 | Problem Weight | Defines the number of points each problem is worth.                      |
 +----------------+--------------------------------------------------------------------------+
 
-.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
-   :alt: image
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-editing-sga.png
+   :alt: Editing SGA Settings
  
        
 Course Authoring in XML
@@ -171,21 +174,38 @@ Staff Grading
    you are in "Staff View" indicated by a red label in the upper right corner of
    the page; if it says "Student View" in green, click on it once.)
    
-.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
-   :alt: image
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-lms-before-upload.png
+   :alt: Staff view of LMS interface
 
-3. Describe columns
+3. When you click "Grade Submissions" a grid of student submissions will display
+   in a lightbox. Columns for username, (full) name, Filename and Uploaded
+   (time) will be filled in.
 
-4. Describe Staff workflow
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-staff-grading-interface.png
+   :alt: Staff view of grading grid
 
-5. Describe Student workflow
+4. Click the filename in any row to download the student's submission. If it can
+   be displayed in your browser, it will.
 
-Advanced
---------
+5. Click the enter grade button to bring up an interface to enter grades and
+   comments.
 
-Access to files?
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-staff-enter-grade.png
+   :alt: Enter grade interface
 
-.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
-   :alt: image
+6. The grades and comments will appear in the gride. Use the "Upload Annotated
+   File" button to upload a file in response to the student's submission. The
+   student will be able to view the file along with her grade.
 
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-graded.png
+   :alt: Staff view of grading grid after a submission has been graded
 
+7. Course staff can enter grades, but only Instructors can approve grades.
+   Grades must be approved for the student to view them.
+
+8. After the grade has been approved, the student will be able to see it inline
+   and also in her progress page. Annotated files, if any, will be available
+   for download.
+
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-lms-student-video-graded.png
+   :alt: Student view of graded assignment with annotated instructor response
