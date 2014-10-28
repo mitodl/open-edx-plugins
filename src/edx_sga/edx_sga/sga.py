@@ -346,11 +346,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         state['annotated_timestamp'] = _now().strftime(
             DateTime.DATETIME_FORMAT
         )
-        path = _file_storage_path(
-            self.location.to_deprecated_string(),
-            sha1,
-            filename
-        )
+        path = _file_storage_path(str(self.location), sha1, filename)
         if not default_storage.exists(path):
             default_storage.save(path, File(upload.file))
         module.state = json.dumps(state)
@@ -367,10 +363,7 @@ class StaffGradedAssignmentXBlock(XBlock):
     @XBlock.handler
     def download_annotated(self, request, suffix=''):
         path = _file_storage_path(
-            self.location.to_deprecated_string(),
-            self.annotated_sha1,
-            self.annotated_filename
-        )
+            str(self.location), self.annotated_sha1, self.annotated_filename)
         return self.download(
             path,
             self.annotated_mimetype,
@@ -392,7 +385,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
         path = _file_storage_path(
-            module.module_state_key.to_deprecated_string(),
+            str(self.location),
             state['annotated_sha1'],
             state['annotated_filename']
         )
