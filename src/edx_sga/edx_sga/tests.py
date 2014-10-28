@@ -66,6 +66,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         block.course_id = self.course_id
         block.scope_ids.usage_id = 'XXX'
         block.category = 'problem'
+        block.start = datetime.datetime(2010, 5, 12, 2, 42, tzinfo=pytz.utc)
         return block
 
     def make_student(self, block, name, **state):

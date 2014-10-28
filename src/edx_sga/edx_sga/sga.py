@@ -192,7 +192,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         return fragment
 
     def update_staff_debug_context(self, context):
-        published = self.published_date
+        published = self.start
         context['is_released'] = published and published < _now()
         context['location'] = self.location
         context['category'] = type(self).__name__
