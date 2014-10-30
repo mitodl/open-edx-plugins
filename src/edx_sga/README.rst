@@ -12,6 +12,9 @@ Installation
 ------------
 
 
+Try Out on devstack/fullstack
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 1. Install Package 
 
    installing manually for evaluation and testing:
@@ -20,58 +23,32 @@ Installation
    -  ``. edxapp_env``
    -  ``pip install -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sga``
 
-   installing in production:
-	
-   - In ``/edx/app/edxapp/edx-platform/requirements/edx/github.txt``, add:
-   
-     .. code:: sh
-   
-          -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sga
-
 2. Add edx\_sga to installed Django apps
 
-   - In ``/edx/app/edxapp/edx-platform/cms/envs/common.py``, add ``'edx_sga'``
-     to OPTIONAL_APPS
+   - In ``/edx/app/edxapp/lms.env.json`` and ``/edx/app/edxapp/cms.env.json``, add 
 
-   - In ``/edx/app/edxapp/edx-platform/lms/envs/common.py``, add ``'edx_sga'``
-     to OPTIONAL_APPS
+	 .. code:: javascript
 
-3. Enable advanced components in LMS and Studio (CMS).
+	     "ADDL_INSTALLED_APPS": ["edx_sga"],
 
-   -  In ``/edx/app/edxapp/edx-platform/lms/envs/common.py``, uncomment:
+     on the second line right after ``{``
 
-      .. code:: sh
+   - In ``/edx/app/edxapp/cms.envs.json``, add
 
-          # from xmodule.x_module import prefer_xmodules  
-          # XBLOCK_SELECT_FUNCTION = prefer_xmodules  
-
-   -  In ``/edx/app/edxapp/edx-platform/cms/envs/common.py``, uncomment:
-
-      .. code:: sh
-
-          # from xmodule.x_module import prefer_xmodules  
-          # XBLOCK_SELECT_FUNCTION = prefer_xmodules  
-
-   -  In ``/edx/app/edxapp/edx-platform/cms/envs/common.py``, change:
-
-      .. code:: sh
-
-          'ALLOW_ALL_ADVANCED_COMPONENTS': False,
-
-      to
-
-      .. code:: sh
+	 .. code:: javascript
 
           'ALLOW_ALL_ADVANCED_COMPONENTS': True,
-          
-4. Configure file storage
+
+     to the list of ``FEATURES``
+
+3. Configure file storage
 
    For file storage, SGA uses the same file storage configuration as other
    applications in edX, such as the comments server. If you change these
    settings to SGA it will also affect those other applications.
 
-   devstack defaults to local storage, but fullstack defaults to S3. You have 
-   two options in fullstack:
+   devstack defaults to local storage, but fullstack defaults to
+   S3. To configure local storage:
    
    1. Use local storage (useful for evaluation and testing)
    
@@ -87,12 +64,41 @@ Installation
 
           DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
           MEDIA_ROOT = '/edx/var/edxapp/uploads'
+
+Production Installation
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Create a branch of edx-platform to commit a few minor changes:
+
+1. Add SGA to the platform requirements
+	
+   - In ``/edx/app/edxapp/edx-platform/requirements/edx/github.txt``, add:
    
-   2. Use S3 storage (default)
+     .. code:: sh
    
-      To enable S3 storage, set the following values in your
-      ``/edx/app/edxapp/lms.auth.json`` file or, preferably, in your
-      additional yaml overrides in your edx/configuration setup.
+          -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sg
+
+2. Add edx\_sga to installed Django apps
+
+   - In ``/edx/app/edxapp/edx-platform/cms/envs/common.py``, add ``'edx_sga'``
+     to OPTIONAL_APPS
+
+   - In ``/edx/app/edxapp/edx-platform/lms/envs/common.py``, add ``'edx_sga'``
+     to OPTIONAL_APPS
+
+3. Enable the SGA component in LMS and Studio (CMS).
+
+   -  In ``/edx/app/edxapp/edx-platform/cms/envs/common.py``, add ``'edx_sga',`` to ``ADVANCED_COMPONENT_TYPES``:
+
+          
+4. Configure file storage
+
+   In production, the edx-platform uses S3 as the default storage
+   engine. If you want to use file storage see the devstack/full
+   instructions above.  To configure S3 storage properly in the
+   platform, set the following values in your
+   ``/edx/app/edxapp/lms.auth.json`` file or, preferably, in your
+   additional yaml overrides in your edx/configuration setup.
 
       .. code:: sh
 
