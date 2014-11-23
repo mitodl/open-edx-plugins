@@ -201,13 +201,13 @@ Staff Grading
 4. Click the filename in any row to download the student's submission. If it can
    be displayed in your browser, it will.
 
-5. Click the enter grade button to bring up an interface to enter grades and
+5. Click the **Enter grade** link to bring up an interface to enter grades and
    comments.
 
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-staff-enter-grade.png
    :alt: Enter grade interface
 
-6. The grades and comments will appear in the gride. Use the "Upload Annotated
+6. The grades and comments will appear in the grid. Use the "Upload Annotated
    File" button to upload a file in response to the student's submission. The
    student will be able to view the file along with her grade.
 
