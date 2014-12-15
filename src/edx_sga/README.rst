@@ -76,7 +76,7 @@ Create a branch of edx-platform to commit a few minor changes:
    
      .. code:: sh
    
-          -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sg
+          -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sga
 
 2. Add edx\_sga to installed Django apps
 
