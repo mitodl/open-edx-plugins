@@ -15,6 +15,7 @@ from functools import partial
 
 from courseware.models import StudentModule
 
+from django.core.exceptions import PermissionDenied
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.template import Context, Template
@@ -319,7 +320,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def upload_assignment(self, request, suffix=''):
-        assert self.upload_allowed()
+        require(self.upload_allowed())
         upload = request.params['assignment']
         sha1 = _get_sha1(upload.file)
         answer = {
@@ -336,7 +337,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def staff_upload_annotated(self, request, suffix=''):
-        assert self.is_course_staff()
+        require(self.is_course_staff())
         upload = request.params['annotated']
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
@@ -372,7 +373,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def staff_download(self, request, suffix=''):
-        assert self.is_course_staff()
+        require(self.is_course_staff())
         submission = self.get_submission(request.params['student_id'])
         answer = submission['answer']
         path = _file_storage_path(
@@ -381,7 +382,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def staff_download_annotated(self, request, suffix=''):
-        assert self.is_course_staff()
+        require(self.is_course_staff())
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
         path = _file_storage_path(
@@ -406,12 +407,12 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def get_staff_grading_data(self, request, suffix=''):
-        assert self.is_course_staff()
+        require(self.is_course_staff())
         return Response(json_body=self.staff_grading_data())
 
     @XBlock.handler
     def enter_grade(self, request, suffix=''):
-        assert self.is_course_staff()
+        require(self.is_course_staff())
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
         score = int(request.params['grade'])
@@ -428,7 +429,7 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.handler
     def remove_grade(self, request, suffix=''):
-        assert self.is_course_staff()
+        require(self.is_course_staff())
         student_id = request.params['student_id']
         submissions_api.reset_score(student_id, self.course_id, self.block_id)
         module = StudentModule.objects.get(pk=request.params['module_id'])
@@ -504,3 +505,11 @@ def render_template(template_path, context={}):
     template_str = load_resource(template_path)
     template = Template(template_str)
     return template.render(Context(context))
+
+
+def require(assertion):
+    """
+    Raises PermissionDenied if assertion is not true.
+    """
+    if not assertion:
+        raise PermissionDenied

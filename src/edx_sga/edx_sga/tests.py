@@ -9,6 +9,7 @@ import unittest
 
 from courseware.models import StudentModule
 from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
 from django.core.files.storage import FileSystemStorage
 from submissions import api as submissions_api
 from submissions.models import StudentItem
@@ -300,6 +301,12 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         response = block.staff_download(mock.Mock(params={
             'student_id': student['item'].student_id}))
         self.assertEqual(response.body, expected)
+
+    def test_get_staff_grading_data_not_staff(self):
+        self.runtime.user_is_staff = False
+        block = self.make_one()
+        with self.assertRaises(PermissionDenied):
+            block.get_staff_grading_data(None)
 
     def test_get_staff_grading_data(self):
         block = self.make_one()
