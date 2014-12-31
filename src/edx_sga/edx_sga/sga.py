@@ -465,7 +465,6 @@ class StaffGradedAssignmentXBlock(XBlock):
 
 
 def _file_storage_path(url, sha1, filename):
-    assert url.startswith("i4x://")
     path = url[6:] + '/' + sha1
     path += os.path.splitext(filename)[1]
     return path
