@@ -131,8 +131,6 @@ Course Authoring in edX Studio
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-new-unit.png
    :alt: buttons for problems types, including advanced types
 
-.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-sga-in-advanced-list.png
-   :alt: List of advanced problem types
 
 3. Write a question with an SGA response
 
@@ -223,3 +221,15 @@ Staff Grading
 
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-lms-student-video-graded.png
    :alt: Student view of graded assignment with annotated instructor response
+
+Testing
+-------
+
+Assuming ``edx-sga`` is installed as above, you can run tests like so::
+    
+    $ python manage.py lms --settings=test test edx_sga
+
+To get statement coverage::
+
+    $ coverage run --source edx_sga manage.py lms --settings=test test edx_sga
+    $ coverage report -m

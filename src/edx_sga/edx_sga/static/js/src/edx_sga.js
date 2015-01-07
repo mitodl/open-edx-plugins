@@ -117,18 +117,6 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 var url = staffUploadUrl + "?module_id=" + row.data("module_id");
                 $(this).fileupload({
                     url: url,
-                    /*
-                    add: function(e, data) {
-                        var upload = $(this).parents(".upload").html('');
-                        $('<button/>')
-                            .text('Upload ' + data.files[0].name)
-                            .appendTo(upload)
-                            .click(function() {
-                                upload.text("Uploading...");
-                                data.submit();
-                            });
-                    },
-                    */
                     progressall: function(e, data) {
                         var percent = parseInt(data.loaded / data.total * 100, 10);
                         row.find(".upload").text("Uploading... " + percent + "%");
@@ -150,6 +138,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             var form = $(element).find("#enter-grade-form");
             $(element).find("#student-name").text(row.data("fullname"));
             form.find("#module_id-input").val(row.data("module_id"));
+            form.find("#submission_id-input").val(row.data("submission_id"));
             form.find("#grade-input").val(row.data("score"));
             form.find("#comment-input").text(row.data("comment"));
             form.off("submit").on("submit", function(event) {
@@ -172,7 +161,9 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 }
             });
             form.find("#remove-grade").on("click", function() {
-                var url = removeGradeUrl + "?module_id=" + row.data("module_id");
+                var url = removeGradeUrl + "?module_id=" + 
+                    row.data("module_id") + "&student_id=" + 
+                    row.data("student_id");
                 $.get(url).success(renderStaffGrading);
             });
             form.find("#enter-grade-cancel").on("click", function() {
