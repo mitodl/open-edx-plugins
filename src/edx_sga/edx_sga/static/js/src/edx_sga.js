@@ -40,6 +40,32 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                     $(content).find(".upload").text(
                         "Uploading... " + percent + "%");
                 },
+                fail: function(e, data) {
+                    /**
+                     * Nginx and other sanely implemented servers return a 
+                     * "413 Request entity too large" status code if an 
+                     * upload exceeds its limit.  See the 'done' handler for
+                     * the not sane way that Django handles the same thing.
+                     */
+                    if (data.jqXHR.status == 413) {
+                        /* I guess we have no way of knowing what the limit is
+                         * here, so no good way to inform the user of what the
+                         * limit is.
+                         */
+                        state.error = "The file you are trying to upload is too large."
+                    }
+                    else {
+                        // Suitably vague
+                        state.error = "There was an error uploading your file.";
+
+                        // Dump some information to the console to help someone
+                        // debug.
+                        console.log("There was an error with file upload.");
+                        console.log("event: ", e);
+                        console.log("data: ", data);
+                    }
+                    render(state);
+                },
                 done: function(e, data) { 
                     /* When you try to upload a file that exceeds Django's size
                      * limit for file uploads, Django helpfully returns a 200 OK
@@ -47,8 +73,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                      * 
                      *   {'success': '<error message'}
                      * 
-                     * This is perfectly reasonable.  Unimpeachable even.  Makes
-                     * perfect sense.
+                     * Thanks Obama!
                      */
                     if (data.result.success !== undefined) {
                         // Actually, this is an error
@@ -56,6 +81,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                         render(state);
                     }
                     else {
+                        // The happy path, no errors
                         render(data.result); 
                     }
                 }
@@ -91,18 +117,6 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 var url = staffUploadUrl + "?module_id=" + row.data("module_id");
                 $(this).fileupload({
                     url: url,
-                    /*
-                    add: function(e, data) {
-                        var upload = $(this).parents(".upload").html('');
-                        $('<button/>')
-                            .text('Upload ' + data.files[0].name)
-                            .appendTo(upload)
-                            .click(function() {
-                                upload.text("Uploading...");
-                                data.submit();
-                            });
-                    },
-                    */
                     progressall: function(e, data) {
                         var percent = parseInt(data.loaded / data.total * 100, 10);
                         row.find(".upload").text("Uploading... " + percent + "%");
@@ -124,6 +138,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             var form = $(element).find("#enter-grade-form");
             $(element).find("#student-name").text(row.data("fullname"));
             form.find("#module_id-input").val(row.data("module_id"));
+            form.find("#submission_id-input").val(row.data("submission_id"));
             form.find("#grade-input").val(row.data("score"));
             form.find("#comment-input").text(row.data("comment"));
             form.off("submit").on("submit", function(event) {
@@ -146,8 +161,29 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 }
             });
             form.find("#remove-grade").on("click", function() {
-                var url = removeGradeUrl + "?module_id=" + row.data("module_id");
+                var url = removeGradeUrl + "?module_id=" + 
+                    row.data("module_id") + "&student_id=" + 
+                    row.data("student_id");
                 $.get(url).success(renderStaffGrading);
+            });
+            form.find("#enter-grade-cancel").on("click", function() {
+                /* We're kind of stretching the limits of leanModal, here,
+                 * by nesting modals one on top of the other.  One side effect
+                 * is that when the enter grade modal is closed, it hides
+                 * the overlay for itself and for the staff grading modal,
+                 * so the overlay is no longer present to click on to close
+                 * the staff grading modal.  Since leanModal uses a fade out
+                 * time of 200ms to hide the overlay, our work around is to 
+                 * wait 225ms and then just "click" the 'Grade Submissions'
+                 * button again.  It would also probably be pretty 
+                 * straightforward to submit a patch to leanModal so that it
+                 * would work properly with nested modals.
+                 *
+                 * See: https://github.com/mitodl/edx-sga/issues/13
+                 */
+                setTimeout(function() {
+                    $("#grade-submissions-button").click(); 
+                }, 225);
             });
         }
 
@@ -168,6 +204,8 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                             success: renderStaffGrading
                         });
                     });
+                block.find("#staff-debug-info-button")
+                    .leanModal();
             }
         });
     }

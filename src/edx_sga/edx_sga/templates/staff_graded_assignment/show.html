@@ -52,6 +52,7 @@
         <th>Filename</th>
         <th>Uploaded</th>
         <th>Grade</th>
+        <th>Instructor's comments</th>
         <th>Annotated</th>
       </tr>
       <% for (var i = 0; i < assignments.length; i++) { %>
@@ -61,16 +62,22 @@
           <td><%= assignment.fullname %></td>
           <td>
             <% if (assignment.filename) { %>
-              <a href="<%= downloadUrl %>?module_id=<%= assignment.module_id %>">
+              <a href="<%= downloadUrl %>?student_id=<%= assignment.student_id %>">
                 <%= assignment.filename %>
               </a>
             <% } %>
           </td>
           <td><%= assignment.timestamp %></td>
           <td>
-            <%= assignment.score %> /
-            <%= max_score %>
+            <% if (assignment.score !== null) { %>
+              <%= assignment.score %> /
+              <%= max_score %>
+              <% if (! assignment.approved) { %>
+                ({% trans "Awaiting instructor approval" %})
+              <% } %>
+            <% } %>
           </td>
+          <td><%= assignment.comment %></td>
           <td>
             <% if (assignment.annotated) { %>
               <a href="<%= annotatedUrl %>?module_id=<%= assignment.module_id %>">
@@ -79,9 +86,15 @@
             <% } %>
           </td>
           <td>
-            <a class="enter-grade-button" href="#{{ id }}-enter-grade">
-              {% trans "Enter grade" %}
-            </a>
+            <% if (assignment.may_grade) { %>
+              <a class="enter-grade-button" href="#{{ id }}-enter-grade">
+                <% if (assignment.needs_approval) { %>
+                  {% trans "Approve grade" %}
+                <% } else { %>
+                  {% trans "Enter grade" %}
+                <% } %>
+              </a>
+            <% } %>
           </td>
           <td>
             <div class="upload">
@@ -97,10 +110,12 @@
   <div aria-hidden="true" class="wrap-instructor-info">
     <a class="instructor-info-action" id="grade-submissions-button"
        href="#{{ id }}-grade">{% trans "Grade Submissions" %}</a>
+    <a class="instructor-info-action" id="staff-debug-info-button"
+       href="#{{ id }}-debug">{% trans "Staff Debug Info" %}</a>
   </div>
 
-  <section aria-hidden="true" class="modal staff-modal" id="{{ id }}-grade">
-    <div class="inner-wrapper" style="color: black">
+  <section aria-hidden="true" class="modal staff-modal" id="{{ id }}-grade" style="height: 75%">
+    <div class="inner-wrapper" style="color: black; overflow: auto;">
       <header><h2>{% trans "Staff Graded Assignment" %}</h2></header>
       <br/>
       <div id="grade-info" style="display: block;">
@@ -109,13 +124,41 @@
     </div>
   </section>
 
+  <section aria-hidden="true" class="modal staff-modal" 
+           style="height: 80%" id="{{ id }}-debug">
+    <div class="inner-wrapper" style="color: black">
+      <header><h2>{% trans "Staff Debug" %}</h2></header>
+      <br/>
+      <div class="staff_info" style="display: block; white-space: normal">
+        is_released = {{ is_released }}<br/>
+        location = {{ location }}<br/>
+        <br/>
+        <table summary="${_('Module Fields')}">
+          <tr><th>{% trans "Module Fields" %}</th></tr>
+          {% for name, field in fields %}
+          <tr>
+            <td>{{name}}</td>
+            <td>
+              <pre style="display:inline-block; margin: 0;">{{field}}</pre>
+            </td>
+          </tr>
+          {% endfor %}
+        </table><br/>
+        category = {{category}}
+      </div>
+    </div>
+  </section>
+
   <section aria-hidden="true" class="modal grade-modal" id="{{ id }}-enter-grade">
     <div class="inner-wrapper" style="color: black">
-      <header><h2>{% trans "Enter Grade" %}</h2></header>
+      <header><h2>
+        {% trans "Enter Grade" %}
+      </h2></header>
       <br/>
       <div style="display: block;">
         <form id="enter-grade-form">
           <input id="module_id-input" type="hidden" name="module_id"/>
+          <input id="submission_id-input" type="hidden" name="submission_id"/>
           <div>Grade for <span id="student-name"/></div>
           <div>Grade: <input id="grade-input" name="grade"/>
             <span class="error"></span></div>
