@@ -21,5 +21,7 @@ Additions
 Fixes
 -----
 
-- No longer requires students to re-visit SGA problems in order to record grades. 
+- Grades are validated on submission (`#19 <https://github.com/mitodl/edx-sga/issues/19>`_)
+- No longer requires students to re-visit SGA problems in order to record 
+  grades (`#34 <https://github.com/mitodl/edx-sga/issues/34>`_)
 
