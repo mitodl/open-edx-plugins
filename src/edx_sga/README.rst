@@ -160,7 +160,11 @@ Course Authoring in edX Studio
 
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-editing-sga.png
    :alt: Editing SGA Settings
- 
+
+5. Grading Policy
+
+   SGA XBlocks inherit grading settings just like any other problem type. You 
+   can include them in homework, exams or any assignment type of your choosing.  
        
 Course Authoring in XML
 -----------------------
@@ -210,10 +214,29 @@ Staff Grading
    student will be able to view the file along with her grade.
 
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-graded.png
-   :alt: Staff view of grading grid after a submission has been graded
+   :alt: Instructor view of grading grid after a submission has been graded.
 
-7. Course staff can enter grades, but only Instructors can approve grades.
-   Grades must be approved for the student to view them.
+7. Course staff can enter grades, but only Instructors can approve grades (and
+   remove grades). 
+
+   When a course staff member enters a grade, the grade will be followed by the
+   text: :code:`(Awaiting instructor approval)`. The student will not see this 
+   grade until it has been approved by the instructor.
+   
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-awaiting-approval.png
+   :alt: Detail of Staff Member view of grading grid after a submission has been graded and it is awaiting approval.
+
+   After a course staff member has submitted a grade, the instructor will see a
+   link to **Approve grade** instead of **Enter grade**. 
+   
+.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-approve-grade.png
+   :alt: Detail of Instructor view of grading grid after a submission has been graded and it can be appproved. 
+   
+   Clicking **Approve grade** will open the same grading dialog box where she can
+   change the grade and the comment. 
+   
+   Once the instructor has approved or entered a grade, course staff members 
+   cannot change it. However, the instructor can always change a grade. 
 
 8. After the grade has been approved, the student will be able to see it inline
    and also in her progress page. Annotated files, if any, will be available
