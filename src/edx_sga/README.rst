@@ -225,8 +225,8 @@ Staff Grading
    remove grades). 
 
    When a course staff member enters a grade, the grade will be followed by the
-   text: :code:`(Awaiting instructor approval)`. The student will not see this 
-   grade until it has been approved by the instructor.
+   text: :code:`(Awaiting instructor approval)` (in the Grade column). The 
+   student will not see this grade until it has been approved by an instructor.
    
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-awaiting-approval.png
    :alt: Detail of Staff Member view of grading grid after a submission has been 
@@ -239,8 +239,8 @@ Staff Grading
    :alt: Detail of Instructor view of grading grid after a submission has been 
    graded and it can be appproved. 
    
-   Clicking **Approve grade** will the same grading dialog box where she can
-   change the grade and the comment.
+   Clicking **Approve grade** will the same grading dialog box where, in 
+   addition to approving the grade, she can change the grade and the comment.
 
    Once the instructor has approved or entered a grade, course staff members
    cannot change it. However, the instructor can always change a grade.
