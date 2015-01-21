@@ -147,7 +147,12 @@ Course Authoring in edX Studio
        file. Click it to confirm that the upload was successful. You can replace
        this file by simply selecting another file and uploading it. After
        the due date has passed, you will no longer be able to upload files. 
- 
+   
+   Note that *any* file type can be uploaded. If you expect a particular file
+   type from your students, you should specify it in the instructions. If you
+   wish students to upload multiple files, you can recommend they zip the
+   files before uploading. 
+
 4. Settings
 
 +----------------+--------------------------------------------------------------------------+
@@ -224,19 +229,21 @@ Staff Grading
    grade until it has been approved by the instructor.
    
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-awaiting-approval.png
-   :alt: Detail of Staff Member view of grading grid after a submission has been graded and it is awaiting approval.
+   :alt: Detail of Staff Member view of grading grid after a submission has been 
+   graded and it is awaiting approval.
 
    After a course staff member has submitted a grade, the instructor will see a
    link to **Approve grade** instead of **Enter grade**. 
    
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-approve-grade.png
-   :alt: Detail of Instructor view of grading grid after a submission has been graded and it can be appproved. 
+   :alt: Detail of Instructor view of grading grid after a submission has been 
+   graded and it can be appproved. 
    
-   Clicking **Approve grade** will open the same grading dialog box where she can
-   change the grade and the comment. 
-   
-   Once the instructor has approved or entered a grade, course staff members 
-   cannot change it. However, the instructor can always change a grade. 
+   Clicking **Approve grade** will the same grading dialog box where she can
+   change the grade and the comment.
+
+   Once the instructor has approved or entered a grade, course staff members
+   cannot change it. However, the instructor can always change a grade.
 
 8. After the grade has been approved, the student will be able to see it inline
    and also in her progress page. Annotated files, if any, will be available
