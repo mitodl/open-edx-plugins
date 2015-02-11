@@ -132,6 +132,10 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         block = self.make_one(points=20)
         self.assertEqual(block.max_score(), 20)
 
+    def test_max_score_integer(self):
+        block = self.make_one(points=20.4)
+        self.assertEqual(block.max_score(), 20)
+
     @mock.patch('edx_sga.sga._resource', DummyResource)
     @mock.patch('edx_sga.sga.render_template')
     @mock.patch('edx_sga.sga.Fragment')
@@ -241,6 +245,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
             "StaffGradedAssignmentXBlock")
 
     def test_save_sga(self):
+        orig_score = 23
         block = self.make_one()
         block.save_sga(mock.Mock(body='{}'))
         self.assertEqual(block.display_name, "Staff Graded Assignment")
@@ -248,11 +253,25 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         self.assertEqual(block.weight, None)
         block.save_sga(mock.Mock(method="POST", body=json.dumps({
             "display_name": "Test Block",
-            "points": 23,
+            "points": str(orig_score),
             "weight": 11})))
         self.assertEqual(block.display_name, "Test Block")
-        self.assertEqual(block.points, 23)
+        self.assertEqual(block.points, orig_score)
         self.assertEqual(block.weight, 11)
+
+        # Test negative doesn't work
+        block.save_sga(mock.Mock(method="POST", body=json.dumps({
+            "display_name": "Test Block",
+            "points": '-10',
+            "weight": 11})))
+        self.assertEqual(block.points, orig_score)
+
+        # Test float doesn't work
+        block.save_sga(mock.Mock(method="POST", body=json.dumps({
+            "display_name": "Test Block",
+            "points": '24.5',
+            "weight": 11})))
+        self.assertEqual(block.points, orig_score)
 
     def test_upload_download_assignment(self):
         path = pkg_resources.resource_filename(__package__, 'tests.py')
@@ -363,6 +382,15 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
             pk=fred['module'].id).state)
         self.assertEqual(state['comment'], 'Good!')
         self.assertEqual(state['staff_score'], 9)
+
+    def test_enter_grade_float(self):
+        block = self.make_one()
+        fred = self.make_student(block, "fred5", filename='foo.txt')
+        with self.assertRaises(ValueError):
+            block.enter_grade(mock.Mock(params={
+                'module_id': fred['module'].id,
+                'submission_id': fred['submission']['uuid'],
+                'grade': '9.24'}))
 
     def test_remove_grade(self):
         block = self.make_one()

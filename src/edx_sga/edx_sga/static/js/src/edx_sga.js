@@ -148,6 +148,9 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 if (isNaN(score)) {
                     form.find(".error").html("<br/>Grade must be a number.");
                 } 
+                else if (score != parseInt(score)) {
+                    form.find(".error").html("<br/>Grade must be an integer.");
+                }
                 else if (score < 0) {
                     form.find(".error").html("<br/>Grade must be positive.");
                 }
