@@ -27,6 +27,7 @@ from submissions.models import StudentItem as SubmissionsStudent
 from webob.response import Response
 
 from xblock.core import XBlock
+from xblock.exceptions import JsonHandlerError
 from xblock.fields import DateTime, Scope, String, Float, Integer
 from xblock.fragment import Fragment
 
@@ -70,10 +71,9 @@ class StaffGradedAssignmentXBlock(XBlock):
         scope=Scope.settings
     )
 
-    points = Float(
+    points = Integer(
         display_name="Maximum score",
         help=("Maximum grade score given to assignment by staff."),
-        values={"min": 0, "step": .1},
         default=100,
         scope=Scope.settings
     )
@@ -315,8 +315,20 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.json_handler
     def save_sga(self, data, suffix=''):
-        for name in ('display_name', 'points', 'weight'):
-            setattr(self, name, data.get(name, getattr(self, name)))
+        self.display_name = data.get('display_name', self.display_name)
+        self.weight = data.get('weight', self.weight)
+
+        # Validate points before saving
+        points = data.get('points', self.points)
+        # Check that we are an int
+        try:
+            points = int(points)
+        except ValueError:
+            raise JsonHandlerError(400, 'Points must be an integer')
+        # Check that we are positive
+        if points < 0:
+            raise JsonHandlerError(400, 'Points must be a positive integer')
+        self.points = points
 
     @XBlock.handler
     def upload_assignment(self, request, suffix=''):
@@ -330,7 +342,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         }
         student_id = self.student_submission_id()
         submissions_api.create_submission(student_id, answer)
-        path = _file_storage_path(str(self.location), sha1, upload.file.name)
+        path = self._file_storage_path(sha1, upload.file.name)
         if not default_storage.exists(path):
             default_storage.save(path, File(upload.file))
         return Response(json_body=self.student_state())
@@ -347,7 +359,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         state['annotated_timestamp'] = _now().strftime(
             DateTime.DATETIME_FORMAT
         )
-        path = _file_storage_path(str(self.location), sha1, filename)
+        path = self._file_storage_path(sha1, filename)
         if not default_storage.exists(path):
             default_storage.save(path, File(upload.file))
         module.state = json.dumps(state)
@@ -357,14 +369,15 @@ class StaffGradedAssignmentXBlock(XBlock):
     @XBlock.handler
     def download_assignment(self, request, suffix=''):
         answer = self.get_submission()['answer']
-        path = _file_storage_path(
-            str(self.location), answer['sha1'], answer['filename'])
+        path = self._file_storage_path(answer['sha1'], answer['filename'])
         return self.download(path, answer['mimetype'], answer['filename'])
 
     @XBlock.handler
     def download_annotated(self, request, suffix=''):
-        path = _file_storage_path(
-            str(self.location), self.annotated_sha1, self.annotated_filename)
+        path = self._file_storage_path(
+            self.annotated_sha1,
+            self.annotated_filename,
+        )
         return self.download(
             path,
             self.annotated_mimetype,
@@ -376,8 +389,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         require(self.is_course_staff())
         submission = self.get_submission(request.params['student_id'])
         answer = submission['answer']
-        path = _file_storage_path(
-            str(self.location), answer['sha1'], answer['filename'])
+        path = self._file_storage_path(answer['sha1'], answer['filename'])
         return self.download(path, answer['mimetype'], answer['filename'])
 
     @XBlock.handler
@@ -385,8 +397,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         require(self.is_course_staff())
         module = StudentModule.objects.get(pk=request.params['module_id'])
         state = json.loads(module.state)
-        path = _file_storage_path(
-            str(self.location),
+        path = self._file_storage_path(
             state['annotated_sha1'],
             state['annotated_filename']
         )
@@ -397,7 +408,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         )
 
     def download(self, path, mimetype, filename):
-        BLOCK_SIZE = (1<<10) * 8  # 8kb
+        BLOCK_SIZE = (1 << 10) * 8  # 8kb
         file = default_storage.open(path)
         app_iter = iter(partial(file.read, BLOCK_SIZE), '')
         return Response(
@@ -463,11 +474,16 @@ class StaffGradedAssignmentXBlock(XBlock):
     def upload_allowed(self):
         return not self.past_due() and self.score is None
 
-
-def _file_storage_path(url, sha1, filename):
-    path = url[6:] + '/' + sha1
-    path += os.path.splitext(filename)[1]
-    return path
+    def _file_storage_path(self, sha1, filename):
+        path = (
+            '{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}'
+            '/{sha1}{ext}'.format(
+                loc=self.location,
+                sha1=sha1,
+                ext=os.path.splitext(filename)[1]
+            )
+        )
+        return path
 
 
 def _get_sha1(file):
@@ -489,7 +505,7 @@ def _now():
     return datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
 
 
-def load_resource(resource_path):
+def load_resource(resource_path):  # pragma: NO COVER
     """
     Gets the content of a resource
     """
@@ -497,7 +513,7 @@ def load_resource(resource_path):
     return unicode(resource_content)
 
 
-def render_template(template_path, context={}):
+def render_template(template_path, context={}):  # pragma: NO COVER
     """
     Evaluate a template by resource path, applying the provided context
     """

@@ -147,7 +147,12 @@ Course Authoring in edX Studio
        file. Click it to confirm that the upload was successful. You can replace
        this file by simply selecting another file and uploading it. After
        the due date has passed, you will no longer be able to upload files. 
- 
+   
+   Note that *any* file type can be uploaded. If you expect a particular file
+   type from your students, you should specify it in the instructions. If you
+   wish students to upload multiple files, you can recommend they zip the
+   files before uploading. 
+
 4. Settings
 
 +----------------+--------------------------------------------------------------------------+
@@ -160,7 +165,11 @@ Course Authoring in edX Studio
 
 .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-editing-sga.png
    :alt: Editing SGA Settings
- 
+
+5. Grading Policy
+
+   SGA XBlocks inherit grading settings just like any other problem type. You 
+   can include them in homework, exams or any assignment type of your choosing.  
        
 Course Authoring in XML
 -----------------------
@@ -178,49 +187,67 @@ above. It is recommended to also include a url_name attribute. For example:
 Staff Grading
 -------------
 
-1. Navigate to the student view (LMS) of the course and find the vertical with 
+#. Navigate to the student view (LMS) of the course and find the vertical with 
    your Staff Graded Assignment. (If you are in Studio, click "View Live"). 
    
-2. If you are Course Staff or an Instructor for the course, you will see a 
+#. If you are Course Staff or an Instructor for the course, you will see a 
    "Grade Submissions" button in the lower right corner of the XBlock (Be sure 
    you are in "Staff View" indicated by a red label in the upper right corner of
    the page; if it says "Student View" in green, click on it once.)
    
-.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-lms-before-upload.png
-   :alt: Staff view of LMS interface
+   .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-lms-before-upload.png
+      :alt: Staff view of LMS interface
 
-3. When you click "Grade Submissions" a grid of student submissions will display
+#. When you click "Grade Submissions" a grid of student submissions will display
    in a lightbox. Columns for username, (full) name, Filename and Uploaded
    (time) will be filled in.
 
-.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-staff-grading-interface.png
-   :alt: Staff view of grading grid
+   .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-staff-grading-interface.png
+      :alt: Staff view of grading grid
 
-4. Click the filename in any row to download the student's submission. If it can
+#. Click the filename in any row to download the student's submission. If it can
    be displayed in your browser, it will.
 
-5. Click the **Enter grade** link to bring up an interface to enter grades and
+#. Click the **Enter grade** link to bring up an interface to enter grades and
    comments.
 
-.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-staff-enter-grade.png
-   :alt: Enter grade interface
+   .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-staff-enter-grade.png
+      :alt: Enter grade interface
 
-6. The grades and comments will appear in the grid. Use the "Upload Annotated
+#. The grades and comments will appear in the grid. Use the "Upload Annotated
    File" button to upload a file in response to the student's submission. The
    student will be able to view the file along with her grade.
 
-.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-graded.png
-   :alt: Staff view of grading grid after a submission has been graded
+   .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-graded.png
+      :alt: Instructor view of grading grid after a submission has been graded.
 
-7. Course staff can enter grades, but only Instructors can approve grades.
-   Grades must be approved for the student to view them.
+#. Course staff can enter grades, but they are not final and students won't see 
+   them until they are submitted by an instructor. When a grade is waiting for 
+   instructor approval, it appears in the submissions grid with the text 
+   :code:`(Awaiting instructor approval)` after it. 
+   
+   .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-awaiting-approval.png
+      :alt: Detail of Staff Member view of grading grid after a submission has been graded and it is awaiting approval.
 
-8. After the grade has been approved, the student will be able to see it inline
+   After a course staff member has submitted a grade, the instructor will see a
+   link to **Approve grade** instead of **Enter grade**. 
+   
+   .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-approve-grade.png
+      :alt: Detail of Instructor view of grading grid after a submission has been graded and it can be appproved. 
+   
+   Clicking **Approve grade** will open the same grading dialog box where, in 
+   addition to approving the grade, she can change the grade and the comment.
+
+   Once the instructor has approved or entered a grade, course staff members
+   cannot change it. However, the instructor can always change a grade.
+
+
+#. After the grade has been approved, the student will be able to see it inline
    and also in her progress page. Annotated files, if any, will be available
    for download.
 
-.. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-lms-student-video-graded.png
-   :alt: Student view of graded assignment with annotated instructor response
+   .. figure:: https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-lms-student-video-graded.png
+      :alt: Student view of graded assignment with annotated instructor response
 
 Testing
 -------
