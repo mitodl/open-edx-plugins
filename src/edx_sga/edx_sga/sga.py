@@ -493,7 +493,7 @@ def _now():
     return datetime.datetime.utcnow().replace(tzinfo=pytz.utc)
 
 
-def load_resource(resource_path):
+def load_resource(resource_path):  # pragma: NO COVER
     """
     Gets the content of a resource
     """
@@ -501,7 +501,7 @@ def load_resource(resource_path):
     return unicode(resource_content)
 
 
-def render_template(template_path, context={}):
+def render_template(template_path, context={}):  # pragma: NO COVER
     """
     Evaluate a template by resource path, applying the provided context
     """
