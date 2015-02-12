@@ -27,6 +27,7 @@ from submissions.models import StudentItem as SubmissionsStudent
 from webob.response import Response
 
 from xblock.core import XBlock
+from xblock.exceptions import JsonHandlerError
 from xblock.fields import DateTime, Scope, String, Float, Integer
 from xblock.fragment import Fragment
 
@@ -70,10 +71,9 @@ class StaffGradedAssignmentXBlock(XBlock):
         scope=Scope.settings
     )
 
-    points = Float(
+    points = Integer(
         display_name="Maximum score",
         help=("Maximum grade score given to assignment by staff."),
-        values={"min": 0, "step": .1},
         default=100,
         scope=Scope.settings
     )
@@ -315,8 +315,20 @@ class StaffGradedAssignmentXBlock(XBlock):
 
     @XBlock.json_handler
     def save_sga(self, data, suffix=''):
-        for name in ('display_name', 'points', 'weight'):
-            setattr(self, name, data.get(name, getattr(self, name)))
+        self.display_name = data.get('display_name', self.display_name)
+        self.weight = data.get('weight', self.weight)
+
+        # Validate points before saving
+        points = data.get('points', self.points)
+        # Check that we are an int
+        try:
+            points = int(points)
+        except ValueError:
+            raise JsonHandlerError(400, 'Points must be an integer')
+        # Check that we are positive
+        if points < 0:
+            raise JsonHandlerError(400, 'Points must be a positive integer')
+        self.points = points
 
     @XBlock.handler
     def upload_assignment(self, request, suffix=''):
@@ -397,7 +409,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         )
 
     def download(self, path, mimetype, filename):
-        BLOCK_SIZE = (1<<10) * 8  # 8kb
+        BLOCK_SIZE = (1 << 10) * 8  # 8kb
         file = default_storage.open(path)
         app_iter = iter(partial(file.read, BLOCK_SIZE), '')
         return Response(
