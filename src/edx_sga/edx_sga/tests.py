@@ -74,8 +74,9 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         block.start = datetime.datetime(2010, 5, 12, 2, 42, tzinfo=pytz.utc)
         return block
 
-    def make_student(self, block, name, **state):
+    def make_student(self, block, name, make_state=True, **state):
         answer = {}
+        module = None
         for key in ('sha1', 'mimetype', 'filename'):
             if key in state:
                 answer[key] = state.pop(key)
@@ -85,12 +86,13 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         user.save()
         profile = UserProfile(user=user, name=name)
         profile.save()
-        module = StudentModule(
-            module_state_key=block.location,
-            student=user,
-            course_id=self.course_id,
-            state=json.dumps(state))
-        module.save()
+        if make_state:
+            module = StudentModule(
+                module_state_key=block.location,
+                student=user,
+                course_id=self.course_id,
+                state=json.dumps(state))
+            module.save()
 
         anonymous_id = anonymous_id_for_user(user, self.course_id)
         item = StudentItem(
@@ -111,13 +113,19 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
 
         self.addCleanup(item.delete)
         self.addCleanup(profile.delete)
-        self.addCleanup(module.delete)
         self.addCleanup(user.delete)
 
+        if make_state:
+            self.addCleanup(module.delete)
+            return {
+                'module': module,
+                'item': item,
+                'submission': submission
+            }
+
         return {
-            'module': module,
             'item': item,
-            'submission': submission,
+            'submission': submission
         }
 
     def personalize(self, block, module, item, submission):
@@ -388,6 +396,26 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         self.assertEqual(assignments[1]['score'], None)
         self.assertEqual(assignments[1]['annotated'], None)
         self.assertEqual(assignments[1]['comment'], u'')
+
+    @mock.patch('edx_sga.sga.log')
+    def test_assert_logging_when_student_module_created(self, mocked_log):
+        block = self.make_one()
+        self.make_student(
+            block,
+            "tester",
+            make_state=False,
+            filename="foo.txt",
+            score=10,
+            annotated_filename="foo_corrected.txt",
+            comment="Good work!"
+        )
+        block.staff_grading_data()
+        mocked_log.info.assert_called_with(
+            "Init for course:%s module:%s student:%s  ",
+            block.course_id,
+            block.location,
+            'tester'
+        )
 
     def test_enter_grade_instructor(self):
         block = self.make_one()
