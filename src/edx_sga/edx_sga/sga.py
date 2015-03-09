@@ -18,6 +18,7 @@ from courseware.models import StudentModule
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
 from django.core.files.storage import default_storage
+from django.conf import settings
 from django.template import Context, Template
 
 from student.models import user_by_anonymous_id
@@ -55,6 +56,7 @@ class StaffGradedAssignmentXBlock(XBlock):
     """
     has_score = True
     icon_class = 'problem'
+    STUDENT_FILEUPLOAD_MAX_SIZE = 4 * 1000 * 1000  # 4 MB
 
     display_name = String(
         default='Staff Graded Assignment', scope=Scope.settings,
@@ -174,7 +176,11 @@ class StaffGradedAssignmentXBlock(XBlock):
         """
         context = {
             "student_state": json.dumps(self.student_state()),
-            "id": self.location.name.replace('.', '_')
+            "id": self.location.name.replace('.', '_'),
+            "max_file_size": getattr(
+                settings, "STUDENT_FILEUPLOAD_MAX_SIZE",
+                self.STUDENT_FILEUPLOAD_MAX_SIZE
+            )
         }
         if self.show_staff_grading_interface():
             context['is_course_staff'] = True

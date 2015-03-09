@@ -1,6 +1,6 @@
 {% load i18n %}
 
-<div class="sga-block" data-state="{{ student_state }}" 
+<div class="sga-block" data-state="{{ student_state }}" data-max-size="{{ max_file_size }}"
      data-staff="{{ is_course_staff }}">
   <script type="text/template" id="sga-tmpl">
     <% if (display_name) { %>
