@@ -245,6 +245,38 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
             "StaffGradedAssignmentXBlock")
 
     def test_save_sga(self):
+        def weights_positive_float_test():
+            orig_weight = 11.0
+
+            # Test negative weight doesn't work
+            block.save_sga(mock.Mock(method="POST", body=json.dumps({
+                "display_name": "Test Block",
+                "points": '100',
+                "weight": -10.0})))
+            self.assertEqual(block.weight, orig_weight)
+
+            # Test string weight doesn't work
+            block.save_sga(mock.Mock(method="POST", body=json.dumps({
+                "display_name": "Test Block",
+                "points": '100',
+                "weight": "a"})))
+            self.assertEqual(block.weight, orig_weight)
+
+        def point_positive_int_test():
+            # Test negative doesn't work
+            block.save_sga(mock.Mock(method="POST", body=json.dumps({
+                "display_name": "Test Block",
+                "points": '-10',
+                "weight": 11})))
+            self.assertEqual(block.points, orig_score)
+
+            # Test float doesn't work
+            block.save_sga(mock.Mock(method="POST", body=json.dumps({
+                "display_name": "Test Block",
+                "points": '24.5',
+                "weight": 11})))
+            self.assertEqual(block.points, orig_score)
+
         orig_score = 23
         block = self.make_one()
         block.save_sga(mock.Mock(body='{}'))
@@ -259,19 +291,8 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         self.assertEqual(block.points, orig_score)
         self.assertEqual(block.weight, 11)
 
-        # Test negative doesn't work
-        block.save_sga(mock.Mock(method="POST", body=json.dumps({
-            "display_name": "Test Block",
-            "points": '-10',
-            "weight": 11})))
-        self.assertEqual(block.points, orig_score)
-
-        # Test float doesn't work
-        block.save_sga(mock.Mock(method="POST", body=json.dumps({
-            "display_name": "Test Block",
-            "points": '24.5',
-            "weight": 11})))
-        self.assertEqual(block.points, orig_score)
+        point_positive_int_test()
+        weights_positive_float_test()
 
     def test_upload_download_assignment(self):
         path = pkg_resources.resource_filename(__package__, 'tests.py')
