@@ -56,7 +56,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def make_one(self, **kw):
+    def make_one(self, display_name=None, **kw):
         from edx_sga.sga import StaffGradedAssignmentXBlock as cls
         field_data = DictFieldData(kw)
         block = cls(self.runtime, field_data, self.scope_ids)
@@ -67,6 +67,10 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         block.course_id = self.course_id
         block.scope_ids.usage_id = 'XXX'
         block.category = 'problem'
+
+        if display_name:
+            block.display_name = display_name
+
         block.start = datetime.datetime(2010, 5, 12, 2, 42, tzinfo=pytz.utc)
         return block
 
@@ -140,7 +144,7 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
     @mock.patch('edx_sga.sga.render_template')
     @mock.patch('edx_sga.sga.Fragment')
     def test_student_view(self, Fragment, render_template):
-        block = self.make_one()
+        block = self.make_one("Custom name")
         self.personalize(block, **self.make_student(block, 'fred'))
         fragment = block.student_view()
         render_template.assert_called_once
@@ -153,6 +157,10 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         self.assertEqual(context['is_course_staff'], True)
         self.assertEqual(context['id'], 'name')
         student_state = json.loads(context['student_state'])
+        self.assertEqual(
+            student_state['display_name'],
+            "Custom name"
+        )
         self.assertEqual(student_state['uploaded'], None)
         self.assertEqual(student_state['annotated'], None)
         self.assertEqual(student_state['upload_allowed'], True)
@@ -207,6 +215,10 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         self.assertEqual(context['is_course_staff'], True)
         self.assertEqual(context['id'], 'name')
         student_state = json.loads(context['student_state'])
+        self.assertEqual(
+            student_state['display_name'],
+            "Staff Graded Assignment"
+        )
         self.assertEqual(student_state['uploaded'], {u'filename': u'foo.txt'})
         self.assertEqual(student_state['annotated'], None)
         self.assertEqual(student_state['upload_allowed'], False)

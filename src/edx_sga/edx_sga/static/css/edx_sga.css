@@ -123,3 +123,6 @@
    color: #FFF;
 }
 
+.sga-block .display_name {
+    color: inherit;
+}
