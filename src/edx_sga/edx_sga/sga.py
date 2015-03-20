@@ -316,7 +316,6 @@ class StaffGradedAssignmentXBlock(XBlock):
     @XBlock.json_handler
     def save_sga(self, data, suffix=''):
         self.display_name = data.get('display_name', self.display_name)
-        self.weight = data.get('weight', self.weight)
 
         # Validate points before saving
         points = data.get('points', self.points)
@@ -329,6 +328,21 @@ class StaffGradedAssignmentXBlock(XBlock):
         if points < 0:
             raise JsonHandlerError(400, 'Points must be a positive integer')
         self.points = points
+
+        # Validate weight before saving
+        weight = data.get('weight', self.weight)
+        # Check that weight is a float.
+        if weight:
+            try:
+                weight = float(weight)
+            except ValueError:
+                raise JsonHandlerError(400, 'Weight must be a decimal number')
+            # Check that we are positive
+            if weight < 0:
+                raise JsonHandlerError(
+                    400, 'Weight must be a positive decimal number'
+                )
+        self.weight = weight
 
     @XBlock.handler
     def upload_assignment(self, request, suffix=''):
