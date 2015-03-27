@@ -87,14 +87,14 @@
           </td>
           <td>
             <% if (assignment.may_grade) { %>
-              <a class="enter-grade-button" href="#{{ id }}-enter-grade">
+              <a class="enter-grade-button button" href="#{{ id }}-enter-grade">
                 <% if (assignment.needs_approval) { %>
                   {% trans "Approve grade" %}
                 <% } else { %>
                   {% trans "Enter grade" %}
                 <% } %>
               </a>
-            <% } %>
+           <% } %>
           </td>
           <td>
             <div class="upload">
