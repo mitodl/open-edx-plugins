@@ -154,3 +154,6 @@
     cursor: pointer;
 }
 
+.sga-block .display_name {
+    color: inherit;
+}

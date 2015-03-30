@@ -91,6 +91,10 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         function renderStaffGrading(data) {
             $(".grade-modal").hide();
 
+            if (data.display_name != ""){
+                $(".sga-block .display_name").html(data.display_name);
+            }
+
             // Add download urls to template context
             data.downloadUrl = staffDownloadUrl;
             data.annotatedUrl = staffAnnotatedUrl;

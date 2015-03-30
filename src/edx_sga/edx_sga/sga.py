@@ -224,6 +224,7 @@ class StaffGradedAssignmentXBlock(XBlock):
             graded = None
 
         return {
+            "display_name": self.display_name,
             "uploaded": uploaded,
             "annotated": annotated,
             "graded": graded,
@@ -280,6 +281,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         return {
             'assignments': list(get_student_data()),
             'max_score': self.max_score(),
+            'display_name': self.display_name
         }
 
     def studio_view(self, context=None):

@@ -3,6 +3,9 @@
 <div class="sga-block" data-state="{{ student_state }}" 
      data-staff="{{ is_course_staff }}">
   <script type="text/template" id="sga-tmpl">
+    <% if (display_name) { %>
+       <b><%= display_name %></b>
+    <% } %>
     <% if (uploaded) { %>
       <p><b>File uploaded</b> 
         <a href="<%= downloadUrl %>"><%= uploaded.filename %></a></p>
@@ -116,7 +119,7 @@
 
   <section aria-hidden="true" class="modal staff-modal" id="{{ id }}-grade" style="height: 75%">
     <div class="inner-wrapper" style="color: black; overflow: auto;">
-      <header><h2>{% trans "Staff Graded Assignment" %}</h2></header>
+      <header><h2><span class="display_name">{{ display_name }}</span> - {% trans "Staff Graded Assignment" %}</h2></header>
       <br/>
       <div id="grade-info" style="display: block;">
         Loading...
