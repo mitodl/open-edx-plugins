@@ -243,7 +243,7 @@ class StaffGradedAssignmentXBlock(XBlock):
                 if not submission:
                     continue
                 user = user_by_anonymous_id(student.student_id)
-                module, _ = StudentModule.objects.get_or_create(
+                module, created = StudentModule.objects.get_or_create(
                     course_id=self.course_id,
                     module_state_key=self.location,
                     student=user,
@@ -251,6 +251,14 @@ class StaffGradedAssignmentXBlock(XBlock):
                         'state': '{}',
                         'module_type': self.category,
                     })
+                if created:
+                    log.info(
+                        "Init for course:%s module:%s student:%s  ",
+                        module.course_id,
+                        module.module_state_key,
+                        module.student.username
+                    )
+
                 state = json.loads(module.state)
                 score = self.get_score(student.student_id)
                 approved = score is not None
@@ -380,6 +388,12 @@ class StaffGradedAssignmentXBlock(XBlock):
             default_storage.save(path, File(upload.file))
         module.state = json.dumps(state)
         module.save()
+        log.info(
+            "staff_upload_annotated for course:%s module:%s student:%s ",
+            module.course_id,
+            module.module_state_key,
+            module.student.username
+        )
         return Response(json_body=self.staff_grading_data())
 
     @XBlock.handler
@@ -451,6 +465,12 @@ class StaffGradedAssignmentXBlock(XBlock):
         state['comment'] = request.params.get('comment', '')
         module.state = json.dumps(state)
         module.save()
+        log.info(
+            "enter_grade for course:%s module:%s student:%s",
+            module.course_id,
+            module.module_state_key,
+            module.student.username
+        )
 
         return Response(json_body=self.staff_grading_data())
 
@@ -469,6 +489,12 @@ class StaffGradedAssignmentXBlock(XBlock):
         state['annotated_timestamp'] = None
         module.state = json.dumps(state)
         module.save()
+        log.info(
+            "remove_grade for course:%s module:%s student:%s",
+            module.course_id,
+            module.module_state_key,
+            module.student.username
+        )
         return Response(json_body=self.staff_grading_data())
 
     def is_course_staff(self):
