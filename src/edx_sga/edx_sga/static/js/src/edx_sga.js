@@ -27,11 +27,22 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 url: uploadUrl,
                 add: function(e, data) {
                     var do_upload = $(content).find(".upload").html('');
+                    $(content).find('p.error').html("");
                     $('<button/>')
                         .text('Upload ' + data.files[0].name)
                         .appendTo(do_upload)
                         .click(function() {
                             do_upload.text("Uploading...");
+                            var block = $(element).find(".sga-block");
+                            var data_max_size = block.attr("data-max-size");
+                            var size = data.files[0].size;
+                            if (!_.isUndefined(size)) {
+                                if (size >= data_max_size) { //if file size is larger max file size define in env(django)
+                                    state.error = "The file you are trying to upload is too large.";
+                                    render(state);
+                                    return;
+                                }
+                            }
                             data.submit();
                         });
                 },
