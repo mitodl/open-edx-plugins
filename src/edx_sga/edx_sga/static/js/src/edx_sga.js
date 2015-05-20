@@ -27,7 +27,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             var content = $(element).find('#sga-content').html(template(state));
 
             // Set up file upload
-            $(content).find('.fileupload').fileupload({
+            var fileUpload = $(content).find('.fileupload').fileupload({
                 url: uploadUrl,
                 add: function(e, data) {
                     var do_upload = $(content).find('.upload').html('');
@@ -100,6 +100,8 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                     }
                 }
             });
+
+            updateChangeEvent(fileUpload);
         }
 
         function renderStaffGrading(data) {
@@ -133,7 +135,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             $(element).find('#grade-info .fileupload').each(function() {
                 var row = $(this).parents("tr");
                 var url = staffUploadUrl + "?module_id=" + row.data("module_id");
-                $(this).fileupload({
+                var fileUpload = $(this).fileupload({
                     url: url,
                     progressall: function(e, data) {
                         var percent = parseInt(data.loaded / data.total * 100, 10);
@@ -147,6 +149,8 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                             3000);
                     }
                 });
+
+                updateChangeEvent(fileUpload);
             });
         }
 
@@ -201,6 +205,24 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 setTimeout(function() {
                     $('#grade-submissions-button').click();
                 }, 225);
+            });
+        }
+
+        function updateChangeEvent(fileUploadObj) {
+            fileUploadObj.off('change').on('change', function (e) {
+                var that = $(this).data('blueimpFileupload'),
+                    data = {
+                        fileInput: $(e.target),
+                        form: $(e.target.form)
+                    };
+
+                that._getFileInputFiles(data.fileInput).always(function (files) {
+                    data.files = files;
+                    if (that.options.replaceFileInput) {
+                        that._replaceFileInput(data.fileInput);
+                    }
+                    that._onAdd(e, data);
+                });
             });
         }
 
