@@ -152,6 +152,35 @@ function StaffGradedAssignmentXBlock(runtime, element) {
 
                 updateChangeEvent(fileUpload);
             });
+            $.tablesorter.addParser({
+              id: 'alphanum',
+              is: function(s) {
+                return false;
+              },
+              format: function(s) {
+                var str = s.replace(/(\d{1,2})/g, function(a){
+                    return pad(a);
+                });
+
+                return str;
+              },
+              type: 'text'
+            });
+
+            function pad(num) {
+              var s = '00000' + num;
+              return s.substr(s.length-5);
+            }
+            $("#submissions").tablesorter({
+                headers: {
+                  2: { sorter: "alphanum" },
+                  3: { sorter: "alphanum" },
+                  6: { sorter: "alphanum" }
+                }
+            });
+            $("#submissions").trigger("update");
+            var sorting = [[1,0]];
+            $("#submissions").trigger("sorton",[sorting]);
         }
 
         /* Click event handler for "enter grade" */

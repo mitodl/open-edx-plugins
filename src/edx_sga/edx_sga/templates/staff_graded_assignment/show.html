@@ -48,16 +48,19 @@
 
   {% if is_course_staff %}
   <script type="text/template" id="sga-grading-tmpl">
-    <table class="gridtable">
+    <table class="gridtable tablesorter" id="submissions">
+      <thead>
       <tr>
-        <th>Username</th>
-        <th>Name</th>
-        <th>Filename</th>
-        <th>Uploaded</th>
-        <th>Grade</th>
-        <th>Instructor's comments</th>
-        <th>Annotated</th>
+        <th class="header">Username <i class="icon fa fa-sort"/></th>
+        <th class="header">Name <i class="icon fa fa-sort"/></th>
+        <th class="header">Filename <i class="icon fa fa-sort"/></th>
+        <th class="header">Uploaded <i class="icon fa fa-sort"/></th>
+        <th class="header">Grade <i class="icon fa fa-sort"/></th>
+        <th class="header">Instructor's comments <i class="icon fa fa-sort"/></th>
+        <th class="header">Annotated <i class="icon fa fa-sort"/></th>
       </tr>
+      </thead>
+      <tbody>
       <% for (var i = 0; i < assignments.length; i++) { %>
       <%     var assignment = assignments[i]; %>
         <tr id="row-<%= assignment.module_id %>">
@@ -107,6 +110,7 @@
           </td>
         </tr>
       <% } %>
+      </tbody>
     </table>
   </script>
 
