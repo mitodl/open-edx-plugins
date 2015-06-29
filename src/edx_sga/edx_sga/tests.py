@@ -10,6 +10,7 @@ import pkg_resources
 import pytz
 import tempfile
 import unittest
+from mock import patch
 
 from courseware.models import StudentModule
 from django.contrib.auth.models import User
@@ -396,6 +397,13 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         response = block.download_assignment(None)
         self.assertEqual(response.body, expected)
 
+        with patch(
+            "edx_sga.sga.StaffGradedAssignmentXBlock._file_storage_path",
+            return_value=block._file_storage_path("", "test_notfound.txt")
+        ):
+            response = block.download_assignment(None)
+            self.assertEqual(response.status_code, 404)
+
     def test_staff_upload_download_annotated(self):
         # pylint: disable=no-member
         """
@@ -412,6 +420,14 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         response = block.staff_download_annotated(mock.Mock(params={
             'module_id': fred.id}))
         self.assertEqual(response.body, expected)
+
+        with patch(
+            "edx_sga.sga.StaffGradedAssignmentXBlock._file_storage_path",
+            return_value=block._file_storage_path("", "test_notfound.txt")
+        ):
+            response = block.staff_download_annotated(mock.Mock(params={
+            'module_id': fred.id}))
+            self.assertEqual(response.status_code, 404)
 
     def test_download_annotated(self):
         # pylint: disable=no-member
@@ -430,6 +446,13 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         response = block.download_annotated(None)
         self.assertEqual(response.body, expected)
 
+        with patch(
+            "edx_sga.sga.StaffGradedAssignmentXBlock._file_storage_path",
+            return_value=block._file_storage_path("", "test_notfound.txt")
+        ):
+            response = block.download_annotated(None)
+            self.assertEqual(response.status_code, 404)
+
     def test_staff_download(self):
         """
         Test download for staff.
@@ -444,6 +467,14 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         response = block.staff_download(mock.Mock(params={
             'student_id': student['item'].student_id}))
         self.assertEqual(response.body, expected)
+
+        with patch(
+            "edx_sga.sga.StaffGradedAssignmentXBlock._file_storage_path",
+            return_value=block._file_storage_path("", "test_notfound.txt")
+        ):
+            response = block.staff_download(mock.Mock(params={
+            'student_id': student['item'].student_id}))
+            self.assertEqual(response.status_code, 404)
 
     def test_download_annotated_unicode_filename(self):
         """
@@ -462,6 +493,13 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         response = block.download_annotated(None)
         self.assertEqual(response.body, expected)
 
+        with patch(
+            "edx_sga.sga.StaffGradedAssignmentXBlock._file_storage_path",
+            return_value=block._file_storage_path("", "test_notfound.txt")
+        ):
+            response = block.download_annotated(None)
+            self.assertEqual(response.status_code, 404)
+
     def test_staff_download_unicode_filename(self):
         """
         Tests download assignment with filename in unicode for staff.
@@ -476,6 +514,13 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         response = block.staff_download(mock.Mock(params={
             'student_id': student['item'].student_id}))
         self.assertEqual(response.body, expected)
+        with patch(
+            "edx_sga.sga.StaffGradedAssignmentXBlock._file_storage_path",
+            return_value=block._file_storage_path("", "test_notfound.txt")
+        ):
+            response = block.staff_download(mock.Mock(params={
+            'student_id': student['item'].student_id}))
+            self.assertEqual(response.status_code, 404)
 
     def test_get_staff_grading_data_not_staff(self):
         """
