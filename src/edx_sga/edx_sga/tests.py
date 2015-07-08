@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tests for SGA
 """
@@ -436,6 +437,38 @@ class StaffGradedAssignmentXblockTests(unittest.TestCase):
         path = pkg_resources.resource_filename(__package__, 'tests.py')
         expected = open(path, 'rb').read()
         upload = mock.Mock(file=DummyUpload(path, 'test.txt'))
+        block = self.make_one()
+        student = self.make_student(block, 'fred')
+        self.personalize(block, **student)
+        block.upload_assignment(mock.Mock(params={'assignment': upload}))
+        response = block.staff_download(mock.Mock(params={
+            'student_id': student['item'].student_id}))
+        self.assertEqual(response.body, expected)
+
+    def test_download_annotated_unicode_filename(self):
+        """
+        Tests download annotated assignment
+        with filename in unicode for non staff member.
+        """
+        path = pkg_resources.resource_filename(__package__, 'tests.py')
+        expected = open(path, 'rb').read()
+        upload = mock.Mock(file=DummyUpload(path, 'файл.txt'))
+        block = self.make_one()
+        fred = self.make_student(block, "fred2")
+        block.staff_upload_annotated(mock.Mock(params={
+            'annotated': upload,
+            'module_id': fred['module'].id}))
+        self.personalize(block, **fred)
+        response = block.download_annotated(None)
+        self.assertEqual(response.body, expected)
+
+    def test_staff_download_unicode_filename(self):
+        """
+        Tests download assignment with filename in unicode for staff.
+        """
+        path = pkg_resources.resource_filename(__package__, 'tests.py')
+        expected = open(path, 'rb').read()
+        upload = mock.Mock(file=DummyUpload(path, 'файл.txt'))
         block = self.make_one()
         student = self.make_student(block, 'fred')
         self.personalize(block, **student)
