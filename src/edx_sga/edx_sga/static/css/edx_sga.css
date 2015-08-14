@@ -157,3 +157,11 @@
 .sga-block .display_name {
     color: inherit;
 }
+
+.sga-block table.tablesorter thead tr .header {
+ 	cursor: pointer;
+}
+
+.sga-block table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp {
+    background-color: #8dbdd8;
+}
