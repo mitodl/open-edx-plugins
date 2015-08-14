@@ -491,7 +491,12 @@ class StaffGradedAssignmentXBlock(XBlock):
         submission = self.get_submission(request.params['student_id'])
         answer = submission['answer']
         path = self._file_storage_path(answer['sha1'], answer['filename'])
-        return self.download(path, answer['mimetype'], answer['filename'])
+        return self.download(
+            path,
+            answer['mimetype'],
+            answer['filename'],
+            require_staff=True
+        )
 
     @XBlock.handler
     def staff_download_annotated(self, request, suffix=''):
@@ -509,20 +514,36 @@ class StaffGradedAssignmentXBlock(XBlock):
         return self.download(
             path,
             state['annotated_mimetype'],
-            state['annotated_filename']
+            state['annotated_filename'],
+            require_staff=True
         )
 
-    def download(self, path, mime_type, filename):
+    def download(self, path, mime_type, filename, require_staff=False):
         """
         Return a file from storage and return in a Response.
         """
-        file_descriptor = default_storage.open(path)
-        app_iter = iter(partial(file_descriptor.read, BLOCK_SIZE), '')
-        return Response(
-            app_iter=app_iter,
-            content_type=mime_type,
-            content_disposition=("attachment; filename=" +
-                                 filename.encode('utf-8')))
+        try:
+            file_descriptor = default_storage.open(path)
+            app_iter = iter(partial(file_descriptor.read, BLOCK_SIZE), '')
+            return Response(
+                app_iter=app_iter,
+                content_type=mime_type,
+                content_disposition="attachment; filename=" + filename.encode('utf-8'))
+        except IOError:
+            if require_staff:
+                return Response(
+                    "Sorry, assignment {} cannot be found at"
+                    " {}. Please contact {}".format(
+                        filename.encode('utf-8'), path, settings.TECH_SUPPORT_EMAIL
+                    ),
+                    status_code=404
+                )
+            return Response(
+                "Sorry, the file you uploaded, {}, cannot be"
+                " found. Please try uploading it again or contact"
+                " course staff".format(filename.encode('utf-8')),
+                status_code=404
+            )
 
     @XBlock.handler
     def get_staff_grading_data(self, request, suffix=''):
