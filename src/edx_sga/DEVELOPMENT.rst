@@ -11,22 +11,23 @@ Setup (including devstack setup)
 5. ``curl -L https://raw.githubusercontent.com/edx/configuration/master/vagrant/release/devstack/Vagrantfile > Vagrantfile``
 6. ``vagrant plugin install vagrant-vbguest``
 7. ``vagrant up``
-8. ``vagrant ssh``
-9. ``sudo su edxapp``
-10. ``cd /edx/app/edxapp/themes/``
-11. ``pip uninstall edx-sga`` (since it's part of the edx distribution, we have to remove the installed version)
-12. Fork https://github.com/mitodl/edx-sga.git to your own github account.
-13. ``git clone https://github.com/your-name/edx-sga.git``
-14. ``cd edx-sga/``
-15. ``pip install -e .``
-16. ``paver run_all_servers``
+8. ``cd themes/``
+9. Fork https://github.com/mitodl/edx-sga.git to your own github account.
+10. ``git clone https://github.com/your-name/edx-sga.git``
+11. ``vagrant ssh``
+12. ``sudo su edxapp``
+13. ``cd /edx/app/edxapp/themes/``
+14. ``pip uninstall edx-sga`` (since it's part of the edx distribution, we have to remove the installed version)
+15. ``cd edx-sga/``
+16. ``pip install -e .``
+17. ``paver run_all_servers``
 
 You should now see your fork of the most recent master branch of edx-sga running in the LMS.
 
 Developing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. ``cd /edx/app/edxapp/themes/edx-sga/``
+1. ``cd /path/to/devstack/themes/edx-sga`` in your host filesystem
 2. ``git branch feature/your-name/name-of-feature``
 3. write code
 4. ``git add .``
