@@ -4,8 +4,8 @@ Developing on edx-sga
 Setup (including devstack setup)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. _Install vagrant: http://docs.vagrantup.com/v2/installation/
-2. _Install virtualbox: https://www.virtualbox.org/wiki/Downloads
+1. Install vagrant: http://docs.vagrantup.com/v2/installation/
+2. Install virtualbox: https://www.virtualbox.org/wiki/Downloads
 3. ``mkdir devstack``
 4. ``cd devstack``
 5. ``curl -L https://raw.githubusercontent.com/edx/configuration/master/vagrant/release/devstack/Vagrantfile > Vagrantfile``
@@ -35,4 +35,4 @@ Developing
 7. Rebase your branch against mitodl/master and resolve any conflicts.
 8. Open a pull request from your fork/feature branch to mitodl/master
 
-Also, see: [testing](https://github.com/mitodl/edx-sga#testing). Javascript testing will be added soon.
+Also, see testing: https://github.com/mitodl/edx-sga#testing. Javascript testing will be added soon.
