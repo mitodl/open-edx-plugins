@@ -16,7 +16,7 @@ Setup (including devstack setup)
     cd themes/
 
 #. Fork https://github.com/mitodl/edx-sga.git to your own github account.
-#. Set up your development environment
+#. Set up your development environment::
 
     git clone https://github.com/your-name/edx-sga.git    
     vagrant ssh    
