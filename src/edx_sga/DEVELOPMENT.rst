@@ -48,5 +48,5 @@ Developing
 
 Also, see testing_. Javascript testing will be added soon.
 
-.. _this process: https://github.com/edx/edx-platform/wiki/How-to-Rebase-a-Pull-Request
+.. _process: https://github.com/edx/edx-platform/wiki/How-to-Rebase-a-Pull-Request
 .. _testing: https://github.com/mitodl/edx-sga#testing
