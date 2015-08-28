@@ -13,15 +13,15 @@ Setup (including devstack setup)
     curl -L https://raw.githubusercontent.com/edx/configuration/master/vagrant/release/devstack/Vagrantfile > Vagrantfile
     vagrant plugin install vagrant-vbguest
     vagrant up
-    cd themes/
 
 #. Fork https://github.com/mitodl/edx-sga.git to your own github account.
 #. Set up your development environment::
 
+    cd themes/
     git clone https://github.com/your-name/edx-sga.git    
     vagrant ssh    
     sudo su edxapp    
-    cd /edx/app/edxapp/themes/    
+    cd ./themes/    
     pip uninstall edx-sga     (since it's part of the edx distribution, we have to remove the installed version)
     cd edx-sga/    
     pip install -e .    
@@ -34,7 +34,7 @@ Developing
 
 #. In your host filesystem::
 
-    cd /path/to/devstack/themes/edx-sga     
+    cd /path/to/devstack/edx-platform/themes/edx-sga
     git branch feature/your-name/name-of-feature    
 
 #. Write Code, then::
@@ -43,10 +43,8 @@ Developing
     git commit -m "Description of feature added."    
     git push origin feature/your-name/name-of-feature    
 
-#. Rebase your branch against mitodl/master and resolve any conflicts, following this process_.
+#. Rebase your branch against mitodl/master and resolve any conflicts, following this process: https://github.com/edx/edx-platform/wiki/How-to-Rebase-a-Pull-Request.
 #. Open a pull request from your fork/feature branch to mitodl/master
 
-Also, see testing_. Javascript testing will be added soon.
+Also, see testing: https://github.com/mitodl/edx-sga#testing.
 
-.. _process: https://github.com/edx/edx-platform/wiki/How-to-Rebase-a-Pull-Request
-.. _testing: https://github.com/mitodl/edx-sga#testing
