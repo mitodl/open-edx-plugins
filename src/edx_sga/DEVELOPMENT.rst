@@ -4,8 +4,8 @@ Developing on edx-sga
 Setup (including devstack setup)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-#. Install vagrant__
-#. Install virtualbox__
+#. Install vagrant_
+#. Install virtualbox_
 #. Set up devstack::
 
     mkdir devstack
@@ -43,10 +43,10 @@ Developing
     git commit -m "Description of feature added."    
     git push origin feature/your-name/name-of-feature    
 
-#. Rebase your branch against mitodl/master and resolve any conflicts, following this process__.
+#. Rebase your branch against mitodl/master and resolve any conflicts, following this process_.
 #. Open a pull request from your fork/feature branch to mitodl/master
 
-Also, see testing__. Javascript testing will be added soon.
+Also, see testing_. Javascript testing will be added soon.
 
 .. _Install vagrant: http://docs.vagrantup.com/v2/installation/
 .. _Install virtualbox: https://www.virtualbox.org/wiki/Downloads
