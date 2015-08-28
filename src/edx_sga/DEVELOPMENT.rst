@@ -32,10 +32,11 @@ You should now see your fork of the most recent master branch of edx-sga running
 Developing
 ~~~~~~~~~~
 
-    cd /path/to/devstack/themes/edx-sga     # (in your host filesystem)
+#. In your host filesystem::
+    cd /path/to/devstack/themes/edx-sga     
     git branch feature/your-name/name-of-feature    
 
-Write Code, then::
+#. Write Code, then::
 
     git add .    
     git commit -m "Description of feature added."    
