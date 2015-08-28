@@ -33,7 +33,7 @@ Developing
 4. ``git add .``
 5. ``git commit -m "Description of feature added."``
 6. ``git push origin feature/your-name/name-of-feature``
-7. Rebase your branch against mitodl/master and resolve any conflicts.
+7. Rebase your branch against mitodl/master and resolve any conflicts, following this process: https://github.com/edx/edx-platform/wiki/How-to-Rebase-a-Pull-Request.
 8. Open a pull request from your fork/feature branch to mitodl/master
 
 Also, see testing: https://github.com/mitodl/edx-sga#testing. Javascript testing will be added soon.
