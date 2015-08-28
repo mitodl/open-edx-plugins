@@ -4,8 +4,8 @@ Developing on edx-sga
 Setup (including devstack setup)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-#. Install vagrant: http://docs.vagrantup.com/v2/installation/
-#. Install virtualbox: https://www.virtualbox.org/wiki/Downloads
+#. .. _Install vagrant: http://docs.vagrantup.com/v2/installation/
+#. .. _Install virtualbox: https://www.virtualbox.org/wiki/Downloads
 #. Set up devstack::
 
     mkdir devstack
@@ -43,7 +43,7 @@ Developing
     git commit -m "Description of feature added."    
     git push origin feature/your-name/name-of-feature    
 
-#. Rebase your branch against mitodl/master and resolve any conflicts, following this process: https://github.com/edx/edx-platform/wiki/How-to-Rebase-a-Pull-Request.
+#. Rebase your branch against mitodl/master and resolve any conflicts, following .. _this process: https://github.com/edx/edx-platform/wiki/How-to-Rebase-a-Pull-Request.
 #. Open a pull request from your fork/feature branch to mitodl/master
 
-Also, see testing: https://github.com/mitodl/edx-sga#testing. Javascript testing will be added soon.
+Also, see .. _testing: https://github.com/mitodl/edx-sga#testing. Javascript testing will be added soon.
