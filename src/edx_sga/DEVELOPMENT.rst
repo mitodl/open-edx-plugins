@@ -29,7 +29,8 @@ Setup (including devstack setup)
 
 You should now see your fork of the most recent master branch of edx-sga running in the LMS.
 
-Developing::
+Developing
+~~~~~~~~~~
 
     cd /path/to/devstack/themes/edx-sga     # (in your host filesystem)
     git branch feature/your-name/name-of-feature    
