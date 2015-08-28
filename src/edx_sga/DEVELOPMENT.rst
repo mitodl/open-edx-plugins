@@ -33,6 +33,7 @@ Developing
 ~~~~~~~~~~
 
 #. In your host filesystem::
+
     cd /path/to/devstack/themes/edx-sga     
     git branch feature/your-name/name-of-feature    
 
