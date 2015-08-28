@@ -2,7 +2,7 @@ Developing on edx-sga
 ==============================
 
 Setup (including devstack setup)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Install vagrant: http://docs.vagrantup.com/v2/installation/
 2. Install virtualbox: https://www.virtualbox.org/wiki/Downloads
