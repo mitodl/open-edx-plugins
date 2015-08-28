@@ -4,8 +4,8 @@ Developing on edx-sga
 Setup (including devstack setup)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-#. Install vagrant
-#. Install virtualbox_
+#. Install vagrant_.
+#. Install virtualbox_.
 #. Set up devstack::
 
     mkdir devstack
