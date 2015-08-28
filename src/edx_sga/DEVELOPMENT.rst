@@ -1,5 +1,5 @@
 Developing on edx-sga
-==============================
+=====================
 
 Setup (including devstack setup)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
