@@ -4,8 +4,8 @@ Developing on edx-sga
 Setup (including devstack setup)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-#. `Install vagrant`__.
-#. `Install virtualbox`__.
+#. `Install vagrant <http://docs.vagrantup.com/v2/installation/>`_.
+#. `Install virtualbox <https://www.virtualbox.org/wiki/Downloads>`_.
 #. Set up devstack::
 
     mkdir devstack
@@ -48,7 +48,5 @@ Developing
 
 Also, see testing_. Javascript testing will be added soon.
 
-.. _Install vagrant: http://docs.vagrantup.com/v2/installation/
-.. _Install virtualbox: https://www.virtualbox.org/wiki/Downloads
 .. _this process: https://github.com/edx/edx-platform/wiki/How-to-Rebase-a-Pull-Request
 .. _testing: https://github.com/mitodl/edx-sga#testing
