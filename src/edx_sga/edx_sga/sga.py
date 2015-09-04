@@ -21,7 +21,7 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 from django.template import Context, Template
 
-from student.models import user_by_anonymous_id, anonymous_id_for_user
+from student.models import user_by_anonymous_id
 from submissions import api as submissions_api
 from submissions.models import StudentItem as SubmissionsStudent
 
@@ -263,57 +263,53 @@ class StaffGradedAssignmentXBlock(XBlock):
             "upload_allowed": self.upload_allowed(),
         }
 
-    def staff_grading_data(self, student_user=None):
+    def staff_grading_data(self):
         """
         Return student assignment information for display on the
         grading screen.
         """
-        student_data = []
-
-        # Submissions doesn't have API for this, just use model directly.
-        if student_user is not None:
-            student_anonymous_id = anonymous_id_for_user(
-                user=student_user, course_id=self.course_id, save=False
-            )
-            students = SubmissionsStudent.objects.filter(
-                student_id=student_anonymous_id
-            )
-        else:
+        def get_student_data():
+            # pylint: disable=no-member
+            """
+            Returns a dict of student assignment information along with
+            annotated file name, student id and module id, this
+            information will be used on grading screen
+            """
+            # Submissions doesn't have API for this, just use model directly.
             students = SubmissionsStudent.objects.filter(
                 course_id=self.course_id,
                 item_id=self.block_id)
-        for student in students:
-            submission = self.get_submission(student.student_id)
-            if not submission:
-                continue
-            user = user_by_anonymous_id(student.student_id)
-            module, created = StudentModule.objects.get_or_create(
-                course_id=self.course_id,
-                module_state_key=self.location,
-                student=user,
-                defaults={
-                    'state': '{}',
-                    'module_type': self.category,
-                })
-            if created:
-                log.info(
-                    "Init for course:%s module:%s student:%s  ",
-                    module.course_id,
-                    module.module_state_key,
-                    module.student.username
-                )
+            for student in students:
+                submission = self.get_submission(student.student_id)
+                if not submission:
+                    continue
+                user = user_by_anonymous_id(student.student_id)
+                module, created = StudentModule.objects.get_or_create(
+                    course_id=self.course_id,
+                    module_state_key=self.location,
+                    student=user,
+                    defaults={
+                        'state': '{}',
+                        'module_type': self.category,
+                    })
+                if created:
+                    log.info(
+                        "Init for course:%s module:%s student:%s  ",
+                        module.course_id,
+                        module.module_state_key,
+                        module.student.username
+                    )
 
-            state = json.loads(module.state)
-            score = self.get_score(student.student_id)
-            approved = score is not None
-            if score is None:
-                score = state.get('staff_score')
-                needs_approval = score is not None
-            else:
-                needs_approval = False
-            instructor = self.is_instructor()
-            student_data.append(
-                {
+                state = json.loads(module.state)
+                score = self.get_score(student.student_id)
+                approved = score is not None
+                if score is None:
+                    score = state.get('staff_score')
+                    needs_approval = score is not None
+                else:
+                    needs_approval = False
+                instructor = self.is_instructor()
+                yield {
                     'module_id': module.id,
                     'student_id': student.student_id,
                     'submission_id': submission['uuid'],
@@ -330,10 +326,9 @@ class StaffGradedAssignmentXBlock(XBlock):
                     'annotated': state.get("annotated_filename"),
                     'comment': state.get("comment", ''),
                 }
-            )
 
         return {
-            'assignments': student_data,
+            'assignments': list(get_student_data()),
             'max_score': self.max_score(),
             'display_name': self.display_name
         }
@@ -458,9 +453,7 @@ class StaffGradedAssignmentXBlock(XBlock):
             module.module_state_key,
             module.student.username
         )
-        return Response(
-            json_body=self.staff_grading_data(student_user=module.student)
-        )
+        return Response(json_body=self.staff_grading_data())
 
     @XBlock.handler
     def download_assignment(self, request, suffix=''):
@@ -559,9 +552,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         Return the html for the staff grading view
         """
         require(self.is_course_staff())
-        return Response(
-            json_body=self.staff_grading_data()
-        )
+        return Response(json_body=self.staff_grading_data())
 
     @XBlock.handler
     def enter_grade(self, request, suffix=''):
@@ -587,9 +578,8 @@ class StaffGradedAssignmentXBlock(XBlock):
             module.module_state_key,
             module.student.username
         )
-        return Response(
-            json_body=self.staff_grading_data(student_user=module.student)
-        )
+
+        return Response(json_body=self.staff_grading_data())
 
     @XBlock.handler
     def remove_grade(self, request, suffix=''):
@@ -616,9 +606,7 @@ class StaffGradedAssignmentXBlock(XBlock):
             module.module_state_key,
             module.student.username
         )
-        return Response(
-            json_body=self.staff_grading_data(student_user=module.student)
-        )
+        return Response(json_body=self.staff_grading_data())
 
     def is_course_staff(self):
         # pylint: disable=no-member
