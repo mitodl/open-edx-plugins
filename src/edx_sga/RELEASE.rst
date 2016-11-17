@@ -1,5 +1,28 @@
-SGA 0.5.0 Release Notes
-=======================
+Release Notes
+=============
+
+Version 0.6.0
+-------------
+
+- adding version number so this will work with our release-script
+- Fixed test failure issues on sga (#146)
+- Removed import in __init__
+- Center modal and fix scrolling
+- Installed bower with URI.js, require.js, underscore, jquery
+- Add actions cell to assignments table header.
+- Added basic developer notes.
+- Added sorting plugin to header table, Now you can sort each column by clicking header
+- Handle file not found error, Fixed error messages, set error code to 404
+- Allow not only english language file uploads
+- Implement support for multiply SGA elements at one vertical
+- fixed all posible pylint issues
+- fix jshint indentified issue for all studio and edx_sga file
+- merge base and fixed error message display under button error and loaded max file size from settings
+- Added log.info in all locations where sga.py is chaning state of StudentModule
+- added display name on sga lms and grade submission dialog
+- Changed enter grade link style to make it look like button and added some spaces in css attributes
+- Added weight validations and test cases, split long length test into sub funtions
+- Design changes in sga settings page, added a settings tab and style in css file, added some classes
 
 Migrations
 ----------
