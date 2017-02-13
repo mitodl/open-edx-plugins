@@ -1,6 +1,12 @@
 Release Notes
 =============
 
+Version 0.6.1
+-------------
+
+- Fixed error "ValueError: invalid literal for int() with base 10: 'undefined'" (#160)
+- Fixed typo in README (#158)
+
 Version 0.6.0
 -------------
 
