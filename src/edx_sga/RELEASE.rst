@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.6.3
+-------------
+
+- preface id refs with strings, add tabindex to modals (#163)
+
 Version 0.6.1
 -------------
 
