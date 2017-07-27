@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.6.4
+-------------
+
+- Serialize block/course locators before sending to submissions API. (#166)
+
 Version 0.6.3
 -------------
 
