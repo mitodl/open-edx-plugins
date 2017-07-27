@@ -140,7 +140,14 @@ class StaffGradedAssignmentXBlock(XBlock):
         """
         Return the usage_id of the block.
         """
-        return self.scope_ids.usage_id
+        return unicode(self.scope_ids.usage_id)
+
+    @reify
+    def block_course_id(self):
+        """
+        Return the course_id of the block.
+        """
+        return unicode(self.course_id)
 
     def student_submission_id(self, submission_id=None):
         # pylint: disable=no-member
@@ -155,9 +162,9 @@ class StaffGradedAssignmentXBlock(XBlock):
             )
         return {
             "student_id": submission_id,
-            "course_id": self.course_id,
+            "course_id": self.block_course_id,
             "item_id": self.block_id,
-            "item_type": 'sga',  # ???
+            "item_type": 'sga',
         }
 
     def get_submission(self, submission_id=None):
