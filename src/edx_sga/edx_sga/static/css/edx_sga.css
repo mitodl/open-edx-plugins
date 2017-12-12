@@ -18,6 +18,10 @@
     box-sizing: border-box;
 }
 
+.sga-block .staff-modal .not-finalized td {
+    background-color: #f1f1f1
+}
+
 .sga-block table.gridtable {
     font-family: verdana,arial,sans-serif;
     font-size:11px;

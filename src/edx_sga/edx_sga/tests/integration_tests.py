@@ -81,7 +81,7 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         """
         answer = {}
         module = None
-        for key in ('sha1', 'mimetype', 'filename'):
+        for key in ('sha1', 'mimetype', 'filename', 'finalized'):
             if key in state:
                 answer[key] = state.pop(key)
         score = state.pop('score', None)
@@ -107,7 +107,7 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         item.save()
 
         if answer:
-            student_id = block.student_submission_id(anonymous_id)
+            student_id = block.get_student_item_dict(anonymous_id)
             submission = submissions_api.create_submission(student_id, answer)
             if score is not None:
                 submissions_api.set_score(
@@ -377,6 +377,20 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         ):
             response = block.download_assignment(None)
             self.assertEqual(response.status_code, 404)
+
+    def test_finalize_uploaded_assignment(self):
+        """
+        Tests that finalize_uploaded_assignment sets a submission to be finalized
+        """
+        block = self.make_one()
+        created_student_data = self.make_student(block, "fred1", finalized=False)
+        self.personalize(block, **created_student_data)
+        submission_data = created_student_data['submission']
+        response = block.finalize_uploaded_assignment(mock.Mock(method="POST"))
+        recent_submission_data = block.get_submission()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(submission_data['uuid'], recent_submission_data['uuid'])
+        self.assertTrue(recent_submission_data['answer']['finalized'])
 
     def test_staff_upload_download_annotated(self):
         # pylint: disable=no-member

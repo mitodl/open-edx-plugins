@@ -4,41 +4,48 @@
      data-staff="{{ is_course_staff }}">
   <script type="text/template" id="sga-tmpl">
     <% if (display_name) { %>
-       <b><%= display_name %></b>
-    <% } %>
-    <% if (uploaded) { %>
-      <p><b>{% trans "File uploaded" %}</b> 
-        <a href="<%= downloadUrl %>"><%= uploaded.filename %></a></p>
-    <% } else { %>
-      <p>{% trans "No file has been uploaded." %}</p>
-    <% } %>
-    <% if (graded) { %>
       <p>
-        {% blocktrans %}Your score is <%= graded.score %> / <%= max_score %>{% endblocktrans %}<br/>
-        <% if (graded.comment) { %>
-          <b>{% trans "Instructor comment" %}</b> <%= graded.comment %>
-        <% } %>
-        <% if (annotated) { %><br/>
-          <b>{% trans "Annotated file from instructor" %}</b>
-          <a href="<%= annotatedUrl %>"><%= annotated.filename %></a>
-        <% } %>
+        <b><%= display_name %></b>
       </p>
-    <% } else if (uploaded) { %>
-      {% trans "This assignment has not yet been graded." %}
     <% } %>
     <% if (upload_allowed) { %>
-    <p>
-      <% if (uploaded) { %>
-        {% trans "Upload a different file" %}
-      <% } else { %>
-        {% trans "Upload your assignment" %}
-      <% } %>
-      <div class="upload">
-        <label>{% trans "Select a file" %}
-          <input class="fileupload" type="file" name="assignment"/>
+      <p class="upload">
+        <label>
+          <% if (uploaded) { %>
+            {% trans "Upload a different file" %}
+          <% } else { %>
+            {% trans "Upload your assignment" %}
+          <% } %>
+          <input class="fileupload" type="file" name="assignment" />
         </label>
+      </p>
+    <% } %>
+    <% if (uploaded) { %>
+      <div class="sequential-status-message">
+        <p>
+          <b>{% trans "File uploaded" %}</b>
+          <a href="<%= downloadUrl %>"><%= uploaded.filename %></a>
+        </p>
+        <p>
+          <% if (graded) { %>
+            {% blocktrans %}Your score is <%= graded.score %> / <%= max_score %>{% endblocktrans %}<br/>
+            <% if (graded.comment) { %>
+              <b>{% trans "Instructor comment" %}</b> <%= graded.comment %><br/>
+            <% } %>
+            <% if (annotated) { %>
+              <b>{% trans "Annotated file from instructor" %}</b>
+              <a href="<%= annotatedUrl %>"><%= annotated.filename %></a><br/>
+            <% } %>
+          <% } else if (uploaded) { %>
+            {% trans "This assignment has not yet been graded." %}
+          <% } %>
+        </p>
+        <% if (upload_allowed) { %>
+          <p>
+            <a class="button finalize-upload">Submit</a>
+          </p>
+        <% } %>
       </div>
-    </p>
     <% } %>
     <% if (error) { %>
       <p class="error"><%= error %></p>
@@ -57,6 +64,7 @@
         <th class="header">{% trans "Name" %} <i class="icon fa fa-sort"/></th>
         <th class="header">{% trans "Filename" %} <i class="icon fa fa-sort"/></th>
         <th class="header">{% trans "Uploaded" %} <i class="icon fa fa-sort"/></th>
+        <th class="header">{% trans "Submitted" %} <i class="icon fa fa-sort"/></th>
         <th class="header">{% trans "Grade" %} <i class="icon fa fa-sort"/></th>
         <th class="header">{% trans "Instructor's comments" %} <i class="icon fa fa-sort"/></th>
         <th class="header">{% trans "Annotated" %} <i class="icon fa fa-sort"/></th>
@@ -66,7 +74,7 @@
       <tbody>
       <% for (var i = 0; i < assignments.length; i++) { %>
       <%     var assignment = assignments[i]; %>
-        <tr id="row-<%= assignment.module_id %>">
+        <tr id="row-<%= assignment.module_id %>"<% if (!assignment.finalized) { %> class="not-finalized"<% } %>>
           <td><%= assignment.username %></td>
           <td><%= assignment.fullname %></td>
           <td>
@@ -78,6 +86,13 @@
           </td>
           <td><%= assignment.timestamp %></td>
           <td>
+            <% if (assignment.finalized) { %>
+              {% trans "Yes" %}
+            <% } else { %>
+              {% trans "No" %}
+            <% } %>
+          </td>
+          <td>
             <% if (assignment.score !== null) { %>
               <%= assignment.score %> /
               <%= max_score %>
@@ -88,7 +103,7 @@
           </td>
           <td><%= assignment.comment %></td>
           <td>
-            <% if (assignment.annotated) { %>
+            <% if (assignment.annotated && assignment.annotated != "None") { %>
               <a href="<%= annotatedUrl %>?module_id=<%= assignment.module_id %>">
                 <%= assignment.annotated %>
               </a>
