@@ -2,6 +2,7 @@
 function StaffGradedAssignmentXBlock(runtime, element) {
     function xblock($, _) {
         var uploadUrl = runtime.handlerUrl(element, 'upload_assignment');
+        var finalizeUploadUrl = runtime.handlerUrl(element, 'finalize_uploaded_assignment');
         var downloadUrl = runtime.handlerUrl(element, 'download_assignment');
         var annotatedUrl = runtime.handlerUrl(element, 'download_annotated');
         var getStaffGradingUrl = runtime.handlerUrl(
@@ -26,30 +27,39 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             // Render template
             var content = $(element).find('#sga-content').html(template(state));
 
+            $(content).find('.finalize-upload').on('click', function() {
+              $.post(finalizeUploadUrl).success(
+                  function () {
+                      state.upload_allowed = false;
+                      render(state);
+                  }
+              ).fail(
+                  function () {
+                      state.error = gettext('Submission failed. Please contact your course instructor.');
+                      render(state);
+                  }
+              );
+            });
+
             // Set up file upload
             var fileUpload = $(content).find('.fileupload').fileupload({
                 url: uploadUrl,
                 add: function(e, data) {
                     var do_upload = $(content).find('.upload').html('');
                     $(content).find('p.error').html('');
-                    $('<button/>')
-                        .text(interpolate(gettext('Upload %(file_name)s'), {file_name: data.files[0].name}, true))
-                        .appendTo(do_upload)
-                        .click(function() {
-                            do_upload.text(gettext('Uploading...'));
-                            var block = $(element).find(".sga-block");
-                            var data_max_size = block.attr("data-max-size");
-                            var size = data.files[0].size;
-                            if (!_.isUndefined(size)) {
-                                //if file size is larger max file size define in env(django)
-                                if (size >= data_max_size) {
-                                    state.error = gettext('The file you are trying to upload is too large.');
-                                    render(state);
-                                    return;
-                                }
-                            }
-                            data.submit();
-                        });
+                    do_upload.text(gettext('Uploading...'));
+                    var block = $(element).find(".sga-block");
+                    var data_max_size = block.attr("data-max-size");
+                    var size = data.files[0].size;
+                    if (!_.isUndefined(size)) {
+                        //if file size is larger max file size define in env(django)
+                        if (size >= data_max_size) {
+                            state.error = gettext('The file you are trying to upload is too large.');
+                            render(state);
+                            return;
+                        }
+                    }
+                    data.submit();
                 },
                 progressall: function(e, data) {
                     var percent = parseInt(data.loaded / data.total * 100, 10);
@@ -172,6 +182,17 @@ function StaffGradedAssignmentXBlock(runtime, element) {
               type: 'text'
             });
 
+            $.tablesorter.addParser({
+                id: 'yesno',
+                is: function(s) {
+                    return false;
+                },
+                format: function(s) {
+                    return s.toLowerCase().trim() === gettext('yes') ? 1 : 0;
+                },
+                type: 'text'
+            });
+
             function pad(num) {
               var s = '00000' + num;
               return s.substr(s.length-5);
@@ -180,11 +201,12 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 headers: {
                   2: { sorter: "alphanum" },
                   3: { sorter: "alphanum" },
-                  6: { sorter: "alphanum" }
+                  4: { sorter: "yesno" },
+                  7: { sorter: "alphanum" }
                 }
             });
             $("#submissions").trigger("update");
-            var sorting = [[1,0]];
+            var sorting = [[4,1], [1,0]];
             $("#submissions").trigger("sorton",[sorting]);
         }
 

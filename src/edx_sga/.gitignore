@@ -4,6 +4,8 @@
 .coverage
 dist/
 .tox/
+.idea/
+.cache/
 
 ### Internationalization artifacts
 *.mo

@@ -2,14 +2,12 @@
 This block defines a Staff Graded Assignment.  Students are shown a rubric
 and invited to upload a file which is then graded by staff.
 """
-import datetime
 import hashlib
 import json
 import logging
 import mimetypes
 import os
 import pkg_resources
-import pytz
 import six
 
 from functools import partial  # lint-amnesty, pylint: disable=wrong-import-order
@@ -20,12 +18,16 @@ from django.core.files.storage import default_storage  # lint-amnesty, pylint: d
 from django.conf import settings  # lint-amnesty, pylint: disable=import-error
 from django.template import Context, Template  # lint-amnesty, pylint: disable=import-error
 from django.utils.encoding import force_text  # pylint: disable=import-error
+from django.utils.timezone import now as django_now  # pylint: disable=import-error
 from django.utils.translation import ugettext_lazy as _  # pylint: disable=import-error
 
 from courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
 from student.models import user_by_anonymous_id  # lint-amnesty, pylint: disable=import-error
 from submissions import api as submissions_api  # lint-amnesty, pylint: disable=import-error
-from submissions.models import StudentItem as SubmissionsStudent  # lint-amnesty, pylint: disable=import-error
+from submissions.models import (
+    Submission,
+    StudentItem as SubmissionsStudent
+)  # lint-amnesty, pylint: disable=import-error
 
 from webob.response import Response
 from xblock.core import XBlock  # lint-amnesty, pylint: disable=import-error
@@ -34,6 +36,8 @@ from xblock.fields import DateTime, Scope, String, Float, Integer  # lint-amnest
 from xblock.fragment import Fragment  # lint-amnesty, pylint: disable=import-error
 
 from xmodule.util.duedate import get_extended_due_date  # lint-amnesty, pylint: disable=import-error
+
+from edx_sga.utils import tznow, is_finalized_submission
 
 
 log = logging.getLogger(__name__)
@@ -151,7 +155,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         """
         return unicode(self.course_id)
 
-    def student_submission_id(self, submission_id=None):
+    def get_student_item_dict(self, submission_id=None):
         # pylint: disable=no-member
         """
         Returns dict required by the submissions app for creating and
@@ -174,7 +178,8 @@ class StaffGradedAssignmentXBlock(XBlock):
         Get student's most recent submission.
         """
         submissions = submissions_api.get_submissions(
-            self.student_submission_id(submission_id))
+            self.get_student_item_dict(submission_id)
+        )
         if submissions:
             # If I understand docs correctly, most recent submission should
             # be first
@@ -185,7 +190,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         Return student's current score.
         """
         score = submissions_api.get_score(
-            self.student_submission_id(submission_id)
+            self.get_student_item_dict(submission_id)
         )
         if score:
             return score['points_earned']
@@ -234,7 +239,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         Add context info for the Staff Debug interface.
         """
         published = self.start
-        context['is_released'] = published and published < _now()
+        context['is_released'] = published and published < tznow()
         context['location'] = self.location
         context['category'] = type(self).__name__
         context['fields'] = [
@@ -275,7 +280,7 @@ class StaffGradedAssignmentXBlock(XBlock):
             "annotated": annotated,
             "graded": graded,
             "max_score": self.max_score(),
-            "upload_allowed": self.upload_allowed(),
+            "upload_allowed": self.upload_allowed(submission_data=submission)
         }
 
     def staff_grading_data(self):
@@ -340,6 +345,7 @@ class StaffGradedAssignmentXBlock(XBlock):
                     'may_grade': instructor or not approved,
                     'annotated': force_text(state.get("annotated_filename")),
                     'comment': force_text(state.get("comment", '')),
+                    'finalized': is_finalized_submission(submission_data=submission)
                 }
 
         return {
@@ -433,13 +439,31 @@ class StaffGradedAssignmentXBlock(XBlock):
             "sha1": sha1,
             "filename": upload.file.name,
             "mimetype": mimetypes.guess_type(upload.file.name)[0],
+            "finalized": False
         }
-        student_id = self.student_submission_id()
-        submissions_api.create_submission(student_id, answer)
+        student_item_dict = self.get_student_item_dict()
+        submissions_api.create_submission(student_item_dict, answer)
         path = self.file_storage_path(sha1, upload.file.name)
         if not default_storage.exists(path):
             default_storage.save(path, File(upload.file))
         return Response(json_body=self.student_state())
+
+    @XBlock.handler
+    def finalize_uploaded_assignment(self, request, suffix=''):
+        # pylint: disable=unused-argument
+        """
+        Finalize a student's uploaded submission. This prevents further uploads for the
+        given block, and makes the submission available to instructors for grading
+        """
+        submission_data = self.get_submission()
+        require(self.upload_allowed(submission_data=submission_data))
+        # Editing the Submission record directly since the API doesn't support it
+        submission = Submission.objects.get(uuid=submission_data['uuid'])
+        if not submission.answer.get('finalized'):
+            submission.answer['finalized'] = True
+            submission.submitted_at = django_now()
+            submission.save()
+        return Response(json_body={})
 
     @XBlock.handler
     def staff_upload_annotated(self, request, suffix=''):
@@ -454,7 +478,7 @@ class StaffGradedAssignmentXBlock(XBlock):
         state['annotated_sha1'] = sha1 = _get_sha1(upload.file)
         state['annotated_filename'] = filename = upload.file.name
         state['annotated_mimetype'] = mimetypes.guess_type(upload.file.name)[0]
-        state['annotated_timestamp'] = _now().strftime(
+        state['annotated_timestamp'] = tznow().strftime(
             DateTime.DATETIME_FORMAT
         )
         path = self.file_storage_path(sha1, filename)
@@ -679,14 +703,19 @@ class StaffGradedAssignmentXBlock(XBlock):
         """
         due = get_extended_due_date(self)
         if due is not None:
-            return _now() > due
+            return tznow() > due
         return False
 
-    def upload_allowed(self):
+    def upload_allowed(self, submission_data=None):
         """
-        Return whether student is allowed to submit an assignment.
+        Return whether student is allowed to upload an assignment.
         """
-        return not self.past_due() and self.score is None
+        submission_data = submission_data if submission_data is not None else self.get_submission()
+        return (
+            not self.past_due() and
+            self.score is None and
+            not is_finalized_submission(submission_data)
+        )
 
     def file_storage_path(self, sha1, filename):
         # pylint: disable=no-member
@@ -723,13 +752,6 @@ def _resource(path):  # pragma: NO COVER
     """
     data = pkg_resources.resource_string(__name__, path)
     return data.decode("utf8")
-
-
-def _now():
-    """
-    Get current date and time.
-    """
-    return datetime.datetime.utcnow().replace(tzinfo=pytz.timezone(getattr(settings, "TIME_ZONE", pytz.utc.zone)))
 
 
 def load_resource(resource_path):  # pragma: NO COVER
