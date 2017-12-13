@@ -144,6 +144,10 @@
     <div class="inner-wrapper" style="color: black; overflow: auto;">
       <header><h2><span class="display_name">{{ display_name }}</span> - {% trans "Staff Graded Assignment" %}</h2></header>
       <br/>
+      <div>
+        <a class="instructor-info-action button btn-download-all" href="#" id="download-init-button">{% trans "Download All Submissions" %}</a>
+      </div>
+      <p class="task-message"></p>
       <div id="grade-info" style="display: block;">
         {% trans "Loading..." %}
       </div>

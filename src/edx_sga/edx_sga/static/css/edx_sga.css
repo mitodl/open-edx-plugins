@@ -168,3 +168,21 @@
 .sga-block table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp {
     background-color: #8dbdd8;
 }
+
+.sga-block .submissions-download-link >  p {
+  color: #0075b4;
+}
+
+.staff-modal .task-message {
+  font-family:'Open Sans', sans-serif;
+  color: #4c4c4c;
+  padding-bottom: 5px;
+}
+
+.staff-modal .ready-msg {
+  color: darkgreen;
+}
+
+.staff-modal .preparing-msg {
+  color: red;
+}

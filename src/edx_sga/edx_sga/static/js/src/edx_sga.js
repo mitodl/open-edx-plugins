@@ -15,8 +15,14 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         var staffUploadUrl = runtime.handlerUrl(element, 'staff_upload_annotated');
         var enterGradeUrl = runtime.handlerUrl(element, 'enter_grade');
         var removeGradeUrl = runtime.handlerUrl(element, 'remove_grade');
+        var downloadSubmissionsUrl = runtime.handlerUrl(element, 'download_submissions');
+        var prepareDownloadSubmissionsUrl = runtime.handlerUrl(element, 'prepare_download_submissions');
+        var downloadSubmissionsStatusUrl = runtime.handlerUrl(element, 'download_submissions_status');
         var template = _.template($(element).find("#sga-tmpl").text());
         var gradingTemplate;
+        var preparingSubmissionsMsg = gettext(
+          'Started preparing student submissions zip file. This may take a while.'
+        );
 
         function render(state) {
             // Add download urls to template context
@@ -137,8 +143,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
 
             // Map data to table rows
             data.assignments.map(function(assignment) {
-                $(element).find('#grade-info #row-' + assignment.module_id)
-                    .data(assignment);
+              $(element).find('#grade-info #row-' + assignment.module_id).data(assignment);
             });
 
             // Set up grade entry modal
@@ -208,6 +213,10 @@ function StaffGradedAssignmentXBlock(runtime, element) {
             $("#submissions").trigger("update");
             var sorting = [[4,1], [1,0]];
             $("#submissions").trigger("sorton",[sorting]);
+        }
+
+        function isStaff() {
+          return $(element).find('.sga-block').attr('data-staff') === 'True';
         }
 
         /* Just show error on enter grade dialog */
@@ -298,9 +307,10 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         $(function($) { // onLoad
             var block = $(element).find('.sga-block');
             var state = block.attr('data-state');
-            render(JSON.parse(state));
+            var parsedState = JSON.parse(state);
+            render(parsedState);
 
-            var is_staff = block.attr('data-staff') == 'True';
+            var is_staff = isStaff();
             if (is_staff) {
                 gradingTemplate = _.template(
                     $(element).find('#sga-grading-tmpl').text());
@@ -314,8 +324,73 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                     });
                 block.find('#staff-debug-info-button')
                     .leanModal();
+
+                $(element).find('#download-init-button').click(function(e) {
+                  e.preventDefault();
+                  var self = this;
+                  $.get(
+                    prepareDownloadSubmissionsUrl,
+                    function(data) {
+                      if (data["downloadable"]) {
+                        window.location = downloadSubmissionsUrl;
+                        $(self).removeClass("disabled");
+                      } else {
+                        $(self).addClass("disabled");
+                        $(element).find('.task-message')
+                          .show()
+                          .html(preparingSubmissionsMsg)
+                          .removeClass("ready-msg")
+                          .addClass("preparing-msg");
+                        pollSubmissionDownload();
+                      }
+                    }
+                  );
+                });
             }
         });
+
+        function pollSubmissionDownload() {
+          pollUntilSuccess(downloadSubmissionsStatusUrl, checkResponse, 10000, 100).then(function() {
+            $(element).find('#download-init-button').removeClass("disabled");
+            $(element).find('.task-message')
+              .show()
+              .html(gettext("Student submission file ready for download"))
+              .removeClass("preparing-msg")
+              .addClass("ready-msg");
+          }).fail(function() {
+            $(element).find('#download-init-button').removeClass("disabled");
+            $(element).find('.task-message')
+              .show()
+              .html(gettext("An error occurred while trying to get the status of your submission file."));
+          });
+        }
+    }
+
+    function checkResponse(response) {
+      return response["zip_available"];
+    }
+
+    function pollUntilSuccess(url, checkSuccessFn, intervalMs, maxTries) {
+      var deferred = $.Deferred(),
+        tries = 1;
+
+      function makeLoopingRequest() {
+        $.get(url).success(function(response) {
+          if (checkSuccessFn(response)) {
+            deferred.resolve(response);
+          } else if (tries < maxTries) {
+            tries++;
+            setTimeout(makeLoopingRequest, intervalMs);
+          } else {
+            deferred.reject('Max tries exceeded.');
+          }
+        }).fail(function(err) {
+          deferred.reject('Request failed:\n' + err.responseText);
+        });
+      }
+      makeLoopingRequest();
+
+      return deferred.promise();
     }
 
     function loadjs(url) {
