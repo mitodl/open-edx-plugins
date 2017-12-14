@@ -1,10 +1,24 @@
 language: python
-python:
-    - 2.7
-install:
-    - "pip install tox"
-env:
-    - TOX_ENV=django18
-    - TOX_ENV=django111
-script:
-    - tox -e $TOX_ENV
+matrix:
+  include:
+    - install:
+      - git clone https://github.com/edx/devstack.git
+      # Travis's version of docker-compose doesn't understand :cached, and it's not required anyway, so this removes it
+      - (cd devstack; sed -i 's/:cached//g' ./docker-compose-host.yml)
+      - (cd devstack; make dev.clone)
+      script:
+        - (cd devstack; DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/..:/edx-sga lms /edx-sga/run_devstack_integration_tests.sh)
+      services:
+        - docker
+      env:
+        name: Integration
+    - install:
+      - pip install tox
+      script: tox -e django18
+      env:
+        name: Django 1.8 Unit Tests
+    - install:
+      - pip install tox
+      script: tox -e django111
+      env:
+        name: Django 1.11 Unit Tests
