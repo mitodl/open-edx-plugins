@@ -328,8 +328,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 $(element).find('#download-init-button').click(function(e) {
                   e.preventDefault();
                   var self = this;
-                  $.get(
-                    prepareDownloadSubmissionsUrl,
+                  $.get(prepareDownloadSubmissionsUrl).then(
                     function(data) {
                       if (data["downloadable"]) {
                         window.location = downloadSubmissionsUrl;
@@ -343,6 +342,15 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                           .addClass("preparing-msg");
                         pollSubmissionDownload();
                       }
+                    }
+                  ).fail(
+                    function() {
+                      $(self).removeClass("disabled");
+                      $(element).find('.task-message')
+                        .show()
+                        .html(gettext("An error occurred while trying to prepare your submission file"))
+                        .removeClass("preparing-msg")
+                        .addClass("ready-msg");
                     }
                   );
                 });
