@@ -2,7 +2,7 @@
 This block defines a Staff Graded Assignment.  Students are shown a rubric
 and invited to upload a file which is then graded by staff.
 """
-import datetime
+from datetime import datetime
 import hashlib
 import json
 import logging
@@ -600,7 +600,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, XBlock):
             destination_path = get_zip_file_path(
                 user.username,
                 self.block_course_id,
-                unicode(self.block_id),
+                self.block_id,
                 self.location
             )
             zip_file_name = os.path.basename(destination_path)
@@ -691,7 +691,11 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, XBlock):
         """
         require(self.is_course_staff())
         student_id = request.params['student_id']
-        submissions_api.reset_score(student_id, unicode(self.course_id), unicode(self.block_id))
+        submissions_api.reset_score(
+            student_id,
+            self.block_course_id,
+            self.block_id
+        )
         module = self.get_module_by_id(request.params['module_id'])
         state = json.loads(module.state)
         state['staff_score'] = None
@@ -720,27 +724,30 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, XBlock):
         require(user)
         zip_file_ready = False
 
-        if self.is_zip_file_available():
+        if self.is_zip_file_available(user):
             assignments = self.get_sorted_submissions()
             if assignments:
-                last_assignment_date = assignments[0]['timestamp'].replace(tzinfo=pytz.utc)
+                last_assignment_date = assignments[0]['timestamp'].astimezone(pytz.utc)
                 zip_loc = get_zip_file_path(
                     user.username,
                     self.block_course_id,
-                    unicode(self.block_id),
+                    self.block_id,
                     self.location
                 )
-                zip_file_time = datetime.datetime.fromtimestamp(os.path.getmtime(zip_loc))
+                zip_file_time = datetime.fromtimestamp(
+                    os.path.getmtime(zip_loc),
+                    tz=pytz.utc
+                )
                 # if last zip file is older the last submission then recreate task
-                if zip_file_time >= last_assignment_date.replace(tzinfo=None):
+                if zip_file_time >= last_assignment_date:
                     zip_file_ready = True
 
         if not zip_file_ready:
             zip_student_submissions.delay(
                 self.block_course_id,
                 self.block_id,
-                self.location,
-                user
+                unicode(self.location),
+                user.username
             )
 
         return Response(json_body={
@@ -761,9 +768,11 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, XBlock):
         returns True if zip file is available for download
         """
         require(self.is_course_staff())
+        user = self.get_real_user()
+        require(user)
         return Response(
             json_body={
-                "zip_available": self.is_zip_file_available()
+                "zip_available": self.is_zip_file_available(user)
             }
         )
 
@@ -825,16 +834,14 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, XBlock):
         )
         return path
 
-    def is_zip_file_available(self):
+    def is_zip_file_available(self, user):
         """
-        returns True if zip file available.
+        returns True if zip file exists.
         """
-        user = self.get_real_user()
-        require(user)
         zip_file_path = get_zip_file_path(
             user.username,
             self.block_course_id,
-            unicode(self.block_id),
+            self.block_id,
             self.location
         )
         return True if os.path.exists(zip_file_path) else False

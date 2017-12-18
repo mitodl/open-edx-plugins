@@ -713,7 +713,7 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
             {
                 'submission_id': uuid.uuid4().hex,
                 'filename': "test_{}.txt".format(uuid.uuid4().hex),
-                'timestamp': datetime.datetime.utcnow()
+                'timestamp': datetime.datetime.now(tz=pytz.utc)
             } for __ in range(2)
         ]
         zip_student_submissions.delay = mock.Mock()
@@ -765,10 +765,10 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
             assert response_body["downloadable"] is False
 
         zip_student_submissions.delay.assert_called_with(
-            block.block_course_id,
-            block.block_id,
-            block.location,
-            self.staff
+            unicode(block.block_course_id),
+            unicode(block.block_id),
+            unicode(block.location),
+            self.staff.username
         )
 
     @data((False, False), (True, True))
