@@ -150,255 +150,6 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         help=_("When the annotated file was uploaded")
     )
 
-    def max_score(self):
-        """
-        Return the maximum score possible.
-        """
-        return self.points
-
-    @reify
-    def block_id(self):
-        """
-        Return the usage_id of the block.
-        """
-        return unicode(self.scope_ids.usage_id)
-
-    @reify
-    def block_course_id(self):
-        """
-        Return the course_id of the block.
-        """
-        return unicode(self.course_id)
-
-    def get_student_item_dict(self, submission_id=None):
-        # pylint: disable=no-member
-        """
-        Returns dict required by the submissions app for creating and
-        retrieving submissions for a particular student.
-        """
-        if submission_id is None:
-            submission_id = self.xmodule_runtime.anonymous_student_id
-            assert submission_id != (
-                'MOCK', "Forgot to call 'personalize' in test."
-            )
-        return {
-            "student_id": submission_id,
-            "course_id": self.block_course_id,
-            "item_id": self.block_id,
-            "item_type": ITEM_TYPE,
-        }
-
-    def get_submission(self, submission_id=None):
-        """
-        Get student's most recent submission.
-        """
-        submissions = submissions_api.get_submissions(
-            self.get_student_item_dict(submission_id)
-        )
-        if submissions:
-            # If I understand docs correctly, most recent submission should
-            # be first
-            return submissions[0]
-
-    def get_score(self, submission_id=None):
-        """
-        Return student's current score.
-        """
-        score = submissions_api.get_score(
-            self.get_student_item_dict(submission_id)
-        )
-        if score:
-            return score['points_earned']
-
-    @reify
-    def score(self):
-        """
-        Return score from submissions.
-        """
-        return self.get_score()
-
-    def student_view(self, context=None):
-        # pylint: disable=no-member
-        """
-        The primary view of the StaffGradedAssignmentXBlock, shown to students
-        when viewing courses.
-        """
-        context = {
-            "student_state": json.dumps(self.student_state()),
-            "id": self.location.name.replace('.', '_'),
-            "max_file_size": getattr(
-                settings, "STUDENT_FILEUPLOAD_MAX_SIZE",
-                self.STUDENT_FILEUPLOAD_MAX_SIZE
-            ),
-        }
-        if self.show_staff_grading_interface():
-            context['is_course_staff'] = True
-            self.update_staff_debug_context(context)
-
-        fragment = Fragment()
-        fragment.add_content(
-            render_template(
-                'templates/staff_graded_assignment/show.html',
-                context
-            )
-        )
-        fragment.add_css(_resource("static/css/edx_sga.css"))
-        fragment.add_javascript(_resource("static/js/src/edx_sga.js"))
-        fragment.add_javascript(_resource("static/js/src/jquery.tablesorter.min.js"))
-        fragment.initialize_js('StaffGradedAssignmentXBlock')
-        return fragment
-
-    def update_staff_debug_context(self, context):
-        # pylint: disable=no-member
-        """
-        Add context info for the Staff Debug interface.
-        """
-        published = self.start
-        context['is_released'] = published and published < tznow()
-        context['location'] = self.location
-        context['category'] = type(self).__name__
-        context['fields'] = [
-            (name, field.read_from(self))
-            for name, field in self.fields.items()]
-
-    def get_module_by_id(self, module_id):
-        """
-        returns student mode object
-        """
-        return StudentModule.objects.get(pk=module_id)
-
-    def student_state(self):
-        """
-        Returns a JSON serializable representation of student's state for
-        rendering in client view.
-        """
-        submission = self.get_submission()
-        if submission:
-            uploaded = {"filename": submission['answer']['filename']}
-        else:
-            uploaded = None
-
-        if self.annotated_sha1:
-            annotated = {"filename": force_text(self.annotated_filename)}
-        else:
-            annotated = None
-
-        score = self.score
-        if score is not None:
-            graded = {'score': score, 'comment': force_text(self.comment)}
-        else:
-            graded = None
-
-        return {
-            "display_name": force_text(self.display_name),
-            "uploaded": uploaded,
-            "annotated": annotated,
-            "graded": graded,
-            "max_score": self.max_score(),
-            "upload_allowed": self.upload_allowed(submission_data=submission),
-            "solution": force_text(self.solution) if self.answer_available() else '',
-        }
-
-    def staff_grading_data(self):
-        """
-        Return student assignment information for display on the
-        grading screen.
-        """
-        def get_student_data():
-            # pylint: disable=no-member
-            """
-            Returns a dict of student assignment information along with
-            annotated file name, student id and module id, this
-            information will be used on grading screen
-            """
-            # Submissions doesn't have API for this, just use model directly.
-            students = SubmissionsStudent.objects.filter(
-                course_id=self.course_id,
-                item_id=self.block_id)
-            for student in students:
-                submission = self.get_submission(student.student_id)
-                if not submission:
-                    continue
-                user = user_by_anonymous_id(student.student_id)
-                module, created = StudentModule.objects.get_or_create(
-                    course_id=self.course_id,
-                    module_state_key=self.location,
-                    student=user,
-                    defaults={
-                        'state': '{}',
-                        'module_type': self.category,
-                    })
-                if created:
-                    log.info(
-                        "Init for course:%s module:%s student:%s  ",
-                        module.course_id,
-                        module.module_state_key,
-                        module.student.username
-                    )
-
-                state = json.loads(module.state)
-                score = self.get_score(student.student_id)
-                approved = score is not None
-                if score is None:
-                    score = state.get('staff_score')
-                    needs_approval = score is not None
-                else:
-                    needs_approval = False
-                instructor = self.is_instructor()
-                yield {
-                    'module_id': module.id,
-                    'student_id': student.student_id,
-                    'submission_id': submission['uuid'],
-                    'username': module.student.username,
-                    'fullname': module.student.profile.name,
-                    'filename': submission['answer']["filename"],
-                    'timestamp': submission['created_at'].strftime(
-                        DateTime.DATETIME_FORMAT
-                    ),
-                    'score': score,
-                    'approved': approved,
-                    'needs_approval': instructor and needs_approval,
-                    'may_grade': instructor or not approved,
-                    'annotated': force_text(state.get("annotated_filename", '')),
-                    'comment': force_text(state.get("comment", '')),
-                    'finalized': is_finalized_submission(submission_data=submission)
-                }
-
-        return {
-            'assignments': list(get_student_data()),
-            'max_score': self.max_score(),
-            'display_name': force_text(self.display_name)
-        }
-
-    def get_sorted_submissions(self):
-        """returns student recent assignments sorted on date"""
-        assignments = []
-        submissions = submissions_api.get_all_submissions(
-            self.course_id,
-            self.block_id,
-            ITEM_TYPE
-        )
-
-        for submission in submissions:
-            if is_finalized_submission(submission_data=submission):
-                assignments.append({
-                    'submission_id': submission['uuid'],
-                    'filename': submission['answer']["filename"],
-                    'timestamp': submission['submitted_at'] or submission['created_at']
-                })
-
-        assignments.sort(
-            key=lambda assignment: assignment['timestamp'], reverse=True
-        )
-        return assignments
-
-    def studio_view(self, context=None):  # pylint: disable=useless-super-delegation
-        """
-        Render a form for editing this XBlock
-        """
-        # this method only exists to provide context=None for backwards compat
-        return super(StaffGradedAssignmentXBlock, self).studio_view(context)
-
     @XBlock.json_handler
     def save_sga(self, data, suffix=''):
         # pylint: disable=unused-argument
@@ -565,61 +316,6 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             require_staff=True
         )
 
-    def download(self, path, mime_type, filename, require_staff=False):
-        """
-        Return a file from storage and return in a Response.
-        """
-        try:
-            file_descriptor = default_storage.open(path)
-            app_iter = iter(partial(file_descriptor.read, BLOCK_SIZE), '')
-            return Response(
-                app_iter=app_iter,
-                content_type=mime_type,
-                content_disposition="attachment; filename=" + filename.encode('utf-8'))
-        except IOError:
-            if require_staff:
-                return Response(
-                    "Sorry, assignment {} cannot be found at"
-                    " {}. Please contact {}".format(
-                        filename.encode('utf-8'), path, settings.TECH_SUPPORT_EMAIL
-                    ),
-                    status_code=404
-                )
-            return Response(
-                "Sorry, the file you uploaded, {}, cannot be"
-                " found. Please try uploading it again or contact"
-                " course staff".format(filename.encode('utf-8')),
-                status_code=404
-            )
-
-    def download_all_submissions(self):
-        """
-        Return a file from storage and return in a Response.
-        """
-        try:
-            user = self.get_real_user()
-            require(user)
-            destination_path = get_zip_file_path(
-                user.username,
-                self.block_course_id,
-                self.block_id,
-                self.location
-            )
-            zip_file_name = os.path.basename(destination_path)
-            file_descriptor = open(destination_path, 'rb')
-            app_iter = iter(partial(file_descriptor.read, BLOCK_SIZE), '')
-            return Response(
-                app_iter=app_iter,
-                content_type='application/zip',
-                content_disposition="attachment; filename=" + zip_file_name.encode('utf-8'))
-
-        except IOError:
-            return Response(
-                "Sorry, submissions cannot be found. Press Collect ALL Submissions button or"
-                " contact {} if you issue is consistent".format(settings.TECH_SUPPORT_EMAIL),
-                status_code=404
-            )
-
     @XBlock.handler
     def get_staff_grading_data(self, request, suffix=''):
         # pylint: disable=unused-argument
@@ -628,17 +324,6 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         """
         require(self.is_course_staff())
         return Response(json_body=self.staff_grading_data())
-
-    def validate_score_message(self, course_id, username):  # lint-amnesty, pylint: disable=missing-docstring
-        log.error(
-            "enter_grade: invalid grade submitted for course:%s module:%s student:%s",
-            course_id,
-            self.location,
-            username
-        )
-        return {
-            "error": "Please enter valid grade"
-        }
 
     @XBlock.handler
     def enter_grade(self, request, suffix=''):
@@ -762,7 +447,29 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         Api for downloading zip file which consist of all students submissions.
         """
         require(self.is_course_staff())
-        return self.download_all_submissions()
+        user = self.get_real_user()
+        require(user)
+        try:
+            destination_path = get_zip_file_path(
+                user.username,
+                self.block_course_id,
+                self.block_id,
+                self.location
+            )
+            zip_file_name = os.path.basename(destination_path)
+            file_descriptor = open(destination_path, 'rb')
+            app_iter = iter(partial(file_descriptor.read, BLOCK_SIZE), '')
+            return Response(
+                app_iter=app_iter,
+                content_type='application/zip',
+                content_disposition="attachment; filename=" + zip_file_name.encode('utf-8'))
+
+        except IOError:
+            return Response(
+                "Sorry, submissions cannot be found. Press Collect ALL Submissions button or"
+                " contact {} if you issue is consistent".format(settings.TECH_SUPPORT_EMAIL),
+                status_code=404
+            )
 
     @XBlock.handler
     def download_submissions_status(self, request, suffix=''):  # pylint: disable=unused-argument
@@ -777,6 +484,293 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                 "zip_available": self.is_zip_file_available(user)
             }
         )
+
+    def student_view(self, context=None):
+        # pylint: disable=no-member
+        """
+        The primary view of the StaffGradedAssignmentXBlock, shown to students
+        when viewing courses.
+        """
+        context = {
+            "student_state": json.dumps(self.student_state()),
+            "id": self.location.name.replace('.', '_'),
+            "max_file_size": getattr(
+                settings, "STUDENT_FILEUPLOAD_MAX_SIZE",
+                self.STUDENT_FILEUPLOAD_MAX_SIZE
+            ),
+        }
+        if self.show_staff_grading_interface():
+            context['is_course_staff'] = True
+            self.update_staff_debug_context(context)
+
+        fragment = Fragment()
+        fragment.add_content(
+            render_template(
+                'templates/staff_graded_assignment/show.html',
+                context
+            )
+        )
+        fragment.add_css(_resource("static/css/edx_sga.css"))
+        fragment.add_javascript(_resource("static/js/src/edx_sga.js"))
+        fragment.add_javascript(_resource("static/js/src/jquery.tablesorter.min.js"))
+        fragment.initialize_js('StaffGradedAssignmentXBlock')
+        return fragment
+
+    def studio_view(self, context=None):  # pylint: disable=useless-super-delegation
+        """
+        Render a form for editing this XBlock
+        """
+        # this method only exists to provide context=None for backwards compat
+        return super(StaffGradedAssignmentXBlock, self).studio_view(context)
+
+    def max_score(self):
+        """
+        Return the maximum score possible.
+        """
+        return self.points
+
+    @reify
+    def block_id(self):
+        """
+        Return the usage_id of the block.
+        """
+        return unicode(self.scope_ids.usage_id)
+
+    @reify
+    def block_course_id(self):
+        """
+        Return the course_id of the block.
+        """
+        return unicode(self.course_id)
+
+    def get_student_item_dict(self, submission_id=None):
+        # pylint: disable=no-member
+        """
+        Returns dict required by the submissions app for creating and
+        retrieving submissions for a particular student.
+        """
+        if submission_id is None:
+            submission_id = self.xmodule_runtime.anonymous_student_id
+            assert submission_id != (
+                'MOCK', "Forgot to call 'personalize' in test."
+            )
+        return {
+            "student_id": submission_id,
+            "course_id": self.block_course_id,
+            "item_id": self.block_id,
+            "item_type": ITEM_TYPE,
+        }
+
+    def get_submission(self, submission_id=None):
+        """
+        Get student's most recent submission.
+        """
+        submissions = submissions_api.get_submissions(
+            self.get_student_item_dict(submission_id)
+        )
+        if submissions:
+            # If I understand docs correctly, most recent submission should
+            # be first
+            return submissions[0]
+
+    def get_score(self, submission_id=None):
+        """
+        Return student's current score.
+        """
+        score = submissions_api.get_score(
+            self.get_student_item_dict(submission_id)
+        )
+        if score:
+            return score['points_earned']
+
+    @reify
+    def score(self):
+        """
+        Return score from submissions.
+        """
+        return self.get_score()
+
+    def update_staff_debug_context(self, context):
+        # pylint: disable=no-member
+        """
+        Add context info for the Staff Debug interface.
+        """
+        published = self.start
+        context['is_released'] = published and published < tznow()
+        context['location'] = self.location
+        context['category'] = type(self).__name__
+        context['fields'] = [
+            (name, field.read_from(self))
+            for name, field in self.fields.items()]
+
+    def get_module_by_id(self, module_id):
+        """
+        returns student mode object
+        """
+        return StudentModule.objects.get(pk=module_id)
+
+    def student_state(self):
+        """
+        Returns a JSON serializable representation of student's state for
+        rendering in client view.
+        """
+        submission = self.get_submission()
+        if submission:
+            uploaded = {"filename": submission['answer']['filename']}
+        else:
+            uploaded = None
+
+        if self.annotated_sha1:
+            annotated = {"filename": force_text(self.annotated_filename)}
+        else:
+            annotated = None
+
+        score = self.score
+        if score is not None:
+            graded = {'score': score, 'comment': force_text(self.comment)}
+        else:
+            graded = None
+
+        return {
+            "display_name": force_text(self.display_name),
+            "uploaded": uploaded,
+            "annotated": annotated,
+            "graded": graded,
+            "max_score": self.max_score(),
+            "upload_allowed": self.upload_allowed(submission_data=submission),
+            "solution": force_text(self.solution) if self.answer_available() else '',
+        }
+
+    def staff_grading_data(self):
+        """
+        Return student assignment information for display on the
+        grading screen.
+        """
+        def get_student_data():
+            # pylint: disable=no-member
+            """
+            Returns a dict of student assignment information along with
+            annotated file name, student id and module id, this
+            information will be used on grading screen
+            """
+            # Submissions doesn't have API for this, just use model directly.
+            students = SubmissionsStudent.objects.filter(
+                course_id=self.course_id,
+                item_id=self.block_id)
+            for student in students:
+                submission = self.get_submission(student.student_id)
+                if not submission:
+                    continue
+                user = user_by_anonymous_id(student.student_id)
+                module, created = StudentModule.objects.get_or_create(
+                    course_id=self.course_id,
+                    module_state_key=self.location,
+                    student=user,
+                    defaults={
+                        'state': '{}',
+                        'module_type': self.category,
+                    })
+                if created:
+                    log.info(
+                        "Init for course:%s module:%s student:%s  ",
+                        module.course_id,
+                        module.module_state_key,
+                        module.student.username
+                    )
+
+                state = json.loads(module.state)
+                score = self.get_score(student.student_id)
+                approved = score is not None
+                if score is None:
+                    score = state.get('staff_score')
+                    needs_approval = score is not None
+                else:
+                    needs_approval = False
+                instructor = self.is_instructor()
+                yield {
+                    'module_id': module.id,
+                    'student_id': student.student_id,
+                    'submission_id': submission['uuid'],
+                    'username': module.student.username,
+                    'fullname': module.student.profile.name,
+                    'filename': submission['answer']["filename"],
+                    'timestamp': submission['created_at'].strftime(
+                        DateTime.DATETIME_FORMAT
+                    ),
+                    'score': score,
+                    'approved': approved,
+                    'needs_approval': instructor and needs_approval,
+                    'may_grade': instructor or not approved,
+                    'annotated': force_text(state.get("annotated_filename", '')),
+                    'comment': force_text(state.get("comment", '')),
+                    'finalized': is_finalized_submission(submission_data=submission)
+                }
+
+        return {
+            'assignments': list(get_student_data()),
+            'max_score': self.max_score(),
+            'display_name': force_text(self.display_name)
+        }
+
+    def get_sorted_submissions(self):
+        """returns student recent assignments sorted on date"""
+        assignments = []
+        submissions = submissions_api.get_all_submissions(
+            self.course_id,
+            self.block_id,
+            ITEM_TYPE
+        )
+
+        for submission in submissions:
+            if is_finalized_submission(submission_data=submission):
+                assignments.append({
+                    'submission_id': submission['uuid'],
+                    'filename': submission['answer']["filename"],
+                    'timestamp': submission['submitted_at'] or submission['created_at']
+                })
+
+        assignments.sort(
+            key=lambda assignment: assignment['timestamp'], reverse=True
+        )
+        return assignments
+
+    def download(self, path, mime_type, filename, require_staff=False):
+        """
+        Return a file from storage and return in a Response.
+        """
+        try:
+            file_descriptor = default_storage.open(path)
+            app_iter = iter(partial(file_descriptor.read, BLOCK_SIZE), '')
+            return Response(
+                app_iter=app_iter,
+                content_type=mime_type,
+                content_disposition="attachment; filename=" + filename.encode('utf-8'))
+        except IOError:
+            if require_staff:
+                return Response(
+                    "Sorry, assignment {} cannot be found at"
+                    " {}. Please contact {}".format(
+                        filename.encode('utf-8'), path, settings.TECH_SUPPORT_EMAIL
+                    ),
+                    status_code=404
+                )
+            return Response(
+                "Sorry, the file you uploaded, {}, cannot be"
+                " found. Please try uploading it again or contact"
+                " course staff".format(filename.encode('utf-8')),
+                status_code=404
+            )
+
+    def validate_score_message(self, course_id, username):  # lint-amnesty, pylint: disable=missing-docstring
+        log.error(
+            "enter_grade: invalid grade submitted for course:%s module:%s student:%s",
+            course_id,
+            self.location,
+            username
+        )
+        return {
+            "error": "Please enter valid grade"
+        }
 
     def is_course_staff(self):
         # pylint: disable=no-member
