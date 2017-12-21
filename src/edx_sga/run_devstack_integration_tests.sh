@@ -31,10 +31,18 @@ if [ -e requirements/edx/post.txt ]; then pip install --exists-action w -r requi
 cd /edx-sga
 pip uninstall edx-sga xblock-utils -y
 pip install -e . --process-dependency-links
-cp /edx-sga/edx_sga /edx/app/edxapp/edx-platform/lms/djangoapps/ -r
+
+# Install codecov so we can upload code coverage results
+pip install codecov
 
 # output the packages which are installed for logging
 pip freeze
 
-cd /edx/app/edxapp/edx-platform
-pytest lms/djangoapps/edx_sga/tests/integration_tests.py
+# adjust test files for integration tests
+cp /edx/app/edxapp/edx-platform/setup.cfg .
+rm ./pytest.ini
+mkdir test_root  # for edx
+
+pytest ./edx_sga/tests/integration_tests.py --cov .
+coverage xml
+codecov
