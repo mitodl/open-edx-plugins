@@ -7,7 +7,7 @@ import json
 import shutil
 import tempfile
 
-from ddt import ddt, data  # pylint: disable=import-error
+from ddt import ddt, data
 import mock
 import pytz
 
