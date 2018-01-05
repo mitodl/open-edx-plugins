@@ -22,6 +22,7 @@ from django.template import Context, Template  # lint-amnesty, pylint: disable=i
 from django.utils.encoding import force_text  # pylint: disable=import-error
 from django.utils.timezone import now as django_now  # pylint: disable=import-error
 from django.utils.translation import ugettext_lazy as _  # pylint: disable=import-error
+from safe_lxml import etree  # pylint: disable=import-error
 
 from courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
 from student.models import user_by_anonymous_id  # lint-amnesty, pylint: disable=import-error
@@ -149,6 +150,44 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         default=None,
         help=_("When the annotated file was uploaded")
     )
+
+    @classmethod
+    def parse_xml(cls, node, runtime, keys, id_generator):
+        """
+        Override default serialization to handle <solution /> elements
+        """
+        block = runtime.construct_xblock_from_class(cls, keys)
+
+        for child in node:
+            if child.tag == "solution":
+                # convert child elements of <solution> into HTML for display
+                block.solution = ''.join(etree.tostring(subchild) for subchild in child)
+
+        # Attributes become fields.
+        # Note that a solution attribute here will override any solution XML element
+        for name, value in node.items():  # lxml has no iteritems
+            cls._set_field_if_present(block, name, value, {})
+
+        return block
+
+    def add_xml_to_node(self, node):
+        """
+        Override default serialization to output solution field as a separate child element.
+        """
+        super(StaffGradedAssignmentXBlock, self).add_xml_to_node(node)
+
+        if 'solution' in node.attrib:
+            # Try outputting it as an XML element if we can
+            solution = node.attrib['solution']
+            wrapped = "<solution>{}</solution>".format(solution)
+            try:
+                child = etree.fromstring(wrapped)
+            except:  # pylint: disable=bare-except
+                # Parsing exception, leave the solution as an attribute
+                pass
+            else:
+                node.append(child)
+                del node.attrib['solution']
 
     @XBlock.json_handler
     def save_sga(self, data, suffix=''):

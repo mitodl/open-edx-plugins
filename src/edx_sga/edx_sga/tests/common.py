@@ -7,6 +7,7 @@ import shutil
 from tempfile import mkdtemp
 
 from mock import Mock
+from lxml import etree
 import pytz
 from xblock.fields import DateTime
 
@@ -71,3 +72,20 @@ def parse_timestamp(timestamp):
     return datetime.strptime(timestamp, DateTime.DATETIME_FORMAT).replace(
         tzinfo=pytz.utc
     )
+
+
+def reformat_xml(xml_string):
+    """
+    Parse and render the XML to remove whitespace differences
+    """
+    parser = etree.XMLParser(remove_blank_text=True)
+    root = etree.XML(xml_string, parser=parser)
+
+    # Remove whitespace
+    for elem in root.iter('*'):
+        if elem.text is not None:
+            elem.text = elem.text.strip()
+            if not elem.text:
+                elem.text = None
+
+    return etree.tostring(root)

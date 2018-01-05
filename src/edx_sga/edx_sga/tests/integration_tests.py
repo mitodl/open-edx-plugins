@@ -2,13 +2,17 @@
 """
 Tests for SGA
 """
+import cgi
 import datetime
 import json
+import os
 import shutil
 import tempfile
 
-from ddt import ddt, data
+from ddt import ddt, data, unpack
 import mock
+from opaque_keys.edx.locator import CourseLocator
+from opaque_keys.edx.locations import Location  # lint-amnesty, pylint: disable=import-error
 import pytz
 
 from courseware import module_render as render  # lint-amnesty, pylint: disable=import-error
@@ -24,8 +28,10 @@ from xblock.field_data import DictFieldData
 from xmodule.modulestore.django import modulestore  # lint-amnesty, pylint: disable=import-error
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory  # lint-amnesty, pylint: disable=import-error
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase  # lint-amnesty, pylint: disable=import-error
-from opaque_keys.edx.locations import Location  # lint-amnesty, pylint: disable=import-error
+from xmodule.modulestore.xml_importer import import_course_from_xml  # lint-amnesty, pylint: disable=import-error
+from xmodule.modulestore.xml_exporter import export_course_to_xml  # lint-amnesty, pylint: disable=import-error
 
+from edx_sga.constants import ShowAnswer
 from edx_sga.sga import StaffGradedAssignmentXBlock
 from edx_sga.tests.common import (
     DummyResource,
@@ -33,6 +39,7 @@ from edx_sga.tests.common import (
     get_sha1,
     is_near_now,
     parse_timestamp,
+    reformat_xml,
 )
 
 
@@ -801,3 +808,84 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
             block.graceperiod = datetime.timedelta(days=1)
 
         assert block.past_due() is not has_grace_period
+
+    def make_test_vertical(self, solution_attribute=None, solution_element=None):
+        """Create a test vertical with an SGA unit inside"""
+        solution_attribute = 'solution="{}"'.format(cgi.escape(solution_attribute)) if solution_attribute else ''
+        solution_element = '<solution>{}</solution>'.format(solution_element) if solution_element else ''
+
+        return (
+            """<vertical display_name="SGA Unit">
+              <edx_sga url_name="edx_sga" xblock-family="xblock.v1" display_name="SGA Test 1" {solution_attribute}>
+                {solution_element}
+              </edx_sga>
+            </vertical>""".format(solution_attribute=solution_attribute, solution_element=solution_element)
+        )
+
+    def import_test_course(self, solution_attribute=None, solution_element=None):
+        """
+        Import the test course with the sga unit
+        """
+        # adapted from edx-platform/cms/djangoapps/contentstore/management/commands/tests/test_cleanup_assets.py
+        root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        input_dir = os.path.join(root, "test_data")
+
+        temp_dir = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(temp_dir))
+
+        xml_dir = os.path.join(temp_dir, "xml")
+        shutil.copytree(input_dir, xml_dir)
+
+        with open(os.path.join(xml_dir, "2017_SGA", "vertical", "vertical.xml"), "w") as f:
+            f.write(self.make_test_vertical(solution_attribute, solution_element))
+
+        store = modulestore()
+        import_course_from_xml(
+            store,
+            'sga_user',
+            xml_dir,
+        )
+
+        return store.get_course(CourseLocator.from_string('SGAU/SGA101/course'))
+
+    @data(*[
+        ['<p>Broken xml', "<p>You're seeing the answer</p>", '<p>Broken xml'],
+        ['<p>Broken xml', None, '<p>Broken xml'],
+        [None, "<p>You're seeing the answer</p>", "<p>You're seeing the answer</p>"],
+        [None, None, ''],
+    ])
+    @unpack
+    def test_import(self, solution_attribute_value, solution_element_value, expected_solution_text):
+        """Import the test course with the SGA module"""
+        course = self.import_test_course(solution_attribute_value, solution_element_value)
+        sga = course.get_children()[0].get_children()[0].get_children()[0].get_children()[0]
+        assert expected_solution_text in sga.solution
+        assert sga.showanswer == ShowAnswer.PAST_DUE
+
+    @data(*[
+        ['<p>Broken xml', "<p>You're seeing the answer</p>", '<p>Broken xml', None],
+        ['<p>Broken xml', None, '<p>Broken xml', None],
+        [None, "<p>You're seeing the answer</p>", None, "<p>You're seeing the answer</p>"],
+        [None, None, None, None],
+    ])
+    @unpack
+    def test_export(
+            self, solution_attribute_value, solution_element_value,
+            expected_solution_attribute, expected_solution_element):
+        """Export the test course with the SGA module"""
+        course = self.import_test_course(solution_attribute_value, solution_element_value)
+
+        temp_dir = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(temp_dir))
+
+        store = modulestore()
+        export_course_to_xml(store, None, course.id, temp_dir, "2017_SGA")
+
+        with open(os.path.join(temp_dir, "2017_SGA", "vertical", "vertical.xml")) as f:
+            content = f.read()
+
+        # If both are true the expected output should only have the attribute, since it took precedence
+        # and the attribute contents are broken XML
+        assert reformat_xml(content) == reformat_xml(
+            self.make_test_vertical(expected_solution_attribute, expected_solution_element)
+        )
