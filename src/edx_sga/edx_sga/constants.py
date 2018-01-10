@@ -1,5 +1,8 @@
 """Constants"""
 
+BLOCK_SIZE = 8 * 1024
+ITEM_TYPE = 'sga'
+
 
 class ShowAnswer(object):
     """
