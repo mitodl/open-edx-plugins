@@ -2,7 +2,6 @@
 This block defines a Staff Graded Assignment.  Students are shown a rubric
 and invited to upload a file which is then graded by staff.
 """
-from datetime import datetime
 import hashlib
 import json
 import logging
@@ -41,8 +40,10 @@ from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from xmodule.util.duedate import get_extended_due_date  # lint-amnesty, pylint: disable=import-error
 
+from edx_sga.constants import BLOCK_SIZE, ITEM_TYPE
 from edx_sga.showanswer import ShowAnswerXBlockMixin
 from edx_sga.tasks import (
+    get_zip_file_name,
     get_zip_file_path,
     zip_student_submissions
 )
@@ -53,8 +54,6 @@ from edx_sga.utils import (
 
 
 log = logging.getLogger(__name__)
-BLOCK_SIZE = 8 * 1024
-ITEM_TYPE = 'sga'
 
 
 def reify(meth):
@@ -460,9 +459,14 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                     self.block_id,
                     self.location
                 )
-                zip_file_time = datetime.fromtimestamp(
-                    os.path.getmtime(zip_loc),
-                    tz=pytz.utc
+
+                # modified_time returns local datetime object.
+                zip_file_time = (
+                    pytz.timezone(
+                        settings.TIME_ZONE
+                    ).localize(
+                        default_storage.modified_time(zip_loc)
+                    ).astimezone(pytz.utc)
                 )
                 # if last zip file is older the last submission then recreate task
                 if zip_file_time >= last_assignment_date:
@@ -495,8 +499,12 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                 self.block_id,
                 self.location
             )
-            zip_file_name = os.path.basename(destination_path)
-            file_descriptor = open(destination_path, 'rb')
+            zip_file_name = get_zip_file_name(
+                user.username,
+                self.block_course_id,
+                self.block_id
+            )
+            file_descriptor = default_storage.open(destination_path)
             app_iter = iter(partial(file_descriptor.read, BLOCK_SIZE), '')
             return Response(
                 app_iter=app_iter,
@@ -897,7 +905,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             self.block_id,
             self.location
         )
-        return True if os.path.exists(zip_file_path) else False
+        return True if default_storage.exists(zip_file_path) else False
 
     def get_real_user(self):
         """returns session user"""

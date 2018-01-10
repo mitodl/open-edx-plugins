@@ -6,13 +6,12 @@ import datetime
 import json
 import mimetypes
 import unittest
+import os
 import shutil
 import tempfile
-import time
 import uuid
 
 import mock
-import pkg_resources
 import pytest
 import pytz
 from workbench.runtime import WorkbenchRuntime
@@ -107,8 +106,8 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
         """
         super(StaffGradedAssignmentMockedTests, self).setUp()
 
-        tmp = tempfile.mkdtemp()
-        self.addCleanup(lambda: shutil.rmtree(tmp))
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(lambda: shutil.rmtree(self.tmp))
 
         # fakes imports
         real_import = builtins.__import__
@@ -134,7 +133,7 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
 
         patcher = mock.patch(
             "edx_sga.sga.default_storage",
-            FileSystemStorage(tmp))
+            FileSystemStorage(self.tmp))
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -622,8 +621,8 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
             'edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user',
             return_value=self.staff
         ), mock.patch(
-            'edx_sga.sga.os.path.getmtime',
-            return_value=time.time()
+            'edx_sga.sga.default_storage.modified_time',
+            return_value=datetime.datetime.now()
         ):
             response = block.prepare_download_submissions(None)
             response_body = json.loads(response.body)
@@ -655,8 +654,8 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
             'edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user',
             return_value=self.staff
         ), mock.patch(
-            'edx_sga.sga.os.path.getmtime',
-            return_value=time.time()
+            'edx_sga.sga.default_storage.modified_time',
+            return_value=datetime.datetime.now()
         ):
             response = block.prepare_download_submissions(None)
             response_body = json.loads(response.body)
@@ -687,14 +686,20 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
         """tests download_submissions"""
         block = self.make_xblock()
         is_course_staff.return_value = True
-        path = pkg_resources.resource_filename(__package__, 'test_sga.py')
-        expected = open(path, 'rb').read()
+
+        expected = b"some information"
+        filename = "foo.zip"
+        path = os.path.join(self.tmp, filename)
+        with open(path, "wb") as temp_file:
+            temp_file.write(expected)
 
         with mock.patch(
             "edx_sga.sga.get_zip_file_path", return_value=path
         ), mock.patch(
             'edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user',
             return_value=self.staff
+        ), mock.patch(
+            "edx_sga.sga.get_zip_file_name", return_value=filename
         ):
             response = block.download_submissions(None)
             assert response.status_code == 200
