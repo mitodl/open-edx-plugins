@@ -49,7 +49,8 @@ from edx_sga.tasks import (
 )
 from edx_sga.utils import (
     utcnow,
-    is_finalized_submission
+    is_finalized_submission,
+    get_file_modified_time_utc
 )
 
 
@@ -453,21 +454,13 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             assignments = self.get_sorted_submissions()
             if assignments:
                 last_assignment_date = assignments[0]['timestamp'].astimezone(pytz.utc)
-                zip_loc = get_zip_file_path(
+                zip_file_path = get_zip_file_path(
                     user.username,
                     self.block_course_id,
                     self.block_id,
                     self.location
                 )
-
-                # modified_time returns local datetime object.
-                zip_file_time = (
-                    pytz.timezone(
-                        settings.TIME_ZONE
-                    ).localize(
-                        default_storage.modified_time(zip_loc)
-                    ).astimezone(pytz.utc)
-                )
+                zip_file_time = get_file_modified_time_utc(zip_file_path)
                 # if last zip file is older the last submission then recreate task
                 if zip_file_time >= last_assignment_date:
                     zip_file_ready = True
