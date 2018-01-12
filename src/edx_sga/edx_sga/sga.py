@@ -39,6 +39,7 @@ from xblock.fragment import Fragment  # lint-amnesty, pylint: disable=import-err
 from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 from xmodule.util.duedate import get_extended_due_date  # lint-amnesty, pylint: disable=import-error
+from xmodule.contentstore.content import StaticContent
 
 from edx_sga.constants import BLOCK_SIZE, ITEM_TYPE
 from edx_sga.showanswer import ShowAnswerXBlockMixin
@@ -685,6 +686,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             "max_score": self.max_score(),
             "upload_allowed": self.upload_allowed(submission_data=submission),
             "solution": force_text(self.solution) if self.answer_available() else '',
+            "base_asset_url": StaticContent.get_base_url_path_for_course_assets(self.location.course_key),
         }
 
     def staff_grading_data(self):
