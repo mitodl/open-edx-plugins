@@ -452,7 +452,7 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
             })
             resp = block.staff_upload_annotated(request)
         assert resp.json == block.staff_grading_data()
-        state = json.loads(block.get_module_by_id(fred.id).state)
+        state = json.loads(block.get_student_module(fred.id).state)
         assert state['annotated_mimetype'] == 'text/plain'
         parsed_date = parse_timestamp(state['annotated_timestamp'])
         assert is_near_now(parsed_date)
@@ -642,12 +642,10 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
             comment="Good work!"
         )
         block.staff_grading_data()
-        mocked_log.info.assert_called_with(
-            "Init for course:%s module:%s student:%s  ",
-            block.course_id,
-            block.location,
-            'tester'
-        )
+        module_creation_log_message = mocked_log.info.call_args[0]
+        self.assertIn('tester', module_creation_log_message)
+        self.assertIn(block.course_id, module_creation_log_message)
+        self.assertIn(block.location, module_creation_log_message)
 
     def test_enter_grade_instructor(self):
         # pylint: disable=no-member
