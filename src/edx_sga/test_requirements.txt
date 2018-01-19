@@ -10,6 +10,7 @@ edx-opaque-keys==0.4
 edx-submissions==2.0.12
 mako==1.0.7
 mock==2.0.0
+pdbpp
 pep8==1.6.2
 pylint-django==0.7.2
 pyOpenSSL==17.3.0

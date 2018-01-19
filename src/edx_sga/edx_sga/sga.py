@@ -232,6 +232,11 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         Save a students submission file.
         """
         require(self.upload_allowed())
+        user = self.get_real_user()
+        require(user)
+        # Uploading an assignment represents a change of state with this user in this block,
+        # so we need to ensure that the user has a StudentModule record, which represents that state.
+        self.get_or_create_student_module(user)
         upload = request.params['assignment']
         sha1 = _get_sha1(upload.file)
         answer = {
@@ -272,7 +277,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         """
         require(self.is_course_staff())
         upload = request.params['annotated']
-        module = self.get_module_by_id(request.params['module_id'])
+        module = self.get_student_module(request.params['module_id'])
         state = json.loads(module.state)
         state['annotated_sha1'] = sha1 = _get_sha1(upload.file)
         state['annotated_filename'] = filename = upload.file.name
@@ -343,7 +348,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         Return annotated assignment file requested by staff.
         """
         require(self.is_course_staff())
-        module = self.get_module_by_id(request.params['module_id'])
+        module = self.get_student_module(request.params['module_id'])
         state = json.loads(module.state)
         path = self.file_storage_path(
             state['annotated_sha1'],
@@ -373,7 +378,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         """
         require(self.is_course_staff())
         score = request.params.get('grade', None)
-        module = self.get_module_by_id(request.params['module_id'])
+        module = self.get_student_module(request.params['module_id'])
         if not score:
             return Response(
                 json_body=self.validate_score_message(
@@ -423,7 +428,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             self.block_course_id,
             self.block_id
         )
-        module = self.get_module_by_id(request.params['module_id'])
+        module = self.get_student_module(request.params['module_id'])
         state = json.loads(module.state)
         state['staff_score'] = None
         state['comment'] = ''
@@ -564,6 +569,30 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         # this method only exists to provide context=None for backwards compat
         return super(StaffGradedAssignmentXBlock, self).studio_view(context)
 
+    def clear_student_state(self, *args, **kwargs):
+        # pylint: disable=unused-argument
+        """
+        For a given user, clears submissions and uploaded files for this XBlock.
+
+        Staff users are able to delete a learner's state for a block in LMS. When that capability is
+        used, the block's "clear_student_state" function is called if it exists.
+        """
+        student_id = kwargs['user_id']
+        for submission in submissions_api.get_submissions(
+                self.get_student_item_dict(student_id)
+        ):
+            submission_file_sha1 = submission['answer'].get('sha1')
+            submission_filename = submission['answer'].get('filename')
+            submission_file_path = self.file_storage_path(submission_file_sha1, submission_filename)
+            if default_storage.exists(submission_file_path):
+                default_storage.delete(submission_file_path)
+            submissions_api.reset_score(
+                student_id,
+                self.block_course_id,
+                self.block_id,
+                clear_state=True
+            )
+
     def max_score(self):
         """
         Return the maximum score possible.
@@ -584,42 +613,42 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         """
         return unicode(self.course_id)
 
-    def get_student_item_dict(self, submission_id=None):
+    def get_student_item_dict(self, student_id=None):
         # pylint: disable=no-member
         """
         Returns dict required by the submissions app for creating and
         retrieving submissions for a particular student.
         """
-        if submission_id is None:
-            submission_id = self.xmodule_runtime.anonymous_student_id
-            assert submission_id != (
+        if student_id is None:
+            student_id = self.xmodule_runtime.anonymous_student_id
+            assert student_id != (
                 'MOCK', "Forgot to call 'personalize' in test."
             )
         return {
-            "student_id": submission_id,
+            "student_id": student_id,
             "course_id": self.block_course_id,
             "item_id": self.block_id,
             "item_type": ITEM_TYPE,
         }
 
-    def get_submission(self, submission_id=None):
+    def get_submission(self, student_id=None):
         """
         Get student's most recent submission.
         """
         submissions = submissions_api.get_submissions(
-            self.get_student_item_dict(submission_id)
+            self.get_student_item_dict(student_id)
         )
         if submissions:
             # If I understand docs correctly, most recent submission should
             # be first
             return submissions[0]
 
-    def get_score(self, submission_id=None):
+    def get_score(self, student_id=None):
         """
         Return student's current score.
         """
         score = submissions_api.get_score(
-            self.get_student_item_dict(submission_id)
+            self.get_student_item_dict(student_id)
         )
         if score:
             return score['points_earned']
@@ -644,9 +673,9 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             (name, field.read_from(self))
             for name, field in self.fields.items()]
 
-    def get_module_by_id(self, module_id):
+    def get_student_module(self, module_id):
         """
-        returns student mode object
+        Returns a StudentModule that matches the given id
 
         Args:
             module_id (int): The module id
@@ -655,6 +684,31 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             StudentModule: A StudentModule object
         """
         return StudentModule.objects.get(pk=module_id)
+
+    def get_or_create_student_module(self, user):
+        """
+        Gets or creates a StudentModule for the given user for this block
+
+        Returns:
+            StudentModule: A StudentModule object
+        """
+        student_module, created = StudentModule.objects.get_or_create(
+            course_id=self.course_id,
+            module_state_key=self.location,
+            student=user,
+            defaults={
+                'state': '{}',
+                'module_type': self.category,
+            }
+        )
+        if created:
+            log.info(
+                "Created student module %s [course: %s] [student: %s]",
+                student_module.module_state_key,
+                student_module.course_id,
+                student_module.student.username
+            )
+        return student_module
 
     def student_state(self):
         """
@@ -710,23 +764,8 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                 if not submission:
                     continue
                 user = user_by_anonymous_id(student.student_id)
-                module, created = StudentModule.objects.get_or_create(
-                    course_id=self.course_id,
-                    module_state_key=self.location,
-                    student=user,
-                    defaults={
-                        'state': '{}',
-                        'module_type': self.category,
-                    })
-                if created:
-                    log.info(
-                        "Init for course:%s module:%s student:%s  ",
-                        module.course_id,
-                        module.module_state_key,
-                        module.student.username
-                    )
-
-                state = json.loads(module.state)
+                student_module = self.get_or_create_student_module(user)
+                state = json.loads(student_module.state)
                 score = self.get_score(student.student_id)
                 approved = score is not None
                 if score is None:
@@ -736,11 +775,11 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                     needs_approval = False
                 instructor = self.is_instructor()
                 yield {
-                    'module_id': module.id,
+                    'module_id': student_module.id,
                     'student_id': student.student_id,
                     'submission_id': submission['uuid'],
-                    'username': module.student.username,
-                    'fullname': module.student.profile.name,
+                    'username': student_module.student.username,
+                    'fullname': student_module.student.profile.name,
                     'filename': submission['answer']["filename"],
                     'timestamp': submission['created_at'].strftime(
                         DateTime.DATETIME_FORMAT
