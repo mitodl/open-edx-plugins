@@ -34,6 +34,12 @@ the SGA XBlock in devstack.**
     You can also configure S3 to be used as the file storage backend. Ask a fellow developer or devops for the
     correct settings to enable this. If you're using ansible to provision devstack, you may want to refer to 
     [this edX article on configuring data storage](https://openedx.atlassian.net/wiki/spaces/OpenOPS/pages/112001105/Configuring+Data+Storage).
+    
+1. **Add SGA to the Advanced Module List for your course in Studio**
+   
+    Open Advanced Settings for your course in Studio ("Settings" drop down in the top nav > "Advanced Settings"), 
+    and add `"edx_sga"` to the "Advanced Module List" value (i.e.: the value for "Advanced Module List" should 
+    be a JSON list, and that list should include `"edx_sga"`).
 
 1. **If necessary, add SGA to installed Django apps**
 
