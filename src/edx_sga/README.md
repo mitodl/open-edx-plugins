@@ -28,7 +28,6 @@ the SGA XBlock in devstack.**
 
     ```
     MEDIA_ROOT = "/edx/var/edxapp/uploads"
-    DATA_DIR = MEDIA_ROOT
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
     ```
     
