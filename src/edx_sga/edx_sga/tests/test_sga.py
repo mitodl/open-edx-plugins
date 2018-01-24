@@ -5,10 +5,7 @@ Tests for SGA
 import datetime
 import json
 import mimetypes
-import unittest
 import os
-import shutil
-import tempfile
 import uuid
 
 import mock
@@ -26,14 +23,13 @@ except ImportError:
 from ddt import ddt, data, unpack  # pylint: disable=import-error
 from django.conf import settings  # lint-amnesty, pylint: disable=import-error
 from django.contrib.auth.models import User
-from django.core.files.storage import FileSystemStorage
 from django.utils.timezone import now as django_now  # pylint: disable=import-error
 from opaque_keys.edx.locations import Location  # lint-amnesty, pylint: disable=import-error
 from opaque_keys.edx.locator import CourseLocator  # lint-amnesty, pylint: disable=import-error
 from xblock.field_data import DictFieldData
 from xblock.fields import DateTime
 
-from edx_sga.tests.common import DummyResource, dummy_upload
+from edx_sga.tests.common import TempfileMixin, DummyResource
 
 
 SHA1 = 'da39a3ee5e6b4b0d3255bfef95601890afd80709'
@@ -95,19 +91,26 @@ class FakeWorkbenchRuntime(WorkbenchRuntime):
 
 
 @ddt
-class StaffGradedAssignmentMockedTests(unittest.TestCase):
+class StaffGradedAssignmentMockedTests(TempfileMixin):
     """
     Create a SGA block with mock data.
     """
+    @classmethod
+    def setUpClass(cls):
+        super(StaffGradedAssignmentMockedTests, cls).setUpClass()
+        cls.set_up_temp_directory()
+
+    @classmethod
+    def tearDownClass(cls):
+        super(StaffGradedAssignmentMockedTests, cls).tearDownClass()
+        cls.tear_down_temp_directory()
+
     def setUp(self):
         """
         Creates a test course ID, mocks the runtime, and creates a fake storage
         engine for use in all tests
         """
         super(StaffGradedAssignmentMockedTests, self).setUp()
-
-        self.tmp = tempfile.mkdtemp()
-        self.addCleanup(lambda: shutil.rmtree(self.tmp))
 
         # fakes imports
         real_import = builtins.__import__
@@ -130,12 +133,6 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
             builtins.__import__ = real_import
 
         self.addCleanup(restore_import)
-
-        patcher = mock.patch(
-            "edx_sga.sga.default_storage",
-            FileSystemStorage(self.tmp))
-        patcher.start()
-        self.addCleanup(patcher.stop)
 
         self.course_id = CourseLocator(org='foo', course='baz', run='bar')
         self.runtime = FakeWorkbenchRuntime()
@@ -258,7 +255,7 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
         upload_allowed.return_value = True
         block.comment = "ok"
 
-        with dummy_upload('foo.txt') as (upload, _):
+        with self.dummy_upload('foo.txt') as (upload, _):
             with mock.patch(
                 'submissions.api.create_submission',
             ) as mocked_create_submission, mock.patch(
@@ -368,8 +365,9 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
 
     @mock.patch('edx_sga.sga.StaffGradedAssignmentXBlock.get_student_item_dict')
     @mock.patch('edx_sga.sga.StaffGradedAssignmentXBlock.upload_allowed')
-    @mock.patch('edx_sga.sga._get_sha1')
-    def test_upload_download_assignment(self, _get_sha1, upload_allowed, get_student_item_dict):
+    @mock.patch('edx_sga.sga.get_sha1')
+    def test_upload_download_assignment(self, get_sha1, upload_allowed, get_student_item_dict):
+        # pylint: disable=unused-argument
         """
         Tests upload and download assignment for non staff.
         """
@@ -383,7 +381,7 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
         }
         upload_allowed.return_value = True
 
-        with dummy_upload(file_name) as (upload, expected):
+        with self.dummy_upload(file_name) as (upload, expected):
             with mock.patch('submissions.api.create_submission') as mocked_create_submission, mock.patch(
                 "edx_sga.sga.StaffGradedAssignmentXBlock.file_storage_path",
                 return_value=block.file_storage_path(SHA1, file_name)
@@ -457,19 +455,19 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
 
     @mock.patch('edx_sga.sga.StaffGradedAssignmentXBlock.get_student_module')
     @mock.patch('edx_sga.sga.StaffGradedAssignmentXBlock.is_course_staff')
-    @mock.patch('edx_sga.sga._get_sha1')
-    def test_staff_upload_download_annotated(self, _get_sha1, is_course_staff, get_student_module):
+    @mock.patch('edx_sga.sga.get_sha1')
+    def test_staff_upload_download_annotated(self, get_sha1, is_course_staff, get_student_module):
         # pylint: disable=no-member
         """
         Tests upload and download of annotated staff files.
         """
         get_student_module.return_value = fake_student_module()
         is_course_staff.return_value = True
-        _get_sha1.return_value = SHA1
+        get_sha1.return_value = SHA1
         file_name = 'test.txt'
         block = self.make_xblock()
 
-        with dummy_upload(file_name) as (upload, expected), mock.patch(
+        with self.dummy_upload(file_name) as (upload, expected), mock.patch(
             "edx_sga.sga.StaffGradedAssignmentXBlock.staff_grading_data",
             return_value={}
         ) as staff_grading_data:
@@ -494,20 +492,20 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
 
     @mock.patch('edx_sga.sga.StaffGradedAssignmentXBlock.get_student_module')
     @mock.patch('edx_sga.sga.StaffGradedAssignmentXBlock.is_course_staff')
-    @mock.patch('edx_sga.sga._get_sha1')
-    def test_download_annotated(self, _get_sha1, is_course_staff, get_student_module):
+    @mock.patch('edx_sga.sga.get_sha1')
+    def test_download_annotated(self, get_sha1, is_course_staff, get_student_module):
         # pylint: disable=no-member
         """
         Test download annotated assignment for non staff.
         """
         get_student_module.return_value = fake_student_module()
         is_course_staff.return_value = True
-        _get_sha1.return_value = SHA1
+        get_sha1.return_value = SHA1
 
         file_name = 'test.txt'
         block = self.make_xblock()
 
-        with dummy_upload(file_name) as (upload, expected):
+        with self.dummy_upload(file_name) as (upload, expected):
             with mock.patch(
                 "edx_sga.sga.StaffGradedAssignmentXBlock.staff_grading_data",
                 return_value={}
@@ -536,18 +534,18 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
     @mock.patch('edx_sga.sga.StaffGradedAssignmentXBlock.upload_allowed')
     @mock.patch('edx_sga.sga.StaffGradedAssignmentXBlock.get_student_module')
     @mock.patch('edx_sga.sga.StaffGradedAssignmentXBlock.is_course_staff')
-    @mock.patch('edx_sga.sga._get_sha1')
-    def test_staff_download(self, _get_sha1, is_course_staff, get_student_module, upload_allowed):
+    @mock.patch('edx_sga.sga.get_sha1')
+    def test_staff_download(self, get_sha1, is_course_staff, get_student_module, upload_allowed):
         """
         Test download for staff.
         """
         get_student_module.return_value = fake_student_module()
         is_course_staff.return_value = True
         upload_allowed.return_value = True
-        _get_sha1.return_value = SHA1
+        get_sha1.return_value = SHA1
         block = self.make_xblock()
 
-        with dummy_upload('test.txt') as (upload, expected), mock.patch(
+        with self.dummy_upload('test.txt') as (upload, expected), mock.patch(
             'edx_sga.sga.StaffGradedAssignmentXBlock.student_state', return_value={}
         ), mock.patch(
             'edx_sga.sga.StaffGradedAssignmentXBlock.get_or_create_student_module',
@@ -701,7 +699,7 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
 
         expected = b"some information"
         filename = "foo.zip"
-        path = os.path.join(self.tmp, filename)
+        path = os.path.join(self.temp_directory, filename)
         with open(path, "wb") as temp_file:
             temp_file.write(expected)
 
@@ -720,14 +718,22 @@ class StaffGradedAssignmentMockedTests(unittest.TestCase):
     def test_clear_student_state(self):
         """Tests that a student's state in the given problem is properly cleared"""
         block = self.make_xblock()
-        fake_submission = fake_get_submission()
+        orig_file_name = 'test.txt'
+        fake_submission = fake_get_submission(filename=orig_file_name)
+        uploaded_file_path = block.file_storage_path(SHA1, orig_file_name)
 
-        with mock.patch(
-            "edx_sga.sga.submissions_api.get_submissions",
-            return_value=[fake_submission]
-        ) as mocked_get_submissions, mock.patch(
-            "edx_sga.sga.submissions_api.reset_score"
-        ) as mocked_reset_score:
-            block.clear_student_state(user_id=123)
-            assert mocked_get_submissions.called is True
-            assert mocked_reset_score.called is True
+        with self.dummy_file_in_storage(uploaded_file_path) as file_path:
+            with mock.patch(
+                "edx_sga.sga.submissions_api.get_submissions",
+                return_value=[fake_submission]
+            ) as mocked_get_submissions, mock.patch(
+                "edx_sga.sga.submissions_api.reset_score"
+            ) as mocked_reset_score:
+                assert self.default_storage.exists(file_path) is True
+                block.clear_student_state(user_id=123)
+                assert mocked_get_submissions.called is True
+                # Clearing the student state should call 'reset_score' in the submission API,
+                # which effectively resets the Submission record.
+                assert mocked_reset_score.called is True
+                # Clearing the student state should also delete the uploaded file
+                assert self.default_storage.exists(file_path) is False
