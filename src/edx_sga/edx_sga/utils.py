@@ -1,12 +1,18 @@
 """
 Utility functions for the SGA XBlock
 """
+import hashlib
+import os
 import datetime
 import time
+from functools import partial
 import pytz
+import six
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+
+from edx_sga.constants import BLOCK_SIZE
 
 
 def utcnow():
@@ -41,3 +47,37 @@ def get_file_modified_time_utc(file_path):
     ).astimezone(
         pytz.utc
     )
+
+
+def get_sha1(file_descriptor):
+    """
+    Get file hex digest (fingerprint).
+    """
+    sha1 = hashlib.sha1()
+    for block in iter(partial(file_descriptor.read, BLOCK_SIZE), ''):
+        sha1.update(block)
+    file_descriptor.seek(0)
+    return sha1.hexdigest()
+
+
+def get_file_storage_path(locator, file_hash, original_filename):
+    """
+    Returns the file path for an uploaded SGA submission file
+    """
+    return (
+        six.u(
+            '{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}/{file_hash}{ext}'
+        ).format(
+            loc=locator,
+            file_hash=file_hash,
+            ext=os.path.splitext(original_filename)[1]
+        )
+    )
+
+
+def file_contents_iter(file_path):
+    """
+    Returns an iterator over the contents of a file located at the given file path
+    """
+    file_descriptor = default_storage.open(file_path)
+    return iter(partial(file_descriptor.read, BLOCK_SIZE), '')

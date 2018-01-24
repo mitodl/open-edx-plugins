@@ -35,8 +35,8 @@ from xmodule.modulestore.xml_exporter import export_course_to_xml  # lint-amnest
 from edx_sga.constants import ShowAnswer
 from edx_sga.sga import StaffGradedAssignmentXBlock
 from edx_sga.tests.common import (
+    TempfileMixin,
     DummyResource,
-    dummy_upload,
     get_sha1,
     is_near_now,
     parse_timestamp,
@@ -45,10 +45,20 @@ from edx_sga.tests.common import (
 
 
 @ddt
-class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
+class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
     """
     Create a SGA block with mock data.
     """
+    @classmethod
+    def setUpClass(cls):
+        super(StaffGradedAssignmentXblockTests, cls).setUpClass()
+        cls.set_up_temp_directory()
+
+    @classmethod
+    def tearDownClass(cls):
+        super(StaffGradedAssignmentXblockTests, cls).tearDownClass()
+        cls.tear_down_temp_directory()
+
     def setUp(self):
         """
         Creates a test course ID, mocks the runtime, and creates a fake storage
@@ -60,17 +70,9 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         self.course_id = self.course.id
         self.instructor = StaffFactory.create(course_key=self.course_id)
         self.student_data = mock.Mock()
+        self.staff = AdminFactory.create(password="test")
         self.runtime = self.make_runtime()
         self.scope_ids = self.make_scope_ids(self.runtime)
-
-        tmp = tempfile.mkdtemp()
-        self.addCleanup(lambda: shutil.rmtree(tmp))
-
-        updated_settings_decorator = self.settings(MEDIA_ROOT=tmp)
-        updated_settings_decorator.enable()
-        self.addCleanup(updated_settings_decorator.disable)
-
-        self.staff = AdminFactory.create(password="test")
 
     def make_runtime(self, **kwargs):
         """
@@ -90,7 +92,6 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
             wrap_xmodule_display=False,
             **kwargs
         )
-
         return runtime
 
     def make_scope_ids(self, runtime):
@@ -396,7 +397,7 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         """
         block = self.make_one()
         self.personalize(block, **self.make_student(block, "fred"))
-        with dummy_upload("text.txt") as (upload, expected):
+        with self.dummy_upload("text.txt") as (upload, expected):
             block.upload_assignment(mock.Mock(params={'assignment': upload}))
         response = block.download_assignment(None)
         self.assertEqual(response.body, expected)
@@ -432,7 +433,7 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         """
         block = self.make_one()
         fred = self.make_student(block, "fred1")['module']
-        with dummy_upload('test.txt') as (upload, expected):
+        with self.dummy_upload('test.txt') as (upload, expected):
             block.staff_upload_annotated(mock.Mock(params={
                 'annotated': upload,
                 'module_id': fred.id}))
@@ -463,11 +464,11 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         block = self.make_one()
         fred = self.make_student(block, "fred1")['module']
 
-        with dummy_upload('testa.txt') as (upload, _):
+        with self.dummy_upload('testa.txt') as (upload, _):
             block.upload_assignment(mock.Mock(params={"assignment": upload}))
         block.finalize_uploaded_assignment(mock.Mock(method="POST"))
 
-        with dummy_upload('testb.txt') as (upload, expected):
+        with self.dummy_upload('testb.txt') as (upload, expected):
             request = mock.Mock(params={
                 'annotated': upload,
                 'module_id': fred.id
@@ -488,7 +489,7 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         """
         block = self.make_one()
         fred = self.make_student(block, "fred2")
-        with dummy_upload('test.txt') as (upload, expected):
+        with self.dummy_upload('test.txt') as (upload, expected):
             block.staff_upload_annotated(mock.Mock(params={
                 'annotated': upload,
                 'module_id': fred['module'].id}))
@@ -513,7 +514,7 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         block = self.make_one()
         student = self.make_student(block, 'fred')
         self.personalize(block, **student)
-        with dummy_upload("test.txt") as (upload, expected):
+        with self.dummy_upload("test.txt") as (upload, expected):
             block.upload_assignment(mock.Mock(params={'assignment': upload}))
         response = block.staff_download(mock.Mock(params={
             'student_id': student['item'].student_id}))
@@ -542,7 +543,7 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         """
         block = self.make_one()
         fred = self.make_student(block, "fred2")
-        with dummy_upload('файл.txt') as (upload, expected):
+        with self.dummy_upload('файл.txt') as (upload, expected):
             block.staff_upload_annotated(mock.Mock(params={
                 'annotated': upload,
                 'module_id': fred['module'].id}))
@@ -567,7 +568,7 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         block = self.make_one()
         student = self.make_student(block, 'fred')
         self.personalize(block, **student)
-        with dummy_upload('файл.txt') as (upload, expected):
+        with self.dummy_upload('файл.txt') as (upload, expected):
             block.upload_assignment(mock.Mock(params={'assignment': upload}))
         response = block.staff_download(mock.Mock(params={
             'student_id': student['item'].student_id}))
@@ -816,7 +817,7 @@ class StaffGradedAssignmentXblockTests(ModuleStoreTestCase):
         assert block.is_correct() is False
         assert block.can_attempt() is True
 
-        with dummy_upload('test.txt') as (upload, _):
+        with self.dummy_upload('test.txt') as (upload, _):
             block.upload_assignment(mock.Mock(params={'assignment': upload}))
         assert block.has_attempted() is False
         assert block.is_correct() is False

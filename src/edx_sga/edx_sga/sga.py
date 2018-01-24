@@ -2,46 +2,38 @@
 This block defines a Staff Graded Assignment.  Students are shown a rubric
 and invited to upload a file which is then graded by staff.
 """
-import hashlib
 import json
 import logging
 import mimetypes
-import os
+
 import pkg_resources
 import pytz
-import six
-
-from functools import partial  # lint-amnesty, pylint: disable=wrong-import-order
-
+from courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
+from django.conf import settings  # lint-amnesty, pylint: disable=import-error
 from django.core.exceptions import PermissionDenied  # lint-amnesty, pylint: disable=import-error
 from django.core.files import File  # lint-amnesty, pylint: disable=import-error
 from django.core.files.storage import default_storage  # lint-amnesty, pylint: disable=import-error
-from django.conf import settings  # lint-amnesty, pylint: disable=import-error
 from django.template import Context, Template  # lint-amnesty, pylint: disable=import-error
 from django.utils.encoding import force_text  # pylint: disable=import-error
 from django.utils.timezone import now as django_now  # pylint: disable=import-error
 from django.utils.translation import ugettext_lazy as _  # pylint: disable=import-error
 from safe_lxml import etree  # pylint: disable=import-error
-
-from courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
 from student.models import user_by_anonymous_id  # lint-amnesty, pylint: disable=import-error
 from submissions import api as submissions_api  # lint-amnesty, pylint: disable=import-error
 from submissions.models import (
     Submission,
     StudentItem as SubmissionsStudent
 )  # lint-amnesty, pylint: disable=import-error
-
 from webob.response import Response
 from xblock.core import XBlock  # lint-amnesty, pylint: disable=import-error
 from xblock.exceptions import JsonHandlerError  # lint-amnesty, pylint: disable=import-error
 from xblock.fields import DateTime, Scope, String, Float, Integer  # lint-amnesty, pylint: disable=import-error
 from xblock.fragment import Fragment  # lint-amnesty, pylint: disable=import-error
 from xblockutils.studio_editable import StudioEditableXBlockMixin
-
 from xmodule.util.duedate import get_extended_due_date  # lint-amnesty, pylint: disable=import-error
 from xmodule.contentstore.content import StaticContent
 
-from edx_sga.constants import BLOCK_SIZE, ITEM_TYPE
+from edx_sga.constants import ITEM_TYPE
 from edx_sga.showanswer import ShowAnswerXBlockMixin
 from edx_sga.tasks import (
     get_zip_file_name,
@@ -49,11 +41,13 @@ from edx_sga.tasks import (
     zip_student_submissions
 )
 from edx_sga.utils import (
+    get_sha1,
     utcnow,
     is_finalized_submission,
-    get_file_modified_time_utc
+    get_file_modified_time_utc,
+    get_file_storage_path,
+    file_contents_iter,
 )
-
 
 log = logging.getLogger(__name__)
 
@@ -238,7 +232,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         # so we need to ensure that the user has a StudentModule record, which represents that state.
         self.get_or_create_student_module(user)
         upload = request.params['assignment']
-        sha1 = _get_sha1(upload.file)
+        sha1 = get_sha1(upload.file)
         answer = {
             "sha1": sha1,
             "filename": upload.file.name,
@@ -279,7 +273,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         upload = request.params['annotated']
         module = self.get_student_module(request.params['module_id'])
         state = json.loads(module.state)
-        state['annotated_sha1'] = sha1 = _get_sha1(upload.file)
+        state['annotated_sha1'] = sha1 = get_sha1(upload.file)
         state['annotated_filename'] = filename = upload.file.name
         state['annotated_mimetype'] = mimetypes.guess_type(upload.file.name)[0]
         state['annotated_timestamp'] = utcnow().strftime(
@@ -492,7 +486,7 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         user = self.get_real_user()
         require(user)
         try:
-            destination_path = get_zip_file_path(
+            zip_file_path = get_zip_file_path(
                 user.username,
                 self.block_course_id,
                 self.block_id,
@@ -503,13 +497,11 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
                 self.block_course_id,
                 self.block_id
             )
-            file_descriptor = default_storage.open(destination_path)
-            app_iter = iter(partial(file_descriptor.read, BLOCK_SIZE), '')
             return Response(
-                app_iter=app_iter,
+                app_iter=file_contents_iter(zip_file_path),
                 content_type='application/zip',
-                content_disposition="attachment; filename=" + zip_file_name.encode('utf-8'))
-
+                content_disposition="attachment; filename=" + zip_file_name.encode('utf-8')
+            )
         except IOError:
             return Response(
                 "Sorry, submissions cannot be found. Press Collect ALL Submissions button or"
@@ -831,12 +823,11 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         Return a file from storage and return in a Response.
         """
         try:
-            file_descriptor = default_storage.open(path)
-            app_iter = iter(partial(file_descriptor.read, BLOCK_SIZE), '')
             return Response(
-                app_iter=app_iter,
+                app_iter=file_contents_iter(path),
                 content_type=mime_type,
-                content_disposition="attachment; filename=" + filename.encode('utf-8'))
+                content_disposition="attachment; filename=" + filename.encode('utf-8')
+            )
         except IOError:
             if require_staff:
                 return Response(
@@ -917,22 +908,12 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
             not is_finalized_submission(submission_data)
         )
 
-    def file_storage_path(self, sha1, filename):
+    def file_storage_path(self, file_hash, original_filename):
         # pylint: disable=no-member
         """
-        Get file path of storage.
+        Helper method to get the path of an uploaded file
         """
-        path = (
-            six.u(
-                '{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}/'
-                '{sha1}{ext}'
-            ).format(
-                loc=self.location,
-                sha1=sha1,
-                ext=os.path.splitext(filename)[1]
-            )
-        )
-        return path
+        return get_file_storage_path(self.location, file_hash, original_filename)
 
     def is_zip_file_available(self, user):
         """
@@ -988,17 +969,6 @@ class StaffGradedAssignmentXBlock(StudioEditableXBlockMixin, ShowAnswerXBlockMix
         Is the logged in user a staff user?
         """
         return self.is_course_staff()
-
-
-def _get_sha1(file_descriptor):
-    """
-    Get file hex digest (fingerprint).
-    """
-    sha1 = hashlib.sha1()
-    for block in iter(partial(file_descriptor.read, BLOCK_SIZE), ''):
-        sha1.update(block)
-    file_descriptor.seek(0)
-    return sha1.hexdigest()
 
 
 def _resource(path):  # pragma: NO COVER
