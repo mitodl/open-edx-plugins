@@ -1,6 +1,37 @@
 Release Notes
 =============
 
+Version 0.8.0
+-------------
+
+- Cleaned up zip file creation and retrieval code
+- Update README.md
+- Update README.md
+- Handle static_asset_path setting (#223)
+- Added logic to clear a user&#39;s state in the XBlock
+- Replace static links when rendering solution text (#217)
+- Updated readme (updated installation/usage details, changed format to .md)
+- Fixed file modified time calculation for submission zip file
+- Enable zip file creation using S3 or local file storage
+- Serialize and parse solution as an XML element, if valid XML (#211)
+- Move ShowAnswerXBlockMixin into SGA (#208)
+- Add support for graceperiod (#207)
+- Use UTC for timestamp (#206)
+- Upload coverage to codecov (#201)
+- Fix tests (#203)
+- Clean tests (#200)
+- Reordered XBlock class methods
+- Integrate ShowAnswerXBlockMixin (#197)
+- Fixed submission download bug
+- Use StudioEditableXBlockMixin (#190)
+- Run integration tests on travis (#194)
+- Add download all submissions (#187)
+- Separated upload and submit buttons in student submission upload UI
+- add pull request template (#193)
+- Revert xblock-utils library (#192)
+- Add mitodl/xblock-utils as dependency (#189)
+- Add travis.yml (#188)
+
 Version 0.7.1
 -------------
 
