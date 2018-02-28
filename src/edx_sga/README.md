@@ -181,8 +181,10 @@ Create a branch of edx-platform to commit a few minor changes:
   - **display_name**: The name appears in the horizontal navigation at the top of the page
   - **Maximum Score**: Maximum grade score given to assignment by staff
   - **Problem Weight**: Defines the number of points each problem is worth.
-
-    ![Editing SGA Settings](https://raw.githubusercontent.com/mitodl/edx-sga/screenshots/img/screenshot-studio-editing-sga.png)
+  - **Show Answer**: Specifies if and when the student will see the correct answer to the problem.
+  - **Solution**: The solution that is shown to the student if Show Answer is enabled for the problem. 
+  
+    ![sga settings](https://user-images.githubusercontent.com/8322892/36798686-48c41bc6-1c79-11e8-9ffb-d90a0169e69d.png)
 
 5. Grading Policy
 
