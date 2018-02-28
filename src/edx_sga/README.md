@@ -193,14 +193,23 @@ Create a branch of edx-platform to commit a few minor changes:
 
 ## Course Authoring in XML
 
-XML for an SGA XBlock consists of one tag with the three attributes mentioned
+XML for an SGA XBlock consists of one tag with the five attributes mentioned
 above. It is recommended to also include a url_name attribute. For example:
 
 ```xml
 <vertical display_name="Staff Graded Assignment">
-    <edx_sga url_name="sga_example" weight="10.0" display_name="SGA Example" points="100.0" />
+    <edx_sga url_name="sga_example" weight="10.0" display_name="SGA Example" points="100.0" showanswer="past_due" solution="solution text" />
 </vertical>
 ```
+You can specify the following values for the show answer attribute.
+* always
+* answered
+* attempted
+* closed
+* correct_or_past_due
+* finished
+* past_due
+* never
 
 ## Staff Grading
 
