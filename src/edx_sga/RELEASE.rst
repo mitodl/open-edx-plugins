@@ -1,6 +1,19 @@
 Release Notes
 =============
 
+Version 0.8.1
+-------------
+
+- Added tests to validate all student submissions (#235)
+- Added url encoding in file name (#236)
+- Added support email to the error message on zip submissions download (#234)
+- Fixed comma in file name (#237)
+- Fixed Django 1.11 related issue in test (#238)
+- Fixed zipping large files for staff submissions. (#226) (#230)
+- Fixed zipping large files for staff submissions. (#226)
+- Update README.md
+- Update README.md
+
 Version 0.8.0
 -------------
 
