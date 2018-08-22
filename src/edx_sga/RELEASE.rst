@@ -1,12 +1,12 @@
 Release Notes
 =============
 
-Version 0.8.3
+Version 0.8.3 (Released August 22, 2018)
 -------------
 
 - Fix integration tests under Django 1.11 (#247)
 
-Version 0.8.2
+Version 0.8.2 (Released April 30, 2018)
 -------------
 
 - Release 0.8.1
@@ -20,7 +20,7 @@ Version 0.8.2
 - Update README.md
 - Update README.md
 
-Version 0.8.1
+Version 0.8.1 (Released March 20, 2018)
 -------------
 
 - Added tests to validate all student submissions (#235)
@@ -33,7 +33,7 @@ Version 0.8.1
 - Update README.md
 - Update README.md
 
-Version 0.8.0
+Version 0.8.0 (Released February 13, 2018)
 -------------
 
 - Cleaned up zip file creation and retrieval code
@@ -64,7 +64,7 @@ Version 0.8.0
 - Add mitodl/xblock-utils as dependency (#189)
 - Add travis.yml (#188)
 
-Version 0.7.1
+Version 0.7.1 (Released November 07, 2017)
 -------------
 
 - Reference __init__ version (#180)
@@ -76,7 +76,7 @@ Version 0.7.1
 - Use the timezone of the platform as opposed to UTC for submissions&#39; dates (#169)
 - Increase the height of the &quot;Select a File&quot; element (#165)
 
-Version 0.7.0
+Version 0.7.0 (Released November 07, 2017)
 -------------
 
 - Added new tests with mocking data (#174)
@@ -86,23 +86,23 @@ Version 0.7.0
 - Use the timezone of the platform as opposed to UTC for submissions&#39; dates (#169)
 - Increase the height of the &quot;Select a File&quot; element (#165)
 
-Version 0.6.4
+Version 0.6.4 (Released July 27, 2017)
 -------------
 
 - Serialize block/course locators before sending to submissions API. (#166)
 
-Version 0.6.3
+Version 0.6.3 (Released May 03, 2017)
 -------------
 
 - preface id refs with strings, add tabindex to modals (#163)
 
-Version 0.6.1
+Version 0.6.1 (Released February 13, 2017)
 -------------
 
 - Fixed error "ValueError: invalid literal for int() with base 10: 'undefined'" (#160)
 - Fixed typo in README (#158)
 
-Version 0.6.0
+Version 0.6.0 (Released November 16, 2016)
 -------------
 
 - adding version number so this will work with our release-script
