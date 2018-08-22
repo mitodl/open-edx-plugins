@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.8.3
+-------------
+
+- Fix integration tests under Django 1.11 (#247)
+
 Version 0.8.2
 -------------
 
