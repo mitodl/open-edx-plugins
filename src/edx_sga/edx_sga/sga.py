@@ -13,7 +13,7 @@ from zipfile import ZipFile
 import pkg_resources
 import pytz
 
-from courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
+from lms.djangoapps.courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
 from django.conf import settings  # lint-amnesty, pylint: disable=import-error
 from django.core.exceptions import PermissionDenied  # lint-amnesty, pylint: disable=import-error
 from django.core.files import File  # lint-amnesty, pylint: disable=import-error

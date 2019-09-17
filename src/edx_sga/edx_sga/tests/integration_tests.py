@@ -16,9 +16,9 @@ from opaque_keys.edx.locator import CourseLocator
 from opaque_keys.edx.locations import Location  # lint-amnesty, pylint: disable=import-error
 import pytz
 
-from courseware import module_render as render  # lint-amnesty, pylint: disable=import-error
-from courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
-from courseware.tests.factories import StaffFactory  # lint-amnesty, pylint: disable=import-error
+from lms.djangoapps.courseware import module_render as render  # lint-amnesty, pylint: disable=import-error
+from lms.djangoapps.courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
+from lms.djangoapps.courseware.tests.factories import StaffFactory  # lint-amnesty, pylint: disable=import-error
 from django.contrib.auth.models import User  # lint-amnesty, pylint: disable=import-error
 from django.core.exceptions import PermissionDenied  # lint-amnesty, pylint: disable=import-error
 from django.db import transaction  # lint-amnesty, pylint: disable=import-error
