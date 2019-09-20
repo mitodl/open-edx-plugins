@@ -6,8 +6,8 @@ old SGA implementation before v0.4.0 to newer version that uses the
 import json
 
 from django.core.management.base import BaseCommand, CommandError  # lint-amnesty, pylint: disable=import-error
-from courseware.courses import get_course_by_id  # lint-amnesty, pylint: disable=import-error
-from courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
+from lms.djangoapps.courseware.courses import get_course_by_id  # lint-amnesty, pylint: disable=import-error
+from lms.djangoapps.courseware.models import StudentModule  # lint-amnesty, pylint: disable=import-error
 from opaque_keys.edx.keys import CourseKey  # lint-amnesty, pylint: disable=import-error
 from student.models import anonymous_id_for_user  # lint-amnesty, pylint: disable=import-error
 from submissions import api as submissions_api  # lint-amnesty, pylint: disable=import-error
