@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.9.0
+Version 0.9.0 (Released October 01, 2019)
 -------------
 
 - Possible fix for copying units with SGA (#254)
