@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.10.0
+--------------
+
+- Ran python-modernizer on repo (#256)
+
 Version 0.9.0 (Released October 01, 2019)
 -------------
 
