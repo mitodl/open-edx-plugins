@@ -1,6 +1,18 @@
 Release Notes
 =============
 
+Version 0.11.1 (Released August 12, 2020)
+--------------
+
+- Fix mismatch version (#272)
+
+Version 0.11.0 (Released May 19, 2020)
+--------------
+
+- Temporarily disable integration and Python 2 tests (#267)
+- Added missing decode to resource loading
+- Fixed build error involving jsonfield import in edx-submissions
+
 Version 0.10.0 (Released October 28, 2019)
 --------------
 
