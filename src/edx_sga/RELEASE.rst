@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.11.1
+--------------
+
+- Fix mismatch version (#272)
+
 Version 0.11.0
 --------------
 
