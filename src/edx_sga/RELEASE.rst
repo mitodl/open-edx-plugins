@@ -1,6 +1,13 @@
 Release Notes
 =============
 
+Version 0.12.0
+--------------
+
+- Allow a grade of zero
+- removed deprecated usage of xblock fragment (#270)
+- Fix mismatch version (#272)
+
 Version 0.11.1 (Released August 12, 2020)
 --------------
 
