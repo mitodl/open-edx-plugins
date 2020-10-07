@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.12.0
+Version 0.12.0 (Released October 07, 2020)
 --------------
 
 - Allow a grade of zero
