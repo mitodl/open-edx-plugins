@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.13.0
+--------------
+
+- Fix the release failure over openEdx
+
 Version 0.12.0 (Released October 07, 2020)
 --------------
 
