@@ -1,6 +1,12 @@
 Release Notes
 =============
 
+Version 0.13.1
+--------------
+
+- Pulling the APP from LMS breaks if we're running in CMS
+- Fix DeprecatedEdxPlatformImportWarning (#286)
+
 Version 0.13.0 (Released October 13, 2020)
 --------------
 
