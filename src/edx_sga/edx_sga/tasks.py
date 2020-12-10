@@ -10,7 +10,7 @@ import zipfile
 from django.core.files.storage import default_storage
 from edx_sga.constants import ITEM_TYPE
 from edx_sga.utils import get_file_storage_path
-from lms import CELERY_APP
+from celery import shared_task
 from opaque_keys.edx.locator import BlockUsageLocator
 from common.djangoapps.student.models import user_by_anonymous_id
 from submissions import api as submissions_api
@@ -84,7 +84,7 @@ def _compress_student_submissions(zip_file_path, block_id, course_id, locator):
         default_storage.save(zip_file_path, tmp)
 
 
-@CELERY_APP.task
+@shared_task
 def zip_student_submissions(course_id, block_id, locator_unicode, username):
     """
     Task to download all submissions as zip file
