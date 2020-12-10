@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.13.1
+Version 0.13.1 (Released December 10, 2020)
 --------------
 
 - Pulling the APP from LMS breaks if we're running in CMS
