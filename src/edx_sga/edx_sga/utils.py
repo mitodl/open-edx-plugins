@@ -1,15 +1,11 @@
 """
 Utility functions for the SGA XBlock
 """
-from __future__ import absolute_import
-
 import datetime
 import hashlib
 import os
 import time
 from functools import partial
-
-import six
 
 import pytz
 from django.conf import settings
@@ -45,7 +41,7 @@ def get_file_modified_time_utc(file_path):
         else pytz.utc
     )
     return file_timezone.localize(
-        default_storage.modified_time(file_path)
+        default_storage.get_modified_time(file_path)
     ).astimezone(
         pytz.utc
     )
@@ -67,9 +63,7 @@ def get_file_storage_path(locator, file_hash, original_filename):
     Returns the file path for an uploaded SGA submission file
     """
     return (
-        six.u(
-            '{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}/{file_hash}{ext}'
-        ).format(
+        '{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}/{file_hash}{ext}'.format(
             loc=locator,
             file_hash=file_hash,
             ext=os.path.splitext(original_filename)[1]
