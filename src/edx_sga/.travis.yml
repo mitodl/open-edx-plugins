@@ -1,9 +1,0 @@
-language: python
-matrix:
-  include:
-    - python: 3.8
-      install: 
-        - pip install tox
-      script: tox -e py38-django22
-      env:
-        name: Python 3.8, Django 2.22 Unit Tests
