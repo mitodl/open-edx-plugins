@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.14.0
+Version 0.14.0 (Released January 19, 2021)
 --------------
 
 - switch from travis to github actions
