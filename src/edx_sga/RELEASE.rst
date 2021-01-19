@@ -1,6 +1,12 @@
 Release Notes
 =============
 
+Version 0.14.0
+--------------
+
+- switch from travis to github actions
+- BOM-2175 : Upgrade To Python 3.8 (#290)
+
 Version 0.13.1 (Released December 10, 2020)
 --------------
 
