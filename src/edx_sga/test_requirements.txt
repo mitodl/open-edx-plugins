@@ -1,10 +1,11 @@
-celery==3.1.25
+# maintain the latest version
+celery==5.0.5
 codecov==2.1.5
 coverage==5.3
 cryptography==2.5
 ddt==1.1.1
 djangorestframework==3.12.2
-edx-celeryutils==0.3.2
+edx-celeryutils
 edx-lint
 edx-opaque-keys
 edx-submissions
