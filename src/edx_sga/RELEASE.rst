@@ -1,6 +1,12 @@
 Release Notes
 =============
 
+Version 0.15.0
+--------------
+
+- fixes utc time assignment to download all submissions (#298)
+- upgrading celery==5.0.5 (#293)
+
 Version 0.14.0 (Released January 19, 2021)
 --------------
 
