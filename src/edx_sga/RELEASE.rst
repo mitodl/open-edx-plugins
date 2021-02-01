@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.15.0
+Version 0.15.0 (Released February 01, 2021)
 --------------
 
 - fixes utc time assignment to download all submissions (#298)
