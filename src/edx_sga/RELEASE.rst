@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.16.0
+--------------
+
+- Compare Only Final Submissions When Report Downloading (#300)
+
 Version 0.15.0 (Released February 01, 2021)
 --------------
 
