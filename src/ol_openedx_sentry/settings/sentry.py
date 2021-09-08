@@ -85,8 +85,8 @@ def _load_env_tokens(app_settings) -> Dict[str, Any]:
         app_settings,
         "ENV_TOKENS",
         {
-            "SENTRY_IGNOERD_EXCEPTION_CLASSES": [],
-            "SENTRY_IGNOERD_EXCEPTION_MESSAGES": [],
+            "SENTRY_IGNORED_EXCEPTION_CLASSES": [],
+            "SENTRY_IGNORED_EXCEPTION_MESSAGES": [],
             "SENTRY_DSN": "",
             "SENTRY_ENVIRONMENT": None,
             "SENTRY_SAMPLE_RATE": 0.5,
