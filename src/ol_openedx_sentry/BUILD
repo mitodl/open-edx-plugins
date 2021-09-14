@@ -5,7 +5,7 @@ python_library(
 
 python_distribution(
     name="sentry_package",
-    dependencies=[":sentry_app", "src/ol_openedx_sentry/settings:sentry_settings"],
+    dependencies=[":sentry_app"],
     provides=setup_py(
         name="ol-openedx-sentry",
         version="0.1.0",
