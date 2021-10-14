@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.17.1
+--------------
+
+- Update license text to match pypi's acceptable list (#310)
+
 Version 0.17.0 (Released October 14, 2021)
 --------------
 
