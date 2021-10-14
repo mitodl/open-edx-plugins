@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.17.2
+--------------
+
+- Update license classifier (#312)
+
 Version 0.17.1 (Released October 14, 2021)
 --------------
 
