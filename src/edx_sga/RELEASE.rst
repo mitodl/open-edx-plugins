@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.17.0
+Version 0.17.0 (Released October 14, 2021)
 --------------
 
 - Upgrade django to 3.2 LTS (#304)
