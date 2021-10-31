@@ -1,0 +1,6 @@
+[cms.djangoapp]
+
+
+[lms.djangoapp]
+canvas_integration = ol_openedx_canvas_integration.app:CanvasIntegrationConfig
+
