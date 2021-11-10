@@ -3,10 +3,11 @@ Canvas Integration Application Configuration
 """
 
 from django.apps import AppConfig
-from edx_django_utils.plugins import PluginSettings, PluginURLs
+from edx_django_utils.plugins import PluginSettings, PluginURLs, PluginContexts
 
 from openedx.core.constants import COURSE_ID_PATTERN
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
+from constants import CANVAS_INTEGRATION_PLUGIN_VIEW_NAME
 
 
 class CanvasIntegrationConfig(AppConfig):
@@ -27,6 +28,11 @@ class CanvasIntegrationConfig(AppConfig):
             ProjectType.LMS: {
                 SettingsType.PRODUCTION: {PluginSettings.RELATIVE_PATH: 'settings.production'},
                 SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: 'settings.common'},
+            }
+        },
+        PluginContexts.CONFIG: {
+            ProjectType.LMS: {
+                CANVAS_INTEGRATION_PLUGIN_VIEW_NAME: 'ol_openedx_canvas_integration.context_api.plugin_context'
             }
         }
     }
