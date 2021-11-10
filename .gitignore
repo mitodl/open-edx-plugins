@@ -5,3 +5,6 @@
 /.pants.workdir.file_lock*
 # Python files
 /.venv/
+/.idea/
+__pycache__/
+*.egg-info/
