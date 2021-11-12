@@ -5,4 +5,3 @@ def plugin_settings(settings):
     """Settings for the canvas integration plugin."""
     settings.CANVAS_ACCESS_TOKEN = None
     settings.CANVAS_BASE_URL = None
-    settings.FEATURES['ENABLE_CANVAS_INTEGRATION'] = False

@@ -30,9 +30,11 @@ def push_edx_grades_to_canvas(_xmodule_instance_args, _entry_id, course_id, task
     num_reports = 1
     task_progress = TaskProgress(action_name, num_reports, start_time)
     course = get_course_by_id(course_id)
-    api.push_edx_grades_to_canvas(
+    grades_updated, assignments_created = api.push_edx_grades_to_canvas(
         course=course
     )
+    results = {"grades": len(grades_updated), "assignments": len(assignments_created)}
     return task_progress.update_task_state(extra_meta={
-        "step": "Done"
+        "step": "Done",
+        "results": results
     })
