@@ -7,7 +7,7 @@ from edx_django_utils.plugins import PluginSettings, PluginURLs, PluginContexts
 
 from openedx.core.constants import COURSE_ID_PATTERN
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
-from constants import CANVAS_INTEGRATION_PLUGIN_VIEW_NAME
+from ol_openedx_canvas_integration.constants import CANVAS_INTEGRATION_PLUGIN_VIEW_NAME
 
 
 class CanvasIntegrationConfig(AppConfig):
