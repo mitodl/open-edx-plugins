@@ -1,0 +1,1 @@
+RAPID_RESPONSE_PLUGIN_VIEW_NAME = 'ol_openedx_rapid_response_reports'
