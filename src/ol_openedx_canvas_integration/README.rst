@@ -9,7 +9,7 @@ We had to make some changes to edx-platform itself in order to add the "Canvas" 
 
 The ``edx-platform`` branch/tag you're using must include below commit for ``ol-openedx-canvas-integration`` plugin to work properly:
 
-- https://github.com/mitodl/edx-platform/commit/5b8acfceb7fcebab6b5e3aff0493876f439f2b80
+- https://github.com/mitodl/edx-platform/commit/a9c4e667b658d710c02e0e811c1d5b067d94677e
 
 
 Installation

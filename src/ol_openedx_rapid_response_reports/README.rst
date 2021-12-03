@@ -11,7 +11,7 @@ A django app plugin for edx-platform to enable "Rapid Response Reports" function
 
 We had to make some changes to edx-platform itself in order to add the ``Rapid Responses`` tab to the instructor dashboard, so the ``edx-platform`` branch/tag you're using must include this commit for the plugin to work properly:
 
-- https://github.com/mitodl/edx-platform/commit/f6c7cc6ea528819e8779e3137c806911a81a3198
+- https://github.com/mitodl/edx-platform/commit/91b24d30454a2a4042039486fd5499a7a7843d0c
 
 Dependencies
 ---------------
