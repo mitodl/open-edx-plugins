@@ -5,7 +5,9 @@ from functools import partial
 from typing import Any, Dict, List, Optional, Union
 
 import sentry_sdk
+from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.redis import RedisIntegration
 
 
 def _load_exception_class(import_specifier: str) -> Union[Exception, None]:
@@ -89,7 +91,7 @@ def _load_env_tokens(app_settings) -> Dict[str, Any]:
             "SENTRY_IGNORED_EXCEPTION_MESSAGES": [],
             "SENTRY_DSN": "",
             "SENTRY_ENVIRONMENT": None,
-            "SENTRY_SAMPLE_RATE": 0.5,
+            "SENTRY_SAMPLE_RATE": 0.1,
             "SENTRY_RELEASE_SPECIFIER": None,
             "SENTRY_SEND_HTTP_REQUEST_BODIES": "small",
         },
@@ -100,27 +102,28 @@ def plugin_settings(app_settings):
     env_tokens = _load_env_tokens(app_settings)
     ignored_exceptions = env_tokens.get("SENTRY_IGNORED_EXCEPTION_CLASSES", [])
     ignored_messages = env_tokens.get("SENTRY_IGNORED_EXCEPTION_MESSAGES", [])
-    sentry_sdk.init(
-        dsn=env_tokens.get("SENTRY_DSN"),
-        environment=env_tokens.get("SENTRY_ENVIRONMENT"),
-        integrations=[DjangoIntegration()],
-        # Set traces_sample_rate to 1.0 to capture 100%
-        # of transactions for performance monitoring.
-        # We recommend adjusting this value in production,
-        traces_sample_rate=env_tokens.get("SENTRY_TRACES_SAMPLE_RATE", 0.5),
-        # If you wish to associate users to errors (assuming you are using
-        # django.contrib.auth) you may enable sending PII data.
-        send_default_pii=True,
-        # By default the SDK will try to use the SENTRY_RELEASE
-        # environment variable, or infer a git commit
-        # SHA as release, however you may want to set
-        # something more human-readable.
-        release=env_tokens.get("SENTRY_RELEASE_SPECIFIER"),
-        request_bodies=env_tokens.get("SENTRY_SEND_HTTP_REQUEST_BODIES", "small"),
-        before_send=partial(
-            sentry_event_filter,
-            ignored_types=ignored_exceptions,
-            ignored_messages=ignored_messages,
-        ),
-    )
-    app_settings.SENTRY_ENABLED = True
+    if sentry_dsn := env_tokens.get("SENTRY_DSN"):  # noqa: WPS332
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            environment=env_tokens.get("SENTRY_ENVIRONMENT"),
+            integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration()],
+            # Set traces_sample_rate to 1.0 to capture 100%
+            # of transactions for performance monitoring.
+            # We recommend adjusting this value in production,
+            traces_sample_rate=env_tokens.get("SENTRY_TRACES_SAMPLE_RATE", 0.1),
+            # If you wish to associate users to errors (assuming you are using
+            # django.contrib.auth) you may enable sending PII data.
+            send_default_pii=True,
+            # By default the SDK will try to use the SENTRY_RELEASE
+            # environment variable, or infer a git commit
+            # SHA as release, however you may want to set
+            # something more human-readable.
+            release=env_tokens.get("SENTRY_RELEASE_SPECIFIER"),
+            request_bodies=env_tokens.get("SENTRY_SEND_HTTP_REQUEST_BODIES", "small"),
+            before_send=partial(
+                sentry_event_filter,
+                ignored_types=ignored_exceptions,
+                ignored_messages=ignored_messages,
+            ),
+        )
+        app_settings.SENTRY_ENABLED = True

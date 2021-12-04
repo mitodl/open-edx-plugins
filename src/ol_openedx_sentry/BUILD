@@ -8,7 +8,7 @@ python_distribution(
     dependencies=[":sentry_app"],
     provides=setup_py(
         name="ol-openedx-sentry",
-        version="0.1.0",
+        version="0.1.1",
         description="An Open edX plugin to enable error tracking with Sentry",
         entry_points={
             "lms.djangoapp": ["ol_openedx_sentry = ol_openedx_sentry.app:EdxSentry"],
