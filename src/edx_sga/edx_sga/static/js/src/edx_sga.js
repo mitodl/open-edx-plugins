@@ -23,6 +23,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         var preparingSubmissionsMsg = gettext(
           'Started preparing student submissions zip file. This may take a while.'
         );
+        var hasIframeSizeChanged = false;
 
         function render(state) {
             // Add download urls to template context
@@ -330,6 +331,8 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 block.find('#grade-submissions-button')
                     .leanModal()
                     .on('click', function() {
+                        sendResizeMessage(document.body.clientHeight * 2)
+                        hasIframeSizeChanged = true
                         $.ajax({
                             url: getStaffGradingUrl,
                             success: renderStaffGrading
@@ -376,7 +379,27 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                   );
                 });
             }
+            $("#lean_overlay").on("click", function (event){
+            if (hasIframeSizeChanged) {
+              hasIframeSizeChanged = false
+              sendResizeMessage(document.body.clientHeight * 0.5)
+            }
+            })
         });
+
+        function sendResizeMessage(newHeight){
+          // This blocks checks to see if the xBlock is part 
+          // of Learning MFE
+          if (window.parent !== window){
+            window.parent.postMessage({
+              type: 'plugin.resize',
+              payload: {
+                height: newHeight,
+                }
+              }, document.referrer
+            );
+          }
+        }
 
         function pollSubmissionDownload() {
           pollUntilSuccess(downloadSubmissionsStatusUrl, checkResponse, 10000, 100).then(function() {
