@@ -23,7 +23,8 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         var preparingSubmissionsMsg = gettext(
           'Started preparing student submissions zip file. This may take a while.'
         );
-        var hasIframeSizeChanged = false;
+        var currentIFrameHeight = null;
+        var gradePopUpIsOpen = false;
 
         function render(state) {
             // Add download urls to template context
@@ -296,8 +297,10 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 setTimeout(function() {
                     $('#grade-submissions-button').click();
                     gradeFormError('');
+                    gradePopUpIsOpen = false
                 }, 225);
             });
+            gradePopUpIsOpen = true;
         }
 
         function updateChangeEvent(fileUploadObj) {
@@ -331,8 +334,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                 block.find('#grade-submissions-button')
                     .leanModal()
                     .on('click', function() {
-                        sendResizeMessage(document.body.clientHeight * 2)
-                        hasIframeSizeChanged = true
+                        updateIframe()
                         $.ajax({
                             url: getStaffGradingUrl,
                             success: renderStaffGrading
@@ -379,22 +381,41 @@ function StaffGradedAssignmentXBlock(runtime, element) {
                   );
                 });
             }
-            $("#lean_overlay").on("click", function (event){
-            if (hasIframeSizeChanged) {
-              hasIframeSizeChanged = false
-              sendResizeMessage(document.body.clientHeight * 0.5)
+            $("#lean_overlay").on("click", function (_){
+            if (currentIFrameHeight && !gradePopUpIsOpen) {
+              sendResizeMessage(currentIFrameHeight)
+              currentIFrameHeight = null
             }
             })
         });
 
-        function sendResizeMessage(newHeight){
+        function updateIframe(){
+          if(isInIframe && !currentIFrameHeight){
+            currentIFrameHeight = $("body").height()
+            addMaxHeightInIframe()
+            if(currentIFrameHeight < 600){
+              sendResizeMessage(currentIFrameHeight + 600)
+            }
+          }
+        }
+
+        function isInIframe(){
+          return window.parent !== window
+        }
+
+        function addMaxHeightInIframe(){
+            $(".grade-submission").css("max-height", "600px")
+        }
+        
+        
+        function sendResizeMessage(height){
           // This blocks checks to see if the xBlock is part 
           // of Learning MFE
           if (window.parent !== window){
             window.parent.postMessage({
               type: 'plugin.resize',
               payload: {
-                height: newHeight,
+                height: height,
                 }
               }, document.referrer
             );
