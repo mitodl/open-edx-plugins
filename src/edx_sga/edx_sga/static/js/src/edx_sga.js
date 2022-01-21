@@ -394,7 +394,7 @@ function StaffGradedAssignmentXBlock(runtime, element) {
         currentIFrameHeight = $("body").height()
         addMaxHeightInIframe()
         if (currentIFrameHeight < 600) {
-          sendResizeMessage(currentIFrameHeight + 600)
+          sendResizeMessage(600)
         }
       }
     }
