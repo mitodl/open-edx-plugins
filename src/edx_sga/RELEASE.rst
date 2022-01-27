@@ -1,6 +1,14 @@
 Release Notes
 =============
 
+Version 0.17.3
+--------------
+
+- added resize to 600
+- fixed indentation
+- fixed issue on iframe
+- fixed iframe opening
+
 Version 0.17.2 (Released October 14, 2021)
 --------------
 
