@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.17.3
+Version 0.17.3 (Released January 27, 2022)
 --------------
 
 - added resize to 600
