@@ -4,23 +4,22 @@ import logging
 from functools import partial
 
 from celery import task
-from opaque_keys.edx.locator import CourseLocator
-
-from ol_openedx_canvas_integration import task_helpers
-from ol_openedx_canvas_integration.constants import (
-    TASK_TYPE_SYNC_CANVAS_ENROLLMENTS,
-    TASK_TYPE_PUSH_EDX_GRADES_TO_CANVAS,
-)
-from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.instructor_task.api_helper import submit_task
 from lms.djangoapps.instructor_task.tasks_base import BaseInstructorTask
 from lms.djangoapps.instructor_task.tasks_helper.runner import run_main_task
 
+from ol_openedx_canvas_integration import task_helpers
+from ol_openedx_canvas_integration.constants import (
+    TASK_TYPE_PUSH_EDX_GRADES_TO_CANVAS,
+    TASK_TYPE_SYNC_CANVAS_ENROLLMENTS,
+)
 
-TASK_LOG = logging.getLogger('edx.celery.task')
+TASK_LOG = logging.getLogger("edx.celery.task")
 
 
-def run_sync_canvas_enrollments(request, course_key, canvas_course_id, unenroll_current):
+def run_sync_canvas_enrollments(
+    request, course_key, canvas_course_id, unenroll_current
+):
     """
     Submit a task to start syncing canvas enrollments
     """
@@ -29,7 +28,7 @@ def run_sync_canvas_enrollments(request, course_key, canvas_course_id, unenroll_
     task_input = {
         "course_key": course_key,
         "canvas_course_id": canvas_course_id,
-        "unenroll_current": unenroll_current
+        "unenroll_current": unenroll_current,
     }
     task_key = hashlib.md5(course_key.encode("utf8")).hexdigest()
     TASK_LOG.debug("Submitting task to sync canvas enrollments")

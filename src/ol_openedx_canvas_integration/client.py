@@ -1,12 +1,11 @@
 import logging
-import pytz
-from urllib.parse import urlencode, urljoin, urlparse, parse_qs
-import requests
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 
+import pytz
+import requests
 from django.conf import settings
 
 from ol_openedx_canvas_integration.constants import DEFAULT_ASSIGNMENT_POINTS
-
 
 log = logging.getLogger(__name__)
 
@@ -22,9 +21,9 @@ class CanvasClient:
         Create a request session with the access token
         """
         session = requests.Session()
-        session.headers.update({
-            "Authorization": "Bearer {token}".format(token=settings.CANVAS_ACCESS_TOKEN)
-        })
+        session.headers.update(
+            {"Authorization": f"Bearer {settings.CANVAS_ACCESS_TOKEN}"}
+        )
         return session
 
     @staticmethod
@@ -41,7 +40,7 @@ class CanvasClient:
         """
         pieces = urlparse(url)
         query = parse_qs(pieces.query)
-        query['per_page'] = per_page
+        query["per_page"] = per_page
         query_string = urlencode(query, doseq=True)
         pieces = pieces._replace(query=query_string)
         return pieces.geturl()
@@ -50,7 +49,9 @@ class CanvasClient:
         """
         Iterate over the paginated results of a request
         """
-        url = self._add_per_page(url, 100)  # increase per_page to 100 from default of 10
+        url = self._add_per_page(
+            url, 100
+        )  # increase per_page to 100 from default of 10
 
         items = []
         while url:
@@ -74,7 +75,7 @@ class CanvasClient:
         """
         url = urljoin(
             settings.CANVAS_BASE_URL,
-            "/api/v1/courses/{course_id}/enrollments".format(course_id=self.canvas_course_id)
+            f"/api/v1/courses/{self.canvas_course_id}/enrollments",
         )
         enrollments = self._paginate(url)
 
@@ -90,9 +91,12 @@ class CanvasClient:
         Returns:
             list: A list of assignment dicts from Canvas
         """
-        url = urljoin(settings.CANVAS_BASE_URL, "/api/v1/courses/{course_id}/assignments".format(
-            course_id=self.canvas_course_id
-        ))
+        url = urljoin(
+            settings.CANVAS_BASE_URL,
+            "/api/v1/courses/{course_id}/assignments".format(
+                course_id=self.canvas_course_id
+            ),
+        )
         return self._paginate(url)
 
     def get_assignments_by_int_id(self):
@@ -102,13 +106,18 @@ class CanvasClient:
             for assignment in assignments
             if assignment.get("integration_id") is not None
         }
-        assignments_without_integration_id = sorted([
-            assignment["id"] for assignment in assignments if assignment.get("integration_id") is None
-        ])
+        assignments_without_integration_id = sorted(
+            assignment["id"]
+            for assignment in assignments
+            if assignment.get("integration_id") is None
+        )
         if assignments_without_integration_id:
             log.warning(
                 "These assignments are missing an integration_id: %s",
-                ", ".join(str(assignment_id) for assignment_id in assignments_without_integration_id)
+                ", ".join(
+                    str(assignment_id)
+                    for assignment_id in assignments_without_integration_id
+                ),
             )
         return assignments_dict
 
@@ -124,7 +133,7 @@ class CanvasClient:
             "/api/v1/courses/{course_id}/assignments/{assignment_id}/submissions".format(
                 course_id=self.canvas_course_id,
                 assignment_id=assignment_id,
-            )
+            ),
         )
         return self._paginate(url)
 
@@ -138,7 +147,7 @@ class CanvasClient:
         return self.session.post(
             url=urljoin(
                 settings.CANVAS_BASE_URL,
-                "/api/v1/courses/{course_id}/assignments".format(course_id=self.canvas_course_id)
+                f"/api/v1/courses/{self.canvas_course_id}/assignments",
             ),
             json=payload,
         )
@@ -148,9 +157,8 @@ class CanvasClient:
             url=urljoin(
                 settings.CANVAS_BASE_URL,
                 "/api/v1/courses/{course_id}/assignments/{assignment_id}/submissions/update_grades".format(
-                    course_id=self.canvas_course_id,
-                    assignment_id=canvas_assignment_id
-                )
+                    course_id=self.canvas_course_id, assignment_id=canvas_assignment_id
+                ),
             ),
             data=payload,
         )
@@ -175,7 +183,8 @@ def create_assignment_payload(subsection_block):
             "grading_type": "percent",
             "points_possible": DEFAULT_ASSIGNMENT_POINTS,
             "due_at": (
-                None if not subsection_block.fields.get("due")
+                None
+                if not subsection_block.fields.get("due")
                 # The internal API gives us a TZ-naive datetime for the due date, but Studio indicates that
                 # the user should enter a UTC datetime for the due date. Coerce this to UTC before creating the
                 # string representation.
@@ -198,7 +207,4 @@ def update_grade_payload_kv(user_id, grade_percent):
     Returns:
         (tuple): A key/value pair that will be used in the body of a bulk grade update request
     """
-    return (
-        "grade_data[{user_id}][posted_grade]".format(user_id=user_id),
-        "{pct}%".format(pct=grade_percent * 100)
-    )
+    return (f"grade_data[{user_id}][posted_grade]", f"{grade_percent * 100}%")

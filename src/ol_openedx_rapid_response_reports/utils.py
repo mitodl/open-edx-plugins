@@ -10,4 +10,4 @@ def get_display_name_from_usage_key(key, course):
     if block:
         return block.display_name
     else:
-        return 'Deleted'
+        return "Deleted"
