@@ -2,15 +2,19 @@
 import logging
 from collections import defaultdict
 
-from opaque_keys.edx.locator import CourseLocator
-
-from lms.djangoapps.courseware.courses import get_course_by_id
-from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
-from common.djangoapps.student.models import CourseEnrollmentAllowed, CourseEnrollment
-from ol_openedx_canvas_integration.client import CanvasClient, create_assignment_payload, update_grade_payload_kv
+from common.djangoapps.student.models import CourseEnrollment, CourseEnrollmentAllowed
 from django.contrib.auth.models import User
 from lms.djangoapps.courseware.access import has_access
+from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.grades.context import grading_context_for_course
+from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
+from opaque_keys.edx.locator import CourseLocator
+
+from ol_openedx_canvas_integration.client import (
+    CanvasClient,
+    create_assignment_payload,
+    update_grade_payload_kv,
+)
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +26,9 @@ def first_or_none(iterable):
 
 def course_graded_items(course):
     grading_context = grading_context_for_course(course)
-    for graded_item_type, graded_items in grading_context['all_graded_subsections_by_type'].items():
+    for graded_item_type, graded_items in grading_context[
+        "all_graded_subsections_by_type"
+    ].items():
         for graded_item_index, graded_item in enumerate(graded_items, start=1):
             yield graded_item_type, graded_item, graded_item_index
 
@@ -32,8 +38,9 @@ def get_enrolled_non_staff_users(course):
     Returns an iterable of non-staff enrolled users for a given course
     """
     return [
-        user for user in CourseEnrollment.objects.users_enrolled_in(course.id)
-        if not has_access(user, 'staff', course)
+        user
+        for user in CourseEnrollment.objects.users_enrolled_in(course.id)
+        if not has_access(user, "staff", course)
     ]
 
 
@@ -45,24 +52,23 @@ def enroll_emails_in_course(emails, course_key):
     results = {}
     for email in emails:
         user = User.objects.filter(email=email).first()
-        result = ''
+        result = ""
         if not user:
             _, created = CourseEnrollmentAllowed.objects.get_or_create(
-                email=email,
-                course_id=course_key
+                email=email, course_id=course_key
             )
             if created:
-                result = 'User does not exist - created course enrollment permission'
+                result = "User does not exist - created course enrollment permission"
             else:
-                result = 'User does not exist - enrollment is already allowed'
+                result = "User does not exist - enrollment is already allowed"
         elif not CourseEnrollment.is_enrolled(user, course_key):
             try:
                 CourseEnrollment.enroll(user, course_key)
-                result = 'Enrolled user in the course'
+                result = "Enrolled user in the course"
             except Exception as ex:  # pylint: disable=broad-except
-                result = 'Failed to enroll - {}'.format(ex)
+                result = f"Failed to enroll - {ex}"
         else:
-            result = 'User already enrolled'
+            result = "User already enrolled"
         results[email] = result
     return results
 
@@ -87,8 +93,13 @@ def get_subsection_user_grades(course):
     """
     enrolled_students = CourseEnrollment.objects.users_enrolled_in(course.id)
     subsection_grade_dict = defaultdict(dict)
-    for student, course_grade, error in CourseGradeFactory().iter(users=enrolled_students, course=course):
-        for graded_item_type, subsection_dict in course_grade.graded_subsections_by_format.items():
+    for student, course_grade, error in CourseGradeFactory().iter(
+        users=enrolled_students, course=course
+    ):
+        for (
+            graded_item_type,
+            subsection_dict,
+        ) in course_grade.graded_subsections_by_format.items():
             for subsection_block_locator, subsection_grade in subsection_dict.items():
                 subsection_grade_dict[subsection_block_locator].update(
                     # Only include grades if the assignment/exam/etc. has been attempted
@@ -120,10 +131,16 @@ def get_subsection_block_user_grades(course):
     subsection_user_grades = get_subsection_user_grades(course)
     graded_subsection_blocks = [
         graded_item.get("subsection_block")
-        for graded_item_type, graded_item, graded_item_index in course_graded_items(course)
+        for graded_item_type, graded_item, graded_item_index in course_graded_items(
+            course
+        )
     ]
     locator_block_dict = {
-        block_locator: first_or_none((block for block in graded_subsection_blocks if block.location == block_locator))
+        block_locator: first_or_none(
+            block
+            for block in graded_subsection_blocks
+            if block.location == block_locator
+        )
         for block_locator in subsection_user_grades.keys()
     }
     return {
@@ -150,11 +167,16 @@ def sync_canvas_enrollments(course_key, canvas_course_id, unenroll_current):
     course = get_course_by_id(course_key)
 
     if unenroll_current:
-        enrolled_user_dict = {user.email: user for user in get_enrolled_non_staff_users(course)}
+        enrolled_user_dict = {
+            user.email: user for user in get_enrolled_non_staff_users(course)
+        }
         emails_to_enroll_set = set(emails_to_enroll)
         already_enrolled_email_set = set(enrolled_user_dict.keys())
         emails_to_enroll = emails_to_enroll_set - already_enrolled_email_set
-        users_to_unenroll = [enrolled_user_dict[email] for email in (already_enrolled_email_set - emails_to_enroll)]
+        users_to_unenroll = [
+            enrolled_user_dict[email]
+            for email in (already_enrolled_email_set - emails_to_enroll)
+        ]
 
     enrolled = enroll_emails_in_course(emails=emails_to_enroll, course_key=course_key)
     log.info("Enrolled users in course %s: %s", course_key, enrolled)
@@ -162,7 +184,9 @@ def sync_canvas_enrollments(course_key, canvas_course_id, unenroll_current):
     if users_to_unenroll:
         for user_to_unenroll in users_to_unenroll:
             CourseEnrollment.unenroll(user_to_unenroll, course.id)
-        log.info("Unenrolled non-staff users in course %s: %s", course_key, users_to_unenroll)
+        log.info(
+            "Unenrolled non-staff users in course %s: %s", course_key, users_to_unenroll
+        )
 
 
 def push_edx_grades_to_canvas(course):
@@ -183,7 +207,8 @@ def push_edx_grades_to_canvas(course):
 
     # Populate missing assignments
     new_assignment_blocks = (
-        subsection_block for subsection_block in subsection_block_user_grades.keys()
+        subsection_block
+        for subsection_block in subsection_block_user_grades.keys()
         if str(subsection_block.location) not in existing_assignment_dict
     )
     created_assignments = {
@@ -199,8 +224,7 @@ def push_edx_grades_to_canvas(course):
     for subsection_block, user_grade_dict in subsection_block_user_grades.items():
         grade_update_payloads[subsection_block] = dict(
             update_grade_payload_kv(
-                enrolled_user_dict[student_user.email.lower()],
-                grade.percent_graded
+                enrolled_user_dict[student_user.email.lower()], grade.percent_graded
             )
             for student_user, grade in user_grade_dict.items()
             # Only add the grade if the user exists in Canvas
@@ -210,11 +234,14 @@ def push_edx_grades_to_canvas(course):
     # Send requests to update grades in each relevant course
     assignment_grades_updated = {
         subsection_block: client.update_assignment_grades(
-            canvas_assignment_id=existing_assignment_dict[str(subsection_block.location)],
+            canvas_assignment_id=existing_assignment_dict[
+                str(subsection_block.location)
+            ],
             payload=grade_request_payload,
         )
         for subsection_block, grade_request_payload in grade_update_payloads.items()
-        if grade_request_payload and str(subsection_block.location) in existing_assignment_dict
+        if grade_request_payload
+        and str(subsection_block.location) in existing_assignment_dict
     }
 
     return assignment_grades_updated, created_assignments

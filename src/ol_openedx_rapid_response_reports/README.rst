@@ -49,4 +49,3 @@ How To Use
 1) Follow the `Rapid Response xBlock <https://github.com/mitodl/rapid-response-xblock>`_ instructions to create multiple choice problems, configure them for rapid response, open the problem for rapid responses, and add some submissions while the problem is open.
 2) Log into the LMS as an admin/staff, open the rapid response-enabled course, and click "Instructor" tab. You should see a "Rapid Responses" tab.
 3) Click the "Rapid Responses" tab. You should see a list of timestamped links. Clicking any of those links should download a CSV report.
-
