@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.18.0
+Version 0.18.0 (Released February 14, 2022)
 --------------
 
 - Fix loadjs to use window.baseUrl provided by LMS resolves #318 (#319)
