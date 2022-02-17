@@ -1,1 +1,1 @@
-python_library(name="canvas_settings")
+python_sources(name="canvas_settings")

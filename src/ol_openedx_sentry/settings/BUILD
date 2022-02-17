@@ -1,1 +1,1 @@
-python_library(name="sentry_settings")
+python_sources(name="sentry_settings")

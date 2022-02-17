@@ -1,6 +1,6 @@
-python_library(
+python_sources(
     name="course_export",
-    dependencies=["src/ol_openedx_course_export/settings:course_export_settings"]
+    dependencies=["src/ol_openedx_course_export/settings:course_export_settings"],
 )
 
 python_distribution(
@@ -12,8 +12,9 @@ python_distribution(
         description="An Open edX plugin to add API for course export to s3",
         entry_points={
             "lms.djangoapp": [],
-            "cms.djangoapp": ["ol_openedx_course_export = ol_openedx_course_export.app:CourseExportConfig"]
-        }
+            "cms.djangoapp": [
+                "ol_openedx_course_export = ol_openedx_course_export.app:CourseExportConfig"
+            ],
+        },
     ),
-    setup_py_commands=["sdist", "bdist_wheel"]
 )

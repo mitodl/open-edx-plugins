@@ -1,4 +1,4 @@
-python_library(
+python_sources(
     name="rapid_response_plugin_dependencies",
 )
 
@@ -10,9 +10,10 @@ python_distribution(
         version="0.1.0",
         description="An Open edX plugin to add rapid response reports support",
         entry_points={
-            "lms.djangoapp": ["ol_openedx_rapid_response_reports = ol_openedx_rapid_response_reports.app:RapidResponsePluginConfig"],
-            "cms.djangoapp": []
-        }
+            "lms.djangoapp": [
+                "ol_openedx_rapid_response_reports = ol_openedx_rapid_response_reports.app:RapidResponsePluginConfig"
+            ],
+            "cms.djangoapp": [],
+        },
     ),
-    setup_py_commands=["sdist", "bdist_wheel"]
 )

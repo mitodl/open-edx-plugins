@@ -1,11 +1,14 @@
 [GLOBAL]
-pants_version = "2.6.1rc2"
+pants_version = "2.9.0"
 backend_packages = [
   'pants.backend.python',
-  'pants.backend.python.lint.isort',
   'pants.backend.python.lint.black',
   'pants.backend.python.lint.flake8',
-  'pants.backend.python.typecheck.mypy'
+  'pants.backend.python.lint.isort',
+  'pants.backend.python.typecheck.mypy',
+  'pants.backend.shell',
+  'pants.backend.shell.lint.shellcheck',
+  'pants.backend.shell.lint.shfmt',
 ]
 
 [source]
@@ -19,3 +22,4 @@ config = 'setup.cfg'
 
 [anonymous-telemetry]
 enabled = true
+repo_id = "1bb1240b-2e3b-410f-91e2-5342846ab4bc"
