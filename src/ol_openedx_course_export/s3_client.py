@@ -5,11 +5,13 @@ from ol_openedx_course_export.utils import get_file_name_with_extension
 
 
 class S3Client:
-    def __init__(self):
-        self.client = self.get_s3_client()
+    client = None
 
-    @staticmethod
-    def get_s3_client():
+    def __init__(self):
+        if not self.client:
+            self.client = self.get_s3_client()
+
+    def get_s3_client(self):
         return boto3.resource(
             "s3",
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
