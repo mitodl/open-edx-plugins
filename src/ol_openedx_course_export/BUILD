@@ -8,7 +8,7 @@ python_distribution(
     dependencies=[":course_export"],
     provides=setup_py(
         name="ol-openedx-course-export",
-        version="0.1.0",
+        version="0.1.1",
         description="An Open edX plugin to add API for course export to s3",
         entry_points={
             "lms.djangoapp": [],
