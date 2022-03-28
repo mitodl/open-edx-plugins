@@ -3,7 +3,7 @@ import hashlib
 import logging
 from functools import partial
 
-from celery import shared_task  # pylint: disable=import-error
+from celery import shared_task
 from lms.djangoapps.instructor_task.api_helper import submit_task
 from lms.djangoapps.instructor_task.tasks_base import BaseInstructorTask
 from lms.djangoapps.instructor_task.tasks_helper.runner import run_main_task
