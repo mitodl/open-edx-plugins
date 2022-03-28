@@ -15,6 +15,7 @@ import os
 import re
 import sys
 from subprocess import check_call
+from typing import Any, Dict
 
 import edx_theme
 from django import setup as django_setup
@@ -283,7 +284,7 @@ htmlhelp_basename = f"{project}doc"
 
 # -- Options for LaTeX output ---------------------------------------------
 
-latex_elements = {
+latex_elements: Dict[str, Any] = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',

@@ -40,7 +40,7 @@ LOCALE_PATHS = [
 
 ROOT_URLCONF = "ol_openedx_canvas_integration.urls"
 
-SECRET_KEY = "insecure-secret-key"
+SECRET_KEY = "insecure-secret-key"  # pragma: allowlist secret
 
 MIDDLEWARE = (
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -54,8 +54,10 @@ TEMPLATES = [
         "APP_DIRS": False,
         "OPTIONS": {
             "context_processors": [
-                "django.contrib.auth.context_processors.auth",  # this is required for admin
-                "django.contrib.messages.context_processors.messages",  # this is required for admin
+                # this is required for admin
+                "django.contrib.auth.context_processors.auth",
+                # this is required for admin
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     }

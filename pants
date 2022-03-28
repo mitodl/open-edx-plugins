@@ -36,7 +36,7 @@ PANTS_BOOTSTRAP="${PANTS_SETUP_CACHE}/bootstrap-$(uname -s)-$(uname -m)"
 
 PEX_VERSION=2.1.42
 PEX_URL="https://github.com/pantsbuild/pex/releases/download/v${PEX_VERSION}/pex"
-PEX_EXPECTED_SHA256="69d6b1b1009b00dd14a3a9f19b72cff818a713ca44b3186c9b12074b2a31e51f"
+PEX_EXPECTED_SHA256="69d6b1b1009b00dd14a3a9f19b72cff818a713ca44b3186c9b12074b2a31e51f"  # pragma: allowlist secret
 
 VIRTUALENV_VERSION=20.4.7
 VIRTUALENV_REQUIREMENTS=$(

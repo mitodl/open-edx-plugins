@@ -14,7 +14,7 @@ backend_packages = [
 [source]
 root_patterns = ['src/']
 
-[python-setup]
+[python]
 interpreter_constraints = ['>=3.8']
 
 [flake8]

@@ -28,12 +28,12 @@ def _load_exception_class(import_specifier: str) -> Union[Exception, None]:
     """
     namespaced_class = import_specifier.rsplit(".", 1)
     if len(namespaced_class) == 1:
-        return builtins.__dict__.get(namespaced_class[0])  # noqa: WPS609
+        return builtins.__dict__.get(namespaced_class[0])
     exception_module = importlib.import_module(namespaced_class[0])
-    return exception_module.__dict__.get(namespaced_class[1])  # noqa: WPS609
+    return exception_module.__dict__.get(namespaced_class[1])
 
 
-def sentry_event_filter(  # noqa: WPS231
+def sentry_event_filter(
     event, hint, ignored_types: List[str] = None, ignored_messages: List[str] = None
 ) -> Optional[Dict[str, Any]]:
     """Avoid sending events to Sentry that match the specified types or regexes.
@@ -102,7 +102,7 @@ def plugin_settings(app_settings):
     env_tokens = _load_env_tokens(app_settings)
     ignored_exceptions = env_tokens.get("SENTRY_IGNORED_EXCEPTION_CLASSES", [])
     ignored_messages = env_tokens.get("SENTRY_IGNORED_EXCEPTION_MESSAGES", [])
-    if sentry_dsn := env_tokens.get("SENTRY_DSN"):  # noqa: WPS332
+    if sentry_dsn := env_tokens.get("SENTRY_DSN"):
         sentry_sdk.init(
             dsn=sentry_dsn,
             environment=env_tokens.get("SENTRY_ENVIRONMENT"),
