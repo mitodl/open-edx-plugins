@@ -3,7 +3,7 @@ import hashlib
 import logging
 from functools import partial
 
-from celery import task
+from celery import shared_task
 from lms.djangoapps.instructor_task.api_helper import submit_task
 from lms.djangoapps.instructor_task.tasks_base import BaseInstructorTask
 from lms.djangoapps.instructor_task.tasks_helper.runner import run_main_task
@@ -35,7 +35,7 @@ def run_sync_canvas_enrollments(
     return submit_task(request, task_type, task_class, course_key, task_input, task_key)
 
 
-@task(base=BaseInstructorTask)
+@shared_task(base=BaseInstructorTask)
 def sync_canvas_enrollments_task(entry_id, xmodule_instance_args):
     """
     Fetch enrollments from canvas and update
@@ -62,7 +62,7 @@ def run_push_edx_grades_to_canvas(request, course_id):
     return submit_task(request, task_type, task_class, course_id, task_input, task_key)
 
 
-@task(base=BaseInstructorTask)
+@shared_task(base=BaseInstructorTask)
 def push_edx_grades_to_canvas_task(entry_id, xmodule_instance_args):
     """
     Push edX grades to Canvas
