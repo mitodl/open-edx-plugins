@@ -9,6 +9,7 @@ python_distribution(
         name="ol-openedx-sentry",
         version="0.1.1",
         description="An Open edX plugin to enable error tracking with Sentry",
+        license="BSD-3-Clause",
         entry_points={
             "lms.djangoapp": ["ol_openedx_sentry = ol_openedx_sentry.app:EdxSentry"],
             "cms.djangoapp": ["ol_openedx_sentry = ol_openedx_sentry.app:EdxSentry"],

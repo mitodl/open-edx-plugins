@@ -10,6 +10,7 @@ python_distribution(
         name="ol-openedx-canvas-integration",
         version="0.1.0",
         description="An Open edX plugin to add canvas integration support",
+        license="BSD-3-Clause",
         entry_points={
             "lms.djangoapp": [
                 "ol_openedx_canvas_integration = ol_openedx_canvas_integration.app:CanvasIntegrationConfig"
