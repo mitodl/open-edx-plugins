@@ -10,6 +10,7 @@ python_distribution(
         name="ol-openedx-course-export",
         version="0.1.1",
         description="An Open edX plugin to add API for course export to s3",
+        license="BSD-3-Clause",
         entry_points={
             "lms.djangoapp": [],
             "cms.djangoapp": [

@@ -9,6 +9,7 @@ python_distribution(
         name="ol-openedx-rapid-response-reports",
         version="0.1.0",
         description="An Open edX plugin to add rapid response reports support",
+        license="BSD-3-Clause",
         entry_points={
             "lms.djangoapp": [
                 "ol_openedx_rapid_response_reports = ol_openedx_rapid_response_reports.app:RapidResponsePluginConfig"
