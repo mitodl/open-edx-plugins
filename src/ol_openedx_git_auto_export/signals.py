@@ -5,7 +5,8 @@ from django.conf import settings
 from django.dispatch import receiver
 from xmodule.modulestore.django import SignalHandler
 
-from .tasks import async_export_to_git
+from ol_openedx_git_auto_export.constants import ENABLE_GIT_AUTO_EXPORT
+from ol_openedx_git_auto_export.tasks import async_export_to_git
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def listen_for_course_publish(
         os.makedirs(git_repo_export_dir, 0o755)
 
     if settings.FEATURES.get("ENABLE_EXPORT_GIT") and settings.FEATURES.get(
-        "ENABLE_GIT_AUTO_EXPORT"
+        ENABLE_GIT_AUTO_EXPORT
     ):
         # If the Git auto-export is enabled, push the course changes to Git
         log.info(

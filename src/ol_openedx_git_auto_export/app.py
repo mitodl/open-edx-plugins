@@ -1,5 +1,5 @@
 """
-AppConfig for git_auto_export app
+AppConfig for ol_openedx_git_auto_export app
 """
 
 from django.apps import AppConfig
@@ -9,7 +9,7 @@ from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 
 class GitAutoExportConfig(AppConfig):
     """
-    App config for this app
+    App config for ol_openedx_git_auto_export django application.
     """
 
     name = "ol_openedx_git_auto_export"
@@ -28,7 +28,6 @@ class GitAutoExportConfig(AppConfig):
                 PluginSignals.RECEIVERS: [
                     {
                         PluginSignals.RECEIVER_FUNC_NAME: "listen_for_course_publish",
-                        # PluginSignals.SIGNAL_PATH: "common.lib.xmodule.xmodule.modulestore.django.SignalHandler.course_published",
                         PluginSignals.SIGNAL_PATH: "xmodule.modulestore.django.COURSE_PUBLISHED",
                         PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_course_publish",
                     }
