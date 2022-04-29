@@ -6,8 +6,6 @@ You can install this plugin into any Open edX instance by using any of the follo
 
 **Option 1: Install from PyPI**
 
-.. code-block::
-
     # If running devstack in docker, first open a shell in CMS (make studio-shell)
 
     pip install ol-openedx-git-auto-export
@@ -41,11 +39,10 @@ GIT_EXPORT_DEFAULT_IDENT = {
     'email': 'STUDIO_EXPORT_TO_GIT@example.com'
 }
 ```
-- Now run to install `pip install ol-openedx-git-auto-export.whl`. So it means just install the whl file created using pants build.
-- restart the server using `make studio-restart`
+- Restart the server using `make studio-restart`
 
-#### If using vagrant or local env:
- If you're testing from a vagrant / docker machine running devstack, you'll need to generate SSH keys in that
+#### Setup github authentication for plugin:
+ If you're testing from a docker machine running devstack setup github authentictaion for plugin, you'll need to generate SSH keys in that
 machine and add them to your Github account
 (https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/ -
 https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account)
