@@ -13,6 +13,7 @@ python_distribution(
         name="ol-openedx-logging",
         version="0.1.0",
         description="An Open edX plugin to customize the logging configuration used by the edx-platform application",
+        license="BSD-3-Clause",
         entry_points={
             "lms.djangoapp": [
                 "ol_openedx_logging = ol_openedx_logging.app:EdxLoggingLMS"

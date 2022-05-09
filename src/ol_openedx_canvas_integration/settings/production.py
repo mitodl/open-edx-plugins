@@ -1,4 +1,4 @@
-"""Production settings unique to the remote gradebook plugin."""
+"""Production settings unique to canvas integration plugin."""
 
 
 def plugin_settings(settings):

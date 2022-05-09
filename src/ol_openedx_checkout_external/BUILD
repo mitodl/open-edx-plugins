@@ -10,6 +10,7 @@ python_distribution(
         name="ol-openedx-checkout-external",
         version="0.1.0",
         description="An Open edX plugin to add API for external checkouts",
+        license="BSD-3-Clause",
         entry_points={
             "lms.djangoapp": ["ol_openedx_checkout_external = ol_openedx_checkout_external.app:ExternalCheckoutConfig"],
             "cms.djangoapp": []
