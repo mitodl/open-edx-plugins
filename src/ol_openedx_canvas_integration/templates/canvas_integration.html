@@ -1,0 +1,58 @@
+<%page args="section_data" expression_filter="h"/>
+<%namespace name='static' file='../../static_content.html'/>
+<%!
+from django.utils.translation import ugettext as _
+from openedx.core.djangolib.markup import HTML, Text
+%>
+<section>
+    <h4 class="hd hd-4">${_("Canvas enrollments")}</h4>
+    <p>
+
+        <input type="button" name="list-canvas-enrollments" value="List enrollments on Canvas"
+               data-endpoint="${ section_data['list_canvas_enrollments_url'] }"/>
+    </p>
+    <p>
+        <input type="button" name="merge-canvas-enrollments" value="Merge enrollment list using Canvas"
+               data-endpoint="${ section_data['add_canvas_enrollments_url'] }" data-unenroll-current="false"/>
+        <input type="button" name="overload-canvas-enrollments" value="Overload enrollment list using Canvas"
+               data-endpoint="${ section_data['add_canvas_enrollments_url'] }" data-unenroll-current="true"/>
+    </p>
+    <hr/>
+    <h4 class="hd hd-4">${_("Export grades to Canvas")}</h4>
+    <p>
+        <input type="button" name="push-all-edx-grades"
+               value="Push all MITx grades to Canvas"
+               data-endpoint="${ section_data['push_edx_grades_url'] }"
+        />&nbsp;
+        <input type="button" name="load-canvas-assignments"
+               value="Load Canvas assignments"
+               data-endpoint="${ section_data['list_canvas_assignments_url'] }"
+        />
+    </p>
+    <p id="canvas-assignment-section" style="display: none;">
+        <label for="assignment_id">Assignment id: </label>
+        <select name="assignment-id" id="assignment_id"></select>
+        <br /><br />
+        <input type="button" name="list-canvas-grades"
+               value="List Canvas assignment grades"
+               data-endpoint="${ section_data['list_canvas_grades_url'] }"
+        />
+    </p>
+    <hr/>
+    <div id="loading" style="display: none;">
+        <img src="${static.url('images/spinner.gif')}" alt="Loading..." />
+    </div>
+    <div id="errors" class="errors"></div>
+    <div id="results"></div>
+%if settings.FEATURES.get('ENABLE_INSTRUCTOR_BACKGROUND_TASKS'):
+  <div class="running-tasks-container action-type-container">
+    <h3 class="hd hd-3">${_("Pending Tasks")}</h3>
+    <div class="running-tasks-section">
+      <p>${_("The status for any active tasks appears in a table below.")} </p>
+      <br />
+      <div class="running-tasks-table" data-endpoint="${ section_data['list_instructor_tasks_url'] }"></div>
+    </div>
+    <div class="no-pending-tasks-message"></div>
+  </div>
+%endif
+</section>
