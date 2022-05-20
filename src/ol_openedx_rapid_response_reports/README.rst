@@ -9,7 +9,9 @@ A django app plugin for edx-platform to enable "Rapid Response Reports" function
 
 **NOTE:**
 
-We had to make some changes to edx-platform itself in order to add the ``Rapid Responses`` tab to the instructor dashboard, so the ``edx-platform`` branch/tag you're using must include this commit for the plugin to work properly:
+If you are using `Nutmeg <https://github.com/openedx/edx-platform/tree/open-release/nutmeg.master>`_ release of open edX, You can skip the cherry-picking step mentioned below and just use ``0.2.0`` version of the plugin. For any releases prior to ``Nutmeg`` please keep reading below.
+
+(For Open edX releases prior to `Nutmeg`) We had to make some changes to edx-platform itself in order to add the ``Rapid Responses`` tab to the instructor dashboard, so the ``edx-platform`` branch/tag you're using must include this commit for the plugin to work properly:
 
 - https://github.com/mitodl/edx-platform/pull/275/commits/bcad8505918993dac7de099d8e9d48f868bceda7
 
