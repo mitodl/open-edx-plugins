@@ -3,11 +3,10 @@ ol_openedx_rapid_response_reports Django application initialization.
 """
 
 from django.apps import AppConfig
-from edx_django_utils.plugins import PluginContexts, PluginURLs
+from edx_django_utils.plugins import PluginContexts, PluginSettings, PluginURLs
+from lms.djangoapps.instructor.constants import INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME
 from openedx.core.constants import COURSE_ID_PATTERN
-from openedx.core.djangoapps.plugins.constants import ProjectType
-
-from ol_openedx_rapid_response_reports.constants import RAPID_RESPONSE_PLUGIN_VIEW_NAME
+from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 
 
 class RapidResponsePluginConfig(AppConfig):
@@ -25,9 +24,16 @@ class RapidResponsePluginConfig(AppConfig):
                 PluginURLs.RELATIVE_PATH: "urls",
             }
         },
+        PluginSettings.CONFIG: {
+            ProjectType.LMS: {
+                SettingsType.PRODUCTION: {
+                    PluginSettings.RELATIVE_PATH: "settings.production"
+                },
+            }
+        },
         PluginContexts.CONFIG: {
             ProjectType.LMS: {
-                RAPID_RESPONSE_PLUGIN_VIEW_NAME: "ol_openedx_rapid_response_reports.context_api.plugin_context"
+                INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME: "ol_openedx_rapid_response_reports.context_api.plugin_context"
             }
         },
     }
