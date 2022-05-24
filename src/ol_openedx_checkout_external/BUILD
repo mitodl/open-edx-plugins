@@ -8,7 +8,7 @@ python_distribution(
     dependencies=[":external_checkout"],
     provides=setup_py(
         name="ol-openedx-checkout-external",
-        version="0.1.0",
+        version="0.1.1",
         description="An Open edX plugin to add API for external checkouts",
         license="BSD-3-Clause",
         entry_points={
