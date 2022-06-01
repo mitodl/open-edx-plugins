@@ -1,6 +1,5 @@
 """Production settings unique to canvas integration plugin."""
 
-import os
 
 from path import Path as path
 
@@ -16,7 +15,7 @@ def plugin_settings(settings):
         "CANVAS_BASE_URL", settings.CANVAS_BASE_URL
     )
 
-    settings.TEMPLATES = settings.ENV_TOKENS.get('TEMPLATES', settings.TEMPLATES)
+    settings.TEMPLATES = settings.ENV_TOKENS.get("TEMPLATES", settings.TEMPLATES)
 
     for template_engine in settings.TEMPLATES:
         template_dirs = template_engine["DIRS"]
