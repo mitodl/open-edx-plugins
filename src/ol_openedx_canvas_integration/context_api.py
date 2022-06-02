@@ -9,8 +9,15 @@ from web_fragments.fragment import Fragment
 
 def plugin_context(context):
     """Provide context based data for Canvas Integration plugin (For Instructor Dashboard)"""
-    fragment = Fragment()
+
     course = context.get("course")
+
+    # Don't add Canvas tab is the Instructor Dashboard if it doesn't have any associated
+    # canvas_course_id set from Canvas Service
+    if not course.canvas_course_id:
+        return
+
+    fragment = Fragment()
 
     fragment.add_javascript_url(staticfiles_storage.url("/js/canvas_integration.js"))
 
