@@ -1,10 +1,24 @@
 """
 The initialization of the context for the Canvas Integration Plugin
 """
-from django.contrib.staticfiles.storage import staticfiles_storage
 from django.urls import reverse
 from django.utils.translation import ugettext as _
 from web_fragments.fragment import Fragment
+import pkg_resources
+
+
+def get_resource_bytes(path):
+    """
+    Helper method to get the unicode contents of a resource in this repo.
+
+    Args:
+        path (str): The path of the resource
+
+    Returns:
+        unicode: The unicode contents of the resource at the given path
+    """
+    resource_contents = pkg_resources.resource_string(__name__, path)
+    return resource_contents.decode('utf-8')
 
 
 def plugin_context(context):
@@ -18,8 +32,10 @@ def plugin_context(context):
         return
 
     fragment = Fragment()
+    # Adding JS as bytes (Inspired by what we are doing with Rapid Response xBlock)
+    fragment.add_javascript(get_resource_bytes("static/js//canvas_integration.js"))
 
-    fragment.add_javascript_url(staticfiles_storage.url("/js/canvas_integration.js"))
+    # fragment.add_javascript_url(staticfiles_storage.url("/js/canvas_integration.js"))
 
     canvas_context = {
         "section_key": "canvas_integration",
