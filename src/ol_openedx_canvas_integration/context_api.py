@@ -35,8 +35,6 @@ def plugin_context(context):
     # Adding JS as bytes (Inspired by what we are doing with Rapid Response xBlock)
     fragment.add_javascript(get_resource_bytes("static/js//canvas_integration.js"))
 
-    # fragment.add_javascript_url(staticfiles_storage.url("/js/canvas_integration.js"))
-
     canvas_context = {
         "section_key": "canvas_integration",
         "section_display_name": _("Canvas"),
