@@ -7,15 +7,27 @@ A django app plugin to add Canvas integration to Open edX.
 
 We had to make some changes to edx-platform itself in order to add the "Canvas" tab to the instructor dashboard.
 
-The ``edx-platform`` branch/tag you're using must include below commit for ``ol-openedx-canvas-integration`` plugin to work properly:
+The ``edx-platform`` branch/tag you're using must include one of the below commit for ``ol-openedx-canvas-integration`` plugin to work properly:
 
-**For any release prior to `Nutmeg` you should cherry-pick this commit:**
+**For "Nutmeg" or more recent release of edX platform, you should cherry-pick below commit:**
+
+- https://github.com/mitodl/edx-platform/pull/297/commits/c354a99bd14393b89a780692d07b6e70b586d172
+
+**For any release prior to "Nutmeg" you should cherry-pick below commit:**
 
 - https://github.com/mitodl/edx-platform/pull/274/commits/97a51d208f3cdfd26df0a62281b0964de10ff40a
 
-**For Nutmeg release or more recent, you should cherry-pick this commit**
 
-- https://github.com/mitodl/edx-platform/pull/297/commits/a802833193e490beab301491d82894e19907f9fe
+Version Compatibility
+---------------------
+**For "Nutmeg" or more recent release of edX platform**
+
+Use ``0.2.4`` or a above version of this plugin
+
+
+**For releases prior to "Nutmeg"**
+
+Use ``0.1.1`` version of this plugin
 
 Installation
 ------------
@@ -59,7 +71,7 @@ Add the following configuration values to the config file in Open edX. For any r
 
 1) Open your course in Studio.
 2) Navigate to "Advanced Settings".
-3) Add a ``canvas_course_id`` value. This should be the id of a course that exists on Canvas.
+3) Add a ``canvas_course_id`` value. This should be the id of a course that exists on Canvas. (NOTE: Canvas tab would only be visible if this value is set)
 
 
 How To Use
