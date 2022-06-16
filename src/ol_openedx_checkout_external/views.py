@@ -1,6 +1,7 @@
 """Views for External Checkout"""
 
 import logging
+from urllib.parse import quote
 
 from common.djangoapps.course_modes.models import CourseMode
 from django.conf import settings
@@ -62,6 +63,6 @@ def external_checkout(request):
 
     #  Generate a URL to redirect to marketing site based on its checkout URL with and added
     #  course ID query param)
-    course_id = str(course_modes.first().course.id)
+    course_id = quote(str(course_modes.first().course.id))
     redirect_url = f"{settings.MARKETING_SITE_CHECKOUT_URL}?course_id={course_id}"
     return HttpResponseRedirect(redirect_to=redirect_url)
