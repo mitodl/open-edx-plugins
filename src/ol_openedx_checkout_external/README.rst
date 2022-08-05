@@ -33,16 +33,24 @@ Follow these steps in a terminal on your machine:
 Configuration
 ------------
 
-**1) edx-platform configuration**
+**1) edx-platform configuration (Environment/Settings)**
 
 You might need to add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. These should be added to the top level. **Ask a fellow developer or devops for these values.**
 
 .. code-block::
 
 
-    1) MARKETING_SITE_CHECKOUT_URL=<checkout url of marketing site> # This settings is not part of Open Edx, It's added by this plugin
+    1) MARKETING_SITE_CHECKOUT_URL=<checkout url of your marketing site>  ## This settings is not part of Open Edx, It's added by this plugin
     2) ECOMMERCE_PUBLIC_URL_ROOT=<LMS_BASE_URL> (Because we want to use external ecommerce using this API plugin for redirection)
-    3) Create an new ecommerce configuration in http://<LMS_BASE>/admin/commerce/commerceconfiguration with "basket_checkout_page=/checkout-external/" in the above ecommerce configuration
+
+
+**2) edx-platform configuration (Django Admin)**
+
+.. code-block::
+
+
+    1) Create a new ecommerce configuration in http://<LMS_BASE>/admin/commerce/commerceconfiguration with "basket_checkout_page=/checkout-external/"  ## (When set, the ecommerce will redirect the `Upgrade Course` requests to this plugin)
+    2) Make sure to create CourseModes(e.g. Verified) for the courses with non-empty and unique SKU value.
 
 
 How To Use
