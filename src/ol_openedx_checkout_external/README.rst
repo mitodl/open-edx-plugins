@@ -31,7 +31,7 @@ Follow these steps in a terminal on your machine:
 5. Run a shell in the machine/container running Open edX, and install this plugin using pip
 
 Configuration
-------------
+-------------
 
 **1) edx-platform configuration (Environment/Settings)**
 
@@ -39,50 +39,49 @@ You might need to add the following configuration values to the config file in O
 
 .. code-block::
 
-
-    1) MARKETING_SITE_CHECKOUT_URL=<checkout url of your marketing site>  ## This settings is not part of Open Edx, It's added by this plugin
-    2) ECOMMERCE_PUBLIC_URL_ROOT=<LMS_BASE_URL> (Because we want to use external ecommerce using this API plugin for redirection)
+    MARKETING_SITE_CHECKOUT_URL = <MARKETING_SITE_CHECKOUT_URL>  # The URL of checkout/cart API in your marketing site
+    ECOMMERCE_PUBLIC_URL_ROOT = <LMS_BASE_URL>  # Because we want to use external ecommerce using this API plugin for redirection
 
 
 **2) edx-platform configuration (Django Admin)**
 
-.. code-block::
+::
 
-
-    1) Create a new ecommerce configuration in http://<LMS_BASE>/admin/commerce/commerceconfiguration with "basket_checkout_page=/checkout-external/"  ## (When set, the ecommerce will redirect the `Upgrade Course` requests to this plugin)
-    2) Make sure to create CourseModes(e.g. Verified) for the courses with non-empty and unique SKU value.
+    1. Create a new ecommerce configuration in http://<LMS_BASE>/admin/commerce/commerceconfiguration with "basket_checkout_page=/checkout-external/"  (When set, the ecommerce will redirect the `Upgrade Course` requests to this plugin)
+    2. Make sure to create CourseModes(e.g. Verified) for the courses with non-empty and unique SKU value.
 
 
 How To Use
 ----------
 
-The API supports a GET call with sku as query parameter.
+The API supports a GET call with SKU as query parameter.
 
 **API Request**
 
-To manually call the API, Send a GET request to `<LMS_BASE>/checkout-external?sku=<sku_id>`:
+To manually call the API, Send a GET request to ``<LMS_BASE>/checkout-external?sku=<sku_id>``:
 
 A sample request looks like below:
 
-.. code-block::
-
+::
 
     http://localhost:18000/checkout-external?sku=ABC45F
 
 
-**API Response**
+API Response
+------------
 
-The successful response would be a redirect to the marketing site with 302 status code:
+The successful response would be a redirect to the marketing site with ``302`` status code and a failure response would be a ``400`` status code with basic error fields.
 
 
-.. code-block::
+::
 
-    With 302 (If your marketing checkout URL is "https://<marketing_site_base>/checkout")
+    With 302 status code (If your marketing checkout URL is "https://<marketing_site_base>/checkout") the resulting redirect would be:
 
-    The resulting redirect would be:
     https://<marketing_site_base>/checkout/?course_id=<course_id against the sku in CourseMode>
 
-    With 400
+::
+
+    With 400 status code
 
     {
         "developer_message": "<Message for the developer>",
