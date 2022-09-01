@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.19.0
+--------------
+
+- fix: update pylint configurations (#326)
+
 Version 0.18.0 (Released February 14, 2022)
 --------------
 
