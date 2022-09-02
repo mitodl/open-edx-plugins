@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.19.0
+Version 0.19.0 (Released September 02, 2022)
 --------------
 
 - fix: update pylint configurations (#326)
