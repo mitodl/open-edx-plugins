@@ -99,7 +99,7 @@ def get_subsection_user_grades(course):
         for (
             graded_item_type,
             subsection_dict,
-        ) in course_grade.graded_subsections_by_format.items():
+        ) in course_grade.graded_subsections_by_format().items():
             for subsection_block_locator, subsection_grade in subsection_dict.items():
                 subsection_grade_dict[subsection_block_locator].update(
                     # Only include grades if the assignment/exam/etc. has been attempted
