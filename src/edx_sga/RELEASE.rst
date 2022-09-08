@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.20.0
+Version 0.20.0 (Released September 08, 2022)
 --------------
 
 - fix!: use full import path to safe_lxml (#324)
