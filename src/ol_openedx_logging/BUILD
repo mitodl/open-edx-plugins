@@ -2,7 +2,7 @@ python_sources(
     name="edx_logging",
     dependencies=[
         "src/ol_openedx_logging/settings",
-        "//:python-json-logger",
+        "//:external_dependencies#python-json-logger",
     ],
 )
 

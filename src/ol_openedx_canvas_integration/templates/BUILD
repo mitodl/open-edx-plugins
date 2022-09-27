@@ -1,4 +1,4 @@
 resources(
-  name="canvas_templates",
-  sources=["*.html"],
+    name="canvas_templates",
+    sources=["*.html"],
 )

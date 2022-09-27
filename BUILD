@@ -1,1 +1,1 @@
-poetry_requirements()
+poetry_requirements(name="external_dependencies")

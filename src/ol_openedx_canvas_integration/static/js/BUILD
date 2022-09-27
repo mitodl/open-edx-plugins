@@ -1,4 +1,4 @@
 resources(
-  name="canvas_js",
-  sources=["*.js"],
+    name="canvas_js",
+    sources=["*.js"],
 )

@@ -1,5 +1,5 @@
 [GLOBAL]
-pants_version = "2.9.0"
+pants_version = "2.13.0"
 backend_packages = [
   'pants.backend.python',
   'pants.backend.python.lint.black',
@@ -10,9 +10,6 @@ backend_packages = [
   'pants.backend.shell.lint.shellcheck',
   'pants.backend.shell.lint.shfmt',
 ]
-
-[source]
-root_patterns = ['src/']
 
 [python]
 interpreter_constraints = ['>=3.8']

@@ -1,4 +1,4 @@
 resources(
-  name="rapid_response_templates",
-  sources=["*.html"],
+    name="rapid_response_templates",
+    sources=["*.html"],
 )
