@@ -1,5 +1,15 @@
 {
   "extends": [
+    ":automergeMinor",
+    ":rebaseStalePrs",
+    ":separateMajorReleases",
     "config:base"
-  ]
+  ],
+  "schedule": [
+    "every weekend"
+  ],
+  "timezone": "US/Eastern",
+  "lockFileMaintenance": {
+    "enabled": true
+  }
 }
