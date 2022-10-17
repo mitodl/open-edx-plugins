@@ -15,12 +15,12 @@ edx-opaque-keys = "2.3.0"
 celery = ">=4.4.7"
 
 [tool.poetry.dev-dependencies]
-wemake-python-styleguide = "^0.17.0"
-black = "^21.8b0"
+black = "*"
+isort = "*"
 pre-commit = "^2.18.0"
-isort = "^5.9.3"
 pytest = "^7.0.0"
 twine = "^4.0.0"
+wemake-python-styleguide = {git = "https://github.com/wemake-services/wemake-python-styleguide"}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
