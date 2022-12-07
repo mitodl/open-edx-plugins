@@ -34,7 +34,10 @@ def _load_exception_class(import_specifier: str) -> Union[Exception, None]:
 
 
 def sentry_event_filter(
-    event, hint, ignored_types: List[str] = None, ignored_messages: List[str] = None
+    event,
+    hint,
+    ignored_types: Optional[List[str]] = None,
+    ignored_messages: Optional[List[str]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Avoid sending events to Sentry that match the specified types or regexes.
 
