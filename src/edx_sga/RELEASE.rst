@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.21.0
+--------------
+
+- test: rename ItemFactory to BlockFactory in integration_tests (#332)
+
 Version 0.20.0 (Released September 08, 2022)
 --------------
 
