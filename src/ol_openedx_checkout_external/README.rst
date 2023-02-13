@@ -47,8 +47,17 @@ You might need to add the following configuration values to the config file in O
 
 ::
 
-    1. Create a new ecommerce configuration in http://<LMS_BASE>/admin/commerce/commerceconfiguration with "basket_checkout_page=/checkout-external/"  (When set, the ecommerce will redirect the `Upgrade Course` requests to this plugin)
-    2. Make sure to create CourseModes(e.g. Verified) for the courses with non-empty and unique SKU value.
+    1. Create a new ecommerce configuration in http://<LMS_BASE>/admin/commerce/commerceconfiguration with following values:
+
+        a. Set value for "Basket checkout page" to "/checkout-external/". (When set, the ecommerce will redirect the `Upgrade Course` requests to this plugin)
+
+        b. "Enabled" checked.
+
+        c. "Checkout on ecommerce service" checked.
+
+        d. Other values are arbitrary, but you can fill them out as per your need.
+
+    2. Make sure to create CourseModes(e.g. "Verified") for the courses with non-empty and unique SKU value.
 
 
 How To Use
