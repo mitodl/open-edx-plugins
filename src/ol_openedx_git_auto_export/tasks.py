@@ -11,7 +11,7 @@ LOGGER = get_task_logger(__name__)
 def async_export_to_git(course_key_string, user=None):
     """
     Exports a course to Git.
-    """
+    """  # noqa: D401
     course_key = CourseKey.from_string(course_key_string)
     course_module = modulestore().get_course(course_key)
 
@@ -29,7 +29,7 @@ def async_export_to_git(course_key_string, user=None):
         )
     except Exception as ex:  # pylint: disable=broad-except
         LOGGER.error(
-            "Unknown error occured during async course content export to git (course id: %s): %s",
+            "Unknown error occured during async course content export to git (course id: %s): %s",  # noqa: E501
             course_module.id,
             ex,
         )

@@ -34,7 +34,7 @@ class CanvasIntegrationConfig(AppConfig):
         },
         PluginContexts.CONFIG: {
             ProjectType.LMS: {
-                INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME: "ol_openedx_canvas_integration.context_api.plugin_context"
+                INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME: "ol_openedx_canvas_integration.context_api.plugin_context"  # noqa: E501
             }
         },
     }

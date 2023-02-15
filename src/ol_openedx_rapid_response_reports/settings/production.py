@@ -6,7 +6,7 @@ PLUGIN_TEMPLATES_ROOT = path(__file__).abspath().dirname().dirname()
 
 
 def plugin_settings(settings):
-    """Settings for the rapid response plugin."""
+    """Settings for the rapid response plugin."""  # noqa: D401
     settings.TEMPLATES = settings.ENV_TOKENS.get("TEMPLATES", settings.TEMPLATES)
 
     for template_engine in settings.TEMPLATES:

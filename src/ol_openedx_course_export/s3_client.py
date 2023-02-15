@@ -24,7 +24,7 @@ class S3Client:
         )
 
     def get_bucket_url(self):
-        """Returns a URL for the bucket, which is then used to add in the API response"""
+        """Returns a URL for the bucket, which is then used to add in the API response"""  # noqa: D401, E501
         return self.client.get_bucket_location(
             Bucket=settings.COURSE_IMPORT_EXPORT_BUCKET
         )

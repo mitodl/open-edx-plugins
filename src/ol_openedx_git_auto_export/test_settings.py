@@ -11,7 +11,7 @@ def root(*args):
     """
     Get the absolute path of the given path relative to the project root.
     """
-    return join(abspath(dirname(__file__)), *args)
+    return join(abspath(dirname(__file__)), *args)  # noqa: PTH100, PTH120, PTH118
 
 
 DATABASES = {
@@ -40,7 +40,7 @@ LOCALE_PATHS = [
 
 ROOT_URLCONF = "ol_openedx_git_auto_export.urls"
 
-SECRET_KEY = "insecure-secret-key"  # pragma: allowlist secret
+SECRET_KEY = "insecure-secret-key"  # pragma: allowlist secret  # noqa: S105
 
 MIDDLEWARE = (
     "django.contrib.auth.middleware.AuthenticationMiddleware",

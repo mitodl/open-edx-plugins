@@ -33,7 +33,7 @@ class RapidResponsePluginConfig(AppConfig):
         },
         PluginContexts.CONFIG: {
             ProjectType.LMS: {
-                INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME: "ol_openedx_rapid_response_reports.context_api.plugin_context"
+                INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME: "ol_openedx_rapid_response_reports.context_api.plugin_context"  # noqa: E501
             }
         },
     }

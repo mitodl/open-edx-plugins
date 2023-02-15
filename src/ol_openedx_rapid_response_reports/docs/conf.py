@@ -25,15 +25,19 @@ def get_version(*file_paths):
     """
     Extract the version string from the file at the given relative path fragments.
     """
-    filename = os.path.join(os.path.dirname(__file__), *file_paths)
-    version_file = open(filename, encoding="utf8").read()
+    filename = os.path.join(  # noqa: PTH118
+        os.path.dirname(__file__), *file_paths  # noqa: PTH120
+    )  # noqa: PTH118, PTH120, RUF100
+    version_file = open(filename, encoding="utf8").read()  # noqa: SIM115
     version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", version_file, re.M)
     if version_match:
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
 
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(  # noqa: PTH120
+    os.path.dirname(os.path.abspath(__file__))  # noqa: PTH120, PTH100
+)  # noqa: PTH100, PTH120, RUF100
 sys.path.append(REPO_ROOT)
 
 VERSION = get_version(
@@ -94,7 +98,7 @@ top_level_doc = "index"
 
 # General information about the project.
 project = "ol_openedx_rapid_response_reports"
-copyright = edx_theme.COPYRIGHT  # pylint: disable=redefined-builtin
+copyright = edx_theme.COPYRIGHT  # pylint: disable=redefined-builtin  # noqa: A001
 author = edx_theme.AUTHOR
 project_title = "ol_openedx_rapid_response_reports"
 documentation_title = f"{project_title}"
@@ -488,20 +492,26 @@ def on_init(app):  # pylint: disable=unused-argument
     Read the Docs won't run tox or custom shell commands, so we need this to
     avoid checking in the generated reStructuredText files.
     """
-    docs_path = os.path.abspath(os.path.dirname(__file__))
-    root_path = os.path.abspath(os.path.join(docs_path, ".."))
+    docs_path = os.path.abspath(os.path.dirname(__file__))  # noqa: PTH100, PTH120
+    root_path = os.path.abspath(os.path.join(docs_path, ".."))  # noqa: PTH100, PTH118
     apidoc_path = "sphinx-apidoc"
     if hasattr(sys, "real_prefix"):  # Check to see if we are in a virtualenv
         # If we are, assemble the path manually
-        bin_path = os.path.abspath(os.path.join(sys.prefix, "bin"))
-        apidoc_path = os.path.join(bin_path, apidoc_path)
+        bin_path = os.path.abspath(  # noqa: PTH100
+            os.path.join(sys.prefix, "bin")  # noqa: PTH118
+        )  # noqa: PTH100, PTH118, RUF100
+        apidoc_path = os.path.join(bin_path, apidoc_path)  # noqa: PTH118
     check_call(
         [
             apidoc_path,
             "-o",
             docs_path,
-            os.path.join(root_path, "ol_openedx_rapid_response_reports"),
-            os.path.join(root_path, "ol_openedx_rapid_response_reports/migrations"),
+            os.path.join(  # noqa: PTH118
+                root_path, "ol_openedx_rapid_response_reports"
+            ),  # noqa: PTH118, RUF100
+            os.path.join(  # noqa: PTH118
+                root_path, "ol_openedx_rapid_response_reports/migrations"
+            ),  # noqa: PTH118, RUF100
         ]
     )
 

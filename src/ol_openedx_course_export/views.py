@@ -94,7 +94,7 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
         }
 
 
-    """
+    """  # noqa: E501
 
     http_method_names = ["get", "post"]
     permission_classes = [
@@ -104,11 +104,11 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
     def post(self, request):
         """
         This will take list of course id as param and will export them to S3
-        """
+        """  # noqa: D401
         if not is_bucket_configuration_valid():
             raise self.api_error(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                developer_message="COURSE_IMPORT_EXPORT_BUCKET value is not configured properly",
+                developer_message="COURSE_IMPORT_EXPORT_BUCKET value is not configured properly",  # noqa: E501
                 error_code="internal_error",
             )
 
@@ -130,7 +130,9 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
                 course_upload_urls[course_id] = get_aws_file_url(course_id)
                 upload_task_ids[course_id] = task_detail.task_id
             except Exception as e:
-                log.exception(f"Course export {course_id}: An error has occurred:")
+                log.exception(
+                    f"Course export {course_id}: An error has occurred:"  # noqa: G004
+                )  # noqa: G004, RUF100
                 failed_course_uploads[course_id] = str(e)
 
         response_data = {
@@ -158,7 +160,7 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
             return Response({"state": task_status.state})
         except Exception as e:
             log.exception(str(e))
-            raise self.api_error(
+            raise self.api_error(  # noqa: B904
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 developer_message=str(e),
                 error_code="internal_error",

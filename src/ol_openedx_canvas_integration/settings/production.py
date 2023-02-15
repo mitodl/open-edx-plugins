@@ -7,7 +7,7 @@ PLUGIN_TEMPLATES_ROOT = path(__file__).abspath().dirname().dirname()
 
 
 def plugin_settings(settings):
-    """Settings for the canvas integration plugin."""
+    """Settings for the canvas integration plugin."""  # noqa: D401
     settings.CANVAS_ACCESS_TOKEN = settings.AUTH_TOKENS.get(
         "CANVAS_ACCESS_TOKEN", settings.CANVAS_ACCESS_TOKEN
     )

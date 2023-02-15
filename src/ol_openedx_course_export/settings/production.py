@@ -2,4 +2,4 @@
 
 
 def plugin_settings(settings):
-    """Settings for the course export plugin."""
+    """Settings for the course export plugin."""  # noqa: D401
