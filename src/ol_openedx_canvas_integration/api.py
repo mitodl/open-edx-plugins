@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 
 def first_or_none(iterable):
-    """Returns the first item in the given iterable, or None if the iterable is empty"""
+    """Returns the first item in the given iterable, or None if the iterable is empty"""  # noqa: D401, E501
     return next((x for x in iterable), None)
 
 
@@ -36,7 +36,7 @@ def course_graded_items(course):
 def get_enrolled_non_staff_users(course):
     """
     Returns an iterable of non-staff enrolled users for a given course
-    """
+    """  # noqa: D401
     return [
         user
         for user in CourseEnrollment.objects.users_enrolled_in(course.id)
@@ -48,7 +48,7 @@ def enroll_emails_in_course(emails, course_key):
     """
     Attempts to enroll all provided emails in a course. Emails without a corresponding
     user have a CourseEnrollmentAllowed object created for the course.
-    """
+    """  # noqa: D401
     results = {}
     for email in emails:
         user = User.objects.filter(email=email).first()
@@ -90,14 +90,14 @@ def get_subsection_user_grades(course):
                     <User object for student 2>: <grades.subsection_grade.CreateSubsectionGrade object>,
                 }
             }
-    """
+    """  # noqa: D401, E501
     enrolled_students = CourseEnrollment.objects.users_enrolled_in(course.id)
     subsection_grade_dict = defaultdict(dict)
-    for student, course_grade, error in CourseGradeFactory().iter(
+    for student, course_grade, _error in CourseGradeFactory().iter(
         users=enrolled_students, course=course
     ):
         for (
-            graded_item_type,
+            _graded_item_type,
             subsection_dict,
         ) in course_grade.graded_subsections_by_format().items():
             for subsection_block_locator, subsection_grade in subsection_dict.items():
@@ -127,7 +127,7 @@ def get_subsection_block_user_grades(course):
                     <User object for student 2>: <grades.subsection_grade.CreateSubsectionGrade object>,
                 }
             }
-    """
+    """  # noqa: D401, E501
     subsection_user_grades = get_subsection_user_grades(course)
     graded_subsection_blocks = [
         graded_item.get("subsection_block")
@@ -141,7 +141,7 @@ def get_subsection_block_user_grades(course):
             for block in graded_subsection_blocks
             if block.location == block_locator
         )
-        for block_locator in subsection_user_grades.keys()
+        for block_locator in subsection_user_grades
     }
     return {
         block: subsection_user_grades[block_locator]
@@ -199,7 +199,7 @@ def push_edx_grades_to_canvas(course):
 
     Returns:
         dict: A dictionary with some information about the success/failure of the updates
-    """
+    """  # noqa: E501
     canvas_course_id = course.canvas_course_id
     client = CanvasClient(canvas_course_id=canvas_course_id)
     existing_assignment_dict = client.get_assignments_by_int_id()
@@ -208,7 +208,7 @@ def push_edx_grades_to_canvas(course):
     # Populate missing assignments
     new_assignment_blocks = (
         subsection_block
-        for subsection_block in subsection_block_user_grades.keys()
+        for subsection_block in subsection_block_user_grades
         if str(subsection_block.location) not in existing_assignment_dict
     )
     created_assignments = {

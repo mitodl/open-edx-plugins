@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 
 def _get_edx_enrollment_data(email, course_key):
-    """Helper function to look up some info regarding whether a user with a email address is enrolled in edx"""
+    """Helper function to look up some info regarding whether a user with a email address is enrolled in edx"""  # noqa: D401, E501
     user = User.objects.filter(email=email).first()
     allowed = CourseEnrollmentAllowed.objects.filter(
         email=email, course_id=course_key
@@ -68,7 +68,7 @@ def list_canvas_enrollments(request, course_id):
 def add_canvas_enrollments(request, course_id):
     """
     Fetches enrollees for a course in canvas and enrolls those emails in the course in edX
-    """
+    """  # noqa: D401, E501
     unenroll_current = request.POST.get("unenroll_current", "").lower() == "true"
     course_key = CourseLocator.from_string(course_id)
     course = get_course_by_id(course_key)

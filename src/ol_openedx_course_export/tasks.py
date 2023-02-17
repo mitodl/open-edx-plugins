@@ -29,7 +29,7 @@ def task_upload_course_s3(self, user_id, course_key_string):
 
     Returns:
         task_id, Just starts a task and returns it's id as part of Celery's base implementation. Used for status updates
-    """
+    """  # noqa: D401, E501
     try:
         self.status.set_state(UserTaskStatus.IN_PROGRESS)
         s3_client = S3Client()
@@ -43,7 +43,7 @@ def task_upload_course_s3(self, user_id, course_key_string):
         self.status.set_state(UserTaskStatus.SUCCEEDED)
     except ClientError as ex:
         log.exception(
-            f"Course export {course_key_string}: A ClientError in course export:"
+            f"Course export {course_key_string}: A ClientError in course export:"  # noqa: E501, G004
         )
         if self.status.state != UserTaskStatus.FAILED:
             self.status.fail({"raw_error_msg": str(ex)})

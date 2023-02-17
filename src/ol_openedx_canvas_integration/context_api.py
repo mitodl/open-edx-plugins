@@ -16,20 +16,20 @@ def get_resource_bytes(path):
 
     Returns:
         unicode: The unicode contents of the resource at the given path
-    """
+    """  # noqa: D401
     resource_contents = pkg_resources.resource_string(__name__, path)
     return resource_contents.decode("utf-8")
 
 
 def plugin_context(context):
-    """Provide context based data for Canvas Integration plugin (For Instructor Dashboard)"""
+    """Provide context based data for Canvas Integration plugin (For Instructor Dashboard)"""  # noqa: E501
 
     course = context.get("course")
 
     # Don't add Canvas tab is the Instructor Dashboard if it doesn't have any associated
     # canvas_course_id set from Canvas Service
     if not course.canvas_course_id:
-        return
+        return None
 
     fragment = Fragment()
     # Adding JS as bytes (Inspired by what we are doing with Rapid Response xBlock)

@@ -32,7 +32,7 @@ def external_checkout(request):
     A 404 would be returned in case there is no sku matching products
 
     A 500 would be returned if there are any configuration errors
-    """
+    """  # noqa: D401, E501
 
     if request.method != "GET":
         raise NotImplementedError("API only supports GET requests")
@@ -51,17 +51,17 @@ def external_checkout(request):
     course_modes = CourseMode.objects.filter(sku=product_sku)
     if not course_modes:
         log.error(
-            f"No CourseMode was found against the given product SKU ({product_sku})"
+            f"No CourseMode was found against the given product SKU ({product_sku})"  # noqa: E501, G004
         )
         raise Http404
 
-    # Because there is no unique constraint on SKU, so there could be multiple CourseModes with same SKU
+    # Because there is no unique constraint on SKU, so there could be multiple CourseModes with same SKU  # noqa: E501
     if len(course_modes) > 1:
         raise ExternalCheckoutError(
             f"Found multiple CourseModes for the same SKU ({product_sku})"
         )
 
-    #  Generate a URL to redirect to marketing site based on its checkout URL with and added
+    #  Generate a URL to redirect to marketing site based on its checkout URL with and added  # noqa: E501
     #  course ID query param)
     course_id = quote(str(course_modes.first().course.id))
     redirect_url = f"{settings.MARKETING_SITE_CHECKOUT_URL}?course_id={course_id}"

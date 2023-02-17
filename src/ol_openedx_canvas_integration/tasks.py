@@ -30,7 +30,7 @@ def run_sync_canvas_enrollments(
         "canvas_course_id": canvas_course_id,
         "unenroll_current": unenroll_current,
     }
-    task_key = hashlib.md5(course_key.encode("utf8")).hexdigest()
+    task_key = hashlib.md5(course_key.encode("utf8")).hexdigest()  # noqa: S324
     TASK_LOG.debug("Submitting task to sync canvas enrollments")
     return submit_task(request, task_type, task_class, course_key, task_input, task_key)
 
@@ -53,11 +53,11 @@ def run_push_edx_grades_to_canvas(request, course_id):
     task_type = TASK_TYPE_PUSH_EDX_GRADES_TO_CANVAS
     task_class = push_edx_grades_to_canvas_task
     task_input = {
-        # course_key is already passed into the task, but we need to put it in task_input as well
-        # so the instructor task status can be properly calculated instead of being marked incomplete
+        # course_key is already passed into the task, but we need to put it in task_input as well  # noqa: E501
+        # so the instructor task status can be properly calculated instead of being marked incomplete  # noqa: E501
         "course_key": str(course_id)
     }
-    task_key = hashlib.md5(course_id.encode("utf8")).hexdigest()
+    task_key = hashlib.md5(course_id.encode("utf8")).hexdigest()  # noqa: S324
     TASK_LOG.debug("Submitting task to push edX grades to Canvas")
     return submit_task(request, task_type, task_class, course_id, task_input, task_key)
 

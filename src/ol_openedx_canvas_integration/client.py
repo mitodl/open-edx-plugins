@@ -72,7 +72,7 @@ class CanvasClient:
 
         Returns:
             dict: Email addresses mapped to canvas user ids for all enrolled users
-        """
+        """  # noqa: E501
         url = urljoin(
             settings.CANVAS_BASE_URL,
             f"/api/v1/courses/{self.canvas_course_id}/enrollments",
@@ -175,7 +175,7 @@ def create_assignment_payload(subsection_block):
     Returns:
         dict:
             Assignment payload to be sent to Canvas to create or update the assignment
-    """
+    """  # noqa: E501
     return {
         "assignment": {
             "name": subsection_block.display_name,
@@ -185,8 +185,8 @@ def create_assignment_payload(subsection_block):
             "due_at": (
                 None
                 if not subsection_block.fields.get("due")
-                # The internal API gives us a TZ-naive datetime for the due date, but Studio indicates that
-                # the user should enter a UTC datetime for the due date. Coerce this to UTC before creating the
+                # The internal API gives us a TZ-naive datetime for the due date, but Studio indicates that  # noqa: E501
+                # the user should enter a UTC datetime for the due date. Coerce this to UTC before creating the  # noqa: E501
                 # string representation.
                 else subsection_block.fields["due"].astimezone(pytz.UTC).isoformat()
             ),
@@ -206,5 +206,5 @@ def update_grade_payload_kv(user_id, grade_percent):
 
     Returns:
         (tuple): A key/value pair that will be used in the body of a bulk grade update request
-    """
+    """  # noqa: D401, E501
     return (f"grade_data[{user_id}][posted_grade]", f"{grade_percent * 100}%")

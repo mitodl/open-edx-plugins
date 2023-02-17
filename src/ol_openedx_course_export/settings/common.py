@@ -2,4 +2,4 @@
 
 
 def plugin_settings(settings):
-    """Settings for the course export s3 location plugin."""
+    """Settings for the course export s3 location plugin."""  # noqa: D401

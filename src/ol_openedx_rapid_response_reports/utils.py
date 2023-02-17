@@ -5,7 +5,7 @@ def get_display_name_from_usage_key(key, course):
         key (UsageKey) : Usage key of block
     Returns:
         String : Returns the display name of block if exists else 'Deleted'.
-    """
+    """  # noqa: D401
     block = course.get_child(key)
     if block:
         return block.display_name
