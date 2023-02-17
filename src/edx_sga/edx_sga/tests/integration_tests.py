@@ -19,7 +19,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.test.utils import override_settings
-from lms.djangoapps.courseware import module_render as render
+from lms.djangoapps.courseware import block_render as render
 from lms.djangoapps.courseware.models import StudentModule
 from opaque_keys.edx.locations import Location
 from opaque_keys.edx.locator import CourseLocator
@@ -94,7 +94,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
             course=self.course,
             # not sure why this isn't working, if set to true it looks for
             # 'display_name_with_default_escaped' field that doesn't exist in SGA
-            wrap_xmodule_display=False,
+            wrap_xblock_display=False,
             **kwargs,
         )
         return runtime
