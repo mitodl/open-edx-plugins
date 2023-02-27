@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.21.1
+--------------
+
+- test: import block_render instead of module_render (#333)
+
 Version 0.21.0 (Released February 23, 2023)
 --------------
 
