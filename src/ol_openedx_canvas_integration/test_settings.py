@@ -40,7 +40,7 @@ LOCALE_PATHS = [
 
 ROOT_URLCONF = "ol_openedx_canvas_integration.urls"
 
-SECRET_KEY = "insecure-secret-key"  # pragma: allowlist secret  # noqa: S105
+SECRET_KEY = "insecure-secret-key"  # pragma: allowlist secret
 
 MIDDLEWARE = (
     "django.contrib.auth.middleware.AuthenticationMiddleware",
