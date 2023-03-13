@@ -40,7 +40,7 @@ LOCALE_PATHS = [
 
 ROOT_URLCONF = "ol_openedx_git_auto_export.urls"
 
-SECRET_KEY = "insecure-secret-key"  # pragma: allowlist secret
+SECRET_KEY = "insecure-secret-key"  # pragma: allowlist secret  # noqa: S105
 
 MIDDLEWARE = (
     "django.contrib.auth.middleware.AuthenticationMiddleware",
