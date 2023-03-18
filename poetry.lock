@@ -598,14 +598,14 @@ files = [
 
 [[package]]
 name = "edx-django-utils"
-version = "5.2.0"
+version = "5.3.0"
 description = "EdX utilities for Django Application development."
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "edx-django-utils-5.2.0.tar.gz", hash = "sha256:61a5079ca47e5a6bae1f6aeadd6655216b16b875eb54854fc9141f12ceaf1a86"},
-    {file = "edx_django_utils-5.2.0-py2.py3-none-any.whl", hash = "sha256:3e277dd493b2d9fcfaa3443688fd343ed6456e25c8f552598c8c5c972fa32f69"},
+    {file = "edx-django-utils-5.3.0.tar.gz", hash = "sha256:ef4093a483fb5ba5d7066dc49d1a6cced04e3cb5185054875943a623c5553ac8"},
+    {file = "edx_django_utils-5.3.0-py2.py3-none-any.whl", hash = "sha256:876f7adca9db37ddee2b7eb59bacc8968f8431050a60f5ac9ff4ff8267163bb3"},
 ]
 
 [package.dependencies]
