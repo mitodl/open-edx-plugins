@@ -27,7 +27,7 @@ repos:
     - '80'
     - --preserve-quotes
 - repo: https://github.com/adrienverge/yamllint.git
-  rev: v1.29.0
+  rev: v1.30.0
   hooks:
   - id: yamllint
     args: [--format, parsable, -d, relaxed]
@@ -38,17 +38,17 @@ repos:
     args:
     - --exclude-files '(poetry.lock|pants)'
 - repo: https://github.com/psf/black
-  rev: 23.1.0
+  rev: 23.3.0
   hooks:
   - id: black
 - repo: https://github.com/charliermarsh/ruff-pre-commit
   # Ruff version.
-  rev: 'v0.0.255'
+  rev: 'v0.0.261'
   hooks:
   - id: ruff
     args: [--extend-ignore=D1, --fix]
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.1.1
+  rev: v1.2.0
   hooks:
   - id: mypy
     additional_dependencies:
