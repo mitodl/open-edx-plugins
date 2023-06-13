@@ -1,6 +1,5 @@
 # maintain the latest version
 celery==5.0.6
-codecov==2.1.10
 coverage==5.3
 cryptography==3.3.2
 ddt==1.4.2
