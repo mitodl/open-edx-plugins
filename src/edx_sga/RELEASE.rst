@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.22.0
+Version 0.22.0 (Released June 14, 2023)
 --------------
 
 - refactor!: remove deprecated runtime attributes [FC-0026] (#339)
