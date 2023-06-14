@@ -1,6 +1,13 @@
 Release Notes
 =============
 
+Version 0.22.0
+--------------
+
+- refactor!: remove deprecated runtime attributes [FC-0026] (#339)
+- test: rename descriptor to block (#334)
+- fix: remove codecov usage (#340)
+
 Version 0.21.1 (Released February 27, 2023)
 --------------
 
