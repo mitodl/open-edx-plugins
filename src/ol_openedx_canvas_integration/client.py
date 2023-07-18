@@ -93,9 +93,7 @@ class CanvasClient:
         """
         url = urljoin(
             settings.CANVAS_BASE_URL,
-            "/api/v1/courses/{course_id}/assignments".format(
-                course_id=self.canvas_course_id
-            ),
+            f"/api/v1/courses/{self.canvas_course_id}/assignments",
         )
         return self._paginate(url)
 
