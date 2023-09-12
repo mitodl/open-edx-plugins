@@ -6,18 +6,17 @@ from cms.djangoapps.contentstore.api.views.course_import import (
     CourseImportExportViewMixin,
 )
 from cms.djangoapps.contentstore.tasks import CourseExportTask
+from ol_openedx_course_export.tasks import task_upload_course_s3
+from ol_openedx_course_export.utils import (
+    get_aws_file_url,
+    is_bucket_configuration_valid,
+)
 from openedx.core.lib.api.view_utils import verify_course_exists
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from user_tasks.models import UserTaskStatus
-
-from ol_openedx_course_export.tasks import task_upload_course_s3
-from ol_openedx_course_export.utils import (
-    get_aws_file_url,
-    is_bucket_configuration_valid,
-)
 
 log = logging.getLogger(__name__)
 
@@ -129,7 +128,7 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
                 task_detail = task_upload_course_s3.delay(request.user.id, course_id)
                 course_upload_urls[course_id] = get_aws_file_url(course_id)
                 upload_task_ids[course_id] = task_detail.task_id
-            except Exception as e:
+            except Exception as e:  # noqa: PERF203
                 log.exception(
                     f"Course export {course_id}: An error has occurred:"  # noqa: G004
                 )  # noqa: G004, RUF100
@@ -159,8 +158,8 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
             ).first()
             return Response({"state": task_status.state})
         except Exception as e:
-            log.exception(str(e))
-            raise self.api_error(  # noqa: B904
+            log.exception(str(e))  # noqa: TRY401
+            raise self.api_error(  # noqa: B904, TRY200
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 developer_message=str(e),
                 error_code="internal_error",

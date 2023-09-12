@@ -7,7 +7,6 @@ from common.djangoapps.course_modes.models import CourseMode
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponseRedirect
-
 from ol_openedx_checkout_external.exceptions import ExternalCheckoutError
 
 log = logging.getLogger(__name__)
@@ -35,12 +34,12 @@ def external_checkout(request):
     """  # noqa: D401, E501
 
     if request.method != "GET":
-        raise NotImplementedError("API only supports GET requests")
+        msg = "API only supports GET requests"
+        raise NotImplementedError(msg)
 
     if not settings.MARKETING_SITE_CHECKOUT_URL:
-        raise ExternalCheckoutError(
-            "MARKETING_SITE_CHECKOUT_URL value is not configured properly"
-        )
+        msg = "MARKETING_SITE_CHECKOUT_URL value is not configured properly"
+        raise ExternalCheckoutError(msg)
 
     product_sku = request.GET.get("sku")
 
@@ -57,9 +56,8 @@ def external_checkout(request):
 
     # Because there is no unique constraint on SKU, so there could be multiple CourseModes with same SKU  # noqa: E501
     if len(course_modes) > 1:
-        raise ExternalCheckoutError(
-            f"Found multiple CourseModes for the same SKU ({product_sku})"
-        )
+        msg = f"Found multiple CourseModes for the same SKU ({product_sku})"
+        raise ExternalCheckoutError(msg)
 
     #  Generate a URL to redirect to marketing site based on its checkout URL with and added  # noqa: E501
     #  course ID query param)

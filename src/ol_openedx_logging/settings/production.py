@@ -1,9 +1,11 @@
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import Any
 
 MEGABYTE = 1024 * 1024
 
 
-def _load_env_tokens(edx_settings, default_settings: Dict[str, Any]) -> Dict[str, Any]:
+def _load_env_tokens(edx_settings, default_settings: dict[str, Any]) -> dict[str, Any]:
     configured_tokens = getattr(edx_settings, "ENV_TOKENS", {})
     default_settings.update(configured_tokens)
     return default_settings

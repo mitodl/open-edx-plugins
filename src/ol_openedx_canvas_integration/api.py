@@ -8,13 +8,12 @@ from lms.djangoapps.courseware.access import has_access
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.grades.context import grading_context_for_course
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
-from opaque_keys.edx.locator import CourseLocator
-
 from ol_openedx_canvas_integration.client import (
     CanvasClient,
     create_assignment_payload,
     update_grade_payload_kv,
 )
+from opaque_keys.edx.locator import CourseLocator
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ def enroll_emails_in_course(emails, course_key):
             try:
                 CourseEnrollment.enroll(user, course_key)
                 result = "Enrolled user in the course"
-            except Exception as ex:  # pylint: disable=broad-except
+            except Exception as ex:  # pylint: disable=broad-except  # noqa: BLE001
                 result = f"Failed to enroll - {ex}"
         else:
             result = "User already enrolled"
@@ -96,10 +95,7 @@ def get_subsection_user_grades(course):
     for student, course_grade, _error in CourseGradeFactory().iter(
         users=enrolled_students, course=course
     ):
-        for (
-            _graded_item_type,
-            subsection_dict,
-        ) in course_grade.graded_subsections_by_format().items():
+        for subsection_dict in course_grade.graded_subsections_by_format().values():
             for subsection_block_locator, subsection_grade in subsection_dict.items():
                 subsection_grade_dict[subsection_block_locator].update(
                     # Only include grades if the assignment/exam/etc. has been attempted

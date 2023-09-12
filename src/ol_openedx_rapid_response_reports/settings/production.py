@@ -1,6 +1,6 @@
 """Production settings unique to the rapid response plugin."""
 
-from path import Path as path
+from path import Path as path  # noqa: N813
 
 PLUGIN_TEMPLATES_ROOT = path(__file__).abspath().dirname().dirname()
 

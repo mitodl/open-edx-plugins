@@ -3,17 +3,16 @@ import os
 
 from django.conf import settings
 from django.dispatch import receiver
-from xmodule.modulestore.django import SignalHandler
-
 from ol_openedx_git_auto_export.constants import ENABLE_GIT_AUTO_EXPORT
 from ol_openedx_git_auto_export.tasks import async_export_to_git
+from xmodule.modulestore.django import SignalHandler
 
 log = logging.getLogger(__name__)
 
 
 @receiver(SignalHandler.course_published)
 def listen_for_course_publish(
-    sender, course_key, **kwargs
+    sender, course_key, **kwargs  # noqa: ARG001
 ):  # pylint: disable=unused-argument
     """
     Receives publishing signal and performs publishing related workflows

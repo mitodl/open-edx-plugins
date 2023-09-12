@@ -5,12 +5,15 @@ from time import time
 
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.instructor_task.tasks_helper.runner import TaskProgress
-
 from ol_openedx_canvas_integration import api
 
 
 def sync_canvas_enrollments(
-    _xmodule_instance_args, _entry_id, course_id, task_input, action_name
+    _xmodule_instance_args,
+    _entry_id,
+    course_id,  # noqa: ARG001
+    task_input,
+    action_name,
 ):
     """Partial function to sync canvas enrollments"""
     start_time = time()
@@ -26,7 +29,11 @@ def sync_canvas_enrollments(
 
 
 def push_edx_grades_to_canvas(
-    _xmodule_instance_args, _entry_id, course_id, task_input, action_name
+    _xmodule_instance_args,
+    _entry_id,
+    course_id,
+    task_input,  # noqa: ARG001
+    action_name,
 ):
     """Partial function to push edX grades to canvas"""
     start_time = time()

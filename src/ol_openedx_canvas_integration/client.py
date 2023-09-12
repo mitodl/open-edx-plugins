@@ -4,7 +4,6 @@ from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 import pytz
 import requests
 from django.conf import settings
-
 from ol_openedx_canvas_integration.constants import DEFAULT_ASSIGNMENT_POINTS
 
 log = logging.getLogger(__name__)

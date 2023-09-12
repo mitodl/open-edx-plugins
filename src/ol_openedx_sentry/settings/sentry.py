@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import builtins
 import importlib
 import re
 from functools import partial
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
 import sentry_sdk
 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -36,9 +38,9 @@ def _load_exception_class(import_specifier: str) -> Union[Exception, None]:
 def sentry_event_filter(
     event,
     hint,
-    ignored_types: Optional[List[str]] = None,
-    ignored_messages: Optional[List[str]] = None,
-) -> Optional[Dict[str, Any]]:
+    ignored_types: Optional[list[str]] = None,
+    ignored_messages: Optional[list[str]] = None,
+) -> Optional[dict[str, Any]]:
     """Avoid sending events to Sentry that match the specified types or regexes.
 
     In order to avoid flooding Sentry with events that are not useful and prevent
@@ -85,7 +87,7 @@ def sentry_event_filter(
     return event
 
 
-def _load_env_tokens(app_settings) -> Dict[str, Any]:
+def _load_env_tokens(app_settings) -> dict[str, Any]:
     return getattr(
         app_settings,
         "ENV_TOKENS",

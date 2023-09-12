@@ -21,15 +21,13 @@ def async_export_to_git(course_key_string, user=None):
             course_module.id,
         )
         export_to_git(course_module.id, course_module.giturl, user=user)
-    except GitExportError as ex:
-        LOGGER.error(
-            "Failed async course content export to git (course id: %s): %s",
+    except GitExportError:
+        LOGGER.exception(
+            "Failed async course content export to git (course id: %s)",
             course_module.id,
-            ex,
         )
-    except Exception as ex:  # pylint: disable=broad-except
-        LOGGER.error(
-            "Unknown error occured during async course content export to git (course id: %s): %s",  # noqa: E501
+    except Exception:
+        LOGGER.exception(
+            "Unknown error occured during async course content export to git (course id: %s)",  # noqa: E501
             course_module.id,
-            ex,
         )

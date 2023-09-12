@@ -7,7 +7,7 @@ from lms.djangoapps.instructor_analytics import csvs
 @ensure_csrf_cookie
 @require_course_permission(VIEW_DASHBOARD)
 def get_rapid_response_report(
-    request, course_id, run_id
+    request, course_id, run_id  # noqa: ARG001
 ):  # pylint: disable=unused-argument
     """
     Return csv file corresponding to given run_id

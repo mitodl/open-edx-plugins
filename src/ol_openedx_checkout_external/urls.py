@@ -3,7 +3,6 @@ External checkout API endpoint urls.
 """
 
 from django.urls import re_path
-
 from ol_openedx_checkout_external.views import external_checkout
 
 urlpatterns = [

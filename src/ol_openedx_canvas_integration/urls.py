@@ -3,7 +3,6 @@ Canvas Integration API endpoint urls.
 """
 
 from django.conf.urls import url
-
 from ol_openedx_canvas_integration import views
 
 urlpatterns = [

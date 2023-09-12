@@ -6,17 +6,16 @@ import logging
 from botocore.exceptions import ClientError
 from celery import shared_task  # pylint: disable=import-error
 from cms.djangoapps.contentstore.tasks import CourseExportTask, create_export_tarball
+from ol_openedx_course_export.s3_client import S3Client
 from opaque_keys.edx.keys import CourseKey
 from user_tasks.models import UserTaskStatus
 from xmodule.modulestore.django import modulestore
-
-from ol_openedx_course_export.s3_client import S3Client
 
 log = logging.getLogger(__name__)
 
 
 @shared_task(base=CourseExportTask, bind=True)
-def task_upload_course_s3(self, user_id, course_key_string):
+def task_upload_course_s3(self, user_id, course_key_string):  # noqa: ARG001
     """
     A task to generate course tarball and upload to s3 bucket, Also creates task status object to keep track of the
     task updates.

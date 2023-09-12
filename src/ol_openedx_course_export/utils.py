@@ -1,5 +1,4 @@
 from django.conf import settings
-
 from ol_openedx_course_export.constants import AWS_S3_DEFAULT_URL_PREFIX
 
 
