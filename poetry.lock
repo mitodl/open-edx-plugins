@@ -592,19 +592,20 @@ stevedore = "*"
 
 [[package]]
 name = "edx-opaque-keys"
-version = "2.3.0"
+version = "2.5.0"
 description = ""
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "edx-opaque-keys-2.3.0.tar.gz", hash = "sha256:b38bf798eb21b4e55279cfa45ff4204189f3cd164a0a119ab4fc8f7d90816dad"},
-    {file = "edx_opaque_keys-2.3.0-py3-none-any.whl", hash = "sha256:d48f45d52e177e15e612fc0f7c569d6ca46093ab1d8c91baecc260e68e1e8964"},
+    {file = "edx-opaque-keys-2.5.0.tar.gz", hash = "sha256:9a67e47b2e6529bd47b340713fc93d6796fa513e42105cf2491e341cd8142001"},
+    {file = "edx_opaque_keys-2.5.0-py3-none-any.whl", hash = "sha256:e69a56cc622102fff10d1b889cc8ba55e17835a93a28d22ca8c8bcfc949cce0b"},
 ]
 
 [package.dependencies]
 pymongo = ">=2.7.2,<4.0"
 stevedore = ">=0.14.1"
+typing-extensions = "*"
 
 [[package]]
 name = "exceptiongroup"
@@ -1791,4 +1792,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "16a3c6ebffbe8cf38c9ac82c792ea1f996658bdb5aa11399f1d42528fd0e3cd8"
+content-hash = "139e45b9f96fb2d62149a8a52cd7b4213017080cef4847cd0bae2acd669bebf9"
