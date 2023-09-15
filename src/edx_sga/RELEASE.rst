@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.23.0
+--------------
+
+- feat: add support for picking storage config from settings (#344)
+
 Version 0.22.0 (Released June 14, 2023)
 --------------
 
