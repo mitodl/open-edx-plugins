@@ -1,0 +1,23 @@
+{% load i18n static %}
+
+<div class="pagination">
+    {% if logs.has_previous %}
+        <span class="previous-page">
+            <a href="?page={{ logs.previous_page_number }}">
+                {% trans "previous" %}
+            </a>
+        </span>
+    {% endif %}
+    {% if logs.number and logs.paginator.num_pages  %}
+        {% with page_number=logs.number total_pages=logs.paginator.num_pages %}
+            {% blocktrans %}Page {{ page_number }} of {{ total_pages }}{% endblocktrans %}
+        {% endwith %}
+    {% endif %}
+    {% if logs.has_next %}
+        <span class="next-page">
+            <a href="?page={{ logs.next_page_number }}">
+                {% trans "next" %}
+            </a>
+        </span>
+    {% endif %}
+</div>

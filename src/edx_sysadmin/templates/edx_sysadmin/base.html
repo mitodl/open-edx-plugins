@@ -1,0 +1,37 @@
+{% extends "main_django.html" %}
+{% load i18n static %}
+
+{% block headextra %}
+    <link rel="stylesheet" href="{% static 'edx_sysadmin/css/style.css' %}">
+    <script type="text/javascript" src="{% static 'js/header/header.js' %}"></script>
+{% endblock %}
+
+{% block body %}
+<section class="container">
+    <div class="sysadmin-dashboard-wrapper">
+        <section class="sysadmin-dashboard-content">
+            <h1 class="main-heading">{% trans "Sysadmin Dashboard" %}</h1>
+            <hr />
+            <h2 class="instructor-nav">
+                {% if show_users_tab %}
+                    <a href="{% url 'sysadmin:users' %}" class="{% if is_users_tab %} active {% endif %}">{% trans "Users" %}</a>
+                {% endif %}
+                {% if show_courses_tab %}
+                    <a href="{% url 'sysadmin:courses' %}" class="{% if is_courses_tab %} active {% endif %}"> {% trans "Courses" %} </a>
+                {% endif %}
+                {% if show_git_import_tab %}
+                    <a href="{% url 'sysadmin:gitimport' %}" class="{% if is_git_import_tab %} active {% endif %}"> {% trans "Git Import" %} </a>
+                {% endif %}
+                {% if show_git_logs_tab %}
+                    <a href="{% url 'sysadmin:gitlogs' %}" class="{% if is_git_logs_tab %} active {% endif %}"> {% trans "Git Logs" %} </a>
+                {% endif %}
+            </h2>
+            <hr />
+            {% block panel %}
+            {% endblock panel %}
+        </section>
+        {% block msg %}
+        {% endblock msg %}
+    </div>
+</section>
+{% endblock body %}
