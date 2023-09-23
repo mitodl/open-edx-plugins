@@ -592,14 +592,14 @@ stevedore = "*"
 
 [[package]]
 name = "edx-opaque-keys"
-version = "2.5.0"
+version = "2.5.1"
 description = ""
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "edx-opaque-keys-2.5.0.tar.gz", hash = "sha256:9a67e47b2e6529bd47b340713fc93d6796fa513e42105cf2491e341cd8142001"},
-    {file = "edx_opaque_keys-2.5.0-py3-none-any.whl", hash = "sha256:e69a56cc622102fff10d1b889cc8ba55e17835a93a28d22ca8c8bcfc949cce0b"},
+    {file = "edx-opaque-keys-2.5.1.tar.gz", hash = "sha256:2e0a79fa83aa8a5ad4fed1586c29741e21f3499e6cffe9daf24d8e72fed62e60"},
+    {file = "edx_opaque_keys-2.5.1-py3-none-any.whl", hash = "sha256:e05f9199040a77d72075b1451299b14260e4400b6cefc0385cfc9e373f420393"},
 ]
 
 [package.dependencies]
@@ -1792,4 +1792,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "2e446a4d13bbe7622ab4f948ae0b0ad622c5a20a58ddca458a064a21ad62a375"
+content-hash = "bde3468f6c3dd09d3ecfb7ec6e7af5c340a715b17295decf3d9e3e09a5ced7d4"
