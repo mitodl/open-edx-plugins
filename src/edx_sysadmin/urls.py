@@ -2,7 +2,6 @@
 URLs for edx_sysadmin.
 """
 from django.conf.urls import include, url
-
 from edx_sysadmin.views import (
     CoursesPanel,
     GitImport,
