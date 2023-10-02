@@ -1,0 +1,97 @@
+{% extends 'edx_sysadmin/base.html' %}
+
+{% load i18n static %}
+{% load sysadmin_extras %}
+
+
+{% block headextra %}
+{{ block.super }}
+<script>
+    $(function() {
+        $(".toggle-import-log").click(function(e) {
+            var self = $(this);
+            var id = self.data("import-log");
+            $("#import-log-" + id).toggle({
+                duration: 200
+            });
+            if (self.html() === "[ + ]") {
+              self.html(edx.HtmlUtils.HTML("[ &#8722; ]").toString());
+            } else {
+                self.text("[ + ]");
+            }
+            e.preventDefault();
+        });
+    });
+</script>
+{% endblock headextra %}
+
+{% block panel %}
+    <form name="dashform" method="POST" action="${reverse('sysadmin')}">
+        <input type="hidden" name="csrfmiddlewaretoken" value="${ csrf_token }">
+        <input type="hidden" name="dash_mode" value="">
+    </form>
+
+    {# Translators: refers to http://git-scm.com/docs/git-log #}
+    <h3>{% trans "Git Logs" %}</h3>
+
+    {% if course_id is not None %}
+        {# Translators: Git is a version-control system; see http://git-scm.com/about #}
+        <h2>{% blocktrans %}Recent git load activity for {{ course_id }}{% endblocktrans %}</h2>
+        {% if error_msg %}
+            <h3>{% trans "Error" %}:</h3>
+            <p>{{error_msg}}</p>
+        {% endif %}
+    {% endif %}
+
+    {% if logs %}
+        {% include 'edx_sysadmin/gitlogs_pagination.html' %}
+        <table class="stat_table" width="100%">
+            <thead>
+                <tr>
+                    <th width="15%">{% trans "Date" %}</th>
+                    <th width="15%">{% trans "Course ID" %}</th>
+                    {# Translators: Git is a version-control system; see http://git-scm.com/about #}
+                    <th>{% trans "Git Action" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for cil in logs %}
+                <tr>
+                    <td>{% change_time_display cil.created %}</td>
+                    <td>
+                    <a href="{% url 'sysadmin:gitlogs_detail' cil.course_id %}">
+                        {{cil.course_id}}
+                    </a>
+                    </td>
+                    <td>
+                    {% if course_id is not None %}
+                        <a class="toggle-import-log" data-import-log="{{forloop.counter0}}" href="#">[ + ]</a>
+                    {% endif %}
+                    {{cil.git_log}}
+                    </td>
+                </tr>
+                {# Show the full log of the latest import if viewing logs for a specific course #}
+                {% if course_id is not None %}
+                <tr class="import-log" id="import-log-{{forloop.counter0}}">
+                    <td colspan="3"><pre>{{cil.course_import_log}}</pre>
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        {% include 'edx_sysadmin/gitlogs_pagination.html' %}
+    {% else %}
+        <div class="page-status">
+        {% if not course_id %}
+            {# If viewing all logs there are no logs available, let the user know. #}
+            {# Translators: git is a version-control system; see http://git-scm.com/about #}
+            {% trans "No git import logs have been recorded." %}
+        {% else %}
+            {# If viewing a single course and there are no logs available, let the user know. #}
+            {# Translators: git is a version-control system; see http://git-scm.com/about #}
+            {% trans "No git import logs have been recorded for this course." %}
+        {% endif %}
+        </div>
+    {% endif %}
+{% endblock panel %}

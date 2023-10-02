@@ -1,0 +1,148 @@
+/*
+Sysadmin Stylesheet
+*/
+:root{
+    --brand-red: #cb0712;
+    --brand-green: #008000;
+}
+.main-heading {
+    font-size: 30px;
+}
+
+.warning-alert h5 {
+    color: var(--brand-red);
+    text-align: left;
+    text-decoration: underline;
+    margin-bottom: 10px;
+}
+
+a.active-section {
+    color: #551a8b;
+}
+
+.sysadmin-dashboard-content {
+    margin-left: 10pt;
+    margin-top: 10pt;
+    margin-right: 10pt;
+    margin-bottom: 20pt;
+}
+
+sysadmin-dashboard-content h2 a {
+    margin-right: 1.2em;
+}
+
+table.stat_table {
+    font-family: verdana, arial, sans-serif;
+    font-size: 11px;
+    color: #333333;
+    border-width: 1px;
+    border-color: #666666;
+    border-collapse: collapse;
+}
+
+table.stat_table th {
+    border-width: 1px;
+    padding: 8px;
+    border-style: solid;
+    border-color: #666666;
+    background-color: #dedede;
+}
+
+table.stat_table td {
+    border-width: 1px;
+    padding: 8px;
+    border-style: solid;
+    border-color: #666666;
+    background-color: #ffffff;
+}
+
+table.stat_table.courses_table {
+    width: 100%;
+}
+
+table.stat_table.courses_table td button {
+    display: block;
+    margin: auto;
+    width: 170px;
+    height: 60px;
+}
+
+a.selectedmode {
+    background-color: yellow;
+}
+
+textarea {
+    height: 200px;
+}
+
+.error {
+    color: var(--brand-red);
+}
+
+.success {
+    color: var(--brand-green);
+}
+
+.error_message {
+    color: var(--brand-red);
+	border-radius: 10px;
+	margin-bottom: 20px;
+	margin-top: 10px;
+	padding: 20px;
+}
+
+.errorlist {
+    color: var(--brand-red);
+}
+
+.success_message {
+	border-radius: 10px;
+	color: var(--brand-green);
+	margin-bottom: 20px;
+	margin-top: 10px;
+	padding: 20px;
+}
+
+.form-user-registration {
+	margin-left: 20px;
+	margin-top: 10px;
+	margin-right: 10px;
+	margin-bottom: 20px;
+}
+
+.instructor-nav a {
+	margin-right: 10px;
+	margin-left: 10px;
+}
+
+.instructor-nav a.active {
+	text-decoration: underline;
+}
+
+.disclaimer {
+	line-height: 1.5rem;
+	text-align: center;
+}
+
+.disclaimer span {
+	text-decoration: underline;
+    font-style: italic;
+}
+
+.import-log {
+    display: none;
+}
+
+.pagination,
+.page-status {
+    text-align: center;
+    padding: 12px 0 12px 0;
+}
+
+.pagination .previous-page {
+    padding-right: 10px;
+}
+
+.pagination .next-page {
+    padding-left: 10px;
+}

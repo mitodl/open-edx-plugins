@@ -1,0 +1,33 @@
+{% extends 'edx_sysadmin/base.html' %}
+
+{% load i18n static %}
+
+{% block panel %}
+    {% if disclaimer %}
+		<div class="disclaimer">
+            <b>{% trans "Disclaimer" %}</b>: {% trans "Account Registration API is not functional in your platform, User Account will be created through DB Models" %}<br>
+            {% trans "To make it functional, set" %} <span>ALLOW_PUBLIC_ACCOUNT_CREATION</span> {% trans "to" %} <span>True</span> {% trans "and" %} <span>ENABLE_REQUIRE_THIRD_PARTY_AUTH</span> {% trans "to" %} <span>False</span>.
+        </div>
+        <hr>
+    {% endif %}
+    <h3>{% trans "Register Users" %}</h3><br/>
+
+    {% if error_message %}
+
+		<div class="error_message">{{error_message|safe}}</div>
+    {% endif %}
+    {% if success_message %}
+        <div class="success_message">{{success_message|safe}}</div>
+    {% endif %}
+
+    <form name="action" method="POST">
+        {% csrf_token %}
+        <div class="form-user-registration">
+            {{ user_registration_form.as_p }}
+        </div>
+        <div class="form-actions">
+            <button type="submit" name="action" value="create_account">{% trans "Create Account" %}</button>
+        </div>
+    </form>
+    <hr style="width:100%" />
+{% endblock panel %}

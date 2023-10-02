@@ -1,0 +1,40 @@
+{% extends 'edx_sysadmin/base.html' %}
+
+{% load i18n static %}
+
+{% block panel %}
+    <h3>{% trans "Administer Courses" %}</h3><br/>
+    <form name="action" method="POST">
+        {% csrf_token %}
+        <ul class="list-input">
+            <li class="field text">
+                <label for="repo_location">
+                    {# Translators: Repo is short for git repository or source of #}
+                    {# courseware; see http://git-scm.com/about #}
+                    {% trans "Repo Location" %}:
+                </label>
+                <input type="text" name="repo_location" style="width:60%" />
+            </li>
+            <li class="field text">
+                <label for="repo_location">
+                    {# Translators: Repo is short for git repository (http://git-scm.com/about) or source of #}
+                    {# courseware and branch is a specific version within that repository #}
+                    {% trans "Repo Branch (optional)" %}:
+                </label>
+                <input type="text" name="repo_branch" style="width:60%" />
+            </li>
+        </ul>
+        <div class="form-actions">
+            {# Translators: GitHub is a popular website for hosting code #}
+            <button type="submit" name="action" value="add_course">
+                {% trans "Load new course from GitHub" %}
+            </button>
+        </div>
+    </form>
+    <hr style="width:100%" />
+{% endblock panel %}
+{% block msg %}
+    {% if msg %}
+        <p>{{msg}}</p>
+    {% endif %}
+{% endblock msg %}

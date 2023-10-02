@@ -1,0 +1,60 @@
+{% extends 'edx_sysadmin/base.html' %}
+
+{% load i18n static %}
+
+{% block headextra %}
+{{ block.super }}
+    <script type="text/javascript" src="{% static 'edx_sysadmin/js/course.js' %}"></script>
+{% endblock %}
+
+{% block panel %}
+    <h3>{% trans "Administer Courses" %}</h3><br/>
+    <form name="action" method="POST">
+        {% csrf_token %}
+        <ul class="list-input">
+            <li class="field text">
+            <label for="course_id">
+                {% trans "Course ID or dir" %} :
+            </label>
+            <input type="text" name="course_id" style="width:60%" required />
+            </li>
+        </ul>
+        <div class="form-actions">
+            <button type="submit" name="action" value="del_course">{% trans "Delete course" %}</button>
+        </div>
+    </form>
+    <hr style="width:100%" />
+
+    {% block msg %}
+        {% if msg %}
+            <p>{{msg}}</p>
+        {% endif %}
+    {% endblock msg %}
+    {% if datatable %}
+        <br/>
+        <br/>
+        <p>
+        <hr width="100%">
+        <h2>{{datatable.title}}</h2>
+        <table class="stat_table courses_table">
+            <tr>
+                {% for column in datatable.header %}
+                    <th>{{column}}</th>
+                {% endfor %}
+            </tr>
+            {% for key, value in datatable.data.items %}
+            <tr id="{{value.git_directory}}">
+                <td>{{value.display_name}}</td>
+                <td>{{value.course_id}}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>
+                    <button onClick="getCourseGitDetails(this, '{{datatable.api_url}}', '{{value.git_directory}}')">Load Details</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        </p>
+    {% endif %}
+{% endblock panel %}
