@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 
 
 def first_or_none(iterable):
-    """Returns the first item in the given iterable, or None if the iterable is empty"""  # noqa: D401, E501
+    """Returns the first item in the given iterable, or None if the iterable is empty"""  # noqa: D401
     return next((x for x in iterable), None)
 
 

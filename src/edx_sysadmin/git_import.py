@@ -421,5 +421,5 @@ def add_repo(repo, rdir_in=None, branch=None):  # noqa: PLR0912, PLR0915, C901
     removed_logs_count = remove_old_course_import_logs(course_key)
     if removed_logs_count > 0:
         log.debug(
-            f"removed {removed_logs_count} old CourseGitLog for {course_key}"  # noqa: G004, E501
+            f"removed {removed_logs_count} old CourseGitLog for {course_key}"  # noqa: G004
         )

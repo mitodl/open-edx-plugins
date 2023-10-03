@@ -42,7 +42,7 @@ def task_upload_course_s3(self, user_id, course_key_string):  # noqa: ARG001
         self.status.set_state(UserTaskStatus.SUCCEEDED)
     except ClientError as ex:
         log.exception(
-            f"Course export {course_key_string}: A ClientError in course export:"  # noqa: E501, G004
+            f"Course export {course_key_string}: A ClientError in course export:"  # noqa: G004
         )
         if self.status.state != UserTaskStatus.FAILED:
             self.status.fail({"raw_error_msg": str(ex)})

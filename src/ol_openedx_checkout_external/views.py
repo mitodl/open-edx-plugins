@@ -50,7 +50,7 @@ def external_checkout(request):
     course_modes = CourseMode.objects.filter(sku=product_sku)
     if not course_modes:
         log.error(
-            f"No CourseMode was found against the given product SKU ({product_sku})"  # noqa: E501, G004
+            f"No CourseMode was found against the given product SKU ({product_sku})"  # noqa: G004
         )
         raise Http404
 
