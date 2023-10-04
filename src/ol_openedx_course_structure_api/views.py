@@ -2,9 +2,6 @@
 
 import logging
 
-from lms.djangoapps.courseware.management.commands.dump_course_structure import (
-    dump_block,
-)
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.lib.api.view_utils import (
@@ -85,6 +82,21 @@ class CourseStructureView(DeveloperErrorViewMixin, GenericAPIView):
         # Precompute inherited metadata at the course level
         if inherited_metadata:
             compute_inherited_metadata(course)
+
+        # dump_block is renamed from dump_module in release-2023-03-08-14.35
+        # For backward compatibility, try import the new name and then old name
+        try:
+            from lms.djangoapps.courseware.management.commands.dump_course_structure import (  # noqa: E501
+                dump_block,
+            )
+        except ImportError:
+            try:
+                from lms.djangoapps.courseware.management.commands.dump_course_structure import (  # noqa: E501
+                    dump_module as dump_block,
+                )
+            except ImportError as exc:
+                msg = "Couldn't import dump_block or dump_module"
+                raise ImportError(msg) from exc
 
         # Convert course data to dictionary and dump it as JSON
         json_data = dump_block(
