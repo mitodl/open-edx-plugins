@@ -17,13 +17,16 @@ except ImportError:
         msg = "Couldn't import dump_block or dump_module"
         raise ImportError(msg) from exc
 
+from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
+from openedx.core.lib.api.authentication import BearerAuthentication
 from openedx.core.lib.api.view_utils import (
     DeveloperErrorViewMixin,
     verify_course_exists,
 )
 from rest_framework import status
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
@@ -64,6 +67,11 @@ class CourseStructureView(DeveloperErrorViewMixin, GenericAPIView):
     permission_classes = [
         IsAdminUser,
     ]
+    authentication_classes = (
+        JwtAuthentication,
+        BearerAuthentication,
+        SessionAuthentication,
+    )
 
     @verify_course_exists()
     def get(self, request, course_id):

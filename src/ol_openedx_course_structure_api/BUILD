@@ -8,7 +8,7 @@ python_distribution(
     dependencies=[":course_structure_api"],
     provides=setup_py(
         name="ol-openedx-course-structure-api",
-        version="0.1.2",
+        version="0.1.3",
         description="An Open edX plugin to add API for course structure",
         license="BSD-3-Clause",
         entry_points={
