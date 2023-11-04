@@ -603,13 +603,13 @@ stevedore = "*"
 
 [[package]]
 name = "edx-drf-extensions"
-version = "8.12.0"
+version = "8.13.0"
 description = "edX extensions of Django REST Framework"
 optional = false
 python-versions = "*"
 files = [
-    {file = "edx-drf-extensions-8.12.0.tar.gz", hash = "sha256:97d2a5cfa422406bd4557ae32c3974bf968b27bed2f4809d5d016f035248add8"},
-    {file = "edx_drf_extensions-8.12.0-py2.py3-none-any.whl", hash = "sha256:9106804231c66245a721c8bd97ff06bb85703afa0e5d216fd97caed9cf164ee9"},
+    {file = "edx-drf-extensions-8.13.0.tar.gz", hash = "sha256:9d388ced671891c3281f9dc449a1a721daaf5c2bf4476832bc4d8e3fa9061fd1"},
+    {file = "edx_drf_extensions-8.13.0-py2.py3-none-any.whl", hash = "sha256:0c7030cdcfee71215b0a1c25b001b22e3ae39d571ec02d7c63fe6dc55ae9f6b2"},
 ]
 
 [package.dependencies]
