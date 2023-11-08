@@ -12,7 +12,7 @@ python_distribution(
     ],
     provides=setup_py(
         name="ol-openedx-canvas-integration",
-        version="0.2.6",
+        version="0.3.0",
         description="An Open edX plugin to add canvas integration support",
         license="BSD-3-Clause",
         entry_points={

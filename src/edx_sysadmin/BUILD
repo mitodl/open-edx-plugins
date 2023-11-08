@@ -21,7 +21,7 @@ python_distribution(
     ],
     provides=setup_py(
         name="edx-sysadmin",
-        version="0.2.3",
+        version="0.3.0",
         description="An Open edX plugin to enable SysAdmin panel",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
