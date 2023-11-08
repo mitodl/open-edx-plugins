@@ -2,7 +2,7 @@
 ol_openedx_rapid_response_reports Django application plugin context initialization.
 """
 
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from rapid_response_xblock.utils import get_run_data_for_course
 from web_fragments.fragment import Fragment
 
