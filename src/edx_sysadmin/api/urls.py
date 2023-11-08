@@ -1,7 +1,7 @@
 """
 URLs for edx_sysadmin.
 """
-from django.conf.urls import url
+from django.urls import re_path
 from edx_sysadmin.api.views import (
     GitCourseDetailsAPIView,
     GitReloadAPIView,
@@ -10,8 +10,8 @@ from edx_sysadmin.api.views import (
 app_name = "api"
 
 urlpatterns = [
-    url("^gitreload/$", GitReloadAPIView.as_view(), name="git-reload"),
-    url(
+    re_path("^gitreload/$", GitReloadAPIView.as_view(), name="git-reload"),
+    re_path(
         "^gitcoursedetails/$",
         GitCourseDetailsAPIView.as_view(),
         name="git-course-details",

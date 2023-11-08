@@ -13,7 +13,7 @@ python_distribution(
     ],
     provides=setup_py(
         name="ol-openedx-rapid-response-reports",
-        version="0.2.2",
+        version="0.3.0",
         description="An Open edX plugin to add rapid response reports support",
         license="BSD-3-Clause",
         entry_points={

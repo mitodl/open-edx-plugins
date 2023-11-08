@@ -5,7 +5,7 @@ from common.djangoapps.student.models import CourseEnrollment, CourseEnrollmentA
 from common.djangoapps.util.json_request import JsonResponse
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.views.decorators.cache import cache_control
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
