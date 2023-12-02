@@ -582,13 +582,13 @@ test = ["mock", "pytest (>=3.0)", "pytest-cov", "pytest-django", "pytest-runner"
 
 [[package]]
 name = "edx-django-utils"
-version = "5.8.0"
+version = "5.9.0"
 description = "EdX utilities for Django Application development."
 optional = false
 python-versions = "*"
 files = [
-    {file = "edx-django-utils-5.8.0.tar.gz", hash = "sha256:2c4fa3620668eece7035010b64ca7d6eba58eda0cdad68760abf56a24081188a"},
-    {file = "edx_django_utils-5.8.0-py2.py3-none-any.whl", hash = "sha256:df0c84d3bb7d79a0e77a3c41cac6d9e5c654ec2836d25d6b0913596594188b32"},
+    {file = "edx-django-utils-5.9.0.tar.gz", hash = "sha256:6eb24a2771b5af6c874a1a51c90d8264a2a1a192a9d35a0427bd5338715a7ee2"},
+    {file = "edx_django_utils-5.9.0-py2.py3-none-any.whl", hash = "sha256:a5c48c12b62d086b1877f528f81652e1ca009c5c35b3769a90ae5cb053cf4e5c"},
 ]
 
 [package.dependencies]
