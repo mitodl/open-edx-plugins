@@ -1,6 +1,6 @@
 # Important
 
-Ensure you update the version number in `src/<plugin>/BUILD` before any merge to `main`. Failure to do so will overwrite the existing, published version.
+Ensure you update the version number in `src/<plugin>/BUILD` before any merge to `main`.
 
 # Build and Publish
 
