@@ -23,3 +23,7 @@ python_distribution(
         },
     ),
 )
+
+python_tests(
+    name="tests",
+)

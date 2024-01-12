@@ -6,7 +6,6 @@ import os
 import shutil
 from datetime import datetime
 from uuid import uuid4
-
 from common.djangoapps.student.roles import CourseStaffRole, GlobalStaff
 from common.djangoapps.student.tests.factories import UserFactory
 from common.djangoapps.util.date_utils import DEFAULT_DATE_TIME_FORMAT, get_time_display
@@ -14,7 +13,7 @@ from django.conf import settings
 from django.test.client import Client
 from django.test.utils import override_settings
 from django.urls import reverse
-from edx_sysadmin.git_import import GitImportErrorNoDir
+from edx_sysadmin.git_import import GitImportNoDirError
 from edx_sysadmin.models import CourseGitLog
 from opaque_keys.edx.locator import CourseLocator
 from openedx.core.djangolib.markup import Text
@@ -113,7 +112,7 @@ class SysadminBaseTestCase(SharedModuleStoreTestCase):  # pragma: allowlist secr
 
 
 @override_settings(
-    GIT_REPO_DIR="/edx-sysadmin" / settings.TEST_ROOT / f"course_repos_{uuid4().hex}",
+    GIT_REPO_DIR="/src/edx_sysadmin" / settings.TEST_ROOT / f"course_repos_{uuid4().hex}",
 )
 class TestSysAdminMongoCourseImport(SysadminBaseTestCase):
     """
@@ -152,7 +151,7 @@ class TestSysAdminMongoCourseImport(SysadminBaseTestCase):
         # Create git loaded course
         response = self._add_edx4edx()
         self.assertContains(
-            response, Text(str(GitImportErrorNoDir(settings.GIT_REPO_DIR)))
+            response, Text(str(GitImportNoDirError(settings.GIT_REPO_DIR)))
         )
 
     def test_mongo_course_add_delete(self):
