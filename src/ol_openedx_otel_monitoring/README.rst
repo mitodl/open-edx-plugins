@@ -1,8 +1,3 @@
-.. note::
-
-    This plugin has currently been tested only with the Console Exporter. Logging functionality is not yet integrated. Further development and testing are required for enhanced compatibility and features.
-
-
 Opentelemetry Django Plugin
 =============================
 
