@@ -18,8 +18,5 @@ cd /open-edx-plugins
 
 pip install dist/edx-sysadmin-0.3.0.tar.gz
 
-# Install codecov so we can upload code coverage results
-pip install codecov
-
 # output the packages which are installed for logging
 pip freeze
