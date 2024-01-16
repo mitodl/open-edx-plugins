@@ -28,6 +28,19 @@ jobs:
           make dev.clone.https
           DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh
 
+      -name: Run edx_sysadmin tests
+      run: |
+        set +e
+        cd /open-edx-plugins/src/edx_sysadmin
+        pytest . --cov .
+        PYTEST_SUCCESS=$?
+        if [[ $PYTEST_SUCCESS -ne 0 ]]
+        then
+            echo "pytest exited with a non-zero status"
+            exit $PYTEST_SUCCESS
+        fi
+        set -e
+
       - name: Upload coverage to CodeCov
         uses: codecov/codecov-action@v3
         with:
