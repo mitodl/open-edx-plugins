@@ -134,7 +134,8 @@ class CoursesPanel(SysadminDashboardBaseView):
             "header": [
                 _("Course Name"),
                 _("Directory/ID"),
-                # Translators: "Git Commit" is a computer command; see http://gitref.org/basic/#commit
+                # Translators: "Git Commit" is a computer command; see
+                # http://gitref.org/basic/#commit
                 _("Git Commit"),
                 _("Last Change"),
                 _("Last Editor"),

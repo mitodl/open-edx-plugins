@@ -22,7 +22,7 @@ pip install dist/ol-openedx-canvas-integration-0.3.0.tar.gz
 pip install dist/ol-openedx-checkout-external-0.1.3.tar.gz
 pip install dist/ol-openedx-course-export-0.1.2.tar.gz
 pip install dist/ol-openedx-course-structure-api-0.1.3.tar.gz
-pip install /edx/src/open-edx-plugins/dist/ol-openedx-git-auto-export-0.3.1.tar.gz
+pip install dist/ol-openedx-git-auto-export-0.3.1.tar.gz
 pip install dist/ol-openedx-logging-0.1.0.tar.gz
 pip install dist/ol-openedx-rapid-response-reports-0.3.0.tar.gz
 pip install dist/ol-openedx-sentry-0.1.2.tar.gz
@@ -40,7 +40,7 @@ pycodestyle open_edx-plugins tests
 PYCODESTYLE_SUCCESS=$?
 
 echo "Running pylint"
-(cd /edx/app/edxapp/edx-platform; pylint /open-edx-plugins/open-edx-plugins)
+(cd /edx/app/edxapp/edx-platform; pylint /open-edx-plugins/src)
 PYLINT_SUCCESS=$?
 
 if [[ $PYCODESTYLE_SUCCESS -ne 0 ]]

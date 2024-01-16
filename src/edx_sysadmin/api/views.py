@@ -4,6 +4,13 @@ import subprocess
 
 from django.conf import settings
 from django.utils.translation import gettext as _
+
+from path import Path as get_path  # noqa: N813
+from rest_framework import permissions, status
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from edx_sysadmin.api.permissions import GithubWebhookPermission
 from edx_sysadmin.git_import import (
     DEFAULT_GIT_REPO_DIR,
@@ -14,11 +21,6 @@ from edx_sysadmin.utils.utils import (
     get_local_active_branch,
     get_local_course_repo,
 )
-from path import Path as get_path  # noqa: N813
-from rest_framework import permissions, status
-from rest_framework.authentication import SessionAuthentication
-from rest_framework.response import Response
-from rest_framework.views import APIView
 
 logger = logging.getLogger(__name__)
 
