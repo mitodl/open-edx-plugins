@@ -23,5 +23,3 @@ pip install codecov
 
 # output the packages which are installed for logging
 pip freeze
-
-coverage xml
