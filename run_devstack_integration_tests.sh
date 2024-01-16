@@ -7,8 +7,8 @@ cd /edx/app/edxapp/edx-platform
 mkdir -p reports
 
 pip install -r ./requirements/edx/testing.txt
-
-pip install -e .
+pip install -r ./requirements/edx/paver.txt
+sudo npm install -g rtlcss
 
 mkdir -p test_root  # for edx
 paver update_assets lms --settings=test_static_optimized
@@ -28,7 +28,12 @@ pip freeze
 
 set +e
 
-pytest src/edx_sysadmin --cov .
+cd src/edx_sysadmin
+echo "===============Present Working Directory==============="
+pwd
+echo "===============ls====================="
+ls
+pytest . --cov .
 PYTEST_SUCCESS=$?
 
 if [[ $PYTEST_SUCCESS -ne 0 ]]

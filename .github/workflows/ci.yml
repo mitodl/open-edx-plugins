@@ -26,7 +26,7 @@ jobs:
           cd devstack
           sed -i 's/:cached//g' ./docker-compose-host.yml
           make dev.clone.https
-          DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh
+          DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/../open-edx-plugins:/open-edx-plugins lms open-edx-plugins/run_devstack_integration_tests.sh
 
       - name: Upload coverage to CodeCov
         uses: codecov/codecov-action@v3
