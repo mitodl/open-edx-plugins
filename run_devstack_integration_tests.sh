@@ -8,7 +8,6 @@ mkdir -p reports
 
 pip install -r ./requirements/edx/testing.txt
 pip install -r ./requirements/edx/paver.txt
-sudo npm install -g rtlcss
 
 mkdir -p test_root  # for edx
 paver update_assets lms --settings=test_static_optimized
