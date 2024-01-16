@@ -6,6 +6,7 @@ import os
 import shutil
 from datetime import datetime
 from uuid import uuid4
+
 from common.djangoapps.student.roles import CourseStaffRole, GlobalStaff
 from common.djangoapps.student.tests.factories import UserFactory
 from common.djangoapps.util.date_utils import DEFAULT_DATE_TIME_FORMAT, get_time_display
