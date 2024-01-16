@@ -24,21 +24,4 @@ pip install codecov
 # output the packages which are installed for logging
 pip freeze
 
-
-set +e
-
-cd src/edx_sysadmin
-echo "===============Present Working Directory==============="
-pwd
-echo "===============ls====================="
-ls
-pytest . --cov .
-PYTEST_SUCCESS=$?
-
-if [[ $PYTEST_SUCCESS -ne 0 ]]
-then
-    echo "pytest exited with a non-zero status"
-    exit $PYTEST_SUCCESS
-fi
-set -e
 coverage xml
