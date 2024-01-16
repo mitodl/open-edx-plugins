@@ -27,7 +27,10 @@ jobs:
           sed -i 's/:cached//g' ./docker-compose-host.yml
           make dev.clone.https
           DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh
-
+      
+      - name: Install pytest
+        run: pip install pytest
+      
       - name: Run edx_sysadmin tests
         run: |
           set +e
