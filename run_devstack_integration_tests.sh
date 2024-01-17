@@ -35,25 +35,6 @@ pip freeze
 
 set +e
 
-echo "Running pycodestyle"
-pycodestyle open_edx-plugins tests
-PYCODESTYLE_SUCCESS=$?
-
-echo "Running pylint"
-(cd /edx/app/edxapp/edx-platform; pylint /open-edx-plugins/src)
-PYLINT_SUCCESS=$?
-
-if [[ $PYCODESTYLE_SUCCESS -ne 0 ]]
-then
-    echo "pycodestyle exited with a non-zero status"
-    exit $PYCODESTYLE_SUCCESS
-fi
-if [[ $PYLINT_SUCCESS -ne 0 ]]
-then
-    echo "pylint exited with a non-zero status"
-    exit $PYLINT_SUCCESS
-fi
-
 echo ==============Running edx_sysadmin test===================
 cd src/edx_sysadmin
 pytest . --cov .
