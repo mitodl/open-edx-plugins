@@ -635,13 +635,13 @@ stevedore = "*"
 
 [[package]]
 name = "edx-drf-extensions"
-version = "8.13.1"
+version = "9.1.2"
 description = "edX extensions of Django REST Framework"
 optional = false
 python-versions = "*"
 files = [
-    {file = "edx-drf-extensions-8.13.1.tar.gz", hash = "sha256:d5181bada3fdb27936f2d9c8ff50cb3cacb5d5cddebf73def2cda60dacbbbcce"},
-    {file = "edx_drf_extensions-8.13.1-py2.py3-none-any.whl", hash = "sha256:3c27e742e1442b4b9f43c249f05a2c152e54a89cf32eaf07405832fadcd5ddfd"},
+    {file = "edx-drf-extensions-9.1.2.tar.gz", hash = "sha256:e17c9cc6d166be6277bf4cf96ec0b15f05429f0bcd8ab8f19c81f42f100a1637"},
+    {file = "edx_drf_extensions-9.1.2-py2.py3-none-any.whl", hash = "sha256:e66bd4d1f040a7ddf2838751f5fa32100fef412cc5ccecbdbfab2437cb6b5d6f"},
 ]
 
 [package.dependencies]
@@ -2159,4 +2159,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8"
-content-hash = "216eb247cf33a2f6e7b59dc7678201aa439cdf60384d34d38b4b1cf9d00b11f8"
+content-hash = "b99eec245903ebc8b9f15a754c45f7bd232629630cd07379e7aa11ff95cb8a20"
