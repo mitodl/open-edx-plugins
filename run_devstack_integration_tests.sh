@@ -13,7 +13,7 @@ mkdir -p test_root  # for edx
 paver update_assets lms --settings=test_static_optimized
 
 cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-stats.json
-cp -r test_root/ /open-edx-plugins/src/edx_sysadmin/test_root
+
 
 cd /open-edx-plugins
 
@@ -35,16 +35,28 @@ pip freeze
 
 set +e
 
-echo ==============Running edx_sysadmin test===================
-cd src/edx_sysadmin
-pytest . --cov .
-PYTEST_SUCCESS=$?
 
-if [[ $PYTEST_SUCCESS -ne 0 ]]
-then
-    echo "pytest exited with a non-zero status"
-    exit $PYTEST_SUCCESS
-fi
+set +e
+for subdir in "src"/*; do
+    if [ -d "$subdir" ]; then
+        tests_directory="$subdir/tests"
+        
+        # Check if tests directory exists
+        if [ -d "$tests_directory" ]; then
+            cp -r /edx/app/edxapp/edx-platform/test_root/ "/open-edx-plugins/src/$subdir/test_root"
+            echo "==============Running $subdir test==================="
+            cd "src/$subdir"         
+            pytest . --cov .
+            PYTEST_SUCCESS=$?
+
+            if [[ $PYTEST_SUCCESS -ne 0 ]]
+            then
+                echo "pytest exited with a non-zero status"
+                exit $PYTEST_SUCCESS
+            fi
+            cd ../..
+        fi
+    fi
+done
 set -e
 coverage xml
-cd ../..
