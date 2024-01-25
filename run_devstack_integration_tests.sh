@@ -40,12 +40,12 @@ set +e
 for subdir in "src"/*; do
     if [ -d "$subdir" ]; then
         tests_directory="$subdir/tests"
-        
+
         # Check if tests directory exists
         if [ -d "$tests_directory" ]; then
             cp -r /edx/app/edxapp/edx-platform/test_root/ "/open-edx-plugins/$subdir/test_root"
             echo "==============Running $subdir test==================="
-            cd "$subdir"         
+            cd "$subdir"
             pytest . --cov .
             PYTEST_SUCCESS=$?
 

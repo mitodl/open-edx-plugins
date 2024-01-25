@@ -1,3 +1,4 @@
+---
 name: CI
 on: [push]
 jobs:
@@ -6,39 +7,39 @@ jobs:
     strategy:
       matrix:
         devstack-branch:
-          - master
-          - open-release/quince.master
-          - open-release/palm.master
-          - open-release/olive.master
+        - master
+        - open-release/quince.master
+        - open-release/palm.master
+        - open-release/olive.master
           # Add more branches as needed
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.8.15"
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.8.15"
 
-      - name: Set up Pants
-        run: |
-          # Install Pants
-          export PATH=$PATH:/root/.local/bin
-          curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
-          pants package ::
-      
-      - name: Setup edX & Run Tests
-        run: |
-          cd ..
-          git clone https://github.com/edx/devstack.git
-          cd devstack
-          sed -i 's/:cached//g' ./docker-compose-host.yml
-          git checkout ${{ matrix.devstack-branch }}
-          make dev.clone.https
-          DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh   
-            
-      - name: Upload coverage to CodeCov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
+    - name: Set up Pants
+      run: |
+        # Install Pants
+        export PATH=$PATH:/root/.local/bin
+        curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
+        pants package ::
+
+    - name: Setup edX & Run Tests
+      run: |
+        cd ..
+        git clone https://github.com/edx/devstack.git
+        cd devstack
+        sed -i 's/:cached//g' ./docker-compose-host.yml
+        git checkout ${{ matrix.devstack-branch }}
+        make dev.clone.https
+        DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh
+
+    - name: Upload coverage to CodeCov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false

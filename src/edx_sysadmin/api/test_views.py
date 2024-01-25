@@ -6,7 +6,6 @@ from unittest.mock import patch
 import ddt
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from git import Repo
 from rest_framework import status as _status
 from rest_framework.test import APIClient
 
@@ -27,7 +26,6 @@ class GitReloadAPIViewTestCase(TestCase):
 
     @override_settings(SYSADMIN_GITHUB_WEBHOOK_KEY=SYSADMIN_GITHUB_WEBHOOK_KEY)
     @override_settings(SYSADMIN_DEFAULT_BRANCH="master")
-
     @ddt.data(
         (
             "d3a2424a1ad48d8441712400fd75392d56707a7b3e1dc4869239d87ee381cfa9",  # pragma: allowlist secret  # noqa: E501

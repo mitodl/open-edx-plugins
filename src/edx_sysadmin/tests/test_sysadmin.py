@@ -113,7 +113,7 @@ class SysadminBaseTestCase(SharedModuleStoreTestCase):  # pragma: allowlist secr
 
 
 @override_settings(
-    GIT_REPO_DIR= settings.TEST_ROOT / f"course_repos_{uuid4().hex}",
+    GIT_REPO_DIR=settings.TEST_ROOT / f"course_repos_{uuid4().hex}",
 )
 class TestSysAdminMongoCourseImport(SysadminBaseTestCase):
     """
