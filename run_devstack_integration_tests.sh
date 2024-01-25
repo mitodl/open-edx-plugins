@@ -54,9 +54,9 @@ for subdir in "src"/*; do
                 echo "pytest exited with a non-zero status"
                 exit $PYTEST_SUCCESS
             fi
+            coverage xml
             cd ../..
         fi
     fi
 done
 set -e
-coverage xml
