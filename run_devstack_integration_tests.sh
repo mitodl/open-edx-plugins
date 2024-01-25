@@ -43,9 +43,9 @@ for subdir in "src"/*; do
         
         # Check if tests directory exists
         if [ -d "$tests_directory" ]; then
-            cp -r /edx/app/edxapp/edx-platform/test_root/ "/open-edx-plugins/src/$subdir/test_root"
+            cp -r /edx/app/edxapp/edx-platform/test_root/ "/open-edx-plugins/$subdir/test_root"
             echo "==============Running $subdir test==================="
-            cd "src/$subdir"         
+            cd "$subdir"         
             pytest . --cov .
             PYTEST_SUCCESS=$?
 
