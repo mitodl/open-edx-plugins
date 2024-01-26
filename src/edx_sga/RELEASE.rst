@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.23.1
+--------------
+
+- fix: use block_id in place of name attribute (#350)
+
 Version 0.23.0 (Released September 15, 2023)
 --------------
 
