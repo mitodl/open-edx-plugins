@@ -23,7 +23,7 @@ class Command(BaseCommand):
     # versioned files. A branch is a sub grouping of a repository that
     # has a specific version of the repository. A modulestore is the database used
     # to store the courses for use on the Web site.
-    help = (  # noqa: A003
+    help = (
         "Usage: "
         "git_add_course repository_url [directory to check out into] [repository_branch] "  # noqa: E501
         "\n{}".format(
