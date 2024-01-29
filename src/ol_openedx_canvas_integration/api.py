@@ -1,4 +1,5 @@
 """Utility functions for canvas integration"""
+
 import logging
 from collections import defaultdict
 

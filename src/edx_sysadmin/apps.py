@@ -1,6 +1,7 @@
 """
 edx_sysadmin Django application initialization.
 """
+
 from django.apps import AppConfig
 
 

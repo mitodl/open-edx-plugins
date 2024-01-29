@@ -1,6 +1,7 @@
 """
 Utility function defined here.
 """
+
 # pylint: disable=wrong-import-order
 import json
 import logging
@@ -174,18 +175,18 @@ def create_user_through_db_models(data):
             profile.name = data.get("name")
             profile.save()
 
-            context[
-                "success_message"
-            ] = f"{_('A new account has been registered for user')}: {data['username']}"
+            context["success_message"] = (
+                f"{_('A new account has been registered for user')}: {data['username']}"
+            )
         else:
-            context[
-                "error_message"
-            ] = f"{_('An account already exists with email')}: {data['email']}"
+            context["error_message"] = (
+                f"{_('An account already exists with email')}: {data['email']}"
+            )
             return context
     except Exception as err:  # noqa: BLE001
-        context[
-            "error_message"
-        ] = f"{_('Account could not be created due to following error')}: {err}"
+        context["error_message"] = (
+            f"{_('Account could not be created due to following error')}: {err}"
+        )
 
     return context
 
@@ -209,13 +210,13 @@ def make_reg_api_request(data):
     resp = requests.post(api_endpoint, data=data)  # noqa: S113
 
     if resp.status_code == 200:  # noqa: PLR2004
-        context[
-            "success_message"
-        ] = f"{_('A new account has been registered through API for user')}: {data.get('username')}"  # noqa: E501
+        context["success_message"] = (
+            f"{_('A new account has been registered through API for user')}: {data.get('username')}"  # noqa: E501
+        )
     else:
-        context[
-            "error_message"
-        ] = f"{_('Account could not be created due to following error(s)')}: {transform_error_message(resp.content)}"  # noqa: E501
+        context["error_message"] = (
+            f"{_('Account could not be created due to following error(s)')}: {transform_error_message(resp.content)}"  # noqa: E501
+        )
 
     return context
 

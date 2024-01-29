@@ -1,6 +1,7 @@
 """
 Script for importing courseware from git/xml into a mongo modulestore
 """
+
 # pylint: disable=wrong-import-order
 
 import logging

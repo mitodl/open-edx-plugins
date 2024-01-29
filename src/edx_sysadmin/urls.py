@@ -1,6 +1,7 @@
 """
 URLs for edx_sysadmin.
 """
+
 from django.urls import include, re_path
 from edx_sysadmin.views import (
     CoursesPanel,

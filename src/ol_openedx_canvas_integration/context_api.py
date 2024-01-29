@@ -1,6 +1,7 @@
 """
 The initialization of the context for the Canvas Integration Plugin
 """
+
 import pkg_resources
 from django.urls import reverse
 from django.utils.translation import gettext as _

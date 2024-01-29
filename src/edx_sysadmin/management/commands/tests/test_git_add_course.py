@@ -1,6 +1,7 @@
 """
 Provide tests for git_add_course management command.
 """
+
 # pylint: disable=wrong-import-order
 import contextlib
 import logging

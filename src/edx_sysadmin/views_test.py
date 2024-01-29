@@ -1,6 +1,7 @@
 """
 Tests for views
 """
+
 import pytest
 
 pytestmark = [pytest.mark.django_db]

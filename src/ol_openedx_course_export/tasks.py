@@ -1,6 +1,7 @@
 """
 This file contains celery tasks related to S3 course export plugin.
 """
+
 import logging
 
 from botocore.exceptions import ClientError
