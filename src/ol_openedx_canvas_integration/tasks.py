@@ -1,4 +1,5 @@
 """Tasks for canvas"""
+
 import hashlib
 import logging
 from functools import partial

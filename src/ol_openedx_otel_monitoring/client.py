@@ -5,6 +5,7 @@ It configures tracing and metrics based on the settings defined in
 Django's settings module.
 It also supports enabling SQLCommenter instrumentation for Django.
 """
+
 import logging
 
 from django.conf import settings

@@ -1,6 +1,7 @@
 """
 Tests for Permissions
 """
+
 from unittest.mock import patch
 
 import ddt

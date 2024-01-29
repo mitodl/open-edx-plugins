@@ -2,7 +2,6 @@
 Utilities for use in Mako markup.
 """
 
-
 import markupsafe
 
 # Text() can be used to declare a string as plain text, as HTML() is used

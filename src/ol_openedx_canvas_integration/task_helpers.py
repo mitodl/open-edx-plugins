@@ -1,6 +1,7 @@
 """
 Helper functions for canvas integration tasks
 """
+
 from time import time
 
 from lms.djangoapps.courseware.courses import get_course_by_id

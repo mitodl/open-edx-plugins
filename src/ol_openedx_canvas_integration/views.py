@@ -1,4 +1,5 @@
 """Views for canvas integration"""
+
 import logging
 
 from common.djangoapps.student.models import CourseEnrollment, CourseEnrollmentAllowed

@@ -8,6 +8,7 @@ WARNING: By default, this module uses 'ConsoleSpanExporter' as an exporter.
 For production environments, it is recommended to configure
 a more suitable exporter, such as 'otlp'.
 """
+
 import logging
 from importlib import import_module
 from urllib.parse import urlparse

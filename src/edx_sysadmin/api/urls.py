@@ -1,6 +1,7 @@
 """
 URLs for edx_sysadmin.
 """
+
 from django.urls import re_path
 from edx_sysadmin.api.views import (
     GitCourseDetailsAPIView,

@@ -1,6 +1,5 @@
 """Production settings unique to canvas integration plugin."""
 
-
 from path import Path as path  # noqa: N813
 
 PLUGIN_TEMPLATES_ROOT = path(__file__).abspath().dirname().dirname()

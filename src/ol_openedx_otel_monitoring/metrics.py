@@ -9,6 +9,7 @@ WARNING: By default, this uses 'ConsoleMetricExporter' as an exporter.
 For production environments, it's recommended to configure a more
 appropriate exporter, such as 'otlp'.
 """
+
 import logging
 from importlib import import_module
 from urllib.parse import urlparse

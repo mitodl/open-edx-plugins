@@ -1,6 +1,7 @@
 """
 Database models for edx_sysadmin.
 """
+
 from django.db import models
 from jsonfield.fields import JSONField
 from opaque_keys.edx.django.models import CourseKeyField

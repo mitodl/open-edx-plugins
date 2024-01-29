@@ -2,6 +2,7 @@
 Provides a function for importing a git repository into the lms
 instance when using a mongo modulestore
 """
+
 # pylint: disable=wrong-import-order
 
 import logging
