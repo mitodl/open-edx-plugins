@@ -1,7 +1,11 @@
 python_sources(
     name="otel_monitoring",
     dependencies=[
-        "src/ol_openedx_otel_monitoring/settings:plugin_settings"
+        "src/ol_openedx_otel_monitoring/settings:plugin_settings",
+        "//:external_dependencies#opentelemetry-distro",
+        "//:external_dependencies#opentelemetry-instrumentation-django",
+        "//:external_dependencies#opentelemetry-exporter-richconsole",
+        "//:external_dependencies#opentelemetry-exporter-otlp-proto-http",
     ],
 )
 
