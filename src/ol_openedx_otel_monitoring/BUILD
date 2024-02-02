@@ -14,7 +14,7 @@ python_distribution(
     dependencies=[":otel_monitoring"],
     provides=setup_py(
         name="ol-openedx-otel-monitoring",
-        version="0.1.0",
+        version="0.1.1",
         description="OTel Monitoring",
         license="BSD-3-Clause",
         entry_points={
