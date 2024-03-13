@@ -1,0 +1,185 @@
+.rapid-response-block {
+    position: relative;
+    background-color: #f7f7f7;
+    padding: 30px;
+}
+
+.rapid-response-block label {
+    font-size: 14px;
+}
+
+.problem-status-toggle,
+.timer-readout,
+.problem-status-text {
+    margin-right: 30px;
+}
+
+.problem-status-toggle {
+    border-radius: 5px;
+    border: 2px solid #1176b2;
+    color: #1176b2;
+    background: transparent;
+    font-weight: 600;
+    padding: 0.625rem 1rem !important;
+    cursor: pointer;
+}
+
+.problem-status-toggle.disabled {
+    color: #7a7a7a;
+    cursor: none;
+    border: 2px solid #7a7a7a;
+}
+
+.rapid-response-title {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.rapid-response-controls {
+    min-height: 70px;
+    padding-bottom: 10px;
+}
+
+.tick text {
+    font-size: 13pt !important;
+    fill: rgba(0, 0, 0, 0.87);
+}
+
+text.message {
+    font-size: 30pt;
+}
+
+.hidden {
+    display: none;
+}
+
+.rapid-response-results-container {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+.rapid-response-results {
+    display: flex;
+    flex-direction: row;
+}
+
+.chart-title {
+    color: black;
+    font-weight: 600;
+    padding: 0 0 20px 0;
+}
+
+.buttons-row, .problem-status-warning {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.timer-readout {
+    font-size: 15pt;
+    color: #7a7a7a;
+    background-color: #f0f0f0;
+    padding: 10px;
+}
+
+.timer-readout.on {
+    color: black;
+}
+
+.problem-status-spinner,
+.problem-status-warning .warning-icon {
+    font-size: 35pt;
+}
+
+.problem-status-spinner,
+.problem-status-text {
+    color: #1aafdd;
+}
+
+.problem-status-warning {
+    color: rgb(212, 64, 64); /* $danger-red from LMS */
+}
+
+.problem-status-text,
+.problem-status-warning .warning-text {
+    margin-left: 10px;
+    font-size: 14px;
+}
+
+.selection-container {
+    font-size: 14pt;
+}
+
+.selection-container a {
+    padding: 0 10px;
+    cursor: pointer;
+}
+
+.selection-container select {
+    font-size: 13pt;
+    padding: 10px;
+    margin-right: 25px;
+}
+
+.selection-container {
+    font-size: 14pt;
+}
+
+.wrap-instructor-info {
+    margin-bottom: 30px;
+}
+
+.wrap-instructor-info br {
+    clear: both;
+}
+
+.xblock {
+    max-width: inherit !important;
+}
+
+.num-students {
+    font-size: 14pt;
+}
+
+.rapid-response-tooltip-container {
+    position: absolute;
+    z-index: 2;
+}
+
+.rapid-response-tooltip {
+    border: 1px solid lightgrey;
+    background-color: white;
+    padding: 10px;
+    line-height: 1.4;
+    font-size: 11pt;
+    width: 235px;
+}
+
+.rapid-response-tooltip .tooltip-title {
+    font-size: 12pt;
+    font-weight: 600;
+    padding-bottom: 5px;
+    line-height: 1.2;
+}
+
+.rapid-response-tooltip .tooltip-percent, .rapid-response-tooltip .tooltip-total {
+    font-weight: 600;
+}
+
+.rapid-response-block .rapid-response-error-overlay {
+    position : absolute;
+    z-index : 10;
+    top : 0;
+    left : 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    opacity: 0.7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #fff;
+}
