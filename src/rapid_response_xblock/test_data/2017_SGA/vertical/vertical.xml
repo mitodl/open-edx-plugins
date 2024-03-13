@@ -1,0 +1,14 @@
+<vertical display_name="SGA Unit">
+    <problem url_name="2582bbb68672426297e525b49a383eb8" display_name="Multiple Choice" markdown="&#10;You can use this template as a guide to the simple editor markdown and OLX markup to use for multiple choice problems. Edit this component to replace this template with your own assessment.&#10;&#10;&gt;&gt;Add the question text, or prompt, here. This text is required.||You can add an optional tip or note related to the prompt like this. &lt;&lt;&#10;&#10;( ) an incorrect answer&#10;(x) the correct answer&#10;( ) an incorrect answer&#10;">
+      <multiplechoiceresponse>
+        <p>You can use this template as a guide to the simple editor markdown and OLX markup to use for multiple choice problems. Edit this component to replace this template with your own assessment.</p>
+        <label>Add the question text, or prompt, here. This text is required.</label>
+        <description>You can add an optional tip or note related to the prompt like this.</description>
+        <choicegroup>
+          <choice correct="false">an incorrect answer</choice>
+          <choice correct="true">the correct answer</choice>
+          <choice correct="false">a different incorrect answer</choice>
+        </choicegroup>
+      </multiplechoiceresponse>
+    </problem>
+</vertical>

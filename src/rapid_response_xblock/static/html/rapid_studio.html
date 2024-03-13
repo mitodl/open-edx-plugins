@@ -1,0 +1,11 @@
+<div class="rapid-response-block" data-enabled="{{ is_enabled }}">
+  <div class="rapid-response-content">
+  </div>
+
+  <script type="text/template" id="rapid-response-toggle-tmpl">
+    <label>
+      <input type="checkbox" class="rapid-enabled-toggle" <% if (is_enabled) { %>checked<% } %>/>
+      Enable problem for rapid-response
+    </label>
+  </script>
+</div>
