@@ -6,26 +6,26 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('rapid_response_xblock', '0004_run'),
+        ("rapid_response_xblock", "0004_run"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='rapidresponserun',
-            options={'ordering': ['-created']},
+            name="rapidresponserun",
+            options={"ordering": ["-created"]},
         ),
         migrations.RemoveField(
-            model_name='rapidresponserun',
-            name='name',
+            model_name="rapidresponserun",
+            name="name",
         ),
         migrations.AlterField(
-            model_name='rapidresponserun',
-            name='created',
+            model_name="rapidresponserun",
+            name="created",
             field=models.DateTimeField(auto_now_add=True, db_index=True),
         ),
         migrations.AlterField(
-            model_name='rapidresponserun',
-            name='modified',
+            model_name="rapidresponserun",
+            name="modified",
             field=models.DateTimeField(auto_now=True),
         ),
     ]

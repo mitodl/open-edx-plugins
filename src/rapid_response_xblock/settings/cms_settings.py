@@ -1,3 +1,4 @@
+# noqa: INP001
 """Settings to provide to edX"""
 
 def plugin_settings(settings):
@@ -6,4 +7,4 @@ def plugin_settings(settings):
     """
     settings.ENABLE_RAPID_RESPONSE_AUTHOR_VIEW = False
 
-DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"

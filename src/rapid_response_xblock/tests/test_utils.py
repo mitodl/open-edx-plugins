@@ -1,11 +1,10 @@
 """Tests for the util methods"""
 import pytest
+from common.djangoapps.student.tests.factories import UserFactory
 from opaque_keys.edx.keys import UsageKey
-
-from tests.utils import RuntimeEnabledTestCase
 from rapid_response_xblock.models import RapidResponseRun, RapidResponseSubmission
 from rapid_response_xblock.utils import get_run_data_for_course, get_run_submission_data
-from common.djangoapps.student.tests.factories import UserFactory
+from tests.utils import RuntimeEnabledTestCase
 
 
 class TestUtils(RuntimeEnabledTestCase):
@@ -24,9 +23,9 @@ class TestUtils(RuntimeEnabledTestCase):
         """Verify that method returns list fo dicts with required fields."""
         expected = [
             {
-                'id': self.problem_run.id,
-                'created': self.problem_run.created,
-                'problem_usage_key': self.problem_run.problem_usage_key
+                "id": self.problem_run.id,
+                "created": self.problem_run.created,
+                "problem_usage_key": self.problem_run.problem_usage_key
             }
         ]
 
@@ -46,9 +45,9 @@ class TestUtils(RuntimeEnabledTestCase):
             }
         }
 
-        submission = RapidResponseSubmission.objects.create(run=self.problem_run, user=user, event=event_data)
+        submission = RapidResponseSubmission.objects.create(run=self.problem_run, user=user, event=event_data)  # noqa: E501
         expected = [[
-            submission.created, submission.answer_text, submission.user.username, submission.user.email, answer
+            submission.created, submission.answer_text, submission.user.username, submission.user.email, answer  # noqa: E501
         ]]
         submissions_data = get_run_submission_data(self.problem_run.id)
 

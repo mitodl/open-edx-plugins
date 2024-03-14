@@ -1,12 +1,11 @@
 """Pytest config"""
 import json
 import logging
-import os
+from pathlib import Path
 
 import pytest
 
-
-BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+BASE_DIR = Path(__file__).parent.absolute()
 
 
 def pytest_addoption(parser):
@@ -29,9 +28,9 @@ def pytest_configure(config):
         logging.disable(logging.WARNING)
 
 
-@pytest.fixture(scope="function")
-def example_event(request):
-    """An example real event captured previously"""
-    with open(os.path.join(BASE_DIR, "..", "test_data", "example_event.json")) as f:
+@pytest.fixture()
+def example_event(request):  # noqa: PT004
+    """An example real event captured previously"""  # noqa: D401
+    with Path.open(BASE_DIR / ".." / "test_data"/ "example_event.json") as f:
         request.cls.example_event = json.load(f)
         yield

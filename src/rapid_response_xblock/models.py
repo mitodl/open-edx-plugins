@@ -5,7 +5,6 @@ Rapid Response block models
 
 from django.conf import settings
 from django.db import models
-
 from jsonfield import JSONField
 from model_utils.models import TimeStampedModel
 from opaque_keys.edx.django.models import (
@@ -18,6 +17,7 @@ class RapidResponseRun(models.Model):
     """
     Stores information for a group of RapidResponseSubmission objects
     """
+
     problem_usage_key = UsageKeyField(db_index=True, max_length=255)
     course_key = CourseKeyField(db_index=True, max_length=255)
     open = models.BooleanField(default=False, null=False)
@@ -26,18 +26,12 @@ class RapidResponseRun(models.Model):
     modified = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-created']
+        ordering = ["-created"]
 
     def __str__(self):
         return (
-            "id={id} created={created} problem_usage_key={problem_usage_key} "
-            "course_key={course_key} open={open}".format(
-                id=self.id,
-                created=self.created.isoformat(),
-                problem_usage_key=self.problem_usage_key,
-                course_key=self.course_key,
-                open=self.open,
-            )
+            f"id={self.id} created={self.created.isoformat()} problem_usage_key={self.problem_usage_key} "  # noqa: E501
+            f"course_key={self.course_key} open={self.open}"
         )
 
 
@@ -46,6 +40,7 @@ class RapidResponseSubmission(TimeStampedModel):
     Stores the student submissions for a problem that is
     configured with rapid response
     """
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -58,15 +53,11 @@ class RapidResponseSubmission(TimeStampedModel):
         null=True,
         db_index=True
     )
-    answer_id = models.CharField(null=True, max_length=255)
-    answer_text = models.CharField(null=True, max_length=4096)
+    answer_id = models.CharField(null=True, max_length=255)  # noqa: DJ001
+    answer_text = models.CharField(null=True, max_length=4096)  # noqa: DJ001
     event = JSONField()
 
     def __str__(self):
         return (
-            "user={user} run={run} answer_id={answer_id}".format(
-                user=self.user,
-                run=self.run,
-                answer_id=self.answer_id,
-            )
+            f"user={self.user} run={self.run} answer_id={self.answer_id}"
         )
