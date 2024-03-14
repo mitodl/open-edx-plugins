@@ -1,4 +1,5 @@
 """Utility functions and classes for the rapid response test suite"""
+
 import shutil
 import tempfile
 from contextlib import contextmanager
@@ -35,11 +36,11 @@ def make_scope_ids(usage_key):
         xblock.fields.ScopeIds: A ScopeIds object for the block for usage_key
     """
     block_type = "fake"
-    runtime = TestRuntime(services={"field-data": KvsFieldData(kvs=DictKeyValueStore())})  # noqa: E501
-    def_id = runtime.id_generator.create_definition(block_type)
-    return ScopeIds(
-        "user", block_type, def_id, usage_key
+    runtime = TestRuntime(
+        services={"field-data": KvsFieldData(kvs=DictKeyValueStore())}
     )
+    def_id = runtime.id_generator.create_definition(block_type)
+    return ScopeIds("user", block_type, def_id, usage_key)
 
 
 def combine_dicts(dictionary, extras):
@@ -89,7 +90,7 @@ class RuntimeEnabledTestCase(ModuleStoreTestCase):
             track_function=self.track_function,
             request_token=Mock(),
             course=self.course,
-            **kwargs
+            **kwargs,
         )
         return self.block.runtime
 
@@ -137,12 +138,14 @@ class RuntimeEnabledTestCase(ModuleStoreTestCase):
                 ProblemBlock,
                 scope_ids=block.scope_ids,
                 field_data=block._field_data,  # pylint: disable=protected-access  # noqa: SLF001
-                for_parent=block.get_parent()
+                for_parent=block.get_parent(),
             )
 
             return block
 
-        with patch("rapid_response_xblock.block.modulestore", autospec=True) as modulestore_mock:  # noqa: E501
+        with patch(
+            "rapid_response_xblock.block.modulestore", autospec=True
+        ) as modulestore_mock:
             modulestore_mock.return_value.get_item.side_effect = wrap_runtime
             yield modulestore_mock
 

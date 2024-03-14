@@ -1,4 +1,5 @@
 """Rapid-response functionality"""
+
 import logging
 from datetime import datetime
 from functools import wraps
@@ -51,14 +52,13 @@ def staff_only(handler_method):
     """
     Wrapper that ensures a handler method is enabled for staff users only
     """  # noqa: D401
+
     @wraps(handler_method)
     def wrapper(aside_instance, *args, **kwargs):
         if not aside_instance.is_staff():
-            return Response(
-                status=403,
-                json_body="Unauthorized (staff only)"
-            )
+            return Response(status=403, json_body="Unauthorized (staff only)")
         return handler_method(aside_instance, *args, **kwargs)
+
     return wrapper
 
 
@@ -75,11 +75,11 @@ class RapidResponseAside(XBlockAside):
         display_name=_("Rapid response enabled status"),
         default=False,
         scope=Scope.settings,
-        help=_("Indicates whether or not a problem is enabled for rapid response")
+        help=_("Indicates whether or not a problem is enabled for rapid response"),
     )
 
     @XBlockAside.aside_for("student_view")
-    def student_view_aside(self, block, context=None):  # pylint: disable=unused-argument  # noqa: ARG002
+    def student_view_aside(self, block, context=None):  # noqa: ARG002
         """
         Renders the aside contents for the student view
         """  # noqa: D401
@@ -87,12 +87,7 @@ class RapidResponseAside(XBlockAside):
         if not self.is_staff() or not self.enabled:
             return fragment
         fragment.add_content(
-            render_template(
-                "static/html/rapid.html",
-                {
-                    "is_open": self.has_open_run
-                }
-            )
+            render_template("static/html/rapid.html", {"is_open": self.has_open_run})
         )
         fragment.add_css(get_resource_bytes("static/css/rapid.css"))
         fragment.add_javascript(get_resource_bytes("static/js/rapid.js"))
@@ -101,7 +96,7 @@ class RapidResponseAside(XBlockAside):
         return fragment
 
     @XBlockAside.aside_for("author_view")
-    def author_view_aside(self, block, context=None):  # pylint: disable=unused-argument  # noqa: ARG002
+    def author_view_aside(self, block, context=None):  # noqa: ARG002
         """
         Renders the aside contents for the author view
         """  # noqa: D401
@@ -110,7 +105,7 @@ class RapidResponseAside(XBlockAside):
         return Fragment("")
 
     @XBlockAside.aside_for("studio_view")
-    def studio_view_aside(self, block, context=None):  # pylint: disable=unused-argument  # noqa: ARG002
+    def studio_view_aside(self, block, context=None):  # noqa: ARG002
         """
         Renders the aside contents for the studio view
         """  # noqa: D401
@@ -118,7 +113,7 @@ class RapidResponseAside(XBlockAside):
 
     @XBlock.handler
     @staff_only
-    def toggle_block_open_status(self, request=None, suffix=None):  # pylint: disable=unused-argument  # noqa: ARG002
+    def toggle_block_open_status(self, request=None, suffix=None):  # noqa: ARG002
         """
         Toggles the open/closed status for the rapid-response-enabled block
         """
@@ -144,7 +139,7 @@ class RapidResponseAside(XBlockAside):
         )
 
     @XBlock.handler
-    def toggle_block_enabled(self, request=None, suffix=None):  # pylint: disable=unused-argument  # noqa: ARG002
+    def toggle_block_enabled(self, request=None, suffix=None):  # noqa: ARG002
         """
         Toggles the enabled status for the rapid-response-enabled block
         """
@@ -153,7 +148,7 @@ class RapidResponseAside(XBlockAside):
 
     @XBlock.handler
     @staff_only
-    def responses(self, request=None, suffix=None):  # pylint: disable=unused-argument  # noqa: ARG002
+    def responses(self, request=None, suffix=None):  # noqa: ARG002
         """
         Returns student responses for rapid-response-enabled block
         """  # noqa: D401
@@ -173,19 +168,20 @@ class RapidResponseAside(XBlockAside):
         )
 
         total_counts = {
-            run["id"]: sum(
-                counts[choice["answer_id"]][run["id"]] for choice in choices
-            ) for run in runs
+            run["id"]: sum(counts[choice["answer_id"]][run["id"]] for choice in choices)
+            for run in runs
         }
 
-        return Response(json_body={
-            "is_open": is_open,
-            "runs": runs,
-            "choices": choices,
-            "counts": counts,
-            "total_counts": total_counts,
-            "server_now": datetime.now(tz=pytz.utc).isoformat(),
-        })
+        return Response(
+            json_body={
+                "is_open": is_open,
+                "runs": runs,
+                "choices": choices,
+                "counts": counts,
+                "total_counts": total_counts,
+                "server_now": datetime.now(tz=pytz.utc).isoformat(),
+            }
+        )
 
     @classmethod
     def should_apply_to_block(cls, block):
@@ -219,8 +215,7 @@ class RapidResponseAside(XBlockAside):
         fragment = Fragment("")
         fragment.add_content(
             render_template(
-                "static/html/rapid_studio.html",
-                {"is_enabled": self.enabled}
+                "static/html/rapid_studio.html", {"is_enabled": self.enabled}
             )
         )
         fragment.add_css(get_resource_bytes("static/css/rapid.css"))
@@ -247,10 +242,14 @@ class RapidResponseAside(XBlockAside):
         """
         Check if there is an open run for this problem
         """
-        run = RapidResponseRun.objects.filter(
-            problem_usage_key=self.wrapped_block_usage_key,
-            course_key=self.course_key,
-        ).order_by("-created").first()
+        run = (
+            RapidResponseRun.objects.filter(
+                problem_usage_key=self.wrapped_block_usage_key,
+                course_key=self.course_key,
+            )
+            .order_by("-created")
+            .first()
+        )
         return run and run.open
 
     @property
@@ -268,7 +267,9 @@ class RapidResponseAside(XBlockAside):
         return [
             {
                 "answer_id": choice.get("name"),
-                "answer_text": next(iter(choice.itertext())) if list(choice.itertext()) else ""  # noqa: E501
+                "answer_text": (
+                    next(iter(choice.itertext())) if list(choice.itertext()) else ""
+                ),
             }
             for choice in choice_elements
         ]
@@ -289,7 +290,8 @@ class RapidResponseAside(XBlockAside):
                 "id": run.id,
                 "created": run.created.isoformat(),
                 "open": run.open,
-            } for run in runs
+            }
+            for run in runs
         ]
 
     @staticmethod
@@ -305,15 +307,20 @@ class RapidResponseAside(XBlockAside):
             dict:
                 A mapping of answer id => run id => count for that run
         """
-        response_data = RapidResponseSubmission.objects.filter(
-            run__id__in=run_ids
-        ).values("answer_id", "run").annotate(count=Count("answer_id"))
+        response_data = (
+            RapidResponseSubmission.objects.filter(run__id__in=run_ids)
+            .values("answer_id", "run")
+            .annotate(count=Count("answer_id"))
+        )
         # Make sure every answer has a count and convert to JSON serializable format
-        response_counts = {(item["answer_id"], item["run"]): item["count"] for item in response_data}  # noqa: E501
+        response_counts = {
+            (item["answer_id"], item["run"]): item["count"] for item in response_data
+        }
 
         return {
             choice["answer_id"]: {
                 run_id: response_counts.get((choice["answer_id"], run_id), 0)
                 for run_id in run_ids
-            } for choice in choices
+            }
+            for choice in choices
         }

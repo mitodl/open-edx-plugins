@@ -2,7 +2,6 @@
 Rapid Response block models
 """
 
-
 from django.conf import settings
 from django.db import models
 from jsonfield import JSONField
@@ -48,16 +47,11 @@ class RapidResponseSubmission(TimeStampedModel):
         db_index=True,
     )
     run = models.ForeignKey(
-        RapidResponseRun,
-        on_delete=models.SET_NULL,
-        null=True,
-        db_index=True
+        RapidResponseRun, on_delete=models.SET_NULL, null=True, db_index=True
     )
     answer_id = models.CharField(null=True, max_length=255)  # noqa: DJ001
     answer_text = models.CharField(null=True, max_length=4096)  # noqa: DJ001
     event = JSONField()
 
     def __str__(self):
-        return (
-            f"user={self.user} run={self.run} answer_id={self.answer_id}"
-        )
+        return f"user={self.user} run={self.run} answer_id={self.answer_id}"

@@ -12,10 +12,28 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="RapidResponseBlockStatus",
             fields=[
-                ("id", models.AutoField(verbose_name="ID", serialize=False, auto_created=True, primary_key=True)),  # noqa: E501
-                ("usage_key", opaque_keys.edx.django.models.UsageKeyField(max_length=255, db_index=True)),  # noqa: E501
+                (
+                    "id",
+                    models.AutoField(
+                        verbose_name="ID",
+                        serialize=False,
+                        auto_created=True,
+                        primary_key=True,
+                    ),
+                ),
+                (
+                    "usage_key",
+                    opaque_keys.edx.django.models.UsageKeyField(
+                        max_length=255, db_index=True
+                    ),
+                ),
                 ("open", models.BooleanField(default=False)),
-                ("course_key", opaque_keys.edx.django.models.CourseKeyField(max_length=255, db_index=True)),  # noqa: E501
+                (
+                    "course_key",
+                    opaque_keys.edx.django.models.CourseKeyField(
+                        max_length=255, db_index=True
+                    ),
+                ),
             ],
         ),
     ]

@@ -57,7 +57,10 @@ def toggle_rapid_response(request):
     except Exception as ex:  # pylint: disable=broad-except
         # Updating and publishing item might throw errors when the initial state of a block is draft (Unpublished).  # noqa: E501
         # Let them flow silently
-        log.exception("Something went wrong with updating/publishing rapid response block."  # noqa: E501
-                      " Most likely the block is in draft %s", ex)  # noqa: TRY401
+        log.exception(
+            "Something went wrong with updating/publishing rapid response block."
+            " Most likely the block is in draft %s",
+            ex,  # noqa: TRY401
+        )
 
     return JsonResponse({"is_enabled": handler_block.enabled})

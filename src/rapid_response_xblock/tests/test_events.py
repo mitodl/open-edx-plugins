@@ -1,4 +1,5 @@
 """Just here to verify tests are running"""
+
 from unittest import mock
 
 import pytest
@@ -34,9 +35,7 @@ class TestEvents(RuntimeEnabledTestCase):
             problem_usage_key=UsageKey.from_string(
                 "block-v1:SGAU+SGA101+2017_SGA+type@problem+block@2582bbb68672426297e525b49a383eb8"
             ),
-            course_key=CourseLocator.from_string(
-                "course-v1:SGAU+SGA101+2017_SGA"
-            ),
+            course_key=CourseLocator.from_string("course-v1:SGAU+SGA101+2017_SGA"),
             open=True,
         )
 
@@ -57,7 +56,8 @@ class TestEvents(RuntimeEnabledTestCase):
         course = self.course
         store = modulestore()
         problem = next(
-            item for item in store.get_items(course.course_id)
+            item
+            for item in store.get_items(course.course_id)
             if item.__class__.__name__ == "ProblemBlockWithMixins"
         )
         problem.bind_for_student(self.instructor)
@@ -71,7 +71,7 @@ class TestEvents(RuntimeEnabledTestCase):
             course_id=str(self.course_id),
             user_id=self.instructor.id,
             usage_key_string=str(problem.location),
-            will_recheck_access=True
+            will_recheck_access=True,
         )
 
     def test_publish(self):
@@ -87,7 +87,9 @@ class TestEvents(RuntimeEnabledTestCase):
         # to all registered loggers.
         block = self.course
         with mock.patch.object(
-            SubmissionRecorder, "send", autospec=True,
+            SubmissionRecorder,
+            "send",
+            autospec=True,
         ) as send_patch:
             self.runtime.publish(block, event_type, event_object)
         # If call_count is 0, make sure you installed
@@ -98,13 +100,18 @@ class TestEvents(RuntimeEnabledTestCase):
         assert event["name"] == "event_name"
         assert event["context"]["event_source"] == "server"
         assert event["data"] == event_object
-        assert event["context"]["course_id"] == f"course-v1:{block.location.org}+{block.location.course}+{block.location.run}"  # noqa: E501
+        assert (
+            event["context"]["course_id"]
+            == f"course-v1:{block.location.org}+{block.location.course}+{block.location.run}"  # noqa: E501
+        )
 
-    @data(*[
-        ["choice_0", "an incorrect answer"],
-        ["choice_1", "the correct answer"],
-        ["choice_2", "a different incorrect answer"],
-    ])
+    @data(
+        *[
+            ["choice_0", "an incorrect answer"],
+            ["choice_1", "the correct answer"],
+            ["choice_2", "a different incorrect answer"],
+        ]
+    )
     @unpack
     def test_problem(self, clicked_answer_id, expected_answer_text):
         """
@@ -112,16 +119,18 @@ class TestEvents(RuntimeEnabledTestCase):
         """
         problem = self.get_problem()
 
-        problem.handle_ajax("problem_check", {
-            "input_2582bbb68672426297e525b49a383eb8_2_1": clicked_answer_id
-        })
+        problem.handle_ajax(
+            "problem_check",
+            {"input_2582bbb68672426297e525b49a383eb8_2_1": clicked_answer_id},
+        )
         assert RapidResponseSubmission.objects.count() == 1
         obj = RapidResponseSubmission.objects.first()
         assert obj.user_id == self.instructor.id
         assert obj.run.course_key == self.course.course_id
-        assert obj.run.problem_usage_key.map_into_course(
-            self.course.course_id
-        ) == problem.location
+        assert (
+            obj.run.problem_usage_key.map_into_course(self.course.course_id)
+            == problem.location
+        )
         assert obj.answer_text == expected_answer_text
         assert obj.answer_id == clicked_answer_id
 
@@ -131,17 +140,18 @@ class TestEvents(RuntimeEnabledTestCase):
         """
         problem = self.get_problem()
         for answer in ("choice_0", "choice_1", "choice_2"):
-            problem.handle_ajax("problem_check", {
-                "input_2582bbb68672426297e525b49a383eb8_2_1": answer
-            })
+            problem.handle_ajax(
+                "problem_check", {"input_2582bbb68672426297e525b49a383eb8_2_1": answer}
+            )
 
         assert RapidResponseSubmission.objects.count() == 1
         obj = RapidResponseSubmission.objects.first()
         assert obj.user_id == self.instructor.id
         assert obj.run.course_key == self.course.course_id
-        assert obj.run.problem_usage_key.map_into_course(
-            self.course.course_id
-        ) == problem.location
+        assert (
+            obj.run.problem_usage_key.map_into_course(self.course.course_id)
+            == problem.location
+        )
         # Answer is the first one clicked
         assert obj.answer_text == "a different incorrect answer"
         assert obj.answer_id == "choice_2"  # the last one picked
