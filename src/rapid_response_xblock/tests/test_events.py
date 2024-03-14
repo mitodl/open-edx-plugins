@@ -1,24 +1,23 @@
 """Just here to verify tests are running"""
 from unittest import mock
-import pytest
 
+import pytest
 from ddt import data, ddt, unpack
 from django.http.request import HttpRequest
-
+from lms.djangoapps.courseware.block_render import load_single_xblock
 from opaque_keys.edx.keys import UsageKey
 from opaque_keys.edx.locator import CourseLocator
-from tests.utils import (
-    combine_dicts,
-    make_scope_ids,
-    RuntimeEnabledTestCase,
-)
+from rapid_response_xblock.logger import SubmissionRecorder
 from rapid_response_xblock.models import (
     RapidResponseRun,
     RapidResponseSubmission,
 )
-from rapid_response_xblock.logger import SubmissionRecorder
+from tests.utils import (
+    RuntimeEnabledTestCase,
+    combine_dicts,
+    make_scope_ids,
+)
 from xmodule.modulestore.django import modulestore
-from lms.djangoapps.courseware.block_render import load_single_xblock
 
 
 # pylint: disable=no-member
@@ -36,7 +35,7 @@ class TestEvents(RuntimeEnabledTestCase):
                 "block-v1:SGAU+SGA101+2017_SGA+type@problem+block@2582bbb68672426297e525b49a383eb8"
             ),
             course_key=CourseLocator.from_string(
-                'course-v1:SGAU+SGA101+2017_SGA'
+                "course-v1:SGAU+SGA101+2017_SGA"
             ),
             open=True,
         )
@@ -57,16 +56,16 @@ class TestEvents(RuntimeEnabledTestCase):
         """
         course = self.course
         store = modulestore()
-        problem = [
+        problem = next(
             item for item in store.get_items(course.course_id)
-            if item.__class__.__name__ == 'ProblemBlockWithMixins'
-        ][0]
+            if item.__class__.__name__ == "ProblemBlockWithMixins"
+        )
         problem.bind_for_student(self.instructor)
 
         # Workaround handle_ajax binding strangeness
         request = HttpRequest()
-        request.META['SERVER_NAME'] = 'mit.edu'
-        request.META['SERVER_PORT'] = 1234
+        request.META["SERVER_NAME"] = "mit.edu"
+        request.META["SERVER_PORT"] = 1234
         return load_single_xblock(
             request=request,
             course_id=str(self.course_id),
@@ -79,8 +78,8 @@ class TestEvents(RuntimeEnabledTestCase):
         """
         Make sure the Logger is installed correctly
         """
-        event_type = 'event_name'
-        event_object = {'a': 'data'}
+        event_type = "event_name"
+        event_object = {"a": "data"}
 
         # If this package is installed TRACKING_BACKENDS should
         # be configured to point to SubmissionRecorder. Since self.runtime is
@@ -88,7 +87,7 @@ class TestEvents(RuntimeEnabledTestCase):
         # to all registered loggers.
         block = self.course
         with mock.patch.object(
-            SubmissionRecorder, 'send', autospec=True,
+            SubmissionRecorder, "send", autospec=True,
         ) as send_patch:
             self.runtime.publish(block, event_type, event_object)
         # If call_count is 0, make sure you installed
@@ -96,19 +95,15 @@ class TestEvents(RuntimeEnabledTestCase):
         assert send_patch.call_count == 1
         event = send_patch.call_args[0][1]
 
-        assert event['name'] == 'event_name'
-        assert event['context']['event_source'] == 'server'
-        assert event['data'] == event_object
-        assert event['context']['course_id'] == "course-v1:{org}+{course}+{run}".format(
-            org=block.location.org,
-            course=block.location.course,
-            run=block.location.run,
-        )
+        assert event["name"] == "event_name"
+        assert event["context"]["event_source"] == "server"
+        assert event["data"] == event_object
+        assert event["context"]["course_id"] == f"course-v1:{block.location.org}+{block.location.course}+{block.location.run}"  # noqa: E501
 
     @data(*[
-        ['choice_0', 'an incorrect answer'],
-        ['choice_1', 'the correct answer'],
-        ['choice_2', 'a different incorrect answer'],
+        ["choice_0", "an incorrect answer"],
+        ["choice_1", "the correct answer"],
+        ["choice_2", "a different incorrect answer"],
     ])
     @unpack
     def test_problem(self, clicked_answer_id, expected_answer_text):
@@ -117,7 +112,7 @@ class TestEvents(RuntimeEnabledTestCase):
         """
         problem = self.get_problem()
 
-        problem.handle_ajax('problem_check', {
+        problem.handle_ajax("problem_check", {
             "input_2582bbb68672426297e525b49a383eb8_2_1": clicked_answer_id
         })
         assert RapidResponseSubmission.objects.count() == 1
@@ -135,8 +130,8 @@ class TestEvents(RuntimeEnabledTestCase):
         Only the last submission should get captured
         """
         problem = self.get_problem()
-        for answer in ('choice_0', 'choice_1', 'choice_2'):
-            problem.handle_ajax('problem_check', {
+        for answer in ("choice_0", "choice_1", "choice_2"):
+            problem.handle_ajax("problem_check", {
                 "input_2582bbb68672426297e525b49a383eb8_2_1": answer
             })
 
@@ -148,8 +143,8 @@ class TestEvents(RuntimeEnabledTestCase):
             self.course.course_id
         ) == problem.location
         # Answer is the first one clicked
-        assert obj.answer_text == 'a different incorrect answer'
-        assert obj.answer_id == 'choice_2'  # the last one picked
+        assert obj.answer_text == "a different incorrect answer"
+        assert obj.answer_id == "choice_2"  # the last one picked
 
     def assert_successful_event_parsing(self, example_event_data):
         """
@@ -157,16 +152,16 @@ class TestEvents(RuntimeEnabledTestCase):
         """
         assert RapidResponseSubmission.objects.count() == 1
         obj = RapidResponseSubmission.objects.first()
-        assert obj.user_id == example_event_data['context']['user_id']
+        assert obj.user_id == example_event_data["context"]["user_id"]
         assert obj.run.problem_usage_key == UsageKey.from_string(
-            example_event_data['data']['problem_id']
+            example_event_data["data"]["problem_id"]
         )
         assert obj.run.course_key == CourseLocator.from_string(
-            example_event_data['context']['course_id']
+            example_event_data["context"]["course_id"]
         )
         # Answer is the first one clicked
-        assert obj.answer_text == 'an incorrect answer'
-        assert obj.answer_id == 'choice_0'
+        assert obj.answer_text == "an incorrect answer"
+        assert obj.answer_id == "choice_0"
         assert obj.event == example_event_data
 
     def assert_unsuccessful_event_parsing(self):
@@ -187,7 +182,7 @@ class TestEvents(RuntimeEnabledTestCase):
         If the user is missing no exception should be raised
         and no event should be recorded
         """
-        del self.example_event['context']['user_id']
+        del self.example_event["context"]["user_id"]
         SubmissionRecorder().send(self.example_event)
         self.assert_unsuccessful_event_parsing()
 
@@ -195,7 +190,7 @@ class TestEvents(RuntimeEnabledTestCase):
         """
         If the problem id is missing no event should be recorded
         """
-        del self.example_event['data']['problem_id']
+        del self.example_event["data"]["problem_id"]
         SubmissionRecorder().send(self.example_event)
         self.assert_unsuccessful_event_parsing()
 
@@ -204,8 +199,8 @@ class TestEvents(RuntimeEnabledTestCase):
         If there is more than one submission in the event,
         no event should be recorded
         """
-        submission = list(self.example_event['data']['submission'].values())[0]
-        self.example_event['data']['submission']['new_key'] = submission
+        submission = next(iter(self.example_event["data"]["submission"].values()))
+        self.example_event["data"]["submission"]["new_key"] = submission
         SubmissionRecorder().send(self.example_event)
         self.assert_unsuccessful_event_parsing()
 
@@ -215,8 +210,8 @@ class TestEvents(RuntimeEnabledTestCase):
         If there is no submission or an empty submission in the event,
         no event should be recorded
         """
-        key = list(self.example_event['data']['submission'].keys())[0]
-        self.example_event['data']['submission'][key] = submission_value
+        key = next(iter(self.example_event["data"]["submission"].keys()))
+        self.example_event["data"]["submission"][key] = submission_value
         SubmissionRecorder().send(self.example_event)
         self.assert_unsuccessful_event_parsing()
 
@@ -224,7 +219,7 @@ class TestEvents(RuntimeEnabledTestCase):
         """
         If the event data is missing no event should be recorded
         """
-        self.example_event['data'] = []
+        self.example_event["data"] = []
         SubmissionRecorder().send(self.example_event)
         self.assert_unsuccessful_event_parsing()
 
@@ -232,7 +227,7 @@ class TestEvents(RuntimeEnabledTestCase):
         """
         If the answer id key is missing no event should be recorded
         """
-        self.example_event['data']['answers'] = {}
+        self.example_event["data"]["answers"] = {}
         SubmissionRecorder().send(self.example_event)
         self.assert_unsuccessful_event_parsing()
 
@@ -241,7 +236,7 @@ class TestEvents(RuntimeEnabledTestCase):
         If the submission data is less than 1,
         no event should be recorded
         """
-        self.example_event['data']['submission'] = {}
+        self.example_event["data"]["submission"] = {}
         SubmissionRecorder().send(self.example_event)
         self.assert_unsuccessful_event_parsing()
 
@@ -250,9 +245,9 @@ class TestEvents(RuntimeEnabledTestCase):
         If the submission data is more than 2,
         no event should be recorded
         """
-        submission = list(self.example_event['data']['submission'].values())[0]
-        self.example_event['data']['submission']['new_key_1'] = submission
-        self.example_event['data']['submission']['new_key_2'] = submission
+        submission = next(iter(self.example_event["data"]["submission"].values()))
+        self.example_event["data"]["submission"]["new_key_1"] = submission
+        self.example_event["data"]["submission"]["new_key_2"] = submission
         SubmissionRecorder().send(self.example_event)
         self.assert_unsuccessful_event_parsing()
 
@@ -262,9 +257,9 @@ class TestEvents(RuntimeEnabledTestCase):
         Events should be recorded only when the problem is open
         """
         event = self.example_event
-        event_before = combine_dicts(event, {'test_data': 'before'})
-        event_during = combine_dicts(event, {'test_data': 'during'})
-        event_after = combine_dicts(event, {'test_data': 'after'})
+        event_before = combine_dicts(event, {"test_data": "before"})
+        event_during = combine_dicts(event, {"test_data": "during"})
+        event_after = combine_dicts(event, {"test_data": "after"})
 
         self.example_status.open = False
         self.example_status.save()
@@ -280,7 +275,7 @@ class TestEvents(RuntimeEnabledTestCase):
 
         assert RapidResponseSubmission.objects.count() == 1
         submission = RapidResponseSubmission.objects.first()
-        assert submission.event['test_data'] == event_during['test_data']
+        assert submission.event["test_data"] == event_during["test_data"]
 
     @pytest.mark.usefixtures("example_event")
     def test_last_open(self):

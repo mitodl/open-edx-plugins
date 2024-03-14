@@ -1,33 +1,33 @@
 """Tests for the rapid-response aside logic"""
-import pytest
 from collections import defaultdict
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, PropertyMock
-from ddt import data, ddt, unpack
+from unittest.mock import Mock, PropertyMock, patch
 
-from dateutil.parser import parse as parse_datetime
+import pytest
 import pytz
+from common.djangoapps.student.tests.factories import UserFactory
+from dateutil.parser import parse as parse_datetime
+from ddt import data, ddt, unpack
 from opaque_keys.edx.keys import UsageKey
-
-from tests.utils import (
-    make_scope_ids,
-    RuntimeEnabledTestCase,
+from rapid_response_xblock.block import (
+    BLOCK_PROBLEM_CATEGORY,
+    MULTIPLE_CHOICE_TYPE,
+    RapidResponseAside,
 )
 from rapid_response_xblock.models import (
     RapidResponseRun,
     RapidResponseSubmission,
 )
-from rapid_response_xblock.block import (
-    RapidResponseAside,
-    BLOCK_PROBLEM_CATEGORY,
-    MULTIPLE_CHOICE_TYPE,
+from tests.utils import (
+    RuntimeEnabledTestCase,
+    make_scope_ids,
 )
-from common.djangoapps.student.tests.factories import UserFactory
 
 
 @ddt
 class RapidResponseAsideTests(RuntimeEnabledTestCase):
     """Tests for RapidResponseAside logic"""
+
     def setUp(self):
         super().setUp()
         self.aside_usage_key = UsageKey.from_string(
@@ -52,15 +52,15 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         """
         self.aside_instance.enabled = enabled_value
         with patch(
-            'rapid_response_xblock.block.RapidResponseAside.enabled',
+            "rapid_response_xblock.block.RapidResponseAside.enabled",
             new=enabled_value,
         ):
 
             fragment = self.aside_instance.student_view_aside(Mock())
-            # If the block is enabled for rapid response, it should return a fragment with
-            # non-empty content and should specify a JS initialization function
+            # If the block is enabled for rapid response, it should return a fragment
+            # with non-empty content and should specify a JS initialization function
             assert bool(fragment.content) is should_render_aside
-            assert (fragment.js_init_fn == 'RapidResponseAsideInit') is should_render_aside
+            assert (fragment.js_init_fn == "RapidResponseAsideInit") is should_render_aside  # noqa: E501
 
     @data(True, False)
     def test_student_view_context(self, is_open):
@@ -69,10 +69,10 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         """
         self.aside_instance.enabled = True
         with patch(
-            'rapid_response_xblock.block.RapidResponseAside.has_open_run',
+            "rapid_response_xblock.block.RapidResponseAside.has_open_run",
             new_callable=PropertyMock,
         ) as has_open_run_mock, patch(
-            'rapid_response_xblock.block.RapidResponseAside.enabled',
+            "rapid_response_xblock.block.RapidResponseAside.enabled",
             new=True
         ):
             has_open_run_mock.return_value = is_open
@@ -81,21 +81,22 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
 
     @data(*[
         [BLOCK_PROBLEM_CATEGORY, {MULTIPLE_CHOICE_TYPE}, None, True],
-        [BLOCK_PROBLEM_CATEGORY, None, Mock(problem_types={MULTIPLE_CHOICE_TYPE}), True],
+        [BLOCK_PROBLEM_CATEGORY, None, Mock(problem_types={MULTIPLE_CHOICE_TYPE}), True],  # noqa: E501
         [None, {MULTIPLE_CHOICE_TYPE}, None, False],
-        ['invalid_category', {MULTIPLE_CHOICE_TYPE}, None, False],
-        [BLOCK_PROBLEM_CATEGORY, {'invalid_problem_type'}, None, False],
-        [BLOCK_PROBLEM_CATEGORY, {MULTIPLE_CHOICE_TYPE, 'invalid_problem_type'}, None, False],
+        ["invalid_category", {MULTIPLE_CHOICE_TYPE}, None, False],
+        [BLOCK_PROBLEM_CATEGORY, {"invalid_problem_type"}, None, False],
+        [BLOCK_PROBLEM_CATEGORY, {MULTIPLE_CHOICE_TYPE, "invalid_problem_type"}, None, False],  # noqa: E501
     ])
     @unpack
-    def test_should_apply_to_block(self, block_category, block_problem_types, block_descriptor, should_apply):
+    def test_should_apply_to_block(self, block_category, block_problem_types, block_descriptor, should_apply):  # noqa: E501
         """
-        Test that should_apply_to_block only returns True for multiple choice problem blocks
+        Test that should_apply_to_block only returns True for multiple
+        choice problem blocks
         """
-        block = Mock(category=block_category, problem_types=block_problem_types, descriptor=block_descriptor)
+        block = Mock(category=block_category, problem_types=block_problem_types, descriptor=block_descriptor)  # noqa: E501
         # `should_apply_to_block` uses `hasattr` to inspect the block object, and that
-        # always returns True for Mock objects unless the attribute names are explicitly deleted.
-        for block_attr in ['category', 'descriptor', 'problem_types']:
+        # always returns True for Mock objects unless the attribute names are explicitly deleted.  # noqa: E501
+        for block_attr in ["category", "descriptor", "problem_types"]:
             if getattr(block, block_attr) is None:
                 delattr(block, block_attr)
         assert self.aside_instance.should_apply_to_block(block) is should_apply
@@ -107,13 +108,13 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         """
         self.aside_instance.enabled = enabled_value
         with patch(
-            'rapid_response_xblock.block.RapidResponseAside.enabled',
+            "rapid_response_xblock.block.RapidResponseAside.enabled",
             new=enabled_value,
         ):
 
             fragment = self.aside_instance.studio_view_aside(Mock())
             assert f'data-enabled="{enabled_value}"' in fragment.content
-            assert fragment.js_init_fn == 'RapidResponseAsideStudioInit'
+            assert fragment.js_init_fn == "RapidResponseAsideStudioInit"
 
     @data(True, False)
     def test_author_view(self, enabled_value):
@@ -122,16 +123,15 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         """
         self.aside_instance.enabled = enabled_value
         with patch(
-            'rapid_response_xblock.block.RapidResponseAside.enabled',
+            "rapid_response_xblock.block.RapidResponseAside.enabled",
             new=enabled_value,
-        ):
-            with self.settings(ENABLE_RAPID_RESPONSE_AUTHOR_VIEW=True):
-                fragment = self.aside_instance.author_view_aside(Mock())
-                assert f'data-enabled="{enabled_value}"' in fragment.content
-                assert fragment.js_init_fn == 'RapidResponseAsideStudioInit'
+        ), self.settings(ENABLE_RAPID_RESPONSE_AUTHOR_VIEW=True):
+            fragment = self.aside_instance.author_view_aside(Mock())
+            assert f'data-enabled="{enabled_value}"' in fragment.content
+            assert fragment.js_init_fn == "RapidResponseAsideStudioInit"
 
     def test_toggle_block_open(self):
-        """Test that toggle_block_open_status changes the status of a rapid response block"""
+        """Test that toggle_block_open_status changes the status of a rapid response block"""  # noqa: E501
         usage_key = self.aside_instance.wrapped_block_usage_key
         course_key = self.aside_instance.course_key
         run = RapidResponseRun.objects.create(
@@ -141,7 +141,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         assert run.open is False
 
         self.aside_instance.toggle_block_open_status(Mock())
-        assert RapidResponseRun.objects.count() == 2
+        assert RapidResponseRun.objects.count() == 2  # noqa: PLR2004
         assert RapidResponseRun.objects.filter(
             problem_usage_key=usage_key,
             course_key=course_key,
@@ -149,7 +149,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         ).exists() is True
 
         self.aside_instance.toggle_block_open_status(Mock())
-        assert RapidResponseRun.objects.count() == 2
+        assert RapidResponseRun.objects.count() == 2  # noqa: PLR2004
         assert RapidResponseRun.objects.filter(
             problem_usage_key=usage_key,
             course_key=course_key,
@@ -157,7 +157,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         ).exists() is False
 
         self.aside_instance.toggle_block_open_status(Mock())
-        assert RapidResponseRun.objects.count() == 3
+        assert RapidResponseRun.objects.count() == 3  # noqa: PLR2004
         assert RapidResponseRun.objects.filter(
             problem_usage_key=usage_key,
             course_key=course_key,
@@ -165,7 +165,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         ).exists() is True
 
     def test_toggle_block_open_duplicate(self):
-        """Test that toggle_block_open_status only looks at the last run's open status"""
+        """Test that toggle_block_open_status only looks at the last run's open status"""  # noqa: E501
         usage_key = self.aside_instance.wrapped_block_usage_key
         course_key = self.aside_instance.course_key
         RapidResponseRun.objects.create(
@@ -180,13 +180,13 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         )
 
         self.aside_instance.toggle_block_open_status(Mock())
-        assert RapidResponseRun.objects.count() == 3
+        assert RapidResponseRun.objects.count() == 3  # noqa: PLR2004
         assert RapidResponseRun.objects.filter(
             problem_usage_key=usage_key,
             course_key=course_key,
-        ).order_by('-created').first().open is True
+        ).order_by("-created").first().open is True
 
-    @pytest.mark.skip(reason="Somehow the test runtime doesn't allow accessing xblock keys")
+    @pytest.mark.skip(reason="Somehow the test runtime doesn't allow accessing xblock keys")  # noqa: E501
     def test_toggle_block_enabled(self):
         """
         Test that toggle_block_enabled changes 'enabled' field value
@@ -197,7 +197,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         for expected_enabled_value in [True, False]:
             resp = self.aside_instance.toggle_block_enabled(Mock())
             assert self.aside_instance.enabled is expected_enabled_value
-            assert resp.json['is_enabled'] == self.aside_instance.enabled
+            assert resp.json["is_enabled"] == self.aside_instance.enabled
 
     @data(*[
         [True, 200],
@@ -206,7 +206,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
     @unpack
     def test_toggle_block_open_staff_only(self, is_staff, expected_status):
         """Test that toggle_block_open_status is only enabled for staff"""
-        with patch.object(self.aside_instance, 'is_staff', return_value=is_staff):
+        with patch.object(self.aside_instance, "is_staff", return_value=is_staff):
             resp = self.aside_instance.toggle_block_open_status()
         assert resp.status_code == expected_status
 
@@ -219,7 +219,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         """
         Test that only staff users should access the API
         """
-        with patch.object(self.aside_instance, 'is_staff', return_value=is_staff), self.patch_modulestore():
+        with patch.object(self.aside_instance, "is_staff", return_value=is_staff), self.patch_modulestore():  # noqa: E501
             resp = self.aside_instance.responses()
         assert resp.status_code == expected_status
 
@@ -236,8 +236,8 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
 
         with self.patch_modulestore():
             resp = self.aside_instance.responses()
-        assert resp.status_code == 200
-        assert resp.json['is_open'] == is_open
+        assert resp.status_code == 200  # noqa: PLR2004
+        assert resp.json["is_open"] == is_open
 
     @data(True, False)
     def test_responses(self, has_runs):
@@ -248,11 +248,11 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         problem_id = self.aside_instance.wrapped_block_usage_key
 
         choices = [{
-            'answer_id': 'choice_0',
-            'answer_text': 'First answer',
+            "answer_id": "choice_0",
+            "answer_text": "First answer",
         }, {
-            'answer_id': 'choice_1',
-            'answer_text': 'Second answer',
+            "answer_id": "choice_1",
+            "answer_text": "Second answer",
         }]
 
         if has_runs:
@@ -268,11 +268,11 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
             )
 
             counts = {
-                choices[0]['answer_id']: {
+                choices[0]["answer_id"]: {
                     run1.id: 3,
                     run2.id: 4,
                 },
-                choices[1]['answer_id']: {
+                choices[1]["answer_id"]: {
                     run1.id: 5,
                     run2.id: 6,
                 }
@@ -286,43 +286,44 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
             expected_total_counts = {}
 
         with patch(
-            'rapid_response_xblock.block.RapidResponseAside.get_counts_for_problem', return_value=counts,
+            "rapid_response_xblock.block.RapidResponseAside.get_counts_for_problem", return_value=counts,  # noqa: E501
         ) as get_counts_mock, patch(
-            'rapid_response_xblock.block.RapidResponseAside.choices',
+            "rapid_response_xblock.block.RapidResponseAside.choices",
             new_callable=PropertyMock
         ) as get_choices_mock:
             get_choices_mock.return_value = choices
             resp = self.aside_instance.responses()
 
         run_queryset = RapidResponseRun.objects.all()
-        assert resp.status_code == 200
-        assert resp.json['is_open'] is has_runs
+        assert resp.status_code == 200  # noqa: PLR2004
+        assert resp.json["is_open"] is has_runs
 
-        assert resp.json['choices'] == choices
-        assert resp.json['runs'] == RapidResponseAside.serialize_runs(run_queryset)
+        assert resp.json["choices"] == choices
+        assert resp.json["runs"] == RapidResponseAside.serialize_runs(run_queryset)
         counts_with_str_keys = {
             answer_id: {str(run_id): count for run_id, count in list(runs.items())}
             for answer_id, runs in list(counts.items())
         }
-        assert resp.json['counts'] == counts_with_str_keys
-        assert resp.json['total_counts'] == expected_total_counts
+        assert resp.json["counts"] == counts_with_str_keys
+        assert resp.json["total_counts"] == expected_total_counts
 
         now = datetime.now(tz=pytz.utc)
         minute = timedelta(minutes=1)
-        assert (now - minute) < parse_datetime(resp.json['server_now']) < (now + minute)
+        assert (now - minute) < parse_datetime(resp.json["server_now"]) < (now + minute)
 
         get_choices_mock.assert_called_once_with()
-        get_counts_mock.assert_called_once_with([run.id for run in run_queryset], choices)
+        get_counts_mock.assert_called_once_with([run.id for run in run_queryset], choices)  # noqa: E501
 
     def test_choices(self):
         """
-        RapidResponseAside.choices should return a serialized representation of choices from a problem OLX
+        RapidResponseAside.choices should return a serialized representation of choices
+        from a problem OLX
         """
         with self.patch_modulestore():
             assert self.aside_instance.choices == [
-                {'answer_id': 'choice_0', 'answer_text': 'an incorrect answer'},
-                {'answer_id': 'choice_1', 'answer_text': 'the correct answer'},
-                {'answer_id': 'choice_2', 'answer_text': 'a different incorrect answer'},
+                {"answer_id": "choice_0", "answer_text": "an incorrect answer"},
+                {"answer_id": "choice_1", "answer_text": "the correct answer"},
+                {"answer_id": "choice_2", "answer_text": "a different incorrect answer"},  # noqa: E501
             ]
 
     def test_get_counts_for_problem(self):
@@ -343,17 +344,17 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
             open=True
         )
         choices = [
-            {'answer_id': 'choice_0', 'answer_text': 'an incorrect answer'},
-            {'answer_id': 'choice_1', 'answer_text': 'the correct answer'},
-            {'answer_id': 'choice_2', 'answer_text': 'a different incorrect answer'},
+            {"answer_id": "choice_0", "answer_text": "an incorrect answer"},
+            {"answer_id": "choice_1", "answer_text": "the correct answer"},
+            {"answer_id": "choice_2", "answer_text": "a different incorrect answer"},
         ]
-        choices_lookup = {choice['answer_id']: choice['answer_text'] for choice in choices}
+        choices_lookup = {choice["answer_id"]: choice["answer_text"] for choice in choices}  # noqa: E501
         counts = list(zip(
-            [choices[i]['answer_id'] for i in range(3)],
+            [choices[i]["answer_id"] for i in range(3)],
             list(range(2, 5)),
             [run1.id for _ in range(3)],
         )) + list(zip(
-            [choices[i]['answer_id'] for i in range(3)],
+            [choices[i]["answer_id"] for i in range(3)],
             [3, 0, 7],
             [run2.id for _ in range(3)],
         ))
@@ -377,11 +378,12 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
 
         run_ids = [run2.id, run1.id]
 
-        assert RapidResponseAside.get_counts_for_problem(run_ids, choices) == counts_dict
+        assert RapidResponseAside.get_counts_for_problem(run_ids, choices) == counts_dict  # noqa: E501
 
     def test_serialize_runs(self):
         """
-        serialize_runs should return a serialized representation of runs for a problem
+        serialize_runs should return a serialized representation of runs for
+        a problem
         """
         course_id = self.aside_instance.course_key
         problem_id = self.aside_instance.wrapped_block_usage_key
@@ -398,7 +400,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         )
 
         assert RapidResponseAside.serialize_runs([run2, run1]) == [{
-            'id': run.id,
-            'created': run.created.isoformat(),
-            'open': run.open,
+            "id": run.id,
+            "created": run.created.isoformat(),
+            "open": run.open,
         } for run in [run2, run1]]

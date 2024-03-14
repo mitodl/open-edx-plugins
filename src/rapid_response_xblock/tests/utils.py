@@ -1,28 +1,26 @@
 """Utility functions and classes for the rapid response test suite"""
-from contextlib import contextmanager
-import os
 import shutil
 import tempfile
+from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import Mock, patch
 
+from common.djangoapps.student.tests.factories import AdminFactory, StaffFactory
 from django.http.request import HttpRequest
-
+from lms.djangoapps.courseware.block_render import (
+    make_track_function,
+    prepare_runtime_for_user,
+)
 from xblock.fields import ScopeIds
 from xblock.runtime import DictKeyValueStore, KvsFieldData
 from xblock.test.tools import TestRuntime
+from xmodule.capa_block import ProblemBlock
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.modulestore.tests.factories import BlockFactory
 from xmodule.modulestore.xml_importer import import_course_from_xml
-from xmodule.capa_block import ProblemBlock
 
-from lms.djangoapps.courseware.block_render import (
-    prepare_runtime_for_user,
-    make_track_function,
-)
-from common.djangoapps.student.tests.factories import AdminFactory, StaffFactory
-
-BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+BASE_DIR = Path(__file__).parent.absolute()
 
 
 def make_scope_ids(usage_key):
@@ -36,11 +34,11 @@ def make_scope_ids(usage_key):
     Returns:
         xblock.fields.ScopeIds: A ScopeIds object for the block for usage_key
     """
-    block_type = 'fake'
-    runtime = TestRuntime(services={'field-data': KvsFieldData(kvs=DictKeyValueStore())})
+    block_type = "fake"
+    runtime = TestRuntime(services={"field-data": KvsFieldData(kvs=DictKeyValueStore())})  # noqa: E501
     def_id = runtime.id_generator.create_definition(block_type)
     return ScopeIds(
-        'user', block_type, def_id, usage_key
+        "user", block_type, def_id, usage_key
     )
 
 
@@ -101,12 +99,12 @@ class RuntimeEnabledTestCase(ModuleStoreTestCase):
         """
         # adapted from edx-platform/cms/djangoapps/contentstore/
         # management/commands/tests/test_cleanup_assets.py
-        input_dir = os.path.join(BASE_DIR, "..", "test_data")
+        input_dir = BASE_DIR / ".." / "test_data"
 
         temp_dir = tempfile.mkdtemp()
         self.addCleanup(lambda: shutil.rmtree(temp_dir))
 
-        xml_dir = os.path.join(temp_dir, "xml")
+        xml_dir = Path(temp_dir) / "xml"
         shutil.copytree(input_dir, xml_dir)
 
         store = modulestore()
@@ -121,29 +119,30 @@ class RuntimeEnabledTestCase(ModuleStoreTestCase):
     @contextmanager
     def patch_modulestore(self):
         """
-        Set xmodule_runtime and xmodule_runtime.xmodule_instance on blocks retrieved from the modulestore.
+        Set xmodule_runtime and xmodule_runtime.xmodule_instance on blocks retrieved
+        from the modulestore.
 
         Only applies if get_item is used.
         """
         store = modulestore()
 
         def wrap_runtime(*args, **kwargs):
-            """Alter modulestore to set xmodule_runtime and xmodule_runtime.xmodule_instance"""
+            """Alter modulestore to set xmodule_runtime and xmodule_runtime.xmodule_instance"""  # noqa: E501
             block = store.get_item(*args, **kwargs)
             block.runtime = self.runtime
 
             # Copied this from xmodule.xmodule.x_module._xmodule
-            # When it executes there it raises a scope error, but here it's fine. Not sure what the difference is
-            block.xmodule_runtime.xmodule_instance = block.runtime.construct_xblock_from_class(
+            # When it executes there it raises a scope error, but here it's fine. Not sure what the difference is  # noqa: E501
+            block.xmodule_runtime.xmodule_instance = block.runtime.construct_xblock_from_class(  # noqa: E501
                 ProblemBlock,
                 scope_ids=block.scope_ids,
-                field_data=block._field_data,  # pylint: disable=protected-access
+                field_data=block._field_data,  # pylint: disable=protected-access  # noqa: SLF001
                 for_parent=block.get_parent()
             )
 
             return block
 
-        with patch('rapid_response_xblock.block.modulestore', autospec=True) as modulestore_mock:
+        with patch("rapid_response_xblock.block.modulestore", autospec=True) as modulestore_mock:  # noqa: E501
             modulestore_mock.return_value.get_item.side_effect = wrap_runtime
             yield modulestore_mock
 
