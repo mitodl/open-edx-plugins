@@ -1,6 +1,7 @@
 """
 Capture events
 """
+
 import logging
 from typing import NamedTuple
 
@@ -15,10 +16,13 @@ from rapid_response_xblock.models import (
 )
 
 log = logging.getLogger(__name__)
-SubmissionEvent = NamedTuple(
-    "SubmissionEvent",
-    ["raw_data", "user_id", "problem_usage_key", "course_key", "answer_text", "answer_id"]  # noqa: E501
-)
+class SubmissionEvent(NamedTuple):
+    raw_data:dict
+    user_id:str
+    problem_usage_key:str
+    course_key:str
+    answer_text:str
+    answer_id:str
 
 
 class SubmissionRecorder(BaseBackend):
@@ -68,14 +72,10 @@ class SubmissionRecorder(BaseBackend):
             return SubmissionEvent(
                 raw_data=event,
                 user_id=event["context"]["user_id"],
-                problem_usage_key=UsageKey.from_string(
-                    event_data["problem_id"]
-                ),
-                course_key=CourseLocator.from_string(
-                    event["context"]["course_id"]
-                ),
+                problem_usage_key=UsageKey.from_string(event_data["problem_id"]),
+                course_key=CourseLocator.from_string(event["context"]["course_id"]),
                 answer_text=submission["answer"],
-                answer_id=event_data["answers"][submission_key]
+                answer_id=event_data["answers"][submission_key],
             )
         except:  # pylint: disable=bare-except  # noqa: E722
             log.exception("Unable to parse event data as a submission: %s", event)
@@ -86,10 +86,13 @@ class SubmissionRecorder(BaseBackend):
         if sub is None:
             return
 
-        open_run = RapidResponseRun.objects.filter(
-            problem_usage_key=sub.problem_usage_key,
-            course_key=sub.course_key
-        ).order_by("-created").first()
+        open_run = (
+            RapidResponseRun.objects.filter(
+                problem_usage_key=sub.problem_usage_key, course_key=sub.course_key
+            )
+            .order_by("-created")
+            .first()
+        )
         if not open_run or not open_run.open:
             # Problem is not open
             return

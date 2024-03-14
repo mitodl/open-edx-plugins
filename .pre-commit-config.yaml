@@ -35,8 +35,7 @@ repos:
   rev: v1.4.0
   hooks:
   - id: detect-secrets
-    args:
-    - --exclude-files '(poetry.lock|pants)'
+    exclude: "poetry.lock|pants|src/rapid_response_xblock/test_data/example_event.json$"
 - repo: https://github.com/psf/black
   rev: 24.3.0
   hooks:
@@ -55,3 +54,4 @@ repos:
     - types-pytz
     - types-requests
     - types-pkg_resources
+    - types-python-dateutil

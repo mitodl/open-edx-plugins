@@ -15,12 +15,44 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="RapidResponseRun",
             fields=[
-                ("id", models.AutoField(verbose_name="ID", serialize=False, auto_created=True, primary_key=True)),  # noqa: E501
-                ("created", model_utils.fields.AutoCreatedField(default=django.utils.timezone.now, verbose_name="created", editable=False)),  # noqa: E501
-                ("modified", model_utils.fields.AutoLastModifiedField(default=django.utils.timezone.now, verbose_name="modified", editable=False)),  # noqa: E501
+                (
+                    "id",
+                    models.AutoField(
+                        verbose_name="ID",
+                        serialize=False,
+                        auto_created=True,
+                        primary_key=True,
+                    ),
+                ),
+                (
+                    "created",
+                    model_utils.fields.AutoCreatedField(
+                        default=django.utils.timezone.now,
+                        verbose_name="created",
+                        editable=False,
+                    ),
+                ),
+                (
+                    "modified",
+                    model_utils.fields.AutoLastModifiedField(
+                        default=django.utils.timezone.now,
+                        verbose_name="modified",
+                        editable=False,
+                    ),
+                ),
                 ("name", models.TextField()),
-                ("problem_usage_key", opaque_keys.edx.django.models.UsageKeyField(max_length=255, db_index=True)),  # noqa: E501
-                ("course_key", opaque_keys.edx.django.models.CourseKeyField(max_length=255, db_index=True)),  # noqa: E501
+                (
+                    "problem_usage_key",
+                    opaque_keys.edx.django.models.UsageKeyField(
+                        max_length=255, db_index=True
+                    ),
+                ),
+                (
+                    "course_key",
+                    opaque_keys.edx.django.models.CourseKeyField(
+                        max_length=255, db_index=True
+                    ),
+                ),
                 ("open", models.BooleanField(default=False)),
             ],
             options={
@@ -41,6 +73,10 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="rapidresponsesubmission",
             name="run",
-            field=models.ForeignKey(on_delete=django.db.models.deletion.SET_NULL, to="rapid_response_xblock.RapidResponseRun", null=True),  # noqa: E501
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="rapid_response_xblock.RapidResponseRun",
+                null=True,
+            ),
         ),
     ]

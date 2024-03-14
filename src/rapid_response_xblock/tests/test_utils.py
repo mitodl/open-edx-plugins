@@ -1,4 +1,5 @@
 """Tests for the util methods"""
+
 import pytest
 from common.djangoapps.student.tests.factories import UserFactory
 from opaque_keys.edx.keys import UsageKey
@@ -13,7 +14,9 @@ class TestUtils(RuntimeEnabledTestCase):
     def setUp(self):
         super().setUp()
         self.problem_run = RapidResponseRun.objects.create(
-            problem_usage_key=UsageKey.from_string("i4x://SGAU/SGA101/problem/2582bbb68672426297e525b49a383eb8"),
+            problem_usage_key=UsageKey.from_string(
+                "i4x://SGAU/SGA101/problem/2582bbb68672426297e525b49a383eb8"
+            ),
             course_key=self.course_id,
             open=True,
         )
@@ -25,7 +28,7 @@ class TestUtils(RuntimeEnabledTestCase):
             {
                 "id": self.problem_run.id,
                 "created": self.problem_run.created,
-                "problem_usage_key": self.problem_run.problem_usage_key
+                "problem_usage_key": self.problem_run.problem_usage_key,
             }
         ]
 
@@ -45,10 +48,18 @@ class TestUtils(RuntimeEnabledTestCase):
             }
         }
 
-        submission = RapidResponseSubmission.objects.create(run=self.problem_run, user=user, event=event_data)  # noqa: E501
-        expected = [[
-            submission.created, submission.answer_text, submission.user.username, submission.user.email, answer  # noqa: E501
-        ]]
+        submission = RapidResponseSubmission.objects.create(
+            run=self.problem_run, user=user, event=event_data
+        )
+        expected = [
+            [
+                submission.created,
+                submission.answer_text,
+                submission.user.username,
+                submission.user.email,
+                answer,
+            ]
+        ]
         submissions_data = get_run_submission_data(self.problem_run.id)
 
         assert submissions_data == expected

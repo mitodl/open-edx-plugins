@@ -10,7 +10,8 @@ def plugin_settings(settings):
         "ENGINE": "rapid_response_xblock.logger.SubmissionRecorder",
         "OPTIONS": {
             "name": "rapid_response",
-        }
+        },
     }
+
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
