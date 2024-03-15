@@ -26,6 +26,7 @@ pip install dist/ol-openedx-git-auto-export-0.3.1.tar.gz
 pip install dist/ol-openedx-logging-0.1.0.tar.gz
 pip install dist/ol-openedx-rapid-response-reports-0.3.0.tar.gz
 pip install dist/ol-openedx-sentry-0.1.2.tar.gz
+pip install dist/rapid-response-xblock-0.9.1.tar.gz
 
 # Install codecov so we can upload code coverage results
 pip install codecov
