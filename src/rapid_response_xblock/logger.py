@@ -16,13 +16,15 @@ from rapid_response_xblock.models import (
 )
 
 log = logging.getLogger(__name__)
+
+
 class SubmissionEvent(NamedTuple):
-    raw_data:dict
-    user_id:str
-    problem_usage_key:str
-    course_key:str
-    answer_text:str
-    answer_id:str
+    raw_data: dict
+    user_id: str
+    problem_usage_key: str
+    course_key: str
+    answer_text: str
+    answer_id: str
 
 
 class SubmissionRecorder(BaseBackend):
