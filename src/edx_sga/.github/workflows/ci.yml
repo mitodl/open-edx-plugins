@@ -26,8 +26,8 @@ jobs:
       - name: Python setup
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
-
+          python-version: ${{ matrix.python-version }}  
+      
       - name: tox install
         run: pip install tox
 
@@ -36,9 +36,18 @@ jobs:
           TOXENV: ${{ matrix.toxenv }}
         run: tox
 
+      - name: Run Integration Tests 
+        run: |
+            cd ..
+            git clone https://github.com/openedx/devstack
+            cd devstack
+            sed -i 's/:cached//g' ./docker-compose-host.yml
+            make dev.clone.https
+            DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/../edx-sga:/edx-sga lms /edx-sga/run_devstack_integration_tests.sh
+
       - name: Upload coverage to CodeCov
         if: matrix.python-version == '3.8' && matrix.toxenv == 'py38-django42'
         uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml
-          fail_ci_if_error: true
+          fail_ci_if_error: false

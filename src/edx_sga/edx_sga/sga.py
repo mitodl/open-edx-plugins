@@ -182,6 +182,7 @@ class StaffGradedAssignmentXBlock(
 
     @classmethod
     def parse_xml(cls, node, runtime, keys, id_generator):
+        # pylint: disable=arguments-differ,unused-argument
         """
         Override default serialization to handle <solution /> elements
         """
@@ -190,7 +191,7 @@ class StaffGradedAssignmentXBlock(
         for child in node:
             if child.tag == "solution":
                 # convert child elements of <solution> into HTML for display
-                block.solution = "".join(etree.tostring(subchild) for subchild in child)
+                block.solution = "".join(etree.tostring(subchild, encoding=str) for subchild in child)
 
         # Attributes become fields.
         # Note that a solution attribute here will override any solution XML element

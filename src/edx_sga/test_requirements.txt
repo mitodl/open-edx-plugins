@@ -25,4 +25,4 @@ tox
 tox-battery
 
 xblock-utils==3.4.1
-xblock-sdk==0.7.0
+xblock-sdk==0.9.0
