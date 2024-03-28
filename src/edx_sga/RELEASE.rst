@@ -1,6 +1,12 @@
 Release Notes
 =============
 
+Version 0.24.0
+--------------
+
+- chore: enabling integration tests (#355)
+- feat: add support for django4.2 & update lint (#347)
+
 Version 0.24.0 (Unreleased)
 --------------
 
