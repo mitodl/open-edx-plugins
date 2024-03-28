@@ -1,13 +1,13 @@
 Release Notes
 =============
 
-Version 0.24.0
+Version 0.24.0 (Released March 28, 2024)
 --------------
 
 - chore: enabling integration tests (#355)
 - feat: add support for django4.2 & update lint (#347)
 
-Version 0.24.0 (Unreleased)
+Version 0.24.0 (Released March 28, 2024)
 --------------
 
 - feat: add support for Django 4.2
