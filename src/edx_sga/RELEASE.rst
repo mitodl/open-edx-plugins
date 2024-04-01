@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.24.1
+--------------
+
+- fix: add xblock 2.0 support (#359)
+
 Version 0.24.0 (Released March 28, 2024)
 --------------
 
