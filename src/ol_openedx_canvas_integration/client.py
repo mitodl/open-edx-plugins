@@ -127,10 +127,7 @@ class CanvasClient:
         """
         url = urljoin(
             settings.CANVAS_BASE_URL,
-            "/api/v1/courses/{course_id}/assignments/{assignment_id}/submissions".format(
-                course_id=self.canvas_course_id,
-                assignment_id=assignment_id,
-            ),
+            f"/api/v1/courses/{self.canvas_course_id}/assignments/{assignment_id}/submissions",
         )
         return self._paginate(url)
 
@@ -153,9 +150,7 @@ class CanvasClient:
         return self.session.post(
             url=urljoin(
                 settings.CANVAS_BASE_URL,
-                "/api/v1/courses/{course_id}/assignments/{assignment_id}/submissions/update_grades".format(
-                    course_id=self.canvas_course_id, assignment_id=canvas_assignment_id
-                ),
+                f"/api/v1/courses/{self.canvas_course_id}/assignments/{canvas_assignment_id}/submissions/update_grades",
             ),
             data=payload,
         )
