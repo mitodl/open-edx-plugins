@@ -3,7 +3,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.5.0
+  rev: v4.6.0
   hooks:
   - id: trailing-whitespace
   - id: end-of-file-fixer
@@ -27,7 +27,7 @@ repos:
     - '80'
     - --preserve-quotes
 - repo: https://github.com/adrienverge/yamllint.git
-  rev: v1.33.0
+  rev: v1.35.1
   hooks:
   - id: yamllint
     args: [--format, parsable, -d, relaxed]
@@ -38,17 +38,17 @@ repos:
     args:
     - --exclude-files '(poetry.lock|pants)'
 - repo: https://github.com/psf/black
-  rev: 24.1.1
+  rev: 24.3.0
   hooks:
   - id: black
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: 'v0.2.0'
+  rev: 'v0.3.5'
   hooks:
   - id: ruff
     args: [--extend-ignore=D1, --fix]
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.8.0
+  rev: v1.9.0
   hooks:
   - id: mypy
     additional_dependencies:
