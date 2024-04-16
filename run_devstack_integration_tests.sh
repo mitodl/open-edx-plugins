@@ -17,16 +17,10 @@ cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-st
 
 cd /open-edx-plugins
 
-pip install dist/edx-sysadmin-0.3.0.tar.gz
-pip install dist/ol-openedx-canvas-integration-0.3.0.tar.gz
-pip install dist/ol-openedx-checkout-external-0.1.3.tar.gz
-pip install dist/ol-openedx-course-export-0.1.2.tar.gz
-pip install dist/ol-openedx-course-structure-api-0.1.3.tar.gz
-pip install dist/ol-openedx-git-auto-export-0.3.1.tar.gz
-pip install dist/ol-openedx-logging-0.1.0.tar.gz
-pip install dist/ol-openedx-rapid-response-reports-0.3.0.tar.gz
-pip install dist/ol-openedx-sentry-0.1.2.tar.gz
-pip install dist/rapid-response-xblock-0.9.1.tar.gz
+# Loop through each tar.gz file in the dist folder and install them using pip
+for file in "dist"/*.tar.gz; do
+    pip install "$file"
+done
 
 # Install codecov so we can upload code coverage results
 pip install codecov

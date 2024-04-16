@@ -1,1 +1,1 @@
-python_sources(name="rapidresponse_migrations")
+python_sources(name="rapid_response_migrations")

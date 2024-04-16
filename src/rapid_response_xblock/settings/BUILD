@@ -1,1 +1,1 @@
-python_sources(name="rapidresponse_settings")
+python_sources(name="rapid_response_settings")

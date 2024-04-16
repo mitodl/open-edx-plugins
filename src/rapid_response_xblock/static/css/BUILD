@@ -1,4 +1,4 @@
 resources(
-    name="rapidresponse_css",
+    name="rapid_response_css",
     sources=["*.css"],
 )
