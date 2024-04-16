@@ -16,7 +16,7 @@ class RapidResponseAppConfig(AppConfig):
         PluginSettings.CONFIG: {
             ProjectType.LMS: {
                 SettingsType.COMMON: {
-                    PluginSettings.RELATIVE_PATH: "settings.settings"
+                    PluginSettings.RELATIVE_PATH: "settings.common"
                 },
             },
             ProjectType.CMS: {
