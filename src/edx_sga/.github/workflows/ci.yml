@@ -17,8 +17,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04]
-        python-version: ['3.8']
-        toxenv: [py38-django32, py38-django42]
+        python-version: ['3.12']
+        toxenv: [py312-django32, py312-django42]
 
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +35,13 @@ jobs:
         env:
           TOXENV: ${{ matrix.toxenv }}
         run: tox
+        
+      - name: Upload coverage to CodeCov
+        if: matrix.python-version == '3.12' && matrix.toxenv == 'py312-django42'
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
 
       - name: Run Integration Tests 
         run: |
@@ -46,7 +53,7 @@ jobs:
             DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/../edx-sga:/edx-sga lms /edx-sga/run_devstack_integration_tests.sh
 
       - name: Upload coverage to CodeCov
-        if: matrix.python-version == '3.8' && matrix.toxenv == 'py38-django42'
+        if: matrix.python-version == '3.12' && matrix.toxenv == 'py312-django42'
         uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml

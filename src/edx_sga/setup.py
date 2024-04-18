@@ -39,6 +39,7 @@ setup(
         "Framework :: Django :: 4.2",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Education",
     ],

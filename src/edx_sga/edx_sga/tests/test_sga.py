@@ -180,7 +180,11 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         """
         Set values on block from file upload.
         """
-        now = datetime.datetime.utcnow().replace(
+        try:
+            now = datetime.datetime.now(datetime.UTC)  # pylint: disable=no-member
+        except:  # pylint: disable=bare-except
+            now = datetime.datetime.utcnow()
+        now = now.replace(
             tzinfo=pytz.timezone(getattr(settings, "TIME_ZONE", pytz.utc.zone))
         )
         block.annotated_mimetype = mimetypes.guess_type(upload.file.name)[0]
@@ -744,11 +748,15 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         Test prepare download api
         """
         block = self.make_xblock()
+        try:
+            timestamp = datetime.datetime.now(datetime.UTC)  # pylint: disable=no-member
+        except:  # pylint: disable=bare-except
+            timestamp = datetime.datetime.utcnow()
         get_sorted_submissions.return_value = [
             {
                 "submission_id": uuid.uuid4().hex,
                 "filename": f"test_{uuid.uuid4().hex}.txt",
-                "timestamp": datetime.datetime.utcnow(),
+                "timestamp": timestamp,
             }
             for __ in range(2)
         ]
