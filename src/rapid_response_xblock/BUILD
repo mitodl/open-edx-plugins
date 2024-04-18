@@ -16,7 +16,7 @@ python_distribution(
     ],
     provides=setup_py(
         name="rapid-response-xblock",
-        version="0.9.2",
+        version="0.9.1",
         description="An Open edX plugin to add rapid response aside for problem xBlocks",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
