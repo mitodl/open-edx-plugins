@@ -8,8 +8,8 @@ from django.http.request import HttpRequest
 from lms.djangoapps.courseware.block_render import load_single_xblock
 from opaque_keys.edx.keys import UsageKey
 from opaque_keys.edx.locator import CourseLocator
-from rapid_response_xblock.logger import SubmissionRecorder
-from rapid_response_xblock.models import (
+from ol_openedx_rapid_response_xblock.logger import SubmissionRecorder
+from ol_openedx_rapid_response_xblock.models import (
     RapidResponseRun,
     RapidResponseSubmission,
 )

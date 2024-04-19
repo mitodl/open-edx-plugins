@@ -3,8 +3,8 @@
 import pytest
 from common.djangoapps.student.tests.factories import UserFactory
 from opaque_keys.edx.keys import UsageKey
-from rapid_response_xblock.models import RapidResponseRun, RapidResponseSubmission
-from rapid_response_xblock.utils import get_run_data_for_course, get_run_submission_data
+from ol_openedx_rapid_response_xblock.models import RapidResponseRun, RapidResponseSubmission
+from ol_openedx_rapid_response_xblock.utils import get_run_data_for_course, get_run_submission_data
 from tests.utils import RuntimeEnabledTestCase
 
 

@@ -11,7 +11,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.template import Context, Template
 from django.utils.translation import gettext_lazy as _
-from rapid_response_xblock.models import (
+from ol_openedx_rapid_response_xblock.models import (
     RapidResponseRun,
     RapidResponseSubmission,
 )

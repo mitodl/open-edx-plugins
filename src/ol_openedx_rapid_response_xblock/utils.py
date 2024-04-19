@@ -1,6 +1,6 @@
 """Utils methods for instructor dashboard"""
 
-from rapid_response_xblock.models import RapidResponseRun, RapidResponseSubmission
+from ol_openedx_rapid_response_xblock.models import RapidResponseRun, RapidResponseSubmission
 
 
 def get_run_data_for_course(course_key):

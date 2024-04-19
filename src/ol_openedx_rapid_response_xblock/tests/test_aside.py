@@ -10,12 +10,12 @@ from common.djangoapps.student.tests.factories import UserFactory
 from dateutil.parser import parse as parse_datetime
 from ddt import data, ddt, unpack
 from opaque_keys.edx.keys import UsageKey
-from rapid_response_xblock.block import (
+from ol_openedx_rapid_response_xblock.block import (
     BLOCK_PROBLEM_CATEGORY,
     MULTIPLE_CHOICE_TYPE,
     RapidResponseAside,
 )
-from rapid_response_xblock.models import (
+from ol_openedx_rapid_response_xblock.models import (
     RapidResponseRun,
     RapidResponseSubmission,
 )
