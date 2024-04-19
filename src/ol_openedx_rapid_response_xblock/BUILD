@@ -1,8 +1,8 @@
 python_sources(
     name="rapid_response_xblock",
     dependencies=[
-        "src/rapid_response_xblock/migrations:rapid_response_migrations",
-        "src/rapid_response_xblock/settings:rapid_response_settings",
+        "src/ol_openedx_rapid_response_xblock/migrations:rapid_response_migrations",
+        "src/ol_openedx_rapid_response_xblock/settings:rapid_response_settings",
         ],
 )
 
@@ -10,9 +10,9 @@ python_distribution(
     name="rapid_response_xblock_package",
     dependencies=[
         ":rapid_response_xblock",
-        "src/rapid_response_xblock/static/js:rapid_response_js",
-        "src/rapid_response_xblock/static/css:rapid_response_css",
-        "src/rapid_response_xblock/static/html:rapid_response_html",
+        "src/ol_openedx_rapid_response_xblock/static/js:rapid_response_js",
+        "src/ol_openedx_rapid_response_xblock/static/css:rapid_response_css",
+        "src/ol_openedx_rapid_response_xblock/static/html:rapid_response_html",
     ],
     provides=setup_py(
         name="rapid-response-xblock",

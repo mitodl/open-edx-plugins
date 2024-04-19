@@ -66,7 +66,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
                 fragment.js_init_fn == "RapidResponseAsideInit"
             ) is should_render_aside
 
-    @data(True, False)
+    @data(True, False) # noqa: FBT003
     def test_student_view_context(self, is_open):
         """
         Test that the aside student view has the proper context variables
@@ -122,7 +122,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
                 delattr(block, block_attr)
         assert self.aside_instance.should_apply_to_block(block) is should_apply
 
-    @data(True, False)
+    @data(True, False) # noqa: FBT003
     def test_studio_view(self, enabled_value):
         """
         Test that the aside studio view returns a fragment
@@ -137,7 +137,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
             assert f'data-enabled="{enabled_value}"' in fragment.content
             assert fragment.js_init_fn == "RapidResponseAsideStudioInit"
 
-    @data(True, False)
+    @data(True, False) # noqa: FBT003
     def test_author_view(self, enabled_value):
         """
         Test that the aside author view returns a fragment when enabled
@@ -253,7 +253,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
             resp = self.aside_instance.responses()
         assert resp.status_code == expected_status
 
-    @data(True, False)
+    @data(True, False) # noqa: FBT003
     def test_responses_open(self, is_open):
         """
         Test that the responses API shows whether the problem is open
@@ -269,7 +269,7 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         assert resp.status_code == 200  # noqa: PLR2004
         assert resp.json["is_open"] == is_open
 
-    @data(True, False)
+    @data(True, False) # noqa: FBT003
     def test_responses(self, has_runs):
         """
         Test that the responses API will show recorded events during the open period
