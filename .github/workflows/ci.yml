@@ -36,7 +36,7 @@ jobs:
     - name: Setup edX & Run Tests
       run: |
         cd ..
-        git clone https://github.com/edx/devstack.git
+        git clone https://github.com/openedx/devstack.git
         cd devstack
         sed -i 's/:cached//g' ./docker-compose-host.yml
         git checkout ${{ matrix.devstack-branch }}

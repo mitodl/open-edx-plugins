@@ -55,3 +55,4 @@ repos:
     - types-pytz
     - types-requests
     - types-pkg_resources
+    - types-python-dateutil
