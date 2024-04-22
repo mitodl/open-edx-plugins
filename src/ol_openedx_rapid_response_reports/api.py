@@ -13,7 +13,7 @@ def get_rapid_response_report(
     Return csv file corresponding to given run_id
     """
     header = ["Date", "Submitted Answer", "Username", "User Email", "Correct"]
-    from ol_openedx_rapid_response_xblock.utils import (
+    from rapid_response_xblock.utils import (
         get_run_submission_data,  # pylint: disable=import-error
     )
 
