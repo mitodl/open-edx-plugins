@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.25.0
+--------------
+
+- Python312 upgrade (#357)
+
 Version 0.24.1 (Released April 01, 2024)
 --------------
 
