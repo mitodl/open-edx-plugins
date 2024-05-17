@@ -41,7 +41,7 @@ def test_redirect_middleware(
     settings.MITXPRO_CORE_REDIRECT_ALLOW_RE_LIST = allowed_regexes
     settings.MITXPRO_CORE_REDIRECT_DENY_RE_LIST = denied_regexes
 
-    from .middleware import RedirectAnonymousUsersToLoginMiddleware
+    from openedx_companion_auth.middleware import RedirectAnonymousUsersToLoginMiddleware
 
     should_redirect = should_redirect and is_enabled and is_anonymous
 

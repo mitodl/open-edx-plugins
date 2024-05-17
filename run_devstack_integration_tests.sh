@@ -41,7 +41,17 @@ for subdir in "src"/*; do
             cp -r /edx/app/edxapp/edx-platform/test_root/ "/open-edx-plugins/$subdir/test_root"
             echo "==============Running $subdir test==================="
             cd "$subdir"
-            pytest . --cov .
+
+             # Check for the existence of settings/test.py
+            if [ -f "settings/test.py" ]; then
+                pytest_command="pytest . --cov . --ds=settings.test"
+            else
+                pytest_command="pytest . --cov ."
+            fi
+
+            # Run the pytest command
+            $pytest_command
+
             PYTEST_SUCCESS=$?
 
             if [[ $PYTEST_SUCCESS -ne 0 ]]
