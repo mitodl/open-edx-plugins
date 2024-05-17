@@ -17,10 +17,20 @@ cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-st
 
 cd /open-edx-plugins
 
-# Loop through each tar.gz file in the dist folder and install them using pip
-for file in "dist"/*.tar.gz; do
-    pip install "$file"
-done
+# Function to install the plugin based on the subdirectory name
+install_plugin_from_subdir() {
+    subdir=$1
+    plugin_name=$(basename "$subdir" | sed 's/src\///' | sed 's/_/-/g')
+
+    tarball=$(ls dist | grep "$plugin_name" | head -n 1)
+
+    if [[ -n $tarball ]]; then
+        pip install "dist/$tarball"
+    else
+        echo "No matching tarball found for $plugin_name"
+        exit 1
+    fi
+}
 
 # Install codecov so we can upload code coverage results
 pip install codecov
@@ -29,20 +39,20 @@ pip install codecov
 pip freeze
 
 set +e
-
-
-set +e
 for subdir in "src"/*; do
     if [ -d "$subdir" ]; then
         tests_directory="$subdir/tests"
 
         # Check if tests directory exists
         if [ -d "$tests_directory" ]; then
+            # Install the plugin from the subdirectory
+            install_plugin_from_subdir "$subdir"
+
             cp -r /edx/app/edxapp/edx-platform/test_root/ "/open-edx-plugins/$subdir/test_root"
             echo "==============Running $subdir test==================="
             cd "$subdir"
 
-             # Check for the existence of settings/test.py
+            # Check for the existence of settings/test.py
             if [ -f "settings/test.py" ]; then
                 pytest_command="pytest . --cov . --ds=settings.test"
             else
