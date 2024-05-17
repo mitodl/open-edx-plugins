@@ -1,0 +1,1 @@
+python_sources(name="xpro_openedx_settings")
