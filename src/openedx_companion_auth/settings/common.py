@@ -1,10 +1,9 @@
 """
 Settings for mitxpro-core
 """
-from __future__ import unicode_literals
 
 
-SECRET_KEY = "unsafe-secret-key"
+SECRET_KEY = "unsafe-secret-key"  # noqa: S105
 INSTALLED_APPS = (
     "django.contrib.auth",
     "django.contrib.contenttypes",

@@ -1,7 +1,6 @@
 """Middleware tests"""
 import pytest
 
-
 try:
     from django.utils.http import urlquote
 except ImportError:
@@ -11,7 +10,7 @@ except ImportError:
 @pytest.mark.parametrize("is_enabled", [True, False])
 @pytest.mark.parametrize("is_anonymous", [True, False])
 @pytest.mark.parametrize(
-    "path, allowed_regexes, denied_regexes, should_redirect",
+    "path, allowed_regexes, denied_regexes, should_redirect",  # noqa: PT006
     [
         ("/allowed", [], [], False),
         ("/allowed", [r"^/allowed"], [], False),
@@ -24,7 +23,7 @@ except ImportError:
         ("/allowed/nested", [r"^/allowed"], [r"^/allowed/nested"], True),
     ],
 )
-def test_redirect_middleware(
+def test_redirect_middleware(  # noqa: PLR0913
     settings,
     rf,
     mocker,
@@ -41,7 +40,9 @@ def test_redirect_middleware(
     settings.MITXPRO_CORE_REDIRECT_ALLOW_RE_LIST = allowed_regexes
     settings.MITXPRO_CORE_REDIRECT_DENY_RE_LIST = denied_regexes
 
-    from openedx_companion_auth.middleware import RedirectAnonymousUsersToLoginMiddleware
+    from openedx_companion_auth.middleware import (
+        RedirectAnonymousUsersToLoginMiddleware,
+    )
 
     should_redirect = should_redirect and is_enabled and is_anonymous
 
@@ -55,10 +56,10 @@ def test_redirect_middleware(
 
     if should_redirect:
         mock_get_response.assert_not_called()
-        assert response.status_code == 302
-        assert (
+        assert response.status_code == 302  # noqa: S101, PLR2004
+        assert (  # noqa: S101
             response.url
-            == "{}&next={}".format(  # pylint: disable=consider-using-f-string
+            == "{}&next={}".format(  # pylint: disable=consider-using-f-string  # noqa: UP032
                 settings.MITXPRO_CORE_REDIRECT_LOGIN_URL,
                 urlquote(request.build_absolute_uri()),
             )

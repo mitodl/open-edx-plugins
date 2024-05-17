@@ -5,11 +5,10 @@ from django.conf import settings
 from django.shortcuts import redirect
 from django.utils.deprecation import MiddlewareMixin
 
-
 try:
-    from urllib.parse import urlsplit, urlunsplit, parse_qsl
+    from urllib.parse import parse_qsl, urlsplit, urlunsplit
 except ImportError:
-    from urlparse import urlsplit, urlunsplit, parse_qsl
+    from urlparse import parse_qsl, urlsplit, urlunsplit
 
 try:
     from django.utils.http import urlquote
@@ -18,7 +17,7 @@ except ImportError:
 
 
 def redirect_to_login(request):
-    """Returns a response redirecting to the login url"""
+    """Return a response redirecting to the login URL."""
     scheme, netloc, path, query, fragment = urlsplit(
         settings.MITXPRO_CORE_REDIRECT_LOGIN_URL
     )
@@ -26,7 +25,7 @@ def redirect_to_login(request):
     query.append(("next", urlquote(request.build_absolute_uri())))
     query = "&".join(
         [
-            "{}={}".format(key, value)  # pylint: disable=consider-using-f-string
+            f"{key}={value}"  # pylint: disable=consider-using-f-string
             for (key, value) in query
         ]
     )
@@ -44,14 +43,14 @@ class RedirectAnonymousUsersToLoginMiddleware(MiddlewareMixin):
             # if allowed regexes are set, redirect if the path doesn't match any
             allowed_regexes = settings.MITXPRO_CORE_REDIRECT_ALLOW_RE_LIST
             if allowed_regexes and not any(  # pylint: disable=use-a-generator
-                [re.match(pattern, request.path) for pattern in allowed_regexes]
+                [re.match(pattern, request.path) for pattern in allowed_regexes]  # noqa: C419
             ):
                 return redirect_to_login(request)
 
             # if denied regexes are set, redirect if the path matches any
             denied_regexes = settings.MITXPRO_CORE_REDIRECT_DENY_RE_LIST
             if denied_regexes and any(  # pylint: disable=use-a-generator
-                [re.match(pattern, request.path) for pattern in denied_regexes]
+                [re.match(pattern, request.path) for pattern in denied_regexes]  # noqa: C419
             ):
                 return redirect_to_login(request)
 

@@ -2,13 +2,12 @@
 Settings for mitxpro_core-core
 """
 
-from __future__ import absolute_import, unicode_literals
 
-from .common import *  # pylint: disable=wildcard-import, unused-wildcard-import
+from .common import *  # pylint: disable=wildcard-import, unused-wildcard-import  # noqa: F403
 
 
-class SettingsClass(object):  # pylint: disable=useless-object-inheritance
-    """ dummy settings class """
+class SettingsClass:  # pylint: disable=useless-object-inheritance
+    """dummy settings class"""
 
 
 def plugin_settings(settings):  # pylint: disable=function-redefined

@@ -1,7 +1,6 @@
 """
 Production settings for mitxpro-core
 """
-from __future__ import unicode_literals
 
 
 def plugin_settings(settings):
