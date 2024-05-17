@@ -1,4 +1,5 @@
 """MIT xPro Open edX middlware"""
+
 import re
 
 from django.conf import settings
@@ -8,7 +9,7 @@ from django.utils.deprecation import MiddlewareMixin
 try:
     from urllib.parse import parse_qsl, urlsplit, urlunsplit
 except ImportError:
-    from urlparse import parse_qsl, urlsplit, urlunsplit
+    from urlparse import parse_qsl, urlsplit, urlunsplit  # type: ignore[no-redef]
 
 try:
     from django.utils.http import urlquote
@@ -43,14 +44,14 @@ class RedirectAnonymousUsersToLoginMiddleware(MiddlewareMixin):
             # if allowed regexes are set, redirect if the path doesn't match any
             allowed_regexes = settings.MITXPRO_CORE_REDIRECT_ALLOW_RE_LIST
             if allowed_regexes and not any(  # pylint: disable=use-a-generator
-                [re.match(pattern, request.path) for pattern in allowed_regexes]  # noqa: C419
+                [re.match(pattern, request.path) for pattern in allowed_regexes]
             ):
                 return redirect_to_login(request)
 
             # if denied regexes are set, redirect if the path matches any
             denied_regexes = settings.MITXPRO_CORE_REDIRECT_DENY_RE_LIST
             if denied_regexes and any(  # pylint: disable=use-a-generator
-                [re.match(pattern, request.path) for pattern in denied_regexes]  # noqa: C419
+                [re.match(pattern, request.path) for pattern in denied_regexes]
             ):
                 return redirect_to_login(request)
 

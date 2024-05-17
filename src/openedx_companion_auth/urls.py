@@ -1,2 +1,3 @@
 """Minimal urls for django app"""
-urlpatterns = []
+
+urlpatterns = []  # type: ignore[var-annotated]

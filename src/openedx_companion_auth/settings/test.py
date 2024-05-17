@@ -2,7 +2,6 @@
 Settings for mitxpro_core-core
 """
 
-
 from .common import *  # pylint: disable=wildcard-import, unused-wildcard-import  # noqa: F403
 
 
@@ -10,7 +9,9 @@ class SettingsClass:  # pylint: disable=useless-object-inheritance
     """dummy settings class"""
 
 
-def plugin_settings(settings):  # pylint: disable=function-redefined
+def plugin_settings(  # type: ignore[no-redef]
+    settings,
+):  # pylint: disable=function-redefined
     """
     Configure the plugin for tests
     """

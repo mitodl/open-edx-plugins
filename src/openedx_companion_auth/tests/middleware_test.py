@@ -1,4 +1,5 @@
 """Middleware tests"""
+
 import pytest
 
 try:

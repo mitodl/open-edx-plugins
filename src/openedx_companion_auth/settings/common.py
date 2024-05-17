@@ -2,8 +2,7 @@
 Settings for mitxpro-core
 """
 
-
-SECRET_KEY = "unsafe-secret-key"  # noqa: S105
+SECRET_KEY = "unsafe-secret-key"  # noqa: S105  # pragma: allowlist secret
 INSTALLED_APPS = (
     "django.contrib.auth",
     "django.contrib.contenttypes",
