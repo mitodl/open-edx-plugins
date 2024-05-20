@@ -17,17 +17,30 @@ cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-st
 
 cd /open-edx-plugins
 
-# Function to install the plugin based on the subdirectory name
-install_plugin_from_subdir() {
+# Function to install or uninstall the plugin based on the subdirectory name and action
+manage_plugin() {
     subdir=$1
+    action=$2
     plugin_name=$(basename "$subdir" | sed 's/src\///' | sed 's/_/-/g')
 
     tarball=$(ls dist | grep "$plugin_name" | head -n 1)
 
-    if [[ -n $tarball ]]; then
-        pip install "dist/$tarball"
+    if [[ $action == "install" ]]; then
+        if [[ -n $tarball ]]; then
+            pip install "dist/$tarball"
+        else
+            echo "No matching tarball found for $plugin_name"
+            exit 1
+        fi
+    elif [[ $action == "uninstall" ]]; then
+        if [[ -n $plugin_name ]]; then
+            pip uninstall -y "$plugin_name"
+        else
+            echo "No plugin name found for $subdir"
+            exit 1
+        fi
     else
-        echo "No matching tarball found for $plugin_name"
+        echo "Invalid action: $action"
         exit 1
     fi
 }
@@ -46,7 +59,7 @@ for subdir in "src"/*; do
         # Check if tests directory exists
         if [ -d "$tests_directory" ]; then
             # Install the plugin from the subdirectory
-            install_plugin_from_subdir "$subdir"
+            manage_plugin "$subdir" "install"
 
             cp -r /edx/app/edxapp/edx-platform/test_root/ "/open-edx-plugins/$subdir/test_root"
             echo "==============Running $subdir test==================="
@@ -70,6 +83,10 @@ for subdir in "src"/*; do
                 exit $PYTEST_SUCCESS
             fi
             coverage xml
+
+            # Uninstall the plugin after the test run
+            manage_plugin "$subdir" "uninstall"
+
             cd ../..
         fi
     fi
