@@ -1,13 +1,13 @@
-"""mitxpro_extensions app config"""
+"""openedx_companion_auth app config"""
 
 from django.apps import AppConfig
 
 
-class MITxProCoreConfig(AppConfig):
+class MITxCoreConfig(AppConfig):
     """App configuration"""
 
     name = "openedx_companion_auth"
-    verbose_name = "MIT xPro Openedx Extensions"
+    verbose_name = "Openedx Companion Auth"
 
     plugin_app = {
         "settings_config": {

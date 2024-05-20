@@ -36,10 +36,10 @@ def test_redirect_middleware(  # noqa: PLR0913
     should_redirect,
 ):  # pylint: disable=too-many-arguments
     """Test that the middleware redirects correctly"""
-    settings.MITXPRO_CORE_REDIRECT_LOGIN_URL = "/mitxpro-oauth2/?auth_entry=login"
-    settings.MITXPRO_CORE_REDIRECT_ENABLED = is_enabled
-    settings.MITXPRO_CORE_REDIRECT_ALLOW_RE_LIST = allowed_regexes
-    settings.MITXPRO_CORE_REDIRECT_DENY_RE_LIST = denied_regexes
+    settings.MITX_REDIRECT_LOGIN_URL = "/mitxpro-oauth2/?auth_entry=login"
+    settings.MITX_REDIRECT_ENABLED = is_enabled
+    settings.MITX_REDIRECT_ALLOW_RE_LIST = allowed_regexes
+    settings.MITX_REDIRECT_DENY_RE_LIST = denied_regexes
 
     from openedx_companion_auth.middleware import (
         RedirectAnonymousUsersToLoginMiddleware,
@@ -61,7 +61,7 @@ def test_redirect_middleware(  # noqa: PLR0913
         assert (  # noqa: S101
             response.url
             == "{}&next={}".format(  # pylint: disable=consider-using-f-string  # noqa: UP032
-                settings.MITXPRO_CORE_REDIRECT_LOGIN_URL,
+                settings.MITX_REDIRECT_LOGIN_URL,
                 urlquote(request.build_absolute_uri()),
             )
         )

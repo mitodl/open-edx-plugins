@@ -1,5 +1,5 @@
 """
-Settings for mitxpro_core-core
+Settings for openedx-companion-auth
 """
 
 from .common import *  # pylint: disable=wildcard-import, unused-wildcard-import  # noqa: F403
@@ -15,14 +15,14 @@ def plugin_settings(  # type: ignore[no-redef]
     """
     Configure the plugin for tests
     """
-    settings.MITXPRO_CORE_REDIRECT_ENABLED = True
-    settings.MITXPRO_CORE_REDIRECT_LOGIN_URL = (
+    settings.MITX_REDIRECT_ENABLED = True
+    settings.MITX_REDIRECT_LOGIN_URL = (
         "/auth/login/mitxpro-oauth2/?auth_entry=login"
     )
-    settings.MITXPRO_CORE_REDIRECT_ALLOW_RE_LIST = [
+    settings.MITX_REDIRECT_ALLOW_RE_LIST = [
         r"^/(admin|auth|login|logout|register|api|oauth2|user_api)"
     ]
-    settings.MITXPRO_CORE_REDIRECT_DENY_RE_LIST = []
+    settings.MITX_REDIRECT_DENY_RE_LIST = []
 
     settings.MIDDLEWARE = [
         "openedx_companion_auth.middleware.RedirectAnonymousUsersToLoginMiddleware"

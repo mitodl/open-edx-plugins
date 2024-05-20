@@ -19,10 +19,10 @@ python_distribution(
         author="MIT Office of Digital Learning",
         include_package_data=True,
         zip_safe=False,
-        keywords="Python edx xpro",
+        keywords="Python edx",
         entry_points={
             "lms.djangoapp": [
-                "openedx_companion_auth = openedx_companion_auth.apps:MITxProCoreConfig"
+                "openedx_companion_auth = openedx_companion_auth.apps:MITxCoreConfig"
             ],
             "cms.djangoapp": [],
         },

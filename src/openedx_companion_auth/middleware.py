@@ -1,4 +1,4 @@
-"""MIT xPro Open edX middlware"""
+"""MITx Open edX middlware"""
 
 import re
 
@@ -20,7 +20,7 @@ except ImportError:
 def redirect_to_login(request):
     """Return a response redirecting to the login URL."""
     scheme, netloc, path, query, fragment = urlsplit(
-        settings.MITXPRO_CORE_REDIRECT_LOGIN_URL
+        settings.MITX_REDIRECT_LOGIN_URL
     )
     query = parse_qsl(query)
     query.append(("next", urlquote(request.build_absolute_uri())))
@@ -34,22 +34,22 @@ def redirect_to_login(request):
 
 
 class RedirectAnonymousUsersToLoginMiddleware(MiddlewareMixin):
-    """Middleware to redirect anonymous users to login via xpro"""
+    """Middleware to redirect anonymous users to login via MIT"""
 
     def process_request(self, request):
         """Process an incoming request"""
-        if settings.MITXPRO_CORE_REDIRECT_ENABLED and (
+        if settings.MITX_REDIRECT_ENABLED and (
             not getattr(request, "user", None) or request.user.is_anonymous
         ):
             # if allowed regexes are set, redirect if the path doesn't match any
-            allowed_regexes = settings.MITXPRO_CORE_REDIRECT_ALLOW_RE_LIST
+            allowed_regexes = settings.MITX_REDIRECT_ALLOW_RE_LIST
             if allowed_regexes and not any(  # pylint: disable=use-a-generator
                 [re.match(pattern, request.path) for pattern in allowed_regexes]
             ):
                 return redirect_to_login(request)
 
             # if denied regexes are set, redirect if the path matches any
-            denied_regexes = settings.MITXPRO_CORE_REDIRECT_DENY_RE_LIST
+            denied_regexes = settings.MITX_REDIRECT_DENY_RE_LIST
             if denied_regexes and any(  # pylint: disable=use-a-generator
                 [re.match(pattern, request.path) for pattern in denied_regexes]
             ):
