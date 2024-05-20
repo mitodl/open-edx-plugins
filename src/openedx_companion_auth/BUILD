@@ -1,7 +1,8 @@
 python_sources(
     name="openedx_companion_configuration",
     dependencies=[
-        "src/openedx_companion_auth/settings:xpro_openedx_settings",
+        "src/openedx_companion_auth/settings:openedx_companion_auth_settings",
+        "//:external_dependencies#pytest-mock",
         ],
 )
 

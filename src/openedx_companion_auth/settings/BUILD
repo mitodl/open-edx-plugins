@@ -1,1 +1,1 @@
-python_sources(name="xpro_openedx_settings")
+python_sources(name="openedx_companion_auth_settings")
