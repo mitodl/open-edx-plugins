@@ -13,16 +13,12 @@ def plugin_settings(settings):
         "MITX_REDIRECT_LOGIN_URL", settings.MITX_REDIRECT_LOGIN_URL
     )
 
-    settings.MITX_REDIRECT_ALLOW_RE_LIST = getattr(
-        settings, "ENV_TOKENS", {}
-    ).get(
+    settings.MITX_REDIRECT_ALLOW_RE_LIST = getattr(settings, "ENV_TOKENS", {}).get(
         "MITX_REDIRECT_ALLOW_RE_LIST",
         settings.MITX_REDIRECT_ALLOW_RE_LIST,
     )
 
-    settings.MITX_REDIRECT_DENY_RE_LIST = getattr(
-        settings, "ENV_TOKENS", {}
-    ).get(
+    settings.MITX_REDIRECT_DENY_RE_LIST = getattr(settings, "ENV_TOKENS", {}).get(
         "MITX_REDIRECT_DENY_RE_LIST",
         settings.MITX_REDIRECT_DENY_RE_LIST,
     )

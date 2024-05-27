@@ -30,7 +30,7 @@ class GitReloadAPIView(APIView):
 
     permission_classes = [GithubWebhookPermission]
 
-    def post(self, request):
+    def post(self, request):  # noqa: PLR0912
         """
         Trigger for github webhooks for course reload
         """

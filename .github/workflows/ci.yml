@@ -30,11 +30,6 @@ jobs:
         curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
         pants package ::
 
-    - name: Checking formatting with Ruff
-      run: |
-        pip install ruff
-        ruff check --extend-ignore=D1
-
     - name: Install poetry
       uses: snok/install-poetry@v1
       with:

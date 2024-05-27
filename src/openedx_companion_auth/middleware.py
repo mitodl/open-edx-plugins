@@ -19,9 +19,7 @@ except ImportError:
 
 def redirect_to_login(request):
     """Return a response redirecting to the login URL."""
-    scheme, netloc, path, query, fragment = urlsplit(
-        settings.MITX_REDIRECT_LOGIN_URL
-    )
+    scheme, netloc, path, query, fragment = urlsplit(settings.MITX_REDIRECT_LOGIN_URL)
     query = parse_qsl(query)
     query.append(("next", urlquote(request.build_absolute_uri())))
     query = "&".join(
