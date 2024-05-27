@@ -9,17 +9,16 @@ mkdir -p reports
 pip install -r ./requirements/edx/testing.txt
 pip install -r ./requirements/edx/paver.txt
 
-# Installing dev dependencies
-pip install poetry
-poetry install --no-interaction --only dev
-
 mkdir -p test_root  # for edx
 paver update_assets lms --settings=test_static_optimized
 
 cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-stats.json
 
-
 cd /open-edx-plugins
+
+# Installing dev dependencies
+pip install poetry
+poetry install --no-interaction --only dev
 
 # Function to install or uninstall the plugin based on the subdirectory name and action
 manage_plugin() {
