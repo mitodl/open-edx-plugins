@@ -44,14 +44,14 @@ class RedirectAnonymousUsersToLoginMiddleware(MiddlewareMixin):
             # if allowed regexes are set, redirect if the path doesn't match any
             allowed_regexes = settings.MITX_REDIRECT_ALLOW_RE_LIST
             if allowed_regexes and not any(  # pylint: disable=use-a-generator
-                [re.match(pattern, request.path) for pattern in allowed_regexes]
+                re.match(pattern, request.path) for pattern in allowed_regexes
             ):
                 return redirect_to_login(request)
 
             # if denied regexes are set, redirect if the path matches any
             denied_regexes = settings.MITX_REDIRECT_DENY_RE_LIST
             if denied_regexes and any(  # pylint: disable=use-a-generator
-                [re.match(pattern, request.path) for pattern in denied_regexes]
+                re.match(pattern, request.path) for pattern in denied_regexes
             ):
                 return redirect_to_login(request)
 

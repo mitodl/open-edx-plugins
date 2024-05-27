@@ -2,7 +2,6 @@ python_sources(
     name="openedx_companion_configuration",
     dependencies=[
         "src/openedx_companion_auth/settings:openedx_companion_auth_settings",
-        "//:external_dependencies#pytest-mock",
         ],
 )
 
@@ -14,7 +13,7 @@ python_distribution(
     provides=setup_py(
         name="openedx-companion-auth",
         version="1.3.0",
-        description="A package used for configuring/integrating Openedx auth with MIT projects",
+        description="A package to add login redirection from Open edX to MIT applications",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
         include_package_data=True,

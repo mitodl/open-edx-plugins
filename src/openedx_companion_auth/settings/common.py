@@ -2,14 +2,6 @@
 Settings for openedx-companion-auth
 """
 
-SECRET_KEY = "unsafe-secret-key"  # noqa: S105  # pragma: allowlist secret
-INSTALLED_APPS = (
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-)
-
-
 def plugin_settings(settings):
     """Apply default settings for this plugin"""
     settings.MITX_REDIRECT_ENABLED = True

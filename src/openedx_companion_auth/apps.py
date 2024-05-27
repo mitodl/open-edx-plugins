@@ -12,10 +12,7 @@ class MITxCoreConfig(AppConfig):
     plugin_app = {
         "settings_config": {
             "lms.djangoapp": {
-                "test": {"relative_path": "settings.test"},
                 "common": {"relative_path": "settings.common"},
-                # aws deprecated in favor of production, see https://openedx.atlassian.net/browse/DEPR-14
-                "aws": {"relative_path": "settings.production"},
                 "production": {"relative_path": "settings.production"},
             }
         }
