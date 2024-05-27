@@ -26,10 +26,10 @@ Building
 Installing
 ----------
 
-All that is required to install this in either a hosted version of Open edX or devstack is a `pip install` either from PyPI or the output of `poetry build`.
+All that is required to install this in either a hosted version of Open edX or devstack is a `pip install` either from PyPI or the output of `pants build`.
 
-Testing
--------
+Run Tests
+---------
 
 - Clone the open-edx-plugins repository in the src folder present in the openedx work directory.
 - Build the packages using pants:
@@ -67,3 +67,68 @@ Testing
   .. code-block:: shell
 
      pytest .  --ds=settings.test
+
+Usage
+-----
+MITxPro and MITxOnline use this plugin to redirect user authentication from edx-platform to the respective MIT applications
+
+To test the functionality of this plugin:
+
+- Install ``openedx-companion-auth`` using installation steps above
+
+- Install ``social-auth-mitxpro`` in LMS
+
+  .. code-block:: shell
+
+      pip install social-auth-mitxpro
+
+- Set the following settings in your ``private.py`` file:
+    .. code-block:: python
+
+      FEATURES["ALLOW_PUBLIC_ACCOUNT_CREATION"] = True
+      FEATURES["ENABLE_COMBINED_LOGIN_REGISTRATION"] = True
+      FEATURES["ENABLE_THIRD_PARTY_AUTH"] = True
+      FEATURES["ENABLE_OAUTH2_PROVIDER"] = True
+      FEATURES["SKIP_EMAIL_VALIDATION"] = True
+      FEATURES["ENABLE_UNICODE_USERNAME"] = True
+
+      REGISTRATION_EXTRA_FIELDS["country"] = "hidden"
+
+      THIRD_PARTY_AUTH_BACKENDS = [
+          "social_auth_mitxpro.backends.MITxProOAuth2",
+      ]
+
+- Login to django-admin (default username and password can be found `here <https://github.com/openedx/devstack#usernames-and-passwords>`_), go to ``http://<EDX_HOSTNAME>:18000/admin/third_party_auth/oauth2providerconfig/``, and create a new config:
+
+  * Select the default example site
+  * The slug field **MUST** match the the backend's name, which for us is ``mitxpro-oauth2``
+  * Client Id should be the client id from the MITx Online Django Oauth Toolkit Application
+  * Check the following checkboxes:
+
+    * Enabled
+    * Skip hinted login dialog
+    * Skip registration form
+    * Sync learner profile data
+    * Enable SSO id verification
+  * Set Backend name to: ``mitxpro-oauth2``
+
+  * In "Other settings", put:
+
+    .. code-block:: json
+
+      {
+        "AUTHORIZATION_URL": "http://<LOCAL_MITX_ALIAS>:<LOCAL_MITX_PORT>/oauth2/authorize/",
+        "ACCESS_TOKEN_URL": "http://<EXTERNAL_MITX_HOST>:<LOCAL_MITX_PORT>/oauth2/token/",
+        "API_ROOT": "http://<EXTERNAL_MITX_HOST>:<LOCAL_MITX_PORT>/"
+      }
+
+  * ``LOCAL_MITX_ALIAS`` should be your ``/etc/hosts`` alias for the mitx application you are configuring this plugin for
+  * ``LOCAL_MITX_PORT`` should be 8053 for MITxPro and 8013 for MITxOnline
+  * ``EXTERNAL_MITX_ONLINE_HOST`` will depend on your OS, but it needs to be resolvable within the edx container
+
+    * Linux users: The gateway IP of the docker-compose networking setup for mitxonline as found via ``docker network inspect mitx-online_default``
+    * OSX users: Use ``host.docker.internal``
+
+  * Save the configuration.
+
+- Go to ``http://<EDX_HOSTNAME>:18000`` , you should be redirected to the MIT login page
