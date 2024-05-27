@@ -9,6 +9,9 @@ mkdir -p reports
 pip install -r ./requirements/edx/testing.txt
 pip install -r ./requirements/edx/paver.txt
 
+# Installing dev dependencies
+poetry install --no-interaction --only dev
+
 mkdir -p test_root  # for edx
 paver update_assets lms --settings=test_static_optimized
 
