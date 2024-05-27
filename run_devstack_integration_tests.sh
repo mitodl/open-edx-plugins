@@ -10,6 +10,7 @@ pip install -r ./requirements/edx/testing.txt
 pip install -r ./requirements/edx/paver.txt
 
 # Installing dev dependencies
+pip install poetry
 poetry install --no-interaction --only dev
 
 mkdir -p test_root  # for edx
