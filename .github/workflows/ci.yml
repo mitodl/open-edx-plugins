@@ -6,11 +6,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        devstack-branch:
+        python_version:
+        - 3.8
+        - 3.11
+        devstack_branch:
         - master
         - open-release/quince.master
-        - open-release/palm.master
-        - open-release/olive.master
+        - open-release/redwood.master
           # Add more branches as needed
 
     steps:
@@ -19,7 +21,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.8.15"
+        python-version: ${{ matrix.python_version }}
 
     - name: Set up Pants
       run: |
@@ -39,7 +41,7 @@ jobs:
         git clone https://github.com/openedx/devstack.git
         cd devstack
         sed -i 's/:cached//g' ./docker-compose-host.yml
-        git checkout ${{ matrix.devstack-branch }}
+        git checkout ${{ matrix.devstack_branch }}
         make dev.clone.https
         DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh
 

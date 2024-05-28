@@ -37,14 +37,11 @@ repos:
   - id: detect-secrets
     args:
     - --exclude-files '(poetry.lock|pants)'
-- repo: https://github.com/psf/black
-  rev: 24.4.2
-  hooks:
-  - id: black
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
   rev: 'v0.4.5'
   hooks:
+  - id: ruff-format
   - id: ruff
     args: [--extend-ignore=D1, --fix]
 - repo: https://github.com/pre-commit/mirrors-mypy
@@ -56,3 +53,9 @@ repos:
     - types-requests
     - types-pkg_resources
     - types-python-dateutil
+- repo: https://github.com/rhysd/actionlint
+  rev: v1.7.0
+  hooks:
+  - id: actionlint
+    name: actionlint
+    description: Runs actionlint to lint GitHub Actions workflow files
