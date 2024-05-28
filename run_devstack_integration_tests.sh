@@ -21,7 +21,7 @@ pip install poetry
 poetry install --no-interaction --only dev
 
 # Plugins that may affect the tests of other plugins and need to uninstall after thier tests run
-isolated_plugins = ("openedx-companion-auth")
+isolated_plugins=("openedx-companion-auth")
 
 # Install codecov so we can upload code coverage results
 pip install codecov
