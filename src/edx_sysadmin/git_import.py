@@ -141,7 +141,7 @@ def cmd_log(cmd, cwd):
     return output
 
 
-def switch_branch(branch, rdir):  # noqa: PLR0912
+def switch_branch(branch, rdir):
     """
     Determine how to change the branch of the repo, and then
     use the appropriate git commands to do so.
