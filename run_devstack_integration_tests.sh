@@ -20,33 +20,8 @@ cd /open-edx-plugins
 pip install poetry
 poetry install --no-interaction --only dev
 
-# Function to install or uninstall the plugin based on the subdirectory name and action
-manage_plugin() {
-    subdir=$1
-    action=$2
-    plugin_name=$(basename "$subdir" | sed 's/src\///' | sed 's/_/-/g')
-
-    tarball=$(ls dist | grep "$plugin_name" | head -n 1)
-
-    if [[ $action == "install" ]]; then
-        if [[ -n $tarball ]]; then
-            pip install "dist/$tarball"
-        else
-            echo "No matching tarball found for $plugin_name"
-            exit 1
-        fi
-    elif [[ $action == "uninstall" ]]; then
-        if [[ -n $plugin_name ]]; then
-            pip uninstall -y "$plugin_name"
-        else
-            echo "No plugin name found for $subdir"
-            exit 1
-        fi
-    else
-        echo "Invalid action: $action"
-        exit 1
-    fi
-}
+# Plugins that may affect the tests of other plugins and need to uninstall after thier tests run
+isolated_plugins = ("openedx-companion-auth")
 
 # Install codecov so we can upload code coverage results
 pip install codecov
@@ -61,11 +36,14 @@ for subdir in "src"/*; do
 
         # Check if tests directory exists
         if [ -d "$tests_directory" ]; then
-            # Install the plugin from the subdirectory
-            manage_plugin "$subdir" "install"
+
+            # Installing the plugin
+            plugin_name=$(basename "$subdir" | sed 's/src\///' | sed 's/_/-/g')
+            tarball=$(ls dist | grep "$plugin_name" | head -n 1)
+            pip install "dist/$tarball"
 
             cp -r /edx/app/edxapp/edx-platform/test_root/ "/open-edx-plugins/$subdir/test_root"
-            echo "==============Running $subdir test==================="
+            echo "==============Running $subdir test=================="
             cd "$subdir"
 
             # Check for the existence of settings/test.py
@@ -87,9 +65,14 @@ for subdir in "src"/*; do
             fi
             coverage xml
 
-            # Uninstall the plugin after the test run
-            manage_plugin "$subdir" "uninstall"
-
+            # Check if the plugin name is in the isolated_plugins list and uninstall it
+            for plugin in "${isolated_plugins[@]}"; do
+                if [[ "$plugin_name" == "$plugin" ]]; then
+                    echo "Uninstalling $plugin_name"
+                    pip uninstall -y "$plugin_name"
+                    break
+                fi
+            done
             cd ../..
         fi
     fi
