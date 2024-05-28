@@ -68,7 +68,6 @@ for subdir in "src"/*; do
             # Check if the plugin name is in the isolated_plugins list and uninstall it
             for plugin in "${isolated_plugins[@]}"; do
                 if [[ "$plugin_name" == "$plugin" ]]; then
-                    echo "Uninstalling $plugin_name"
                     pip uninstall -y "$plugin_name"
                     break
                 fi
