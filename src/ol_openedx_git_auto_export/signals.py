@@ -12,7 +12,9 @@ log = logging.getLogger(__name__)
 
 @receiver(SignalHandler.course_published)
 def listen_for_course_publish(
-    sender, course_key, **kwargs  # noqa: ARG001
+    sender,  # noqa: ARG001
+    course_key,
+    **kwargs,  # noqa: ARG001
 ):  # pylint: disable=unused-argument
     """
     Receives publishing signal and performs publishing related workflows

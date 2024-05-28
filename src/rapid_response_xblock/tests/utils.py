@@ -134,11 +134,13 @@ class RuntimeEnabledTestCase(ModuleStoreTestCase):
 
             # Copied this from xmodule.xmodule.x_module._xmodule
             # When it executes there it raises a scope error, but here it's fine. Not sure what the difference is  # noqa: E501
-            block.xmodule_runtime.xmodule_instance = block.runtime.construct_xblock_from_class(  # noqa: E501
-                ProblemBlock,
-                scope_ids=block.scope_ids,
-                field_data=block._field_data,  # pylint: disable=protected-access  # noqa: SLF001
-                for_parent=block.get_parent(),
+            block.xmodule_runtime.xmodule_instance = (
+                block.runtime.construct_xblock_from_class(
+                    ProblemBlock,
+                    scope_ids=block.scope_ids,
+                    field_data=block._field_data,  # pylint: disable=protected-access  # noqa: SLF001
+                    for_parent=block.get_parent(),
+                )
             )
 
             return block

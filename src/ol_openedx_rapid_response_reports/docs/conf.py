@@ -28,7 +28,8 @@ def get_version(*file_paths):
     Extract the version string from the file at the given relative path fragments.
     """
     filename = os.path.join(  # noqa: PTH118
-        os.path.dirname(__file__), *file_paths  # noqa: PTH120
+        os.path.dirname(__file__),  # noqa: PTH120
+        *file_paths,
     )  # noqa: PTH118, PTH120, RUF100
     version_file = open(filename, encoding="utf8").read()  # noqa: PTH123, SIM115
     version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", version_file, re.M)

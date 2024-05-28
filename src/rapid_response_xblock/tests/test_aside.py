@@ -57,7 +57,6 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
             "rapid_response_xblock.block.RapidResponseAside.enabled",
             new=enabled_value,
         ):
-
             fragment = self.aside_instance.student_view_aside(Mock())
             # If the block is enabled for rapid response, it should return a fragment
             # with non-empty content and should specify a JS initialization function
@@ -132,7 +131,6 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
             "rapid_response_xblock.block.RapidResponseAside.enabled",
             new=enabled_value,
         ):
-
             fragment = self.aside_instance.studio_view_aside(Mock())
             assert f'data-enabled="{enabled_value}"' in fragment.content
             assert fragment.js_init_fn == "RapidResponseAsideStudioInit"

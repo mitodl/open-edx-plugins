@@ -133,7 +133,9 @@ def cmd_log(cmd, cwd):
     command doesn't return 0, and returns the command's output.
     """  # noqa: D401
     output = subprocess.check_output(
-        cmd, cwd=cwd, stderr=subprocess.STDOUT  # noqa: S603
+        cmd,  # noqa: S603
+        cwd=cwd,
+        stderr=subprocess.STDOUT,
     ).decode("utf-8")
 
     log.debug("Command was: %s. Working directory was: %s", " ".join(cmd), cwd)
@@ -141,7 +143,7 @@ def cmd_log(cmd, cwd):
     return output
 
 
-def switch_branch(branch, rdir):
+def switch_branch(branch, rdir):  # noqa: PLR0912
     """
     Determine how to change the branch of the repo, and then
     use the appropriate git commands to do so.
@@ -395,7 +397,8 @@ def add_repo(repo, rdir_in=None, branch=None):  # noqa: PLR0912, PLR0915, C901
             log.debug("   -> creating symlink between %s and %s", rdirp, cdir)
             try:
                 os.symlink(
-                    os.path.abspath(rdirp), os.path.abspath(cdir)  # noqa: PTH100
+                    os.path.abspath(rdirp),  # noqa: PTH100
+                    os.path.abspath(cdir),  # noqa: PTH100
                 )
             except OSError:
                 log.exception("Unable to create course symlink")

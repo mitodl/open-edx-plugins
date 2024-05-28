@@ -70,9 +70,7 @@ class SysadminBaseTestCase(SharedModuleStoreTestCase):  # pragma: allowlist secr
     def _rm_edx4edx(self):
         """Delete the sample course from the XML store"""
         def_ms = modulestore()
-        course_path = (
-            f"{os.path.abspath(settings.DATA_DIR)}/edx4edx_lite"  # noqa: PTH100
-        )
+        course_path = f"{os.path.abspath(settings.DATA_DIR)}/edx4edx_lite"  # noqa: PTH100
         try:
             # using XML store
             course = def_ms.courses.get(course_path, None)
