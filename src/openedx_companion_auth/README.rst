@@ -3,6 +3,11 @@ Open edX auth companion
 
 An Openedx plugin that redirects users from edx-platform to MIT applications
 
+Version Compatibility
+---------------------
+
+Compatible with the Nutmeg release and onwards. May work with prior releases as well.
+
 Installing The Plugin
 ---------------------
 
