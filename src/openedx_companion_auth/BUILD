@@ -12,7 +12,7 @@ python_distribution(
     ],
     provides=setup_py(
         name="openedx-companion-auth",
-        version="1.3.0",
+        version="1.0.0",
         description="A package to add login redirection from Open edX to MIT applications",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
