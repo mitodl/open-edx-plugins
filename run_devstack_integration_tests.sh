@@ -20,7 +20,9 @@ cd /open-edx-plugins
 pip install poetry
 poetry install --no-interaction --only dev
 
-# Plugins that may affect the tests of other plugins and need to uninstall after thier tests run
+# Plugins that may affect the tests of other plugins.
+# e.g. openedx-companion-auth adds a redirect to the authentication 
+# that fails the authentication process for other plugins.
 isolated_plugins=("openedx-companion-auth")
 
 # Install codecov so we can upload code coverage results
@@ -43,7 +45,7 @@ for subdir in "src"/*; do
             pip install "dist/$tarball"
 
             cp -r /edx/app/edxapp/edx-platform/test_root/ "/open-edx-plugins/$subdir/test_root"
-            echo "==============Running $subdir test=================="
+            echo "==============Running $subdir tests=================="
             cd "$subdir"
 
             # Check for the existence of settings/test.py
