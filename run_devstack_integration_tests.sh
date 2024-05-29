@@ -21,7 +21,7 @@ pip install poetry
 poetry install --no-interaction --only dev
 
 # Plugins that may affect the tests of other plugins.
-# e.g. openedx-companion-auth adds a redirect to the authentication 
+# e.g. openedx-companion-auth adds a redirect to the authentication
 # that fails the authentication process for other plugins.
 isolated_plugins=("openedx-companion-auth")
 
