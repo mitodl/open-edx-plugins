@@ -1,0 +1,18 @@
+[run]
+branch = True
+source = .
+data_file=/tmp/coverage
+omit =
+    ./.tox/*
+    *_test.py
+    *_tests.py
+    conftest.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+show_missing = True
+precision = 2
+
+[html]
+directory = coverage/
