@@ -12,7 +12,6 @@ jobs:
         devstack_branch:
         - master
         - open-release/quince.master
-        - open-release/redwood.master
           # Add more branches as needed
 
     steps:
