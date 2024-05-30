@@ -59,6 +59,11 @@ To call the API, Send a POST request to `<STUDIO_BASE>/api/courses/v0/export/` w
     }
 
 
+.. note::
+
+The API requires JWT authentication. Follow the instructions at `this link <https://docs.openedx.org/projects/edx-platform/en/latest/how-tos/use_the_api.html>`_ to generate a JWT token and use it in the request headers.
+
+
 The successful response would look like:
 
 
