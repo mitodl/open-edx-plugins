@@ -32,7 +32,7 @@ jobs:
 
     - name: Install Tutor
       run: |
-        if [[ "${{ matrix.edx_branch }}" == "master" ]]; then
+        if [[ "${{ matrix.edx_branch }}" == "open-release/redwood.master" ]]; then
           pip install tutor[nightly]
         else
           pip install tutor
