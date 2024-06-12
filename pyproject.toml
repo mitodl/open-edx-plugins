@@ -22,15 +22,6 @@ opentelemetry-instrumentation-django = "*"
 opentelemetry-exporter-richconsole = "*"
 opentelemetry-exporter-otlp-proto-http = "*"
 
-[tool.poetry.group.dev.dependencies]
-black = "*"
-isort = "*"
-pre-commit = "^3.0.0"
-pytest = "^8.0.0"
-twine = "^5.0.0"
-ruff = "^0.4.0"
-pytest-mock = "^3.14.0"
-
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

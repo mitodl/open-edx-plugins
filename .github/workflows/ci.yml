@@ -9,9 +9,10 @@ jobs:
         python_version:
         - 3.8
         - 3.11
-        devstack_branch:
-        - master
+        edx_branch:
+        # - master
         - open-release/quince.master
+        - open-release/redwood.master
           # Add more branches as needed
 
     steps:
@@ -29,15 +30,29 @@ jobs:
         curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
         pants package ::
 
-    - name: Setup edX & Run Tests
+    - name: Install Tutor
+      run: |
+        if [[ "${{ matrix.edx_branch }}" == "master" ]]; then
+          pip install tutor[nightly]
+        else
+          pip install tutor
+        fi
+
+    - name: Set up Tutor with edx-platform
       run: |
         cd ..
-        git clone https://github.com/openedx/devstack.git
-        cd devstack
-        sed -i 's/:cached//g' ./docker-compose-host.yml
-        git checkout ${{ matrix.devstack_branch }}
-        make dev.clone.https
-        DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f docker-compose.yml -f docker-compose-host.yml run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh
+        git clone https://github.com/openedx/edx-platform
+        cd edx-platform
+        git checkout ${{ matrix.edx_branch }}
+        tutor mounts add .
+        tutor images build openedx-dev
+        tutor dev launch --non-interactive
+        tutor dev stop
+
+    - name: Run tests on tutor
+      run: DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f /home/runner/.local/share/tutor/env/local/docker-compose.yml
+        -f /home/runner/.local/share/tutor/env/dev/docker-compose.yml --project-name
+        tutor_dev run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh
 
     - name: Upload coverage to CodeCov
       uses: codecov/codecov-action@v4
