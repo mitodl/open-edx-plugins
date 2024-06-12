@@ -33,7 +33,11 @@ jobs:
     - name: Install Tutor
       run: |
         if [[ "${{ matrix.edx_branch }}" == "open-release/redwood.master" ]]; then
-          pip install tutor[nightly]
+          git clone https://github.com/overhangio/tutor
+          cd tutor
+          git checkout redwood
+          pip install .
+          cd ..
         else
           pip install tutor
         fi
