@@ -670,17 +670,17 @@ semantic-version = "*"
 
 [[package]]
 name = "edx-opaque-keys"
-version = "2.9.0"
+version = "2.10.0"
 description = ""
 optional = false
 python-versions = "*"
 files = [
-    {file = "edx_opaque_keys-2.9.0-py3-none-any.whl", hash = "sha256:f1cfaa3f8772a904f3cbf5e90f2750e312af85de7f3d54c0bc9db4da2a1d494c"},
-    {file = "edx_opaque_keys-2.9.0.tar.gz", hash = "sha256:e58570c304a5b5bace54aef9f32e6f0c3578dddf44fa1b359ddcc909aec70ac8"},
+    {file = "edx_opaque_keys-2.10.0-py3-none-any.whl", hash = "sha256:3436c6fba7b3e10f58f8d4613d60f5003c533271996bbc3fc2e270f9d46d9bd1"},
+    {file = "edx_opaque_keys-2.10.0.tar.gz", hash = "sha256:70979d1b1ede4ad8eb3e7e56eb8cb423641c1e0dd746b2592dfefd075191b396"},
 ]
 
 [package.dependencies]
-pymongo = ">=2.7.2,<4.4.1"
+pymongo = "*"
 stevedore = ">=0.14.1"
 typing-extensions = "*"
 
