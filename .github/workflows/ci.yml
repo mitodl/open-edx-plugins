@@ -10,7 +10,7 @@ jobs:
         - 3.8
         - 3.11
         edx_branch:
-        # - master
+        - master
         - open-release/quince.master
         - open-release/redwood.master
           # Add more branches as needed
@@ -32,14 +32,13 @@ jobs:
 
     - name: Install Tutor
       run: |
-        if [[ "${{ matrix.edx_branch }}" == "open-release/redwood.master" ]]; then
-          git clone https://github.com/overhangio/tutor
-          cd tutor
-          git checkout redwood
-          pip install .
-          cd ..
+        if [[ "${{ matrix.edx_branch }}" == "open-release/quince.master" ]]; then
+          pip install tutor[full]==17.0.6
+        elif [[ "${{ matrix.edx_branch }}" == "master" ]]; then
+          git clone --branch=nightly https://github.com/overhangio/tutor.git
+          pip install -e "./tutor[full]"
         else
-          pip install tutor
+          pip install tutor[full]==18.0.0
         fi
 
     - name: Set up Tutor with edx-platform
