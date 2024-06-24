@@ -54,7 +54,7 @@ jobs:
 
     - name: Run tests on tutor
       run: |
-         if [[ "${{ matrix.edx_branch }}" == "master" ]]; then
+        if [[ "${{ matrix.edx_branch }}" == "master" ]]; then
           DIRECTORY="tutor-nightly"
           DEV="tutor_nightly_dev"
         else
