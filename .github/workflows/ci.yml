@@ -33,7 +33,7 @@ jobs:
     - name: Install Tutor
       run: |
         if [[ "${{ matrix.edx_branch }}" == "open-release/quince.master" ]]; then
-          pip install tutor==17.0.5
+          pip install tutor==17.0.6
         elif [[ "${{ matrix.edx_branch }}" == "master" ]]; then
           git clone --branch=nightly https://github.com/overhangio/tutor.git
           pip install -e "./tutor"
@@ -53,9 +53,17 @@ jobs:
         tutor dev stop
 
     - name: Run tests on tutor
-      run: DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f /home/runner/.local/share/tutor/env/local/docker-compose.yml
-        -f /home/runner/.local/share/tutor/env/dev/docker-compose.yml --project-name
-        tutor_dev run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh
+      run: |
+         if [[ "${{ matrix.edx_branch }}" == "master" ]]; then
+          DIRECTORY="tutor-nightly"
+          DEV="tutor_nightly_dev"
+        else
+          DIRECTORY="tutor"
+          DEV="tutor_dev"
+        fi
+        DEVSTACK_WORKSPACE=$PWD/.. docker-compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml
+        -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name
+        $DEV run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh
 
     - name: Upload coverage to CodeCov
       uses: codecov/codecov-action@v4
