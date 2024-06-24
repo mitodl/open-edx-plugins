@@ -36,7 +36,7 @@ jobs:
           pip install tutor==17.0.5
         elif [[ "${{ matrix.edx_branch }}" == "master" ]]; then
           git clone --branch=nightly https://github.com/overhangio/tutor.git
-          pip install -e "./tutor[full]"
+          pip install -e "./tutor"
         else
           pip install tutor==18.0.0
         fi
