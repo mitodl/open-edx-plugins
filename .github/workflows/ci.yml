@@ -18,7 +18,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: Set up python
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python_version }}
@@ -30,7 +30,7 @@ jobs:
         curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
         pants package ::
 
-    - name: Install Tutor
+    - name: Install tutor
       run: |
         if [[ "${{ matrix.edx_branch }}" == "open-release/quince.master" ]]; then
           pip install tutor==17.0.6
@@ -41,7 +41,7 @@ jobs:
           pip install tutor==18.0.0
         fi
 
-    - name: Set up Tutor with edx-platform
+    - name: Set up tutor with edx-platform
       run: |
         cd ..
         git clone https://github.com/openedx/edx-platform
