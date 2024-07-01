@@ -98,7 +98,7 @@ class SysadminBaseTestCase(SharedModuleStoreTestCase):  # pragma: allowlist secr
         Create a shell expansion of passed in parameter and iteratively
         remove them.  Must only expand to directories.
         """
-        for path in glob.glob(  # noqa: PTH207, B020
+        for path in glob.glob(  # noqa: B020, PLR1704, PTH207
             path
         ):  # lint-amnesty, pylint: disable=redefined-argument-from-local
             shutil.rmtree(path)

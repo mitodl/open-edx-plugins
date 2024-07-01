@@ -7,9 +7,6 @@ from functools import partial
 from typing import Any, Optional, Union
 
 import sentry_sdk
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.redis import RedisIntegration
 
 
 def _load_exception_class(import_specifier: str) -> Union[Exception, None]:
@@ -111,11 +108,10 @@ def plugin_settings(app_settings):
         sentry_sdk.init(
             dsn=sentry_dsn,
             environment=env_tokens.get("SENTRY_ENVIRONMENT"),
-            integrations=[DjangoIntegration(), CeleryIntegration(), RedisIntegration()],
             # Set traces_sample_rate to 1.0 to capture 100%
             # of transactions for performance monitoring.
             # We recommend adjusting this value in production,
-            traces_sample_rate=env_tokens.get("SENTRY_TRACES_SAMPLE_RATE", 0.1),
+            traces_sample_rate=env_tokens.get("SENTRY_TRACES_SAMPLE_RATE", 0),
             # If you wish to associate users to errors (assuming you are using
             # django.contrib.auth) you may enable sending PII data.
             send_default_pii=True,

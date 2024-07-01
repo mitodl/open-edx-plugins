@@ -505,8 +505,8 @@ def on_init(app):  # pylint: disable=unused-argument  # noqa: ARG001
             os.path.join(sys.prefix, "bin")  # noqa: PTH118
         )  # noqa: PTH100, PTH118, RUF100
         apidoc_path = os.path.join(bin_path, apidoc_path)  # noqa: PTH118
-    check_call(
-        [  # noqa: S603
+    check_call(  # noqa: S603
+        [
             apidoc_path,
             "-o",
             docs_path,

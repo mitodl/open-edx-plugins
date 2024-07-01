@@ -118,7 +118,7 @@ def is_registration_api_functional():
     Boolean - True if User Registration API "/user_api/v1/account/registration/"
     is functional.
     """
-    if (
+    if (  # noqa: SIM103
         settings.FEATURES["ALLOW_PUBLIC_ACCOUNT_CREATION"]
         and not is_require_third_party_auth_enabled()
     ):
@@ -347,7 +347,7 @@ def user_has_access_to_sysadmin(user):
     :param user: User object of currently loggedin user
     :return boolean: True if user has access to syadmin else False
     """
-    if (
+    if (  # noqa: SIM103
         user_has_access_to_users_panel(user)
         or user_has_access_to_courses_panel(user)
         or user_has_access_to_git_logs_panel(user)
@@ -371,7 +371,7 @@ def user_has_access_to_users_panel(user):
     :param user: User object of currently loggedin user
     :return boolean: True if user has access to "Users" panel else False
     """
-    if user and user.is_staff:
+    if user and user.is_staff:  # noqa: SIM103
         return True
     return False
 
@@ -382,7 +382,7 @@ def user_has_access_to_courses_panel(user):
     :param user: User object of currently loggedin user
     :return boolean: True if user has access to "Courses" panel else False
     """
-    if user and user.is_staff:
+    if user and user.is_staff:  # noqa: SIM103
         return True
     return False
 
@@ -393,7 +393,7 @@ def user_has_access_to_git_logs_panel(user):
     :param user: User object of currently loggedin user
     :return boolean: True if user has access to "Git Logs" panel else False
     """
-    if user and (
+    if user and (  # noqa: SIM103
         user.is_staff
         or user.courseaccessrole_set.filter(role=CourseInstructorRole.ROLE).exists()
     ):
@@ -407,7 +407,7 @@ def user_has_access_to_git_import_panel(user):
     :param user: User object of currently loggedin user
     :return boolean: True if user has access to "Git Import" panel else False
     """
-    if user and user.is_staff:
+    if user and user.is_staff:  # noqa: SIM103
         return True
     return False
 
