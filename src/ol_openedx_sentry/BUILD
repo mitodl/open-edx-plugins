@@ -7,7 +7,7 @@ python_distribution(
     dependencies=[":sentry_app"],
     provides=setup_py(
         name="ol-openedx-sentry",
-        version="0.1.2",
+        version="0.2.0",
         description="An Open edX plugin to enable error tracking with Sentry",
         license="BSD-3-Clause",
         entry_points={

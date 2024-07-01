@@ -124,8 +124,8 @@ class TestGitAddCourse(SharedModuleStoreTestCase):
         )
         os.mkdir(bare_repo)  # noqa: PTH102
         self.addCleanup(shutil.rmtree, bare_repo)
-        subprocess.check_output(
-            [  # noqa: S607, S603
+        subprocess.check_output(  # noqa: S603
+            [  # noqa: S607
                 "git",
                 "--bare",
                 "init",
@@ -148,8 +148,8 @@ class TestGitAddCourse(SharedModuleStoreTestCase):
 
         self.addCleanup(shutil.rmtree, repo_dir)
         git_import.add_repo(self.TEST_REPO, repo_dir / "edx4edx_lite", None)
-        subprocess.check_output(
-            [  # noqa: S607, S603
+        subprocess.check_output(  # noqa: S603
+            [  # noqa: S607
                 "git",
                 "checkout",
                 "HEAD~2",
@@ -203,8 +203,8 @@ class TestGitAddCourse(SharedModuleStoreTestCase):
         )
         os.mkdir(bare_repo)  # noqa: PTH102
         self.addCleanup(shutil.rmtree, bare_repo)
-        subprocess.check_output(
-            [  # noqa: S603, S607
+        subprocess.check_output(  # noqa: S603
+            [  # noqa: S607
                 "git",
                 "--bare",
                 "init",
@@ -240,8 +240,8 @@ class TestGitAddCourse(SharedModuleStoreTestCase):
         output.truncate(0)
 
         # Replace origin with a different remote
-        subprocess.check_output(
-            [  # noqa: S603, S607
+        subprocess.check_output(  # noqa: S603
+            [  # noqa: S607
                 "git",
                 "remote",
                 "rename",
