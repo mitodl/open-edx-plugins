@@ -1,24 +1,26 @@
 #!/bin/bash
 set -e
 
-source /edx/app/edxapp/venvs/edxapp/bin/activate
+source /openedx/venv/bin/activate
+ls
+pwd
 
-cd /edx/app/edxapp/edx-platform
 mkdir -p reports
 
 pip install -r ./requirements/edx/testing.txt
 pip install -r ./requirements/edx/paver.txt
 
+# Installing edx-platform
+pip install -e .
+
 mkdir -p test_root  # for edx
 paver update_assets lms --settings=test_static_optimized
 
 cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-stats.json
-
 cd /open-edx-plugins
 
-# Installing dev dependencies
-pip install poetry
-poetry install --no-interaction --only dev
+# Installing test dependencies
+pip install pytest-mock==3.14.0
 
 # Plugins that may affect the tests of other plugins.
 # e.g. openedx-companion-auth adds a redirect to the authentication
@@ -31,6 +33,7 @@ pip install codecov
 # output the packages which are installed for logging
 pip freeze
 
+export EDXAPP_TEST_MONGO_HOST=mongodb
 set +e
 for subdir in "src"/*; do
     if [ -d "$subdir" ]; then
@@ -44,7 +47,7 @@ for subdir in "src"/*; do
             tarball=$(ls dist | grep "$plugin_name" | head -n 1)
             pip install "dist/$tarball"
 
-            cp -r /edx/app/edxapp/edx-platform/test_root/ "/open-edx-plugins/$subdir/test_root"
+            cp -r /openedx/edx-platform/test_root/ "/open-edx-plugins/$subdir/test_root"
             echo "==============Running $subdir tests=================="
             cd "$subdir"
 
@@ -52,7 +55,7 @@ for subdir in "src"/*; do
             if [ -f "settings/test.py" ]; then
                 pytest_command="pytest . --cov . --ds=settings.test"
             else
-                pytest_command="pytest . --cov ."
+                pytest_command="pytest . --cov . --ds=lms.envs.test"
             fi
 
             # Run the pytest command
