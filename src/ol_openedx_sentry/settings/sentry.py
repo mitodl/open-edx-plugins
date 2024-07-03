@@ -120,7 +120,9 @@ def plugin_settings(app_settings):
             # SHA as release, however you may want to set
             # something more human-readable.
             release=env_tokens.get("SENTRY_RELEASE_SPECIFIER"),
-            request_bodies=env_tokens.get("SENTRY_SEND_HTTP_REQUEST_BODIES", "small"),
+            max_request_body_size=env_tokens.get(
+                "SENTRY_SEND_HTTP_REQUEST_BODIES", "small"
+            ),
             before_send=partial(
                 sentry_event_filter,
                 ignored_types=ignored_exceptions,
