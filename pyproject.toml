@@ -23,8 +23,6 @@ opentelemetry-exporter-richconsole = "*"
 opentelemetry-exporter-otlp-proto-http = "*"
 
 [tool.poetry.group.dev.dependencies]
-black = "*"
-isort = "*"
 pre-commit = "^3.0.0"
 pytest = "^8.0.0"
 twine = "^5.0.0"
