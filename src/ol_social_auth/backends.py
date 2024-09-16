@@ -14,7 +14,7 @@ class MITxProOAuth2(BaseOAuth2):
     ACCESS_TOKEN_METHOD = "POST"  # noqa: S105
 
     # at a minimum we need to be able to read the user
-    DEFAULT_SCOPE = ["user:read"]  # noqa: RUF012
+    DEFAULT_SCOPE = ["user:read"]
 
     def authorization_url(self):
         """Provides authorization_url from settings"""  # noqa: D401

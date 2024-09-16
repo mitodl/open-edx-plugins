@@ -44,15 +44,6 @@ repos:
   - id: ruff-format
   - id: ruff
     args: [--extend-ignore=D1, --fix]
-- repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.10.1
-  hooks:
-  - id: mypy
-    additional_dependencies:
-    - types-pytz
-    - types-requests
-    - types-pkg_resources
-    - types-python-dateutil
 - repo: https://github.com/rhysd/actionlint
   rev: v1.7.1
   hooks:
