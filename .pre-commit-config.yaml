@@ -52,6 +52,7 @@ repos:
     - types-pytz
     - types-requests
     - types-python-dateutil
+    - types-setuptools
 - repo: https://github.com/rhysd/actionlint
   rev: v1.7.1
   hooks:
