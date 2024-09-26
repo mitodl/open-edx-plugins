@@ -9,8 +9,8 @@ python_distribution(
     ],
     provides=setup_py(
         name="ol-social-auth",
-        version="1.0.0",
-        description="A package implementing MIT social auth backend",
+        version="0.1.0",
+        description="An Open edX plugin implementing MIT social auth backend",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
         include_package_data=True,

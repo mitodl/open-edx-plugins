@@ -6,7 +6,7 @@ An Open edX plugin implementing MIT social auth backend
 Version Compatibility
 ---------------------
 
-Compatible with the Nutmeg release of the Open edX and onwards. May work with prior releases as well.
+Compatible with all edx releases
 
 Installing The Plugin
 ---------------------
@@ -44,8 +44,9 @@ This section outlines the steps for integrating your application with ol-social-
 * **MITxOnline with Tutor:** If you're using MITxOnline with Tutor for development purposes, specific configuration steps are outlined in the `documentation <https://github.com/mitodl/mitxonline/blob/main/docs/source/configuration/tutor.rst>`_
 
 
-Working
---------
+How to use
+----------
+Make sure to properly configure the plugin following the links in the above "Configurations" section before use.
 * Install the plugin in the lms following the installation steps above.
 * Verify that you are not logged in on edx-platform.
 * Create a new user in your MIT application and verify that a corresponding user is successfully created on the edX platform.
