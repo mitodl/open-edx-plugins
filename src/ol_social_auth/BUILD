@@ -1,5 +1,6 @@
 python_sources(
     name="ol_social_auth_source",
+    dependencies=["//:external_dependencies#social-auth-core"]
 )
 
 python_distribution(
