@@ -21,6 +21,7 @@ cd /open-edx-plugins
 
 # Installing test dependencies
 pip install pytest-mock==3.14.0
+pip install responses==0.25.3
 
 # Plugins that may affect the tests of other plugins.
 # e.g. openedx-companion-auth adds a redirect to the authentication
