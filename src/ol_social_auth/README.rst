@@ -47,6 +47,7 @@ This section outlines the steps for integrating your application with ol-social-
 How to use
 ----------
 Make sure to properly configure the plugin following the links in the above "Configurations" section before use.
+
 * Install the plugin in the lms following the installation steps above.
 * Verify that you are not logged in on edx-platform.
 * Create a new user in your MIT application and verify that a corresponding user is successfully created on the edX platform.
