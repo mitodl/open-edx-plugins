@@ -2656,13 +2656,13 @@ files = [
 
 [[package]]
 name = "xblock"
-version = "4.0.1"
+version = "5.1.0"
 description = "XBlock Core Library"
 optional = false
 python-versions = "*"
 files = [
-    {file = "XBlock-4.0.1-py3-none-any.whl", hash = "sha256:4e0369e927be740f83e9cefcda76c1ad1d9dd27a495e6a1ce74911a3f74ff498"},
-    {file = "XBlock-4.0.1.tar.gz", hash = "sha256:6bb3f5570dc05491d0f679851c8faa8695d7694eb8bb93eee56ac4f57128ed4e"},
+    {file = "XBlock-5.1.0-py3-none-any.whl", hash = "sha256:c068e9981fb7763eefa3d90e57a09181c9c65261982f5cb4d7dabe78fc77d2f2"},
+    {file = "XBlock-5.1.0.tar.gz", hash = "sha256:776c85b646653221c6f5985603b5fc7eb416c46425cd8e6f15137803ef2c61e9"},
 ]
 
 [package.dependencies]
