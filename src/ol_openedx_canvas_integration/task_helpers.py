@@ -6,6 +6,7 @@ from time import time
 
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.instructor_task.tasks_helper.runner import TaskProgress
+
 from ol_openedx_canvas_integration import api
 
 
