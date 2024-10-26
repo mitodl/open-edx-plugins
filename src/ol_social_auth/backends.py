@@ -3,10 +3,10 @@
 from social_core.backends.oauth import BaseOAuth2
 
 
-class MITxProOAuth2(BaseOAuth2):
+class OLOAuth2(BaseOAuth2):
     """MIT xPro social auth backend"""
 
-    name = "mitxpro-oauth2"
+    name = "ol-oauth2"
 
     ID_KEY = "username"
     REQUIRES_EMAIL_VALIDATION = False
