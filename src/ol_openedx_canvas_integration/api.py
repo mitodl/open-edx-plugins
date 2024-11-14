@@ -14,6 +14,7 @@ from ol_openedx_canvas_integration.client import (
     create_assignment_payload,
     update_grade_payload_kv,
 )
+from ol_openedx_canvas_integration.utils import get_canvas_course_id
 from opaque_keys.edx.locator import CourseLocator
 
 log = logging.getLogger(__name__)
@@ -197,7 +198,7 @@ def push_edx_grades_to_canvas(course):
     Returns:
         dict: A dictionary with some information about the success/failure of the updates
     """  # noqa: E501
-    canvas_course_id = course.canvas_course_id
+    canvas_course_id = get_canvas_course_id(course)
     client = CanvasClient(canvas_course_id=canvas_course_id)
     existing_assignment_dict = client.get_assignments_by_int_id()
     subsection_block_user_grades = get_subsection_block_user_grades(course)

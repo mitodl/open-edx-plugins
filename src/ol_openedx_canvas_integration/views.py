@@ -16,6 +16,7 @@ from lms.djangoapps.instructor.views.api import require_course_permission
 from lms.djangoapps.instructor_task.api_helper import AlreadyRunningError
 from ol_openedx_canvas_integration import tasks
 from ol_openedx_canvas_integration.client import CanvasClient
+from ol_openedx_canvas_integration.utils import get_canvas_course_id
 from opaque_keys.edx.locator import CourseLocator
 
 log = logging.getLogger(__name__)
@@ -46,11 +47,12 @@ def list_canvas_enrollments(request, course_id):  # noqa: ARG001
     """
     course_key = CourseLocator.from_string(course_id)
     course = get_course_by_id(course_key)
-    if not course.canvas_course_id:
+    canvas_course_id = get_canvas_course_id(course)
+    if not canvas_course_id:
         msg = f"No canvas_course_id set for course {course_id}"
         raise Exception(msg)  # noqa: TRY002
 
-    client = CanvasClient(canvas_course_id=course.canvas_course_id)
+    client = CanvasClient(canvas_course_id=canvas_course_id)
     # WARNING: this will block the web thread
     enrollment_dict = client.list_canvas_enrollments()
 
@@ -73,7 +75,8 @@ def add_canvas_enrollments(request, course_id):
     unenroll_current = request.POST.get("unenroll_current", "").lower() == "true"
     course_key = CourseLocator.from_string(course_id)
     course = get_course_by_id(course_key)
-    if not course.canvas_course_id:
+    canvas_course_id = get_canvas_course_id(course)
+    if not canvas_course_id:
         msg = f"No canvas_course_id set for course {course_id}"
         raise Exception(msg)  # noqa: TRY002
 
@@ -81,7 +84,7 @@ def add_canvas_enrollments(request, course_id):
         tasks.run_sync_canvas_enrollments(
             request=request,
             course_key=course_id,
-            canvas_course_id=course.canvas_course_id,
+            canvas_course_id=canvas_course_id,
             unenroll_current=unenroll_current,
         )
         log.info("Syncing canvas enrollments for course %s", course_id)
@@ -101,8 +104,9 @@ def list_canvas_assignments(request, course_id):  # noqa: ARG001
     """List Canvas assignments"""
     course_key = CourseLocator.from_string(course_id)
     course = get_course_by_id(course_key)
-    client = CanvasClient(canvas_course_id=course.canvas_course_id)
-    if not course.canvas_course_id:
+    canvas_course_id = get_canvas_course_id(course)
+    client = CanvasClient(canvas_course_id=canvas_course_id)
+    if not canvas_course_id:
         msg = f"No canvas_course_id set for course {course_id}"
         raise Exception(msg)  # noqa: TRY002
     return JsonResponse(client.list_canvas_assignments())
@@ -116,8 +120,9 @@ def list_canvas_grades(request, course_id):
     assignment_id = int(request.GET.get("assignment_id"))
     course_key = CourseLocator.from_string(course_id)
     course = get_course_by_id(course_key)
-    client = CanvasClient(canvas_course_id=course.canvas_course_id)
-    if not course.canvas_course_id:
+    canvas_course_id = get_canvas_course_id(course)
+    client = CanvasClient(canvas_course_id=canvas_course_id)
+    if not canvas_course_id:
         msg = f"No canvas_course_id set for course {course_id}"
         raise Exception(msg)  # noqa: TRY002
     return JsonResponse(client.list_canvas_grades(assignment_id=assignment_id))
@@ -132,7 +137,8 @@ def push_edx_grades(request, course_id):
     """Push user grades for all graded items in edX to Canvas"""
     course_key = CourseLocator.from_string(course_id)
     course = get_course_by_id(course_key)
-    if not course.canvas_course_id:
+    canvas_course_id = get_canvas_course_id(course)
+    if not canvas_course_id:
         msg = f"No canvas_course_id set for course {course_id}"
         raise Exception(msg)  # noqa: TRY002
     try:

@@ -5,6 +5,7 @@ The initialization of the context for the Canvas Integration Plugin
 import pkg_resources
 from django.urls import reverse
 from django.utils.translation import gettext as _
+from ol_openedx_canvas_integration.utils import get_canvas_course_id
 from web_fragments.fragment import Fragment
 
 
@@ -29,7 +30,7 @@ def plugin_context(context):
 
     # Don't add Canvas tab is the Instructor Dashboard if it doesn't have any associated
     # canvas_course_id set from Canvas Service
-    if not course.canvas_course_id:
+    if not get_canvas_course_id(course):
         return None
 
     fragment = Fragment()
