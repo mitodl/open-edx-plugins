@@ -71,7 +71,8 @@ Add the following configuration values to the config file in Open edX. For any r
 
 1) Open your course in Studio.
 2) Navigate to "Advanced Settings".
-3) Add a ``canvas_course_id`` value. This should be the id of a course that exists on Canvas. (NOTE: Canvas tab would only be visible if this value is set)
+3) Enable other course settings by enabling ``ENABLE_OTHER_COURSE_SETTINGS`` feature flag in CMS
+4) Open course advanced settings in Open edX CMS, Add a dictionary in ``{"canvas_id": <canvas_course_id>}``. The ``canvas_course_id`` should be the id of a course that exists on Canvas. (NOTE: Canvas tab would only be visible if this value is set)
 
 
 How To Use
