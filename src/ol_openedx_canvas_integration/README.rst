@@ -9,6 +9,14 @@ We had to make some changes to edx-platform itself in order to add the "Canvas" 
 
 The ``edx-platform`` branch/tag you're using must include one of the below commit for ``ol-openedx-canvas-integration`` plugin to work properly:
 
+**For "Sumac" or more recent release of edX platform, you should cherry-pick below commit:**
+
+TBA
+
+**For "Quince" or more recent release of edX platform, you should cherry-pick below commit:**
+
+https://github.com/mitodl/edx-platform/commit/7a2edd5d29ead6845cb33d2001746207cf696383
+
 **For "Nutmeg" or more recent release of edX platform, you should cherry-pick below commit:**
 
 - https://github.com/mitodl/edx-platform/pull/297/commits/c354a99bd14393b89a780692d07b6e70b586d172
@@ -20,6 +28,16 @@ The ``edx-platform`` branch/tag you're using must include one of the below commi
 
 Version Compatibility
 ---------------------
+
+**For "Sumac" or more recent release of edX platform**
+
+Use ``0.4.0`` or a above version of this plugin
+
+**For "Quince" or more recent release of edX platform**
+
+Use ``0.3.0`` or a above version of this plugin
+
+
 **For "Nutmeg" or more recent release of edX platform**
 
 Use ``0.2.4`` or a above version of this plugin
@@ -49,8 +67,8 @@ You can install this plugin into any Open edX instance by using any of the follo
 Follow these steps in a terminal on your machine:
 
 1. Navigate to ``open-edx-plugins`` directory
-2. If you haven't done so already, run ``./pants build``
-3. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all the "ol_openedx_*" plugins in "open-edx-plugins/src")
+2. If you haven't done so already, run ``pants build``
+3. Run ``pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all the "ol_openedx_*" plugins in "open-edx-plugins/src")
 4. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS container)
 5. Run a shell in the machine/container running Open edX, and install this plugin using pip
 
