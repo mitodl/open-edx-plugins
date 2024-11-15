@@ -206,10 +206,10 @@ def push_edx_grades_to_canvas(course):
     Returns:
         dict: A dictionary with some information about the success/failure of the updates
     """  # noqa: E501
-    canvas_course_id = get_canvas_course_id(course)
     if not course:
         raise Exception(COURSE_KEY_ID_EMPTY)  # noqa: TRY002
 
+    canvas_course_id = get_canvas_course_id(course)
     if not canvas_course_id:
         msg = f"No canvas_course_id set for course: {course.id}"
         raise Exception(msg)  # noqa: TRY002
