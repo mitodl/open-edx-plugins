@@ -16,7 +16,7 @@ python_distribution(
     provides=setup_py(
         name="ol-openedx-chat",
         version="0.1.0",
-        description="An Open edX plugin to add OL AI chat to xBlocks",
+        description="An Open edX plugin to add Open Learning AI chat aside to xBlocks",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
         include_package_data=True,
@@ -27,10 +27,10 @@ python_distribution(
             'ol_openedx_chat = ol_openedx_chat.block:OLChatAside',
         ],
             "lms.djangoapp": [
-                "ol_openedx_chat = ol_openedx_chat.apps:OlOpenedxChatConfig"
+                "ol_openedx_chat = ol_openedx_chat.apps:OLOpenedxChatConfig"
             ],
             "cms.djangoapp": [
-                "ol_openedx_chat = ol_openedx_chat.apps:OlOpenedxChatConfig"
+                "ol_openedx_chat = ol_openedx_chat.apps:OLOpenedxChatConfig"
             ],
         },
     ),
