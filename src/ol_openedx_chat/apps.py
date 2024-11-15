@@ -7,7 +7,7 @@ from edx_django_utils.plugins import PluginSettings
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 
 
-class OlOpenedxChatConfig(AppConfig):
+class OLOpenedxChatConfig(AppConfig):
     """
     Configuration for the ol_openedx_chat Django application.
     """
