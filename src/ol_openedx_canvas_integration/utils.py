@@ -3,10 +3,7 @@
 
 def get_canvas_course_id(course=None):
     """Get the course Id from the course settings"""
-
-    if course:
-        return course.other_course_settings.get("canvas_id")
-    return None
+    return course.other_course_settings.get("canvas_id") if course else None
 
 
 def get_task_output_formatted_message(task_output):

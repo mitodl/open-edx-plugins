@@ -11,13 +11,13 @@ The ``edx-platform`` branch/tag you're using must include one of the below commi
 
 **For "Sumac" or more recent release of edX platform, you should cherry-pick below commit:**
 
-TBA
+TBA - Will be added when we merge the PR in edx-platform
 
-**For "Quince" or more recent release of edX platform, you should cherry-pick below commit:**
+**For "Quince" to "Redwood" release of edX platform, you should cherry-pick below commit:**
 
 https://github.com/mitodl/edx-platform/commit/7a2edd5d29ead6845cb33d2001746207cf696383
 
-**For "Nutmeg" or more recent release of edX platform, you should cherry-pick below commit:**
+**For "Nutmeg" to "Palm" release of edX platform, you should cherry-pick below commit:**
 
 - https://github.com/mitodl/edx-platform/pull/297/commits/c354a99bd14393b89a780692d07b6e70b586d172
 
@@ -33,15 +33,13 @@ Version Compatibility
 
 Use ``0.4.0`` or a above version of this plugin
 
-**For "Quince" or more recent release of edX platform**
+**For "Quince" to "Redwood" release of edX platform**
 
 Use ``0.3.0`` or a above version of this plugin
 
-
-**For "Nutmeg" or more recent release of edX platform**
+**For "Nutmeg" to "Palm" release of edX platform**
 
 Use ``0.2.4`` or a above version of this plugin
-
 
 **For releases prior to "Nutmeg"**
 

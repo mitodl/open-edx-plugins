@@ -14,6 +14,7 @@ from ol_openedx_canvas_integration.client import (
     create_assignment_payload,
     update_grade_payload_kv,
 )
+from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
 from ol_openedx_canvas_integration.utils import get_canvas_course_id
 from opaque_keys.edx.locator import CourseLocator
 
@@ -157,12 +158,19 @@ def sync_canvas_enrollments(course_key, canvas_course_id, unenroll_current):
         canvas_course_id (int): The canvas course id
         unenroll_current (bool): If true, unenroll existing students if not staff
     """
-    client = CanvasClient(canvas_course_id)
-    emails_to_enroll = client.list_canvas_enrollments()
-    users_to_unenroll = []
+    if not course_key:
+        raise Exception(COURSE_KEY_ID_EMPTY)  # noqa: TRY002
+
+    if not canvas_course_id:
+        msg = f"No canvas_course_id set for course: {course_key}"
+        raise Exception(msg)  # noqa: TRY002
 
     course_key = CourseLocator.from_string(course_key)
     course = get_course_by_id(course_key)
+
+    client = CanvasClient(canvas_course_id)
+    emails_to_enroll = client.list_canvas_enrollments()
+    users_to_unenroll = []
 
     if unenroll_current:
         enrolled_user_dict = {
@@ -199,6 +207,13 @@ def push_edx_grades_to_canvas(course):
         dict: A dictionary with some information about the success/failure of the updates
     """  # noqa: E501
     canvas_course_id = get_canvas_course_id(course)
+    if not course:
+        raise Exception(COURSE_KEY_ID_EMPTY)  # noqa: TRY002
+
+    if not canvas_course_id:
+        msg = f"No canvas_course_id set for course: {course.id}"
+        raise Exception(msg)  # noqa: TRY002
+
     client = CanvasClient(canvas_course_id=canvas_course_id)
     existing_assignment_dict = client.get_assignments_by_int_id()
     subsection_block_user_grades = get_subsection_block_user_grades(course)
