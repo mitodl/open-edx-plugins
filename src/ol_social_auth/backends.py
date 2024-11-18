@@ -1,10 +1,10 @@
-"""MIT xPro social auth backend"""
+"""Open Learning social auth backend"""
 
 from social_core.backends.oauth import BaseOAuth2
 
 
 class OLOAuth2(BaseOAuth2):
-    """MIT xPro social auth backend"""
+    """Open Learning social auth backend"""
 
     name = "ol-oauth2"
 
@@ -49,7 +49,7 @@ class OLOAuth2(BaseOAuth2):
         return f"{self.api_root()}{path}"
 
     def get_user_details(self, response):
-        """Return user details from xPro account"""
+        """Return user details from MIT application account"""
         return {
             "username": response.get("username"),
             "email": response.get("email", ""),
@@ -57,7 +57,7 @@ class OLOAuth2(BaseOAuth2):
         }
 
     def user_data(self, access_token, *args, **kwargs):  # noqa: ARG002
-        """Loads user data from xpro"""  # noqa: D401
+        """Loads user data from MIT application"""  # noqa: D401
         url = self.api_url("api/users/me")
         headers = {"Authorization": f"Bearer {access_token}"}
         return self.get_json(url, headers=headers)

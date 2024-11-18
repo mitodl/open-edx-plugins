@@ -39,9 +39,8 @@ Configurations
 --------------
 This section outlines the steps for integrating your application with ol-social-auth for various deployment scenarios. Please refer to the corresponding documentation for detailed instructions.
 
-* **MITxPRO:** To configure ol-social-auth with MITxPRO, follow the comprehensive guide available `here <https://github.com/mitodl/mitxpro/blob/master/docs/configure_open_edx.md>`_
-* **MITxOnline:** For integration with MITxOnline, detailed instructions can be found in the official documentation `here <https://github.com/mitodl/mitxonline/blob/main/docs/source/configuration/open_edx.rst>`_
-* **MITxOnline with Tutor:** If you're using MITxOnline with Tutor for development purposes, specific configuration steps are outlined in the `documentation <https://github.com/mitodl/mitxonline/blob/main/docs/source/configuration/tutor.rst>`_
+* **Devstack:** To configure ol-social-auth with an edx-platform instance provisioned using devstack, follow the instructions `here <https://mitodl.github.io/handbook/openedx/MITx-edx-integration-devstack.html>`_
+* **Tutor:** To configure ol-social-auth with an edx-platform instance provisioned using tutor, follow the instructions `here https://mitodl.github.io/handbook/openedx/MITx-edx-integration-tutor.html`_
 
 
 How to use
