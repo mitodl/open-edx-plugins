@@ -2,11 +2,16 @@
 Helper functions for canvas integration tasks
 """
 
+import datetime
 from time import time
 
+import pytz
 from lms.djangoapps.courseware.courses import get_course_by_id
+from lms.djangoapps.instructor_task.api import get_running_instructor_tasks
+from lms.djangoapps.instructor_task.models import InstructorTask
 from lms.djangoapps.instructor_task.tasks_helper.runner import TaskProgress
 from ol_openedx_canvas_integration import api
+from ol_openedx_canvas_integration.constants import CANVAS_TASK_TYPES
 
 
 def sync_canvas_enrollments(
@@ -46,3 +51,21 @@ def push_edx_grades_to_canvas(
     return task_progress.update_task_state(
         extra_meta={"step": "Done", "results": results}
     )
+
+
+def get_filtered_instructor_tasks(course_id, user):
+    """
+    Return a filtered query of InstructorTasks based on the course, user, and desired
+    task types
+    """
+    instructor_tasks = get_running_instructor_tasks(course_id)
+    now = datetime.datetime.now(pytz.utc)
+    filtered_tasks = InstructorTask.objects.filter(
+        course_id=course_id,
+        task_type__in=CANVAS_TASK_TYPES,
+        updated__lte=now,
+        updated__gte=now - datetime.timedelta(days=2),
+        requester=user,
+    ).order_by("-updated")
+
+    return (instructor_tasks | filtered_tasks).distinct()[0:3]
