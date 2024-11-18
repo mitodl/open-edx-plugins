@@ -2,7 +2,7 @@
 """Settings to provide to edX"""
 
 
-def plugin_settings(settings):
+def plugin_settings(settings):  # noqa: ARG001
     """
     Populate CMS settings
     """
