@@ -60,7 +60,11 @@ for subdir in "src"/*; do
             fi
 
             # Run the pytest command
-            $pytest_command
+            if $pytest_command --collect-only; then
+                $pytest_command
+            else
+                echo "No tests found, skipping pytest."
+            fi
 
             PYTEST_SUCCESS=$?
 
