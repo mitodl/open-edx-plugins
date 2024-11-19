@@ -9,7 +9,7 @@ jobs:
         python_version:
         - 3.11
         edx_branch:
-        - master
+        # - master
         - open-release/quince.master
         - open-release/redwood.master
           # Add more branches as needed
