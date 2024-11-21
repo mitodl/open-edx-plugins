@@ -10,6 +10,8 @@ from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope, String
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
+from xmodule.video_block.transcripts_utils import get_transcript_from_contentstore
+
 
 def get_resource_bytes(path):
     """
@@ -78,8 +80,16 @@ class OLChatAside(XBlockAside):
         if getattr(self.runtime, "is_author_mode", False):
             return self.author_view_aside(block, context)
 
+        # if getattr(block, "category", None) == "video":
+        #     content, filename, mimetype = get_transcript_from_contentstore(block, 'en', 'txt', block.get_transcripts_info())
+
+        print("\n\n\n IN ASIDE\n\n\n")
         fragment = Fragment("")
-        fragment.add_content(render_template("static/html/student_view.html"))
+        fragment.add_content(render_template("static/html/student_view.html", {"block_key": self.scope_ids.usage_id.usage_key.block_id}))
+        fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
+        fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
+        fragment.add_javascript(get_resource_bytes("static/js/aiChat.umd.js"))
+        fragment.initialize_js("AiChatAsideView", json_args={"test_arg": "test_value"})
         return fragment
 
     @XBlockAside.aside_for(AUTHOR_VIEW)
