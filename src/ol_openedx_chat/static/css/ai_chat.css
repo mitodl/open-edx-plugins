@@ -1,0 +1,137 @@
+/* General Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+/* Chat Button */
+.chat-button {
+    position: fixed;
+    bottom: 70px;
+    right: 20px;
+    background-color: #A31F34;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Chat Window */
+.chat-window {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    height: 400px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1001;
+    display: none; /* Initially hidden */
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Chat Header */
+.chat-header {
+    background-color: #A31F34;
+    color: white;
+    padding: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Close Chat Button */
+.close-chat {
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+/* Chat Body */
+.chat-body {
+    flex: 1; /* Ensures it takes up available space */
+    padding: 10px;
+    overflow-y: auto; /* Enables vertical scrolling */
+    background-color: #f9f9f9;
+    max-height: 300px; /* Limit the height of the chat body */
+    scrollbar-width: thin; /* Custom scrollbar for modern browsers */
+    scrollbar-color: #A31F34 #f9f9f9;
+}
+
+/* Optional: Styling for scrollbars in webkit browsers (Chrome, Safari) */
+.chat-body::-webkit-scrollbar {
+    width: 8px; /* Width of the scrollbar */
+}
+
+.chat-body::-webkit-scrollbar-thumb {
+    background-color: #A31F34; /* Color of the scrollbar thumb */
+    border-radius: 4px; /* Roundness of the scrollbar thumb */
+}
+
+.chat-body::-webkit-scrollbar-track {
+    background-color: #f9f9f9; /* Color of the scrollbar track */
+}
+
+.bot-message {
+    background-color: #e0e0e0;
+    color: #333;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 5px 0;
+    max-width: 80%;
+}
+
+.user-message {
+    background-color: #A31F34;
+    color: white;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 5px 0;
+    max-width: 80%;
+    align-self: flex-end;
+}
+
+/* Chat Footer */
+.chat-footer {
+    display: flex;
+    border-top: 1px solid #ddd;
+    position: absolute;
+    bottom: 0;
+    width: inherit;
+}
+
+.chat-input {
+    flex: 1;
+    border: none;
+    padding: 10px;
+    font-size: 14px;
+}
+
+.chat-input:focus {
+    outline: none;
+}
+
+.send-button {
+    background-color: #A31F34;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.send-button:hover {
+    background-color: #A31F34;
+}
