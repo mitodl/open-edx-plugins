@@ -8,9 +8,11 @@
 
 /* Chat Button */
 .chat-button {
-    position: fixed;
+    position: relative;
     bottom: 70px;
-    right: 20px;
+    left: 300px;
+    margin-left: auto;
+    width: fit-content;
     background-color: #A31F34;
     color: white;
     padding: 10px 15px;
@@ -26,9 +28,10 @@
 
 /* Chat Window */
 .chat-window {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
+    position: relative;
+    bottom: 450px;
+    left: 300px;
+    margin-left: auto;
     width: 300px;
     height: 400px;
     background-color: white;
