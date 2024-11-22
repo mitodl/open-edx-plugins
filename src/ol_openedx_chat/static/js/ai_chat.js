@@ -1,13 +1,19 @@
 function AiChatAsideView(runtime, element) {
     $('.chat-button').on('click', function () {
-        $('.chat-window').fadeIn();
-        $('.chat-button').hide();
+        const blockKey = $(this).data("block-key")
+        const chatWindowSelector = '#chat-window-' + blockKey
+        const chatButtonSelector = '#chat-button-' + blockKey
+        $(chatWindowSelector).fadeIn();
+        $(chatButtonSelector).hide();
     });
 
     // Close chat window
     $('.close-chat').on('click', function () {
-        $('.chat-window').fadeOut();
-        $('.chat-button').fadeIn();
+        const blockKey = $(this).data("block-key")
+        const chatWindowSelector = '#chat-window-' + blockKey
+        const chatButtonSelector = '#chat-button-' + blockKey
+        $(chatWindowSelector).fadeOut();
+        $(chatButtonSelector).fadeIn();
     });
 
     // Send message

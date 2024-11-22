@@ -43,7 +43,8 @@ class OLChatAside(XBlockAside):
         Renders the aside contents for the student view
         """  # noqa: D401
         fragment = Fragment("")
-        fragment.add_content(render_template("static/html/student_view.html"))
+        breakpoint()
+        fragment.add_content(render_template("static/html/student_view.html", {"block_key": self.scope_ids.usage_id.usage_key.block_id}))
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
         fragment.initialize_js("AiChatAsideView")
