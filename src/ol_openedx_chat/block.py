@@ -1,8 +1,8 @@
 import pkg_resources
 from django.template import Context, Template
 from web_fragments.fragment import Fragment
-from xblock.core import XBlockAside, XBlock
 from webob.response import Response
+from xblock.core import XBlock, XBlockAside
 
 BLOCK_PROBLEM_CATEGORY = "problem"
 MULTIPLE_CHOICE_TYPE = "multiplechoiceresponse"
@@ -44,7 +44,12 @@ class OLChatAside(XBlockAside):
         """  # noqa: D401
         fragment = Fragment("")
         breakpoint()
-        fragment.add_content(render_template("static/html/student_view.html", {"block_key": self.scope_ids.usage_id.usage_key.block_id}))
+        fragment.add_content(
+            render_template(
+                "static/html/student_view.html",
+                {"block_key": self.scope_ids.usage_id.usage_key.block_id},
+            )
+        )
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
         fragment.initialize_js("AiChatAsideView")
@@ -56,7 +61,11 @@ class OLChatAside(XBlockAside):
         print(request.POST)
         print(suffix)
         print("\n\n\n")
-        return Response(json_body={"message": "Hello, This your MIT Teaching Assistant. (A Server message)"})
+        return Response(
+            json_body={
+                "message": "Hello, This your MIT Teaching Assistant. (A Server message)"
+            }
+        )
 
     @XBlockAside.aside_for("author_view")
     def author_view_aside(self, block, context=None):  # noqa: ARG002
