@@ -36,7 +36,7 @@ def test_redirect_middleware(  # noqa: PLR0913
     should_redirect,
 ):  # pylint: disable=too-many-arguments
     """Test that the middleware redirects correctly"""
-    settings.MITX_REDIRECT_LOGIN_URL = "/mitxpro-oauth2/?auth_entry=login"
+    settings.MITX_REDIRECT_LOGIN_URL = "/ol-oauth2/?auth_entry=login"
     settings.MITX_REDIRECT_ENABLED = is_enabled
     settings.MITX_REDIRECT_ALLOW_RE_LIST = allowed_regexes
     settings.MITX_REDIRECT_DENY_RE_LIST = denied_regexes

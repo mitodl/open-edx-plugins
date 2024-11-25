@@ -3,7 +3,7 @@
 from urllib.parse import urljoin
 
 import pytest
-from ol_social_auth.backends import MITxProOAuth2
+from ol_social_auth.backends import OLOAuth2
 
 # pylint: disable=redefined-outer-name
 
@@ -16,8 +16,8 @@ def strategy(mocker):
 
 @pytest.fixture()
 def backend(strategy):
-    """MITxProOAuth2 backend fixture"""
-    return MITxProOAuth2(strategy)
+    """OLOAuth2 backend fixture"""
+    return OLOAuth2(strategy)
 
 
 @pytest.mark.parametrize(
