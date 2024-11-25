@@ -336,7 +336,9 @@ def add_repo(repo, rdir_in=None, branch=None):  # noqa: PLR0912, PLR0915, C901
         loggers.append(logger)
 
     try:
-        import_cmd = importlib.import_module("cms.djangoapps.contentstore.management.commands.import")
+        import_cmd = importlib.import_module(
+            "cms.djangoapps.contentstore.management.commands.import"
+        )
         management.call_command(
             import_cmd.Command(),
             git_repo_dir,
