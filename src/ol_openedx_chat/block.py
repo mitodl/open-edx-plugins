@@ -4,6 +4,11 @@ from web_fragments.fragment import Fragment
 from xblock.core import XBlockAside, XBlock
 from webob.response import Response
 
+from xmodule.video_block.transcripts_utils import get_transcript_from_contentstore
+import openai
+
+openai.api_key = "<API_KEY"
+
 BLOCK_PROBLEM_CATEGORY = "problem"
 MULTIPLE_CHOICE_TYPE = "multiplechoiceresponse"
 
@@ -43,7 +48,24 @@ class OLChatAside(XBlockAside):
         Renders the aside contents for the student view
         """  # noqa: D401
         fragment = Fragment("")
-        breakpoint()
+        if getattr(block, "category", None) == "video":
+            content, filename, mimetype = get_transcript_from_contentstore(block, 'en', 'txt', block.get_transcripts_info())
+            prompt = (
+                "Summarize the following video transcript into a concise, informative summary:\n\n"
+                f"{content}"
+            )
+            response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert at summarizing content."},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=200,
+                temperature=0.5,
+            )
+            print("\n\n\n", response["choices"][0]["message"]["content"], "\n\n\n")
+            return fragment
+
         fragment.add_content(render_template("static/html/student_view.html", {"block_key": self.scope_ids.usage_id.usage_key.block_id}))
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
@@ -77,6 +99,9 @@ class OLChatAside(XBlockAside):
         instances, the problem type of the given block needs to be retrieved in
         different ways.
         """  # noqa: D401
+        if getattr(block, "category", None) == 'video':
+            return True
+
         if getattr(block, "category", None) != BLOCK_PROBLEM_CATEGORY:
             return False
         block_problem_types = None
