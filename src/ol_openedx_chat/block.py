@@ -1,10 +1,14 @@
 import pkg_resources
+from django.conf import settings
 from django.template import Context, Template
+from django.utils.translation import gettext_lazy as _
+from ol_openedx_chat.utils import is_aside_applicable_to_block
+from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
-from xblock.core import XBlockAside
-
-BLOCK_PROBLEM_CATEGORY = "problem"
-MULTIPLE_CHOICE_TYPE = "multiplechoiceresponse"
+from webob.response import Response
+from xblock.core import XBlock, XBlockAside
+from xblock.fields import Boolean, Scope, String
+from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 
 def get_resource_bytes(path):
@@ -36,22 +40,72 @@ class OLChatAside(XBlockAside):
     XBlock aside that enables OL AI Chat functionality for an XBlock
     """
 
-    @XBlockAside.aside_for("student_view")
-    def student_view_aside(self, block, context=None):  # noqa: ARG002
+    enabled = Boolean(
+        display_name=_("Open Learning Chat enabled status"),
+        default=False,
+        scope=Scope.content,
+        help=_("Indicates whether or not Open Learning chat is enabled for a block"),
+    )
+    chat_prompts = String(
+        display_name=_("Open Learning Chat Prompt text"),
+        default="",
+        scope=Scope.content,
+        help=_("Prompt hint text for chat in a block"),
+    )
+    additional_solution = String(
+        display_name=_("Additional solution for problem"),
+        default="",
+        scope=Scope.content,
+        help=_("Additional solution for the problem in context of chat"),
+    )
+    llm_model = String(
+        display_name=_("Open Learning Chat selected LLM model"),
+        default="",
+        scope=Scope.content,
+        help=_("Selected LLM model to be used for a block"),
+    )
+
+    @XBlockAside.aside_for(STUDENT_VIEW)
+    def student_view_aside(self, block, context=None):
         """
         Renders the aside contents for the student view
         """  # noqa: D401
+
+        # This is a workaround for those blocks which do not have has_author_view=True
+        # because when a block does not define has_author_view=True in it, the only view
+        # that gets rendered is student_view in place of author view.
+
+        if getattr(self.runtime, "is_author_mode", False):
+            return self.author_view_aside(block, context)
+
         fragment = Fragment("")
         fragment.add_content(render_template("static/html/student_view.html"))
         return fragment
 
-    @XBlockAside.aside_for("author_view")
+    @XBlockAside.aside_for(AUTHOR_VIEW)
     def author_view_aside(self, block, context=None):  # noqa: ARG002
         """
         Renders the aside contents for the author view
         """  # noqa: D401
         fragment = Fragment("")
-        fragment.add_content(render_template("static/html/studio_view.html"))
+        fragment.add_content(
+            render_template(
+                "static/html/studio_view.html",
+                {
+                    "is_enabled": self.enabled,
+                    "chat_prompts": self.chat_prompts,
+                    "selected_llm_model": self.llm_model,
+                    "additional_solution": self.additional_solution,
+                    "llm_models_list": list(
+                        settings.OL_CHAT_SETTINGS
+                    ),  # Converting dict keys into a list
+                    "block_id": block.location.block_id,  # Passing this along as a unique key for checkboxes  # noqa: E501
+                },
+            )
+        )
+        fragment.add_css(get_resource_bytes("static/css/studio.css"))
+        fragment.add_javascript(get_resource_bytes("static/js/studio.js"))
+        fragment.initialize_js("OLChatInit")
         return fragment
 
     @classmethod
@@ -64,16 +118,20 @@ class OLChatAside(XBlockAside):
         instances, the problem type of the given block needs to be retrieved in
         different ways.
         """  # noqa: D401
-        if getattr(block, "category", None) != BLOCK_PROBLEM_CATEGORY:
-            return False
-        block_problem_types = None
-        # LMS passes in the block instance with `problem_types` as a property of
-        # `descriptor`
-        if hasattr(block, "descriptor"):
-            block_problem_types = getattr(block.descriptor, "problem_types", None)
-        # Studio passes in the block instance with `problem_types` as a top-level property  # noqa: E501
-        elif hasattr(block, "problem_types"):
-            block_problem_types = block.problem_types
-        # We only want this aside to apply to the block if the problem is multiple
-        # choice AND there are not multiple problem types.
-        return block_problem_types == {MULTIPLE_CHOICE_TYPE}
+        return is_aside_applicable_to_block(block=block)
+
+    @XBlock.handler
+    def update_chat_config(self, request, suffix=""):  # noqa: ARG002
+        """Update the chat configurations"""
+        try:
+            posted_data = request.json
+        except ValueError:
+            return Response(
+                "Invalid request body", status=api_status.HTTP_400_BAD_REQUEST
+            )
+
+        self.chat_prompts = posted_data.get("chat_prompts", "")
+        self.llm_model = posted_data.get("selected_llm_model", "")
+        self.enabled = posted_data.get("is_enabled", False)
+        self.additional_solution = posted_data.get("additional_solution", "")
+        return Response()

@@ -18,10 +18,14 @@ class OLOpenedxChatConfig(AppConfig):
         PluginSettings.CONFIG: {
             ProjectType.LMS: {
                 SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
+                SettingsType.DEVSTACK: {
+                    PluginSettings.RELATIVE_PATH: "settings.devstack"
+                },
             },
             ProjectType.CMS: {
-                SettingsType.COMMON: {
-                    PluginSettings.RELATIVE_PATH: "settings.cms_settings"
+                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
+                SettingsType.DEVSTACK: {
+                    PluginSettings.RELATIVE_PATH: "settings.devstack"
                 },
             },
         },
