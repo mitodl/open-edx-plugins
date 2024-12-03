@@ -1,25 +1,32 @@
-<div>
+<div class="form-container">
+    <form id="ol-chat-form" data-block-id="{{ block_id }}">
+        <!-- Text Fields -->
+        <label for="chat-prompts">Enter Prompts to assist students</label>
+        <textarea id="chat-prompts" name="chat-prompts" placeholder="Where can I find more information on Large Language Models?" required>{{ chat_prompts }}</textarea>
+        <label class="sub-label">Learners will see these prompts when using the chatbot feature</label>
+        <!-- Dropdown -->
+        <label for="llm-model-dropdown">Choose the Large Language Model (LLM) to use for this question</label>
+        <select class="llm-dropdown" id="llm-model-dropdown" name="llm-model-dropdown" value="{{ llm_model }}" required>
+            <option>-- Select an LLM Model --</option>
+            {% for llm_model in llm_models_list %}
+                <option {% if selected_llm_model == llm_model %} selected {% endif %}>{{ llm_model }}</option>
+            {% endfor %}
+        </select>
+        <label class="sub-label">Set this so that AI instructions can be more formal, instructive, conversational, technical based on your choice</label>
 
-    <div class="textbox-container">
-        <label for="gpt_version">Add a GPT model</label>
-        <input
-            type="text"
-            id="gpt_version"
-            name="gpt_verson"
-            placeholder="Enter GPT model version"
-            pattern="[A-Za-z0-9]"
-            title="Please add a GPT model name">
-    </div>
+        <!-- Text Fields -->
+        <label for="additional-solution">Enter the solution</label>
+        <textarea type="text" id="additional-solution" name="additional-solution" placeholder="Add additional solution">{{ additional_solution }}</textarea>
 
-    <div class="textbox-container">
-        <label for="add_prompt">Add GPT prompt</label>
-        <input
-            type="text"
-            id="add_prompt"
-            name="add_prompt"
-            placeholder="Pleae add prompt context"
-            pattern="[A-Za-z0-9]"
-            title="Please add a GPT Prompt">
-    </div>
+        <label class="sub-label">The more you add here, the more helpful it will be to Learners. We will train our Model to understand the solution, understand potential mistakes learners might make, and assist the Learner without giving direct answers. Links can also be used here to assist Learners find the content from previous course pages or websites. </label>
 
+        <!-- Checkbox -->
+        <div class="checkbox-container">
+            <input class="enabled-check" type="checkbox" id="is-enabled-{{ block_id }}" name="is-enabled" {% if is_enabled %} checked {% endif %}/>
+            <label class="enabled-label" for="is-enabled-{{ block_id }}">Enable</label>
+        </div>
+
+        <!-- Save Button -->
+        <button type="submit" id="save-chat-config">Save</button>
+    </form>
 </div>
