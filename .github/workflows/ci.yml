@@ -34,7 +34,7 @@ jobs:
         if [[ "${{ matrix.edx_branch }}" == "open-release/quince.master" ]]; then
           pip install tutor==17.0.6
         elif [[ "${{ matrix.edx_branch }}" == "master" ]]; then
-          git clone --branch=nightly https://github.com/overhangio/tutor.git
+          git clone --branch=main https://github.com/overhangio/tutor.git
           pip install -e "./tutor"
         else
           pip install tutor==18.0.0
@@ -54,8 +54,8 @@ jobs:
     - name: Run tests on tutor
       run: |
         if [[ "${{ matrix.edx_branch }}" == "master" ]]; then
-          DIRECTORY="tutor-nightly"
-          DEV="tutor_nightly_dev"
+          DIRECTORY="tutor-main"
+          DEV="tutor_main_dev"
         else
           DIRECTORY="tutor"
           DEV="tutor_dev"
