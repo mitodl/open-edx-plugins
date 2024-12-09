@@ -2,13 +2,14 @@ import pkg_resources
 from django.conf import settings
 from django.template import Context, Template
 from django.utils.translation import gettext_lazy as _
-from ol_openedx_chat.utils import is_aside_applicable_to_block
 from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope, String
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
+
+from ol_openedx_chat.utils import is_aside_applicable_to_block
 
 
 def get_resource_bytes(path):
