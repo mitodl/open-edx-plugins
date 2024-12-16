@@ -19,14 +19,15 @@ from django.core import management
 from django.core.management.base import CommandError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from opaque_keys.edx.locator import CourseLocator
+from xmodule.modulestore.django import SignalHandler
+from xmodule.util.sandboxing import DEFAULT_PYTHON_LIB_FILENAME
+
 from edx_sysadmin.models import CourseGitLog
 from edx_sysadmin.utils.utils import (
     DEFAULT_GIT_REPO_PREFIX,
     remove_old_course_import_logs,
 )
-from opaque_keys.edx.locator import CourseLocator
-from xmodule.modulestore.django import SignalHandler
-from xmodule.util.sandboxing import DEFAULT_PYTHON_LIB_FILENAME
 
 log = logging.getLogger(__name__)
 
