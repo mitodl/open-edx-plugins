@@ -69,7 +69,7 @@ class OLChatAside(XBlockAside):
         fragment.add_content(render_template("static/html/student_view.html", {"block_key": self.scope_ids.usage_id.usage_key.block_id}))
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
-        fragment.initialize_js("AiChatAsideView")
+        fragment.initialize_js("AiChatAsideView", json_args={"test_arg": "test_value"})
         return fragment
 
     @XBlock.handler

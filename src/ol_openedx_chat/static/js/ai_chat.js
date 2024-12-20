@@ -1,4 +1,4 @@
-function AiChatAsideView(runtime, element) {
+function AiChatAsideView(runtime, element, block_element, init_args) {
     $('.chat-button').on('click', function () {
         const blockKey = $(this).data("block-key")
         const chatWindowSelector = '#chat-window-' + blockKey
@@ -72,4 +72,5 @@ function AiChatAsideView(runtime, element) {
             sendMessage();
         }
     });
+    console.log(init_args)
 }
