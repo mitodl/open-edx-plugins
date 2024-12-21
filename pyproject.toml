@@ -24,7 +24,7 @@ opentelemetry-exporter-richconsole = "*"
 opentelemetry-exporter-otlp-proto-http = "*"
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = "^3.0.0"
+pre-commit = "^4.0.0"
 pytest = "^8.0.0"
 twine = "^5.0.0"
 ruff = "^0.8.0"
