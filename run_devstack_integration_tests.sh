@@ -8,13 +8,20 @@ pwd
 mkdir -p reports
 
 pip install -r ./requirements/edx/testing.txt
-pip install -r ./requirements/edx/paver.txt
+if [ "$1" != "master" ]; then
+    pip install -r ./requirements/edx/paver.txt
+fi
 
 # Installing edx-platform
 pip install -e .
 
 mkdir -p test_root  # for edx
-paver update_assets lms --settings=test_static_optimized
+
+if [ "$1" != "master" ]; then
+    paver update_assets lms --settings=test_static_optimized
+else
+    npm run build && ./manage.py lms collectstatic --noinput && ./manage.py cms collectstatic --noinput
+fi
 
 cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-stats.json
 cd /open-edx-plugins
