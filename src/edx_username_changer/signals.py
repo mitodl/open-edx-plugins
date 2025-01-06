@@ -7,8 +7,8 @@ from common.djangoapps.util.model_utils import (  # pylint: disable=import-error
 )
 from django.conf import settings
 from django.db import transaction
-from tasks import task_update_username_in_forum
-from utils import update_user_social_auth_uid
+from edx_username_changer.tasks import task_update_username_in_forum
+from edx_username_changer.utils import update_user_social_auth_uid
 
 
 def user_pre_save_callback(sender, **kwargs):

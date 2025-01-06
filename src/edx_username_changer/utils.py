@@ -7,7 +7,7 @@ from common.djangoapps.student.models import (
 )
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from exceptions import UpdateFailedException
+from edx_username_changer.exceptions import UpdateFailedException
 from openedx.core.djangoapps.django_comment_common.comment_client.comment import (
     Comment,
 )
