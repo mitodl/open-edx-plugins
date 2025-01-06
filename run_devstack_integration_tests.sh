@@ -17,13 +17,14 @@ pip install -e .
 
 mkdir -p test_root  # for edx
 
-if [ "$1" != "master" ]; then
-    paver update_assets lms --settings=test_static_optimized
-else
+if [ "$1" == "master" ]; then
     npm run build && ./manage.py lms collectstatic --noinput && ./manage.py cms collectstatic --noinput
+    cp /openedx/staticfiles/webpack-stats.json test_root/staticfiles/webpack-stats.json
+else
+    paver update_assets lms --settings=test_static_optimized
+    cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-stats.json
 fi
 
-cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-stats.json
 cd /open-edx-plugins
 
 # Installing test dependencies
