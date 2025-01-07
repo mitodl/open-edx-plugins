@@ -16,11 +16,15 @@ fi
 pip install -e .
 
 mkdir -p test_root  # for edx
+
+ls test_root
+
+ls /openedx/staticfiles
+
 if [ "$1" == "master" ]; then
-    npm run build && ./manage.py lms collectstatic --noinput && ./manage.py cms collectstatic --noinput
-    cp /openedx/staticfiles/webpack-stats.json test_root/staticfiles/webpack-stats.json
+    mkdir -p /openedx/staticfiles
+    cp -r /openedx/staticfiles test_root/staticfiles
 else
-    paver update_assets lms --settings=test_static_optimized
     cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-stats.json
 fi
 

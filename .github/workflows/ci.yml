@@ -47,7 +47,6 @@ jobs:
         cd edx-platform
         git checkout ${{ matrix.edx_branch }}
         tutor mounts add .
-        tutor images build openedx-dev
         tutor dev launch --non-interactive
         tutor dev stop
 
