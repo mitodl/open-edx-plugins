@@ -17,14 +17,11 @@ pip install -e .
 
 mkdir -p test_root  # for edx
 
-ls test_root
-
-ls /openedx/staticfiles
-
 if [ "$1" == "master" ]; then
     mkdir -p /openedx/staticfiles
     cp -r /openedx/staticfiles test_root/staticfiles
 else
+    paver update_assets lms --settings=test_static_optimized
     cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-stats.json
 fi
 
