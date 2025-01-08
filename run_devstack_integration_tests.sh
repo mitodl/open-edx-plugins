@@ -12,6 +12,8 @@ pip install -r ./requirements/edx/testing.txt
 # Installing edx-platform
 pip install -e .
 
+cp /openedx/staticfiles/webpack-stats.json test_root/staticfiles
+
 cd /open-edx-plugins
 
 # Installing test dependencies
