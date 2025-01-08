@@ -8,15 +8,12 @@ pwd
 mkdir -p reports
 
 pip install -r ./requirements/edx/testing.txt
-pip install -r ./requirements/edx/paver.txt
 
 # Installing edx-platform
 pip install -e .
 
-mkdir -p test_root  # for edx
-paver update_assets lms --settings=test_static_optimized
+cp -r /openedx/staticfiles test_root/staticfiles
 
-cp test_root/staticfiles/lms/webpack-stats.json test_root/staticfiles/webpack-stats.json
 cd /open-edx-plugins
 
 # Installing test dependencies
