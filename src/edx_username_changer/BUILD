@@ -2,7 +2,7 @@ python_distribution(
     name="edx_username_changer_package",
     provides=setup_py(
         name="edx-username-changer",
-        version="0.3.3",
+        version="0.3.2",
         description="An edX plugin to change username of edx accounts through admin panel",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
