@@ -41,6 +41,7 @@ To configure this plugin, you need to do the following one step:
 1. Add/Enable a feature flag (ENABLE_EDX_USERNAME_CHANGER) into your environment variables (through ``private.py`` in LMS or CMS, depending upon where you are installing the plugin)
 
 .. code-block::
+
     FEATURES["ENABLE_EDX_USERNAME_CHANGER"] = True
 
 How to use
