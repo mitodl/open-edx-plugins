@@ -26,11 +26,10 @@ You can install this plugin into any Open edX instance by using any of the follo
 
 Follow these steps in a terminal on your machine:
 
-1. Navigate to ``edx-username-changer`` directory
-2. If you haven't done so already, run ``./pants build``
-3. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all plugins in the src directory
-4. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS or CMS containers)
-5. Run a shell in the machine/container running Open edX, and install this plugin using pip
+1. Navigate to ``open-edx-plugins`` directory
+2. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all plugins in the src directory
+3. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS or CMS containers)
+4. Run a shell in the machine/container running Open edX, and install this plugin using pip
 
 
 ``Note``: In some cases you might need to restart edx-platform after installing the plugin to reflect the changes.
@@ -39,13 +38,10 @@ Configurations
 --------------
 To configure this plugin, you need to do the following one step:
 
-1. Add/Enable a feature flag (ENABLE_EDX_USERNAME_CHANGER) into your environment variables (through lms.yml or studio.yml, depending upon where you are installing the plugin)
+1. Add/Enable a feature flag (ENABLE_EDX_USERNAME_CHANGER) into your environment variables (through ``private.py`` in LMS or CMS, depending upon where you are installing the plugin)
 
 .. code-block::
-    ...
-    ...
-    ENABLE_EDX_USERNAME_CHANGER: true
-    ...
+    FEATURES["ENABLE_EDX_USERNAME_CHANGER"] = True
 
 How to use
 ----------
