@@ -1,5 +1,12 @@
+python_sources(
+    name="edx_username_changer_source",
+)
+
 python_distribution(
     name="edx_username_changer_package",
+    dependencies=[
+        ":edx_username_changer_source",
+    ],
     provides=setup_py(
         name="edx-username-changer",
         version="0.3.2",
