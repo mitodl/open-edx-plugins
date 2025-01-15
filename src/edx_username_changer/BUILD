@@ -21,6 +21,9 @@ python_distribution(
             "lms.djangoapp": [
                 "edx_username_changer = edx_username_changer.apps:EdxUsernameChangerConfig",
             ],
+            "cms.djangoapp": [
+                "edx_username_changer = edx_username_changer.apps:EdxUsernameChangerConfig",
+            ],
         },
     ),
 )
