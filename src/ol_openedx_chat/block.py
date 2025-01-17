@@ -81,7 +81,8 @@ class OLChatAside(XBlockAside):
             return self.author_view_aside(block, context)
 
         if getattr(block, "category", None) == "video":
-            content, filename, mimetype = get_transcript_from_contentstore(block, 'en', 'txt', block.get_transcripts_info())
+            # content, filename, mimetype = get_transcript_from_contentstore(block, 'en', 'txt', block.get_transcripts_info())
+            pass
 
         print("\n\n\n IN ASIDE\n\n\n")
         fragment = Fragment("")
@@ -133,6 +134,7 @@ class OLChatAside(XBlockAside):
         instances, the problem type of the given block needs to be retrieved in
         different ways.
         """  # noqa: D401
+        print("\n\n\nshould_apply_to_block\n\n\n")
         return is_aside_applicable_to_block(block=block)
 
     @XBlock.handler
