@@ -16,6 +16,6 @@ def plugin_settings(settings):
     # .. toggle_use_case: open_edx
     # .. toggle_creation_date: 2025-01-15
 
-    settings.FEATURES.ENABLE_EDX_USERNAME_CHANGER = env_tokens.get("FEATURES", {}).get(
-        "ENABLE_EDX_USERNAME_CHANGER", False
-    )
+    settings.FEATURES["ENABLE_EDX_USERNAME_CHANGER"] = env_tokens.get(
+        "FEATURES", {}
+    ).get("ENABLE_EDX_USERNAME_CHANGER", False)
