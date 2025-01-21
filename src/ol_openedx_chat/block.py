@@ -80,11 +80,13 @@ class OLChatAside(XBlockAside):
         if getattr(self.runtime, "is_author_mode", False):
             return self.author_view_aside(block, context)
 
+        # if not self.enabled:
+        #     return Fragment("")
+
         if getattr(block, "category", None) == "video":
             # content, filename, mimetype = get_transcript_from_contentstore(block, 'en', 'txt', block.get_transcripts_info())
             pass
 
-        print("\n\n\n IN ASIDE\n\n\n")
         fragment = Fragment("")
         fragment.add_content(
             render_template(
@@ -94,8 +96,18 @@ class OLChatAside(XBlockAside):
         )
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
-        fragment.add_javascript(get_resource_bytes("static/js/aiChat.umd.js"))
-        fragment.initialize_js("AiChatAsideView", json_args={"test_arg": "test_value"})
+        # We can either keep the JS file in the static folder or load it from the CDN here or in the template
+        # fragment.add_javascript(get_resource_bytes("static/js/aiChat.umd.js"))
+        fragment.add_javascript_url("https://unpkg.com/@mitodl/smoot-design@0.0.0-preview215f7ae3fa/dist/bundles/aiChat.umd.js")
+        starters = [{"content": prompt} for prompt in self.chat_prompts.split(",")] if self.chat_prompts else []
+        fragment.initialize_js(
+            "AiChatAsideView",
+            json_args={
+                "starters": starters,
+                "block_usage_key": self.scope_ids.usage_id,
+                "user_id": self.runtime.user_id,
+            }
+        )
         return fragment
 
     @XBlockAside.aside_for(AUTHOR_VIEW)
@@ -134,7 +146,6 @@ class OLChatAside(XBlockAside):
         instances, the problem type of the given block needs to be retrieved in
         different ways.
         """  # noqa: D401
-        print("\n\n\nshould_apply_to_block\n\n\n")
         return is_aside_applicable_to_block(block=block)
 
     @XBlock.handler
