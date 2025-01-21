@@ -28,7 +28,7 @@ Follow these steps in a terminal on your machine:
 
 1. Navigate to ``open-edx-plugins`` directory
 2. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all plugins in the src directory
-3. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS or CMS containers)
+3. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS containers)
 4. Run a shell in the machine/container running Open edX, and install this plugin using pip
 
 
@@ -36,13 +36,23 @@ Follow these steps in a terminal on your machine:
 
 Configurations
 --------------
-To configure this plugin, you need to do the following one step:
+To configure this plugin, you need to do one of the following steps:
 
-1. Add/Enable a feature flag (ENABLE_EDX_USERNAME_CHANGER) into your environment variables (through ``private.py`` in LMS or CMS, depending upon where you are installing the plugin)
+1. Add/Enable a feature flag (ENABLE_EDX_USERNAME_CHANGER) into your environment variables (through ``private.py`` in LMS)
 
 .. code-block::
 
     FEATURES["ENABLE_EDX_USERNAME_CHANGER"] = True
+
+2. Add/Enable a feature flag (ENABLE_EDX_USERNAME_CHANGER) into your environment variables (through ``lms.env.yml`` file)
+
+.. code-block::
+
+    FEATURES:
+      ...
+      ENABLE_EDX_USERNAME_CHANGER: True
+      ...
+
 
 How to use
 ----------

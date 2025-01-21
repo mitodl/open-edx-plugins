@@ -1,5 +1,6 @@
 python_sources(
     name="edx_username_changer_source",
+    dependencies=["src/edx_username_changer/settings:edx_username_changer_settings"],
 )
 
 python_distribution(
