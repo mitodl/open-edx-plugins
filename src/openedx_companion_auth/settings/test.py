@@ -18,7 +18,7 @@ def plugin_settings(  # type: ignore[no-redef]
     settings.MITX_REDIRECT_ENABLED = True
     settings.MITX_REDIRECT_LOGIN_URL = "/auth/login/ol-oauth2/?auth_entry=login"
     settings.MITX_REDIRECT_ALLOW_RE_LIST = [
-        r"^/(admin|auth|login|logout|register|api|oauth2|user_api)"
+        r"^/(admin|auth|login|logout|register|api|oauth2|user_api|c4x|asset-v1:|assets/courseware/)"
     ]
     settings.MITX_REDIRECT_DENY_RE_LIST = []
 
