@@ -96,15 +96,13 @@ class OLChatAside(XBlockAside):
         )
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
-        # We can either keep the JS file in the static folder or load it from the CDN here or in the template
-        # fragment.add_javascript(get_resource_bytes("static/js/aiChat.umd.js"))
-        fragment.add_javascript_url("https://unpkg.com/@mitodl/smoot-design@0.0.0-preview215f7ae3fa/dist/bundles/aiChat.umd.js")
+        fragment.add_javascript_url("https://unpkg.com/@mitodl/smoot-design@3.1.0/dist/bundles/aiChat.umd.js")
         starters = [{"content": prompt} for prompt in self.chat_prompts.split(",")] if self.chat_prompts else []
         fragment.initialize_js(
-            "AiChatAsideView",
+            "AiChatAsideInit",
             json_args={
                 "starters": starters,
-                "block_usage_key": self.scope_ids.usage_id,
+                "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
                 "user_id": self.runtime.user_id,
             }
         )
