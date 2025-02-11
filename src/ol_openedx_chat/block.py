@@ -42,7 +42,7 @@ class OLChatAside(XBlockAside):
     XBlock aside that enables OL AI Chat functionality for an XBlock
     """
 
-    enabled = Boolean(
+    ol_chat_enabled = Boolean(
         display_name=_("Open Learning Chat enabled status"),
         default=False,
         scope=Scope.content,
@@ -80,14 +80,10 @@ class OLChatAside(XBlockAside):
         if getattr(self.runtime, "is_author_mode", False):
             return self.author_view_aside(block, context)
 
-        # if not self.enabled:
-        #     return Fragment("")
-
-        if getattr(block, "category", None) == "video":
-            # content, filename, mimetype = get_transcript_from_contentstore(block, 'en', 'txt', block.get_transcripts_info())
-            pass
-
         fragment = Fragment("")
+        if not self.ol_chat_enabled:
+            return fragment
+
         fragment.add_content(
             render_template(
                 "static/html/student_view.html",
@@ -98,13 +94,23 @@ class OLChatAside(XBlockAside):
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
         fragment.add_javascript_url("https://unpkg.com/@mitodl/smoot-design@3.1.0/dist/bundles/aiChat.umd.js")
         starters = [{"content": prompt} for prompt in self.chat_prompts.split(",")] if self.chat_prompts else []
+        extra_context = {
+            "starters": starters,
+            "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
+            "user_id": self.runtime.user_id,
+        }
+
+        if getattr(block, "category", None) == "video":
+            try:
+                content, filename, mimetype = get_transcript_from_contentstore(block, 'en', 'txt', block.get_transcripts_info())
+            except Exception:
+                content = ""
+
+            extra_context["video_transcript"] = content
+
         fragment.initialize_js(
             "AiChatAsideInit",
-            json_args={
-                "starters": starters,
-                "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
-                "user_id": self.runtime.user_id,
-            }
+            json_args=extra_context
         )
         return fragment
 
@@ -118,7 +124,7 @@ class OLChatAside(XBlockAside):
             render_template(
                 "static/html/studio_view.html",
                 {
-                    "is_enabled": self.enabled,
+                    "is_enabled": self.ol_chat_enabled,
                     "chat_prompts": self.chat_prompts,
                     "selected_llm_model": self.llm_model,
                     "additional_solution": self.additional_solution,
@@ -158,6 +164,6 @@ class OLChatAside(XBlockAside):
 
         self.chat_prompts = posted_data.get("chat_prompts", "")
         self.llm_model = posted_data.get("selected_llm_model", "")
-        self.enabled = posted_data.get("is_enabled", False)
+        self.ol_chat_enabled = posted_data.get("is_enabled", False)
         self.additional_solution = posted_data.get("additional_solution", "")
         return Response()
