@@ -17,10 +17,10 @@ make lms-shell
 Then install the desired plugin using pip:
 
 ```bash
-pip install <plugin-package-name>
+pip install <plugin-name>
 ```
 
-Replace `<plugin-package-name>` with the specific plugin you want to install.
+Replace `<plugin-name>` with the specific plugin you want to install. For version-specific installation, use [plugin-name]==<version>.
 
 ### Option 2: Build the package locally and install it
 
