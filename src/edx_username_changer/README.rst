@@ -11,28 +11,11 @@ It only supports koa and latest releases of Open edX.
 Installing The Plugin
 ---------------------
 
-You can install this plugin into any Open edX instance by using any of the following methods:
+For detailed installation instructions, please refer to the `plugin installation guide <../#installation-guide>`_
 
-**Option 1: Install from PyPI**
+Installation required in:
 
-.. code-block::
-
-    # If running devstack in docker, first open a shell in LMS (make lms-shell)
-
-    pip install edx-username-changer
-
-
-**Option 2: Build the package locally and install it**
-
-Follow these steps in a terminal on your machine:
-
-1. Navigate to ``open-edx-plugins`` directory
-2. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all plugins in the src directory
-3. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS containers)
-4. Run a shell in the machine/container running Open edX, and install this plugin using pip
-
-
-``Note``: In some cases you might need to restart edx-platform after installing the plugin to reflect the changes.
+* LMS
 
 Configurations
 --------------

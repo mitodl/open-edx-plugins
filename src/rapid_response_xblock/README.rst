@@ -12,40 +12,12 @@ Setup
 In production, the current practice as of 01/2021 is to add this
 dependency via Salt.
 
-For local development, you can use one of the following options to add
-this as a dependency in the ``edx-platform`` repo:
+For detailed installation instructions, please refer to the `plugin installation guide <../#installation-guide>`_
 
--  **Install directly via pip.**
+Installation required in:
 
-   ::
-
-      # From the devstack directory, run bash in a running LMS container...
-      make dev.shell.lms
-
-      # In bash, install the package
-      source /edx/app/edxapp/edxapp_env && pip install rapid-response-xblock==<version>
-
-      # Do the same for studio
-      make dev.shell.studio
-
-      # In bash, install the package
-      source /edx/app/edxapp/edxapp_env && pip install rapid-response-xblock==<version>
-
--  **Build the package locally and install it**
-
-   ::
-
-      Follow these steps in a terminal on your machine:
-
-      1. Navigate to open-edx-plugins directory
-
-      2. If you haven't done so already, run "./pants build"
-
-      3. Run "./pants package ::". This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for "rapid_response_xblock" and other "ol_openedx_*" plugins in "open-edx-plugins/src"
-
-      4. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use "docker cp" to copy these files into your LMS or CMS containers)
-
-      5. Run a shell in the machine/container running Open edX, and install this plugin using pip
+* LMS
+* Studio (CMS)
 
 2) Update edX config files
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
