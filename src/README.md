@@ -2,11 +2,11 @@
 
 This repository contains a collection of Open edX plugins that provide various custom functionalities for the Open edX platform.
 
-## Installation Guide
+### Installation Guide
 
 You can install any plugin from this collection using one of the following methods:
 
-### Option 1: Install from PyPI
+#### Option 1: Install from PyPI
 
 The simplest way to install a plugin is directly from PyPI. If you're running devstack in Docker, first open a shell in LMS:
 
@@ -22,7 +22,7 @@ pip install <plugin-name>
 
 Replace `<plugin-name>` with the specific plugin you want to install. For version-specific installation, use [plugin-name]==<version>.
 
-### Option 2: Build the package locally and install it
+#### Option 2: Build the package locally and install it
 
 Follow these steps in a terminal on your machine:
 
