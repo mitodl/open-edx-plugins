@@ -22,7 +22,7 @@ make studio-shell
 pip install <plugin-name>
 ```
 
-Replace `<plugin-name>` with the specific plugin you want to install. For version-specific installation, use [plugin-name]==<version>.
+Replace `<plugin-name>` with the specific plugin you want to install. For version-specific installation, use [plugin-name]==[version].
 
 #### Option 2: Build the package locally and install it
 
