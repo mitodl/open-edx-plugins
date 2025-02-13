@@ -12,7 +12,7 @@ MIT's AI chatbot for Open edX
 Setup
 =====
 
-For detailed installation instructions, please refer to the `plugin installation guide <../#installation-guide>`_
+For detailed installation instructions, please refer to the `plugin installation guide <../docs#installation-guide>`_.
 
 Installation required in:
 

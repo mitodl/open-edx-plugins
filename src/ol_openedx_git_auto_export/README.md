@@ -2,7 +2,7 @@
 Installation
 ------------
 
-For detailed installation instructions, please refer to the [plugin installation guide](<../#installation-guide>)
+For detailed installation instructions, please refer to the [plugin installation guide](<../docs#installation-guide>).
 
 Installation required in:
 

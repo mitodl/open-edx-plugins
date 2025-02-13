@@ -7,7 +7,7 @@ This Django plugin integrates Open Telemetry, offering both tracing and metric f
 Installation
 ------------
 
-For detailed installation instructions, please refer to the `plugin installation guide <../#installation-guide>`_
+For detailed installation instructions, please refer to the `plugin installation guide <../docs#installation-guide>`_.
 
 Installation required in:
 

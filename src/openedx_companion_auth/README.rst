@@ -11,7 +11,7 @@ Compatible with the Nutmeg release of the Open edX and onwards. May work with pr
 Installing The Plugin
 ---------------------
 
-For detailed installation instructions, please refer to the `plugin installation guide <../#installation-guide>`_
+For detailed installation instructions, please refer to the `plugin installation guide <../docs#installation-guide>`_.
 
 Installation required in:
 
