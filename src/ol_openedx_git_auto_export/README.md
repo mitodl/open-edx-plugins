@@ -1,7 +1,8 @@
-#### Steps to install on edX platform:
 
+Installation
+------------
 
-For detailed installation instructions, please refer to the `plugin installation guide <../#installation-guide>`_
+For detailed installation instructions, please refer to the [plugin installation guide](<../#installation-guide>)
 
 Installation required in:
 
