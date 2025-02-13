@@ -17,6 +17,7 @@ The simplest way to install a plugin is directly from PyPI. If you're running de
 # For LMS or CMS installation
 make lms-shell  # For LMS
 make cms-shell  # For Studio (CMS) installation
+
 pip install <plugin-name>  # Replace `<plugin-name>` with the specific plugin you want to install
 ```
 
