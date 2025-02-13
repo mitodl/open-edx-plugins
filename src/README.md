@@ -12,15 +12,18 @@ You can install any plugin from this collection using one of the following metho
 
 The simplest way to install a plugin is directly from PyPI. If you're running devstack in Docker, first open a shell as per requirement and then install the desired plugin using pip:
 
+
 ```bash
 # For LMS installation
 make lms-shell
 pip install <plugin-name>
 
 # For Studio (CMS) installation
-make studio-shell
+# Use 'cms-shell' for Devstack Quince and above, 'studio-shell' for earlier versions
+make cms-shell  # or make studio-shell for Pre-Quince
 pip install <plugin-name>
 ```
+
 
 Replace `<plugin-name>` with the specific plugin you want to install. For version-specific installation, use [plugin-name]==[version].
 
