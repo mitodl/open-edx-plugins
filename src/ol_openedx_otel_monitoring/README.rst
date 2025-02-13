@@ -12,6 +12,7 @@ For detailed installation instructions, please refer to the `plugin installation
 Installation required in:
 
 * LMS
+* CMS
 
 Configuration
 ------------

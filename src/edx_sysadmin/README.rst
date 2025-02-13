@@ -32,6 +32,7 @@ For detailed installation instructions, please refer to the `plugin installation
 Installation required in:
 
 * LMS
+* CMS
 
 Once you have installed the plugin you can visit ``<EDX_BASE_URL>/sysadmin`` to access the plugin features.
 
