@@ -9,21 +9,21 @@
             ]
 
             const STARTERS = init_args.starters
-            const REQUEST_OPTS = {
-              apiUrl: "https://learn-ai-qa.ol.mit.edu/http/recommendation_agent/",
-              transformBody(messages) {
-                const message = messages[messages.length - 1].content
-                return { message }
-              },
-            }
-            const el = document.getElementById(`app-root-${init_args.block_usage_key}`)
-            aiChat.aiChat({
-                root: el,
-                initialMessages: INITIAL_MESSAGES,
-                conversationStarters: STARTERS,
-                requestOpts: REQUEST_OPTS,
-                className: `ai-chat-${init_args.block_usage_key}`,
-            })
+            $('.chat-button').on('click', function () {
+                const blockKey = $(this).data("block-key")
+                const aiChatRootSelector = '#ai-chat-root-' + blockKey
+                window.parent.postMessage(
+                    {
+                        action: "createAIChat",
+                        className: `ai-chat-root`,
+                        starters: STARTERS,
+                        requestOptsAPIURL: "http://ai.open.odl.local:8002/http/recommendation_agent/",
+                        initialMessages: INITIAL_MESSAGES,
+                        aiChatRootSelector: aiChatRootSelector
+                    },
+                    "http://apps.local.openedx.io:2000"  // Ensure correct parent origin
+                );
+            });
             console.log(init_args.starters)
             console.log(init_args.block_usage_key)
             console.log(init_args.user_id)

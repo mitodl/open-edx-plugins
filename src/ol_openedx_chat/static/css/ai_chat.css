@@ -12,3 +12,23 @@
     width: 450px;
     height: 600px;
 }
+
+.chat-button {
+    position: relative;
+    bottom: 70px;
+    left: 300px;
+    margin-left: auto;
+    width: fit-content;
+    background-color: #A31F34;
+    color: white;
+    padding: 10px 15px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-size: 16px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
