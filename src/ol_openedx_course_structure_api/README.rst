@@ -7,43 +7,11 @@ A django app plugin to add a new API to Open edX to retrieve the JSON representa
 Installation
 ------------
 
-You can install this plugin into any Open edX instance by using any of the following methods:
+For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.``
 
+Installation required in:
 
-**Option 1: Install from PyPI**
-
-.. code-block::
-
-    # run it in LMS container
-    pip install ol-openedx-course-structure-api
-
-
-**Option 2: Build the package locally and install it**
-
-Follow these steps in a terminal on your machine:
-
-1. Navigate to ``open-edx-plugins`` directory
-2. If you haven't done so already, run ``./pants build``
-3. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all the "ol_openedx_*" plugins in "open-edx-plugins/src")
-
-If running devstack, do the following 4 and 5 steps:
-
-4. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: you can use docker cp to copy these files into your LMS container)
-5. Run a shell in the machine/container running Open edX, and install this plugin using pip
-
-If running tutor, do the following few steps:
-
-4. Extract ".tar.gz" file (e.g. tar command)
-5. Move the above extracted files to ``env/build/openedx/requirements/`` in tutor
-6. Create/Edit ``env/build/openedx/requirements/private.txt`` with this plugin files
-
-.. code-block::
-
-   -e ./ol-openedx-course-structure-api-0.1.0/
-
-7. Run ``tutor images build openedx``
-8. Run ``tutor local run lms ./manage.py lms print_setting INSTALLED_APPS`` to confirm the plugin is installed
-9. Restart tutor ``tutor local start``
+* LMS
 
 How To Use
 ----------

@@ -1,25 +1,12 @@
-#### Steps to install on edX platform:
 
+Installation
+------------
 
-You can install this plugin into any Open edX instance by using any of the following methods:
+For detailed installation instructions, please refer to the [plugin installation guide](<../../docs#installation-guide>).
 
+Installation required in:
 
-**Option 1: Install from PyPI**
-
-    # If running devstack in docker, first open a shell in CMS (make studio-shell)
-
-    pip install ol-openedx-git-auto-export
-
-
-**Option 2: Build the package locally and install it**
-
-Follow these steps in a terminal on your machine:
-
-1. Navigate to ``open-edx-plugins`` directory
-2. If you haven't done so already, run ``./pants build``
-3. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all the "ol_openedx_*" plugins in "open-edx-plugins/src")
-4. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS container)
-5. Run a shell in the machine/container running Open edX, and install this plugin using pip
+* Studio (CMS)
 
 Configuration
 ------------
