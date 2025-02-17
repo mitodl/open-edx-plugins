@@ -9,7 +9,7 @@
             ]
 
             const STARTERS = init_args.starters
-            $('.chat-button').on('click', function () {
+            $('.ai-chat-button').on('click', function () {
                 const blockKey = $(this).data("block-key")
                 const aiChatRootSelector = '#ai-chat-root-' + blockKey
                 window.parent.postMessage(

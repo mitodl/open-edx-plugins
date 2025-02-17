@@ -12,6 +12,7 @@ python_distribution(
         "src/ol_openedx_chat/static/js:ol_chat_js",
         "src/ol_openedx_chat/static/css:ol_chat_css",
         "src/ol_openedx_chat/static/html:ol_chat_html",
+        "src/ol_openedx_chat/static/images:ol_chat_images",
     ],
     provides=setup_py(
         name="ol-openedx-chat",
