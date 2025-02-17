@@ -11,7 +11,7 @@ It only supports koa and latest releases of Open edX.
 Installing The Plugin
 ---------------------
 
-For detailed installation instructions, please refer to the `plugin installation guide <../docs#installation-guide>`_.
+For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.``
 
 Installation required in:
 

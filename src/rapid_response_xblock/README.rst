@@ -12,7 +12,7 @@ Setup
 In production, the current practice as of 01/2021 is to add this
 dependency via Salt.
 
-For detailed installation instructions, please refer to the `plugin installation guide <../docs#installation-guide>`_.
+For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.``
 
 Installation required in:
 

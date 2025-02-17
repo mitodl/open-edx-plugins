@@ -48,7 +48,7 @@ Use ``0.1.1`` version of this plugin
 Installation
 ------------
 
-For detailed installation instructions, please refer to the `plugin installation guide <../docs#installation-guide>`_.
+For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.``
 
 Installation required in:
 
