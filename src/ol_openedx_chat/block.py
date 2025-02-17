@@ -87,7 +87,10 @@ class OLChatAside(XBlockAside):
         fragment.add_content(
             render_template(
                 "static/html/student_view.html",
-                {"block_key": self.scope_ids.usage_id.usage_key.block_id}
+                {
+                    "block_key": self.scope_ids.usage_id.usage_key.block_id,
+                    "block_type": getattr(block, "category", None)
+                },
             )
         )
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
