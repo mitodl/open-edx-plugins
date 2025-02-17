@@ -8,9 +8,8 @@ from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope, String
-from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
-
 from xmodule.video_block.transcripts_utils import get_transcript_from_contentstore
+from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 
 def get_resource_bytes(path):
@@ -89,14 +88,20 @@ class OLChatAside(XBlockAside):
                 "static/html/student_view.html",
                 {
                     "block_key": self.scope_ids.usage_id.usage_key.block_id,
-                    "block_type": getattr(block, "category", None)
+                    "block_type": getattr(block, "category", None),
                 },
             )
         )
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
-        fragment.add_javascript_url("https://unpkg.com/@mitodl/smoot-design@3.1.0/dist/bundles/aiChat.umd.js")
-        starters = [{"content": prompt} for prompt in self.chat_prompts.split(",")] if self.chat_prompts else []
+        fragment.add_javascript_url(
+            "https://unpkg.com/@mitodl/smoot-design@3.1.0/dist/bundles/aiChat.umd.js"
+        )
+        starters = (
+            [{"content": prompt} for prompt in self.chat_prompts.split(",")]
+            if self.chat_prompts
+            else []
+        )
         extra_context = {
             "starters": starters,
             "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
@@ -105,16 +110,15 @@ class OLChatAside(XBlockAside):
 
         if getattr(block, "category", None) == "video":
             try:
-                content, filename, mimetype = get_transcript_from_contentstore(block, 'en', 'txt', block.get_transcripts_info())
+                content, filename, mimetype = get_transcript_from_contentstore(
+                    block, "en", "txt", block.get_transcripts_info()
+                )
             except Exception:
                 content = ""
 
             extra_context["video_transcript"] = content
 
-        fragment.initialize_js(
-            "AiChatAsideInit",
-            json_args=extra_context
-        )
+        fragment.initialize_js("AiChatAsideInit", json_args=extra_context)
         return fragment
 
     @XBlockAside.aside_for(AUTHOR_VIEW)
