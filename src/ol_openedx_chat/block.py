@@ -98,7 +98,7 @@ class OLChatAside(XBlockAside):
             "https://unpkg.com/@mitodl/smoot-design@3.1.0/dist/bundles/aiChat.umd.js"
         )
         starters = (
-            [{"content": prompt} for prompt in self.chat_prompts.split(",")]
+            [{"content": prompt} for prompt in self.chat_prompts.split("\n\n")]
             if self.chat_prompts
             else []
         )
