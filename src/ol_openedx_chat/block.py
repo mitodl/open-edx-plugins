@@ -8,9 +8,8 @@ from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope, String
-from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
-
 from xmodule.video_block.transcripts_utils import get_transcript_from_contentstore
+from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 
 def get_resource_bytes(path):
@@ -95,7 +94,7 @@ class OLChatAside(XBlockAside):
                 "static/html/student_view.html",
                 {
                     "block_key": self.scope_ids.usage_id.usage_key.block_id,
-                    "block_type": getattr(block, "category", None)
+                    "block_type": getattr(block, "category", None),
                 },
             )
         )
@@ -103,7 +102,9 @@ class OLChatAside(XBlockAside):
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
         extra_context = {
             "starters": self.chat_prompts.split("\n") if self.chat_prompts else [],
-            "assistant_initial_messages": self.assistant_initial_messages.split("\n") if self.assistant_initial_messages else [],
+            "assistant_initial_messages": self.assistant_initial_messages.split("\n")
+            if self.assistant_initial_messages
+            else [],
             "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
             "user_id": self.runtime.user_id,
             "learn_ai_api_url": settings.LEARN_AI_API_URL,
@@ -111,16 +112,15 @@ class OLChatAside(XBlockAside):
 
         if getattr(block, "category", None) == "video":
             try:
-                content, filename, mimetype = get_transcript_from_contentstore(block, 'en', 'txt', block.get_transcripts_info())
-            except Exception:
+                content, filename, mimetype = get_transcript_from_contentstore(
+                    block, "en", "txt", block.get_transcripts_info()
+                )
+            except Exception:  # noqa: BLE001
                 content = ""
 
             extra_context["video_transcript"] = content
 
-        fragment.initialize_js(
-            "AiChatAsideInit",
-            json_args=extra_context
-        )
+        fragment.initialize_js("AiChatAsideInit", json_args=extra_context)
         return fragment
 
     @XBlockAside.aside_for(AUTHOR_VIEW)
@@ -173,7 +173,9 @@ class OLChatAside(XBlockAside):
             )
 
         self.chat_prompts = posted_data.get("chat_prompts", "")
-        self.assistant_initial_messages = posted_data.get("assistant_initial_messages", "")
+        self.assistant_initial_messages = posted_data.get(
+            "assistant_initial_messages", ""
+        )
         self.llm_model = posted_data.get("selected_llm_model", "")
         self.ol_chat_enabled = posted_data.get("is_enabled", False)
         self.additional_solution = posted_data.get("additional_solution", "")
