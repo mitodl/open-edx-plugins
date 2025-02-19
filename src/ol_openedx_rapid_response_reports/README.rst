@@ -23,7 +23,7 @@ This plugin generates reports for `Rapid Response xBlock <https://github.com/mit
 Installation
 ------------
 
-For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.``
+For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.
 
 Installation required in:
 

@@ -11,7 +11,7 @@ Compatible with all edx releases
 Installing The Plugin
 ---------------------
 
-For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.``
+For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.
 
 Installation required in:
 
