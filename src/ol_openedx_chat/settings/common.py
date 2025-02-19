@@ -19,3 +19,4 @@ def plugin_settings(settings):
     # .. {"MODEL_NAME1": API_KEY, "MODEL_NAME2": API_KEY}
 
     settings.OL_CHAT_SETTINGS = env_tokens.get("OL_CHAT_SETTINGS", {})
+    settings.LEARN_AI_API_URL = env_tokens.get("LEARN_AI_API_URL", "")

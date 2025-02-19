@@ -66,6 +66,12 @@ class OLChatAside(XBlockAside):
         scope=Scope.content,
         help=_("Selected LLM model to be used for a block"),
     )
+    assistant_initial_messages = String(
+        display_name=_("Open Learning Assistant Initial Messages"),
+        default="",
+        scope=Scope.content,
+        help=_("Initial messages to be shown in the chat assistant"),
+    )
 
     @XBlockAside.aside_for(STUDENT_VIEW)
     def student_view_aside(self, block, context=None):
@@ -95,12 +101,12 @@ class OLChatAside(XBlockAside):
         )
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
-        fragment.add_javascript_url("https://unpkg.com/@mitodl/smoot-design@3.1.0/dist/bundles/aiChat.umd.js")
-        starters = [{"content": prompt} for prompt in self.chat_prompts.split(",")] if self.chat_prompts else []
         extra_context = {
-            "starters": starters,
+            "starters": self.chat_prompts.split("\n") if self.chat_prompts else [],
+            "assistant_initial_messages": self.assistant_initial_messages.split("\n") if self.assistant_initial_messages else [],
             "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
             "user_id": self.runtime.user_id,
+            "learn_ai_api_url": settings.LEARN_AI_API_URL,
         }
 
         if getattr(block, "category", None) == "video":
@@ -129,6 +135,7 @@ class OLChatAside(XBlockAside):
                 {
                     "is_enabled": self.ol_chat_enabled,
                     "chat_prompts": self.chat_prompts,
+                    "assistant_initial_messages": self.assistant_initial_messages,
                     "selected_llm_model": self.llm_model,
                     "additional_solution": self.additional_solution,
                     "llm_models_list": list(
@@ -166,6 +173,7 @@ class OLChatAside(XBlockAside):
             )
 
         self.chat_prompts = posted_data.get("chat_prompts", "")
+        self.assistant_initial_messages = posted_data.get("assistant_initial_messages", "")
         self.llm_model = posted_data.get("selected_llm_model", "")
         self.ol_chat_enabled = posted_data.get("is_enabled", False)
         self.additional_solution = posted_data.get("additional_solution", "")

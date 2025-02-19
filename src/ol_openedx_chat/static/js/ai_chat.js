@@ -1,39 +1,54 @@
-(function ($){
-    function AiChatAsideView(runtime, element, block_element, init_args) {
-        $(function($) {
-            const INITIAL_MESSAGES = [
-              {
-                content: "Hi! What are you interested in learning about?",
-                role: "assistant",
-              },
-            ]
+(function ($) {
+  function AiChatAsideView(runtime, element, block_element, init_args) {
+    $(function ($) {
 
-            const STARTERS = init_args.starters
-            $('.ai-chat-button').on('click', function () {
-                const blockKey = $(this).data("block-key")
-                const aiChatRootSelector = '#ai-chat-root-' + blockKey
-                window.parent.postMessage(
-                    {
-                        action: "createAIChat",
-                        className: `ai-chat-root`,
-                        starters: STARTERS,
-                        requestOptsAPIURL: "http://ai.open.odl.local:8002/http/recommendation_agent/",
-                        initialMessages: INITIAL_MESSAGES,
-                        aiChatRootSelector: aiChatRootSelector
-                    },
-                    "http://apps.local.openedx.io:2000"  // Ensure correct parent origin
-                );
-            });
-            console.log(init_args.starters)
-            console.log(init_args.block_usage_key)
-            console.log(init_args.user_id)
-            console.log(init_args.video_transcript)
-        });
-    }
+      const INITIAL_MESSAGES = [
+        {
+          content: "Hi! What are you interested in learning about?",
+          role: "assistant",
+        },
+      ];
 
-    function AiChatAside(runtime, element, block_element, init_args) {
-        return new AiChatAsideView(runtime, element, block_element, init_args);
-    }
+      const STARTERS = [
+        { content: "I'm interested in quantum computing" },
+        { content: "I want to understand global warming. " },
+        { content: "I am curious about AI applications for business" },
+      ]
 
-    window.AiChatAsideInit = AiChatAside;
-}($));
+      $(`#chat-button-${init_args.block_usage_key}`).on("click", { starters: init_args.starters, assistantInitialMessages: init_args.assistant_initial_messages }, function (event) {
+        const blockKey = $(this).data("block-key");
+
+        if (event.data.starters.length === 0) {
+            event.data.starters = STARTERS;
+        } else {
+            event.data.starters = event.data.starters.map(message => ({ content: message }));
+        }
+
+        if (event.data.assistantInitialMessages.length === 0) {
+          event.data.assistantInitialMessages = INITIAL_MESSAGES;
+        } else {
+          event.data.assistantInitialMessages = event.data.assistantInitialMessages.map(message => ({ content: message, role: "assistant" }));
+        }
+
+        window.parent.postMessage(
+          {
+            type: "smoot-design::chat-open",
+            payload: {
+              askTimTitle: `for help with ${blockKey}`,
+              apiUrl: init_args.learn_ai_api_url,
+              initialMessages: event.data.assistantInitialMessages,
+              conversationStarters: event.data.starters,
+            },
+          },
+          "http://apps.local.openedx.io:2000", // Ensure correct parent origin
+        );
+      });
+    });
+  }
+
+  function AiChatAside(runtime, element, block_element, init_args) {
+    return new AiChatAsideView(runtime, element, block_element, init_args);
+  }
+
+  window.AiChatAsideInit = AiChatAside;
+})($);
