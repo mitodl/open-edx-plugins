@@ -8,7 +8,7 @@ The plugin redirects the user the desired external ecommerce service upon clicki
 Installation
 ------------
 
-For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.``
+For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.
 
 Installation required in:
 

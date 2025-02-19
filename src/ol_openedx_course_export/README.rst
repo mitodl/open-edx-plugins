@@ -7,7 +7,7 @@ A django app plugin to add a new API to Open edX to export courses to S3 buckets
 Installation
 ------------
 
-For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.``
+For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.
 
 Installation required in:
 
