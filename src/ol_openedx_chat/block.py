@@ -100,7 +100,11 @@ class OLChatAside(XBlockAside):
         )
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
-        drawer_title = self.ask_tim_drawer_title if self.ask_tim_drawer_title else f"about {block.display_name}"
+        drawer_title = (
+            self.ask_tim_drawer_title
+            if self.ask_tim_drawer_title
+            else f"about {block.display_name}"
+        )
         extra_context = {
             "starters": self.chat_prompts.split("\n") if self.chat_prompts else [],
             "ask_tim_drawer_title": drawer_title,
@@ -134,7 +138,9 @@ class OLChatAside(XBlockAside):
                 {
                     "is_enabled": self.ol_chat_enabled,
                     "chat_prompts": self.chat_prompts,
-                    "ask_tim_drawer_title": self.ask_tim_drawer_title if self.ask_tim_drawer_title else f"about {block.display_name}",
+                    "ask_tim_drawer_title": self.ask_tim_drawer_title
+                    if self.ask_tim_drawer_title
+                    else f"about {block.display_name}",
                     "selected_llm_model": self.llm_model,
                     "additional_solution": self.additional_solution,
                     "llm_models_list": list(
@@ -172,9 +178,7 @@ class OLChatAside(XBlockAside):
             )
 
         self.chat_prompts = posted_data.get("chat_prompts", "")
-        self.ask_tim_chat_title = posted_data.get(
-            "ask_tim_drawer_title", ""
-        )
+        self.ask_tim_chat_title = posted_data.get("ask_tim_drawer_title", "")
         self.llm_model = posted_data.get("selected_llm_model", "")
         self.ol_chat_enabled = posted_data.get("is_enabled", False)
         self.additional_solution = posted_data.get("additional_solution", "")
