@@ -9,8 +9,7 @@
         },
       ];
       $(`#chat-button-${init_args.block_usage_key}`).on("click", { starters: init_args.starters, askTimTitle: init_args.ask_tim_drawer_title }, function (event) {
-        const blockKey = $(this).data("block-key");
-        event.data.starters = event.data.starters.map(message => ({ content: message }));
+        const starters = event.data.starters.map(message => ({ content: message }));
 
         window.parent.postMessage(
           {
@@ -19,7 +18,7 @@
               askTimTitle: event.data.askTimTitle,
               apiUrl: init_args.learn_ai_api_url,
               initialMessages: INITIAL_MESSAGES,
-              conversationStarters: event.data.starters,
+              conversationStarters: starters,
             },
           },
           "http://apps.local.openedx.io:2000", // Ensure correct parent origin
