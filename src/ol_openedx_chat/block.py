@@ -111,6 +111,7 @@ class OLChatAside(XBlockAside):
             "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
             "user_id": self.runtime.user_id,
             "learn_ai_api_url": settings.LEARN_AI_API_URL,
+            "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
         }
 
         if getattr(block, "category", None) == "video":
