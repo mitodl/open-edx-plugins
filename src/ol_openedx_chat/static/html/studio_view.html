@@ -5,11 +5,9 @@
         <textarea id="chat-prompts" name="chat-prompts" placeholder="Where can I find more information on Large Language Models?" required>{{ chat_prompts }}</textarea>
         <label class="sub-label">Learners will see these prompts when using the chatbot feature</label>
         <!-- Text Fields -->
-        <label for="assistant-initial-messages">Enter the Initial Welcome Messages for the Assistant</label>
-        <textarea id="assistant-initial-messages" name="assistant-initial-messages"
-                  placeholder="Hi! What are you interested in learning about?"
-                  required>{{ assistant_initial_messages }}</textarea>
-        <label class="sub-label">Learners will see these as initial messages by the Chat Assistant.</label>
+        <label for="ask-tim-drawer-title">Enter the Chat Drawer title</label>
+        <input type="text" id="ask-tim-drawer-title" name="ask-tim-drawer-title" value="{{ ask_tim_drawer_title }}" required>
+        <label class="sub-label">Learners will see this as the title of the Chat Drawer.</label>
         <!-- Dropdown -->
         <label for="llm-model-dropdown">Choose the Large Language Model (LLM) to use for this question</label>
         <select class="llm-dropdown" id="llm-model-dropdown" name="llm-model-dropdown" value="{{ llm_model }}" required>

@@ -8,35 +8,17 @@
           role: "assistant",
         },
       ];
-
-      const STARTERS = [
-        { content: "I'm interested in quantum computing" },
-        { content: "I want to understand global warming. " },
-        { content: "I am curious about AI applications for business" },
-      ]
-
-      $(`#chat-button-${init_args.block_usage_key}`).on("click", { starters: init_args.starters, assistantInitialMessages: init_args.assistant_initial_messages }, function (event) {
+      $(`#chat-button-${init_args.block_usage_key}`).on("click", { starters: init_args.starters, askTimTitle: init_args.ask_tim_drawer_title }, function (event) {
         const blockKey = $(this).data("block-key");
-
-        if (event.data.starters.length === 0) {
-            event.data.starters = STARTERS;
-        } else {
-            event.data.starters = event.data.starters.map(message => ({ content: message }));
-        }
-
-        if (event.data.assistantInitialMessages.length === 0) {
-          event.data.assistantInitialMessages = INITIAL_MESSAGES;
-        } else {
-          event.data.assistantInitialMessages = event.data.assistantInitialMessages.map(message => ({ content: message, role: "assistant" }));
-        }
+        event.data.starters = event.data.starters.map(message => ({ content: message }));
 
         window.parent.postMessage(
           {
             type: "smoot-design::chat-open",
             payload: {
-              askTimTitle: `for help with ${blockKey}`,
+              askTimTitle: event.data.askTimTitle,
               apiUrl: init_args.learn_ai_api_url,
-              initialMessages: event.data.assistantInitialMessages,
+              initialMessages: INITIAL_MESSAGES,
               conversationStarters: event.data.starters,
             },
           },

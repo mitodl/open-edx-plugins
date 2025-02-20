@@ -65,11 +65,11 @@ class OLChatAside(XBlockAside):
         scope=Scope.content,
         help=_("Selected LLM model to be used for a block"),
     )
-    assistant_initial_messages = String(
-        display_name=_("Open Learning Assistant Initial Messages"),
+    ask_tim_drawer_title = String(
+        display_name=_("Open Learning Drawer Title"),
         default="",
         scope=Scope.content,
-        help=_("Initial messages to be shown in the chat assistant"),
+        help=_("Drawer title displayed in the chat drawer"),
     )
 
     @XBlockAside.aside_for(STUDENT_VIEW)
@@ -100,11 +100,10 @@ class OLChatAside(XBlockAside):
         )
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
+        drawer_title = self.ask_tim_drawer_title if self.ask_tim_drawer_title else f"about {block.display_name}"
         extra_context = {
             "starters": self.chat_prompts.split("\n") if self.chat_prompts else [],
-            "assistant_initial_messages": self.assistant_initial_messages.split("\n")
-            if self.assistant_initial_messages
-            else [],
+            "ask_tim_drawer_title": drawer_title,
             "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
             "user_id": self.runtime.user_id,
             "learn_ai_api_url": settings.LEARN_AI_API_URL,
@@ -135,7 +134,7 @@ class OLChatAside(XBlockAside):
                 {
                     "is_enabled": self.ol_chat_enabled,
                     "chat_prompts": self.chat_prompts,
-                    "assistant_initial_messages": self.assistant_initial_messages,
+                    "ask_tim_drawer_title": self.ask_tim_drawer_title if self.ask_tim_drawer_title else f"about {block.display_name}",
                     "selected_llm_model": self.llm_model,
                     "additional_solution": self.additional_solution,
                     "llm_models_list": list(
@@ -173,8 +172,8 @@ class OLChatAside(XBlockAside):
             )
 
         self.chat_prompts = posted_data.get("chat_prompts", "")
-        self.assistant_initial_messages = posted_data.get(
-            "assistant_initial_messages", ""
+        self.ask_tim_chat_title = posted_data.get(
+            "ask_tim_drawer_title", ""
         )
         self.llm_model = posted_data.get("selected_llm_model", "")
         self.ol_chat_enabled = posted_data.get("is_enabled", False)

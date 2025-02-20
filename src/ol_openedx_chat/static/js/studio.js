@@ -12,14 +12,14 @@
             var studioRuntime = new window.StudioRuntime.v1();
 
             const chatPromptsField = element.querySelector("#chat-prompts");
-            const initialMessagesField = element.querySelector("#assistant-initial-messages");
+            const askTIMTitleField = element.querySelector("#ask-tim-drawer-title");
             const llmModelDropdown = element.querySelector("#llm-model-dropdown");
             const additionalSolutionField = element.querySelector("#additional-solution");
             const enabledCheck = element.querySelector("#is-enabled-"+chatForm.dataset.blockId);
 
             // Get the handler URL
             const handlerUrl = studioRuntime.handlerUrl(element, 'update_chat_config');
-            var dataToPost = {"chat_prompts": chatPromptsField.value, "assistant_initial_messages": initialMessagesField.value, "selected_llm_model": llmModelDropdown.value, "is_enabled": enabledCheck.checked, "additional_solution": additionalSolutionField.value};
+            var dataToPost = {"chat_prompts": chatPromptsField.value, "ask_tim_drawer_title": askTIMTitleField.value, "selected_llm_model": llmModelDropdown.value, "is_enabled": enabledCheck.checked, "additional_solution": additionalSolutionField.value};
 
             $.ajax({
                 url: handlerUrl,
