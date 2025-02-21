@@ -56,6 +56,22 @@ properties exist with the given values in
 ``ADDL_INSTALLED_APPS`` may include other items. The list just needs to
 have ``rapid_response_xblock`` among its values.
 
+Tutor
+^^^^^
+
+If you have Tutor installation, make sure the following properties exist with
+the given values in 
+``lms/envs/private.py`` and ``cms/envs/private.py``
+
+.. code:: python
+
+   {
+       "ALLOW_ALL_ADVANCED_COMPONENTS": true,
+       "ADDL_INSTALLED_APPS": ["rapid_response_xblock"]
+   }
+
+Note: For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
+
 Feature flags
 ^^^^^^^^^^^^^
 
