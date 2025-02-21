@@ -8,7 +8,6 @@ from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope, String
-from xmodule.video_block.transcripts_utils import get_transcript_from_contentstore
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 
@@ -44,31 +43,31 @@ class OLChatAside(XBlockAside):
     ol_chat_enabled = Boolean(
         display_name=_("Open Learning Chat enabled status"),
         default=False,
-        scope=Scope.content,
+        scope=Scope.settings,
         help=_("Indicates whether or not Open Learning chat is enabled for a block"),
     )
     chat_prompts = String(
         display_name=_("Open Learning Chat Prompt text"),
         default="",
-        scope=Scope.content,
+        scope=Scope.settings,
         help=_("Prompt hint text for chat in a block"),
     )
     additional_solution = String(
         display_name=_("Additional solution for problem"),
         default="",
-        scope=Scope.content,
+        scope=Scope.settings,
         help=_("Additional solution for the problem in context of chat"),
     )
     llm_model = String(
         display_name=_("Open Learning Chat selected LLM model"),
         default="",
-        scope=Scope.content,
+        scope=Scope.settings,
         help=_("Selected LLM model to be used for a block"),
     )
     ask_tim_drawer_title = String(
         display_name=_("Open Learning Drawer Title"),
         default="",
-        scope=Scope.content,
+        scope=Scope.settings,
         help=_("Drawer title displayed in the chat drawer"),
     )
 
@@ -100,29 +99,14 @@ class OLChatAside(XBlockAside):
         )
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
-        drawer_title = (
-            self.ask_tim_drawer_title
-            if self.ask_tim_drawer_title
-            else f"about {block.display_name}"
-        )
         extra_context = {
             "starters": self.chat_prompts.split("\n") if self.chat_prompts else [],
-            "ask_tim_drawer_title": drawer_title,
+            "ask_tim_drawer_title": self.ask_tim_drawer_title,
             "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
             "user_id": self.runtime.user_id,
             "learn_ai_api_url": settings.LEARN_AI_API_URL,
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
         }
-
-        if getattr(block, "category", None) == "video":
-            try:
-                content, filename, mimetype = get_transcript_from_contentstore(
-                    block, "en", "txt", block.get_transcripts_info()
-                )
-            except Exception:  # noqa: BLE001
-                content = ""
-
-            extra_context["video_transcript"] = content
 
         fragment.initialize_js("AiChatAsideInit", json_args=extra_context)
         return fragment
@@ -179,7 +163,7 @@ class OLChatAside(XBlockAside):
             )
 
         self.chat_prompts = posted_data.get("chat_prompts", "")
-        self.ask_tim_chat_title = posted_data.get("ask_tim_drawer_title", "")
+        self.ask_tim_drawer_title = posted_data.get("ask_tim_drawer_title", "")
         self.llm_model = posted_data.get("selected_llm_model", "")
         self.ol_chat_enabled = posted_data.get("is_enabled", False)
         self.additional_solution = posted_data.get("additional_solution", "")
