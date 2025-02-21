@@ -63,8 +63,8 @@ Configuration
 - Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. If using `private.py`, you will need to add these values in `lms/envs/private.py`. These should be added to the top level. **Ask a fellow developer or devops for these values.**
 
     .. code-block::
-    
-    
+
+
         CANVAS_ACCESS_TOKEN: <some access token value>
         CANVAS_BASE_URL: <the base URL where Canvas is running>
 

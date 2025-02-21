@@ -60,7 +60,7 @@ Tutor
 ^^^^^
 
 If you have Tutor installation, make sure the following properties exist with
-the given values in 
+the given values in
 ``lms/envs/private.py`` and ``cms/envs/private.py``
 
 .. code:: python
