@@ -20,13 +20,14 @@ Configuration
   }
   ```
 - Set your commit user in `cms/envs/common.py`, if you don't want to use the default one
-```
-GIT_EXPORT_DEFAULT_IDENT = {
-    'name': 'STUDIO_EXPORT_TO_GIT',
-    'email': 'STUDIO_EXPORT_TO_GIT@example.com'
-}
-```
-- Restart the server using `make studio-restart`
+    ```
+    GIT_EXPORT_DEFAULT_IDENT = {
+        'name': 'STUDIO_EXPORT_TO_GIT',
+        'email': 'STUDIO_EXPORT_TO_GIT@example.com'
+    }
+    ```
+- Restart the server using `make studio-restart` or on Tutor `tutor dev/local restart openedx`
+- Note: For Tutor installations, these values can also be managed through a [custom tutor plugin](https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial).
 
 #### Setup github authentication for plugin:
  If you're testing from a docker machine running devstack setup github authentictaion for plugin, you'll need to generate SSH keys in that

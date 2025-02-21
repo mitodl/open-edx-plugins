@@ -66,7 +66,7 @@ the given values in
 .. code:: python
 
    {
-       "ALLOW_ALL_ADVANCED_COMPONENTS": true,
+       "ALLOW_ALL_ADVANCED_COMPONENTS": True,
        "ADDL_INSTALLED_APPS": ["rapid_response_xblock"]
    }
 
