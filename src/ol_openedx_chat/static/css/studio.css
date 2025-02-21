@@ -53,3 +53,7 @@
 .enabled-checkbox {
     min-height: auto !important;
 }
+
+#ask-tim-drawer-title {
+    min-height: unset;
+}

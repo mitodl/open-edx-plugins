@@ -40,29 +40,35 @@ class OLChatAside(XBlockAside):
     XBlock aside that enables OL AI Chat functionality for an XBlock
     """
 
-    enabled = Boolean(
+    ol_chat_enabled = Boolean(
         display_name=_("Open Learning Chat enabled status"),
         default=False,
-        scope=Scope.content,
+        scope=Scope.settings,
         help=_("Indicates whether or not Open Learning chat is enabled for a block"),
     )
     chat_prompts = String(
         display_name=_("Open Learning Chat Prompt text"),
         default="",
-        scope=Scope.content,
+        scope=Scope.settings,
         help=_("Prompt hint text for chat in a block"),
     )
     additional_solution = String(
         display_name=_("Additional solution for problem"),
         default="",
-        scope=Scope.content,
+        scope=Scope.settings,
         help=_("Additional solution for the problem in context of chat"),
     )
     llm_model = String(
         display_name=_("Open Learning Chat selected LLM model"),
         default="",
-        scope=Scope.content,
+        scope=Scope.settings,
         help=_("Selected LLM model to be used for a block"),
+    )
+    ask_tim_drawer_title = String(
+        display_name=_("Open Learning Drawer Title"),
+        default="",
+        scope=Scope.settings,
+        help=_("Drawer title displayed in the chat drawer"),
     )
 
     @XBlockAside.aside_for(STUDENT_VIEW)
@@ -79,7 +85,30 @@ class OLChatAside(XBlockAside):
             return self.author_view_aside(block, context)
 
         fragment = Fragment("")
-        fragment.add_content(render_template("static/html/student_view.html"))
+        if not self.ol_chat_enabled:
+            return fragment
+
+        fragment.add_content(
+            render_template(
+                "static/html/student_view.html",
+                {
+                    "block_key": self.scope_ids.usage_id.usage_key.block_id,
+                    "block_type": getattr(block, "category", None),
+                },
+            )
+        )
+        fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
+        fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
+        extra_context = {
+            "starters": self.chat_prompts.split("\n") if self.chat_prompts else [],
+            "ask_tim_drawer_title": self.ask_tim_drawer_title,
+            "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
+            "user_id": self.runtime.user_id,
+            "learn_ai_api_url": settings.LEARN_AI_API_URL,
+            "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
+        }
+
+        fragment.initialize_js("AiChatAsideInit", json_args=extra_context)
         return fragment
 
     @XBlockAside.aside_for(AUTHOR_VIEW)
@@ -92,8 +121,11 @@ class OLChatAside(XBlockAside):
             render_template(
                 "static/html/studio_view.html",
                 {
-                    "is_enabled": self.enabled,
+                    "is_enabled": self.ol_chat_enabled,
                     "chat_prompts": self.chat_prompts,
+                    "ask_tim_drawer_title": self.ask_tim_drawer_title
+                    if self.ask_tim_drawer_title
+                    else f"about {block.display_name}",
                     "selected_llm_model": self.llm_model,
                     "additional_solution": self.additional_solution,
                     "llm_models_list": list(
@@ -131,7 +163,8 @@ class OLChatAside(XBlockAside):
             )
 
         self.chat_prompts = posted_data.get("chat_prompts", "")
+        self.ask_tim_drawer_title = posted_data.get("ask_tim_drawer_title", "")
         self.llm_model = posted_data.get("selected_llm_model", "")
-        self.enabled = posted_data.get("is_enabled", False)
+        self.ol_chat_enabled = posted_data.get("is_enabled", False)
         self.additional_solution = posted_data.get("additional_solution", "")
         return Response()
