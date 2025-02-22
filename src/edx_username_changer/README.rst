@@ -37,6 +37,7 @@ To configure this plugin, you need to do one of the following steps:
       ENABLE_EDX_USERNAME_CHANGER: True
       ...
 
+3. For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
 How to use
 ----------
