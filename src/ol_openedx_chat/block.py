@@ -10,7 +10,7 @@ from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope, String
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
-from .compat import get_enable_ol_openedx_chat_flag
+from .compat import get_ol_openedx_chat_enabled_flag
 
 
 def get_resource_bytes(path):
@@ -152,7 +152,7 @@ class OLChatAside(XBlockAside):
         instances, the problem type of the given block needs to be retrieved in
         different ways.
         """  # noqa: D401
-        return get_enable_ol_openedx_chat_flag().is_enabled(
+        return get_ol_openedx_chat_enabled_flag().is_enabled(
             block.scope_ids.usage_id.context_key
         ) and is_aside_applicable_to_block(block=block)
 

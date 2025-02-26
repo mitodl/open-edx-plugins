@@ -12,10 +12,10 @@ WAFFLE_FLAG_NAMESPACE = "ol_openedx_chat"
 # .. toggle_creation_date: 2025-02-26
 # .. toggle_tickets: None
 # .. toggle_warning: None.
-OL_OPENEDX_CHAT_ENABLED = "enable_ol_openedx_chat"
+OL_OPENEDX_CHAT_ENABLED = "ol_openedx_chat_enabled"
 
 
-def get_enable_ol_openedx_chat_flag():
+def get_ol_openedx_chat_enabled_flag():
     """
     Import and return Waffle flag for enabling ol_openedx_chat.
     """
