@@ -12,7 +12,7 @@ WAFFLE_FLAG_NAMESPACE = "ol_openedx_chat"
 # .. toggle_creation_date: 2025-02-26
 # .. toggle_tickets: None
 # .. toggle_warning: None.
-ENABLE_OL_OPENEDX_CHAT = "enable_ol_openedx_chat"
+OL_OPENEDX_CHAT_ENABLED = "enable_ol_openedx_chat"
 
 
 def get_enable_ol_openedx_chat_flag():
@@ -21,4 +21,6 @@ def get_enable_ol_openedx_chat_flag():
     """
     from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
 
-    return CourseWaffleFlag(f"{WAFFLE_FLAG_NAMESPACE}.enable_ol_openedx_chat", __name__)
+    return CourseWaffleFlag(
+        f"{WAFFLE_FLAG_NAMESPACE}.{OL_OPENEDX_CHAT_ENABLED}", __name__
+    )
