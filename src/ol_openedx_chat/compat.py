@@ -4,7 +4,7 @@ Compatibility layer to isolate core-platform method calls from implementation.
 
 WAFFLE_FLAG_NAMESPACE = "ol_openedx_chat"
 
-# .. toggle_name: ol_openedx_chat.enable_ol_openedx_chat
+# .. toggle_name: ol_openedx_chat.ol_openedx_chat_enabled
 # .. toggle_implementation: CourseWaffleFlag
 # .. toggle_default: False
 # .. toggle_description: Enables ol_openedx_chat plugin for a course.
