@@ -1,33 +1,9 @@
 <div class="form-container">
     <form id="ol-chat-form" data-block-id="{{ block_id }}">
-        <!-- Text Fields -->
-        <label for="chat-prompts">Enter Prompts to assist students</label>
-        <textarea id="chat-prompts" name="chat-prompts" placeholder="Where can I find more information on Large Language Models?" required>{{ chat_prompts }}</textarea>
-        <label class="sub-label">Learners will see these prompts when using the chatbot feature</label>
-        <!-- Text Fields -->
-        <label for="ask-tim-drawer-title">Enter the Chat Drawer title</label>
-        <input type="text" id="ask-tim-drawer-title" name="ask-tim-drawer-title" value="{{ ask_tim_drawer_title }}" required>
-        <label class="sub-label">Learners will see this as the title of the Chat Drawer.</label>
-        <!-- Dropdown -->
-        <label for="llm-model-dropdown">Choose the Large Language Model (LLM) to use for this question</label>
-        <select class="llm-dropdown" id="llm-model-dropdown" name="llm-model-dropdown" value="{{ llm_model }}" required>
-            <option>-- Select an LLM Model --</option>
-            {% for llm_model in llm_models_list %}
-                <option {% if selected_llm_model == llm_model %} selected {% endif %}>{{ llm_model }}</option>
-            {% endfor %}
-        </select>
-        <label class="sub-label">Set this so that AI instructions can be more formal, instructive, conversational, technical based on your choice</label>
-
-        <!-- Text Fields -->
-        <label for="additional-solution">Enter the solution</label>
-        <textarea type="text" id="additional-solution" name="additional-solution" placeholder="Add additional solution">{{ additional_solution }}</textarea>
-
-        <label class="sub-label">The more you add here, the more helpful it will be to Learners. We will train our Model to understand the solution, understand potential mistakes learners might make, and assist the Learner without giving direct answers. Links can also be used here to assist Learners find the content from previous course pages or websites. </label>
-
         <!-- Checkbox -->
         <div class="checkbox-container">
             <input class="enabled-check" type="checkbox" id="is-enabled-{{ block_id }}" name="is-enabled" {% if is_enabled %} checked {% endif %}/>
-            <label class="enabled-label" for="is-enabled-{{ block_id }}">Enable</label>
+            <label class="enabled-label" for="is-enabled-{{ block_id }}">Enable AI Chat Assistant</label>
         </div>
 
         <!-- Save Button -->

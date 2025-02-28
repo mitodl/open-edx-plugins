@@ -7,7 +7,7 @@ from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock, XBlockAside
-from xblock.fields import Boolean, Scope, String
+from xblock.fields import Boolean, Scope
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 from .compat import get_ol_openedx_chat_enabled_flag
@@ -48,30 +48,6 @@ class OLChatAside(XBlockAside):
         scope=Scope.settings,
         help=_("Indicates whether or not Open Learning chat is enabled for a block"),
     )
-    chat_prompts = String(
-        display_name=_("Open Learning Chat Prompt text"),
-        default="",
-        scope=Scope.settings,
-        help=_("Prompt hint text for chat in a block"),
-    )
-    additional_solution = String(
-        display_name=_("Additional solution for problem"),
-        default="",
-        scope=Scope.settings,
-        help=_("Additional solution for the problem in context of chat"),
-    )
-    llm_model = String(
-        display_name=_("Open Learning Chat selected LLM model"),
-        default="",
-        scope=Scope.settings,
-        help=_("Selected LLM model to be used for a block"),
-    )
-    ask_tim_drawer_title = String(
-        display_name=_("Open Learning Drawer Title"),
-        default="",
-        scope=Scope.settings,
-        help=_("Drawer title displayed in the chat drawer"),
-    )
 
     @XBlockAside.aside_for(STUDENT_VIEW)
     def student_view_aside(self, block, context=None):
@@ -102,8 +78,7 @@ class OLChatAside(XBlockAside):
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
         extra_context = {
-            "starters": self.chat_prompts.split("\n") if self.chat_prompts else [],
-            "ask_tim_drawer_title": self.ask_tim_drawer_title,
+            "ask_tim_drawer_title": f"about {block.display_name}",
             "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
             "user_id": self.runtime.user_id,
             "learn_ai_api_url": settings.LEARN_AI_API_URL,
@@ -124,15 +99,6 @@ class OLChatAside(XBlockAside):
                 "static/html/studio_view.html",
                 {
                     "is_enabled": self.ol_chat_enabled,
-                    "chat_prompts": self.chat_prompts,
-                    "ask_tim_drawer_title": self.ask_tim_drawer_title
-                    if self.ask_tim_drawer_title
-                    else f"about {block.display_name}",
-                    "selected_llm_model": self.llm_model,
-                    "additional_solution": self.additional_solution,
-                    "llm_models_list": list(
-                        settings.OL_CHAT_SETTINGS
-                    ),  # Converting dict keys into a list
                     "block_id": block.location.block_id,  # Passing this along as a unique key for checkboxes  # noqa: E501
                 },
             )
@@ -166,9 +132,5 @@ class OLChatAside(XBlockAside):
                 "Invalid request body", status=api_status.HTTP_400_BAD_REQUEST
             )
 
-        self.chat_prompts = posted_data.get("chat_prompts", "")
-        self.ask_tim_drawer_title = posted_data.get("ask_tim_drawer_title", "")
-        self.llm_model = posted_data.get("selected_llm_model", "")
         self.ol_chat_enabled = posted_data.get("is_enabled", False)
-        self.additional_solution = posted_data.get("additional_solution", "")
         return Response()
