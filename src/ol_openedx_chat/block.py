@@ -70,7 +70,8 @@ class OLChatAside(XBlockAside):
             render_template(
                 "static/html/student_view.html",
                 {
-                    "block_key": self.scope_ids.usage_id.usage_key.block_id,
+                    "block_id": self.scope_ids.usage_id.usage_key.block_id,
+                    "block_usage_key": self.scope_ids.usage_id.usage_key,
                     "block_type": getattr(block, "category", None),
                 },
             )
@@ -79,7 +80,8 @@ class OLChatAside(XBlockAside):
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
         extra_context = {
             "ask_tim_drawer_title": f"about {block.display_name}",
-            "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
+            "block_id": self.scope_ids.usage_id.usage_key.block_id,
+            "block_usage_key": self.scope_ids.usage_id.usage_key,
             "user_id": self.runtime.user_id,
             "learn_ai_api_url": settings.LEARN_AI_API_URL,
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,

@@ -1,5 +1,5 @@
 <div class="{{ block_type }}-block-chat-button-container">
-  <div class="ai-chat-button {{ block_type }}-block-chat-button" id="chat-button-{{ block_key }}" data-block-key="{{ block_key }}">
+  <div class="ai-chat-button {{ block_type }}-block-chat-button" id="chat-button-{{ block_id }}" data-block-id="{{ block_id }}">
     {% if block_type == "problem" %}
       <p>Help me with this problem</p>
     {% elif block_type == "video" %}
@@ -7,5 +7,5 @@
     {% endif %}
     <img src="/static/images/icon.svg" class="chat-icon">
   </div>
-  <div id="app-root-{{ block_key }}"></div>
+  <div id="app-root-{{ block_id }}"></div>
 </div>
