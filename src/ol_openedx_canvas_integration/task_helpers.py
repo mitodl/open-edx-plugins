@@ -10,6 +10,7 @@ from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.instructor_task.api import get_running_instructor_tasks
 from lms.djangoapps.instructor_task.models import InstructorTask
 from lms.djangoapps.instructor_task.tasks_helper.runner import TaskProgress
+
 from ol_openedx_canvas_integration import api
 from ol_openedx_canvas_integration.constants import CANVAS_TASK_TYPES
 
