@@ -72,13 +72,17 @@ class OLChatAside(XBlockAside):
         if not self.ol_chat_enabled:
             return fragment
 
+        block_id = self.scope_ids.usage_id.usage_key.block_id
+        block_usage_key = self.scope_ids.usage_id.usage_key
+        block_type = getattr(block, "category", None)
+
         fragment.add_content(
             render_template(
                 "static/html/student_view.html",
                 {
-                    "block_id": self.scope_ids.usage_id.usage_key.block_id,
-                    "block_usage_key": self.scope_ids.usage_id.usage_key,
-                    "block_type": getattr(block, "category", None),
+                    "block_id": block_id,
+                    "block_usage_key": block_usage_key,
+                    "block_type": block_type,
                 },
             )
         )
@@ -86,11 +90,11 @@ class OLChatAside(XBlockAside):
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
 
         request_opts = {
-            "block_id": self.scope_ids.usage_id.usage_key.block_id,
-            "block_usage_key": self.scope_ids.usage_id.usage_key,
+            "block_id": block_id,
+            "block_usage_key": block_usage_key,
         }
 
-        if getattr(block, "category", None) == VIDEO_BLOCK_CATEGORY:
+        if block_type == VIDEO_BLOCK_CATEGORY:
             try:
                 transcripts_info = block.get_transcripts_info()
                 if transcripts_info.get("transcripts") and transcripts_info[
