@@ -4,7 +4,7 @@
 
       const INITIAL_MESSAGES = [
         {
-          content: "Hi! What are you interested in learning about?",
+          content: "Hi! Do you need any help?",
           role: "assistant",
         },
       ];
