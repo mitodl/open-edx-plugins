@@ -12,7 +12,8 @@
       $(`#chat-button-${init_args.block_id}`).on("click", {
         askTimTitle: init_args.ask_tim_drawer_title,
         blockUsageKey: init_args.block_usage_key,
-        blockID: init_args.block_id
+        blockID: init_args.block_id,
+        transcriptAssetID: init_args.transcript_asset_id
       }, function (event) {
 
         window.parent.postMessage(
@@ -25,6 +26,7 @@
               initialMessages: INITIAL_MESSAGES,
               blockID: event.data.blockID,
               blockUsageKey: event.data.blockUsageKey,
+              transcriptAssetID: event.data.transcriptAssetID,
             },
           },
           init_args.learning_mfe_base_url, // Ensure correct parent origin
