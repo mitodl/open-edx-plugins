@@ -13,6 +13,7 @@ from xblock.fields import Boolean, Scope
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 from .compat import get_ol_openedx_chat_enabled_flag
+from .constants import ENGLISH_LANGUAGE_TRANSCRIPT, VIDEO_BLOCK_CATEGORY
 
 log = logging.getLogger(__name__)
 
@@ -84,15 +85,20 @@ class OLChatAside(XBlockAside):
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
 
-        transcript_asset_id = None
-        if getattr(block, "category", None) == "video":
+        request_opts = {
+            "block_id": self.scope_ids.usage_id.usage_key.block_id,
+            "block_usage_key": self.scope_ids.usage_id.usage_key,
+        }
+
+        if getattr(block, "category", None) == VIDEO_BLOCK_CATEGORY:
             try:
                 transcripts_info = block.get_transcripts_info()
                 if transcripts_info.get("transcripts") and transcripts_info[
                     "transcripts"
                 ].get("en"):
-                    transcript_asset_id = Transcript.asset_location(
-                        block.location, transcripts_info["transcripts"]["en"]
+                    request_opts["transcript_asset_id"] = Transcript.asset_location(
+                        block.location,
+                        transcripts_info["transcripts"][ENGLISH_LANGUAGE_TRANSCRIPT],
                     )
 
             except Exception:
@@ -103,12 +109,10 @@ class OLChatAside(XBlockAside):
 
         extra_context = {
             "ask_tim_drawer_title": f"about {block.display_name}",
-            "block_id": self.scope_ids.usage_id.usage_key.block_id,
-            "block_usage_key": self.scope_ids.usage_id.usage_key,
-            "transcript_asset_id": transcript_asset_id,
             "user_id": self.runtime.user_id,
             "learn_ai_api_url": settings.LEARN_AI_API_URL,
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
+            "request_opts": request_opts,
         }
 
         fragment.initialize_js("AiChatAsideInit", json_args=extra_context)
