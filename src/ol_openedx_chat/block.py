@@ -4,6 +4,8 @@ import pkg_resources
 from django.conf import settings
 from django.template import Context, Template
 from django.utils.translation import gettext_lazy as _
+from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
+from ol_openedx_chat.constants import ENGLISH_LANGUAGE_TRANSCRIPT, VIDEO_BLOCK_CATEGORY
 from ol_openedx_chat.utils import is_aside_applicable_to_block
 from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
@@ -11,9 +13,6 @@ from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
-
-from .compat import get_ol_openedx_chat_enabled_flag
-from .constants import ENGLISH_LANGUAGE_TRANSCRIPT, VIDEO_BLOCK_CATEGORY
 
 log = logging.getLogger(__name__)
 
@@ -72,8 +71,8 @@ class OLChatAside(XBlockAside):
         if not self.ol_chat_enabled:
             return fragment
 
-        block_id = self.scope_ids.usage_id.usage_key.block_id
         block_usage_key = self.scope_ids.usage_id.usage_key
+        block_id = block_usage_key.block_id
         block_type = getattr(block, "category", None)
 
         fragment.add_content(
@@ -90,15 +89,15 @@ class OLChatAside(XBlockAside):
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
 
         request_body = {
-            "block_usage_key": block_usage_key,
+            "edx_module_id": block_usage_key,
         }
 
         if block_type == VIDEO_BLOCK_CATEGORY:
             try:
                 transcripts_info = block.get_transcripts_info()
-                if transcripts_info.get("transcripts") and transcripts_info[
-                    "transcripts"
-                ].get(ENGLISH_LANGUAGE_TRANSCRIPT):
+                if transcripts_info.get("transcripts", {}).get(
+                    ENGLISH_LANGUAGE_TRANSCRIPT
+                ):
                     request_body["transcript_asset_id"] = Transcript.asset_location(
                         block.location,
                         transcripts_info["transcripts"][ENGLISH_LANGUAGE_TRANSCRIPT],
