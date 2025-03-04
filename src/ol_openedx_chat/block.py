@@ -98,7 +98,7 @@ class OLChatAside(XBlockAside):
                 transcripts_info = block.get_transcripts_info()
                 if transcripts_info.get("transcripts") and transcripts_info[
                     "transcripts"
-                ].get("en"):
+                ].get(ENGLISH_LANGUAGE_TRANSCRIPT):
                     request_body["transcript_asset_id"] = Transcript.asset_location(
                         block.location,
                         transcripts_info["transcripts"][ENGLISH_LANGUAGE_TRANSCRIPT],
