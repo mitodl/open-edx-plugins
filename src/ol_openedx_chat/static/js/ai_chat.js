@@ -9,20 +9,21 @@
         },
       ];
 
-      $(`#chat-button-${init_args.request_opts.block_id}`).on("click", {
+      $(`#chat-button-${init_args.block_id}`).on("click", {
         askTimTitle: init_args.ask_tim_drawer_title,
-        requestOpts: init_args.request_opts,
+        blockID: init_args.block_id,
+        requestBody: init_args.request_body,
       }, function (event) {
 
         window.parent.postMessage(
           {
             type: "smoot-design::chat-open",
             payload: {
-              chatId: event.data.requestOpts.block_id,
+              chatId: event.data.blockID,
               askTimTitle: event.data.askTimTitle,
               apiUrl: init_args.learn_ai_api_url,
               initialMessages: INITIAL_MESSAGES,
-              requestOpts: event.data.requestOpts,
+              requestBody: event.data.requestBody,
             },
           },
           init_args.learning_mfe_base_url, // Ensure correct parent origin

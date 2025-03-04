@@ -89,8 +89,7 @@ class OLChatAside(XBlockAside):
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
 
-        request_opts = {
-            "block_id": block_id,
+        request_body = {
             "block_usage_key": block_usage_key,
         }
 
@@ -100,13 +99,13 @@ class OLChatAside(XBlockAside):
                 if transcripts_info.get("transcripts") and transcripts_info[
                     "transcripts"
                 ].get("en"):
-                    request_opts["transcript_asset_id"] = Transcript.asset_location(
+                    request_body["transcript_asset_id"] = Transcript.asset_location(
                         block.location,
                         transcripts_info["transcripts"][ENGLISH_LANGUAGE_TRANSCRIPT],
                     )
 
-            except Exception:
-                log.exception(
+            except Exception:  # noqa: BLE001
+                log.info(
                     "Error while fetching transcripts for block %s",
                     block.location,
                 )
@@ -114,9 +113,10 @@ class OLChatAside(XBlockAside):
         extra_context = {
             "ask_tim_drawer_title": f"about {block.display_name}",
             "user_id": self.runtime.user_id,
+            "block_id": block_id,
             "learn_ai_api_url": settings.LEARN_AI_API_URL,
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
-            "request_opts": request_opts,
+            "request_body": request_body,
         }
 
         fragment.initialize_js("AiChatAsideInit", json_args=extra_context)
