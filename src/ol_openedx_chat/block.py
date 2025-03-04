@@ -1,7 +1,11 @@
+import logging
+
 import pkg_resources
 from django.conf import settings
 from django.template import Context, Template
 from django.utils.translation import gettext_lazy as _
+from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
+from ol_openedx_chat.constants import ENGLISH_LANGUAGE_TRANSCRIPT, VIDEO_BLOCK_CATEGORY
 from ol_openedx_chat.utils import is_aside_applicable_to_block
 from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
@@ -10,7 +14,7 @@ from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
-from .compat import get_ol_openedx_chat_enabled_flag
+log = logging.getLogger(__name__)
 
 
 def get_resource_bytes(path):
@@ -54,6 +58,7 @@ class OLChatAside(XBlockAside):
         """
         Renders the aside contents for the student view
         """  # noqa: D401
+        from xmodule.video_block.transcripts_utils import Transcript
 
         # This is a workaround for those blocks which do not have has_author_view=True
         # because when a block does not define has_author_view=True in it, the only view
@@ -66,23 +71,51 @@ class OLChatAside(XBlockAside):
         if not self.ol_chat_enabled:
             return fragment
 
+        block_usage_key = self.scope_ids.usage_id.usage_key
+        block_id = block_usage_key.block_id
+        block_type = getattr(block, "category", None)
+
         fragment.add_content(
             render_template(
                 "static/html/student_view.html",
                 {
-                    "block_key": self.scope_ids.usage_id.usage_key.block_id,
-                    "block_type": getattr(block, "category", None),
+                    "block_id": block_id,
+                    "block_usage_key": block_usage_key,
+                    "block_type": block_type,
                 },
             )
         )
         fragment.add_css(get_resource_bytes("static/css/ai_chat.css"))
         fragment.add_javascript(get_resource_bytes("static/js/ai_chat.js"))
+
+        request_body = {
+            "edx_module_id": block_usage_key,
+        }
+
+        if block_type == VIDEO_BLOCK_CATEGORY:
+            try:
+                transcripts_info = block.get_transcripts_info()
+                if transcripts_info.get("transcripts", {}).get(
+                    ENGLISH_LANGUAGE_TRANSCRIPT
+                ):
+                    request_body["transcript_asset_id"] = Transcript.asset_location(
+                        block.location,
+                        transcripts_info["transcripts"][ENGLISH_LANGUAGE_TRANSCRIPT],
+                    )
+
+            except Exception:  # noqa: BLE001
+                log.info(
+                    "Error while fetching transcripts for block %s",
+                    block.location,
+                )
+
         extra_context = {
             "ask_tim_drawer_title": f"about {block.display_name}",
-            "block_usage_key": self.scope_ids.usage_id.usage_key.block_id,
             "user_id": self.runtime.user_id,
+            "block_id": block_id,
             "learn_ai_api_url": settings.LEARN_AI_API_URL,
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
+            "request_body": request_body,
         }
 
         fragment.initialize_js("AiChatAsideInit", json_args=extra_context)
