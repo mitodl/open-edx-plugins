@@ -13,31 +13,36 @@
 }
 
 .ai-chat-button {
+    all: unset;
     display: flex;
     flex-direction: row;
     position: relative;
     bottom: 70px;
-    left: 70%;
+    left: 72%;
     width: fit-content;
     cursor: pointer;
     z-index: 1000;
-    height: 48px;
-    padding: 0 20px 0 24px;
+    padding: 12px 24px;
     justify-content: center;
     align-items: center;
-    gap: 10px;
-    align-self: stretch;
+    gap: 8px;
     border-radius: 4px;
-    border: 2px solid #A31F34;
+    border: 1px solid #B8C2CC;
     background: #FFF;
 
     p {
-        color: #A31F34;
-        font-size: 16px;
+        color: #212326;
+        font-size: 14px;
         font-style: normal;
-        font-weight: 500;
-        line-height: 16px;
+        font-weight: 400;
+        line-height: 18px;
         margin-bottom: 0 !important;
+
+        b {
+            font-size: 16px;
+            font-weight: 900;
+
+        }
     }
 
     .chat-icon {
@@ -47,29 +52,34 @@
 
     &.video-block-chat-button {
         bottom: 0;
-        left: 63%;
         margin-top: 50px;
-        padding: 5px 20px 5px 24px;
 
         p {
             line-height: 20px;
-            margin-right: 30px;
+            margin-right: 20px;
         }
     }
 
     &:hover {
-        background: rgba(255, 0, 0, 0.06);
+        border: 1px solid #212326;
+        background: #FFF !important;
+        box-shadow: none !important;
+    }
+
+    &:active {
+        border: 1px solid #212326;
+        background: #FFF !important;
+        box-shadow: none !important;
     }
 }
 
 @media screen and (max-width: 768px) {
     .ai-chat-button {
         bottom: 65px;
-        left: 58%;
+        left: 62%;
 
         &.video-block-chat-button {
             margin-top: 10px;
-            left: 51%;
         }
     }
 }
