@@ -40,7 +40,7 @@ Configurations
 --------------
 You have the following configuration properties to customize your plugin behavior:
 
-* **GIT_REPO_DIR:** This path defines where the imported repositories will be places in storage. Default value is ``/edx/var/edxapp/course_repos``.
+* **GIT_REPO_DIR:** This path defines where the imported repositories will be placed in storage. Default value is ``/edx/var/edxapp/course_repos``.
 * **GIT_IMPORT_STATIC:** This is a boolean that tells the plugin to either load the static content from the course repo or not. Default value is ``True``
 * **SYSADMIN_GITHUB_WEBHOOK_KEY:** This value is used to save either of ``sha256 or sha1`` hashes. (This key is only used for Github Webhooks). Default value is ``None``.
 * **SYSADMIN_DEFAULT_BRANCH:** This value is used to specify environment specific branch name to be used for course reload/import through Github Webhooks. (This key is only used for Github Webhooks). Default value is ``None``
