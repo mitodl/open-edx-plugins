@@ -1,11 +1,7 @@
 <div class="{{ block_type }}-block-chat-button-container">
-  <div class="ai-chat-button {{ block_type }}-block-chat-button" id="chat-button-{{ block_id }}" data-block-id="{{ block_id }}">
-    {% if block_type == "problem" %}
-      <p>Help me with this problem</p>
-    {% elif block_type == "video" %}
-      <p><b>Questions about this video?</b><br>AskTim</p>
-    {% endif %}
+  <button class="ai-chat-button {{ block_type }}-block-chat-button" id="chat-button-{{ block_id }}" data-block-id="{{ block_id }}" type="button">
     <img src="/static/images/icon.svg" class="chat-icon">
-  </div>
+    <p>Ask<b>TIM</b> about this {{ block_type }}</p>
+  </button>
   <div id="app-root-{{ block_id }}"></div>
 </div>
