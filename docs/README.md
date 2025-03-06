@@ -24,31 +24,27 @@ You can install any plugin from this collection using one of the following metho
     Follow these steps in a terminal on your machine:
     
     1. Navigate to the `open-edx-plugins` directory
-    2. If you haven't done so already, run ``./pants build``
-    3. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all plugins
+    2. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all plugins
     
-    4. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS or CMS containers)
+    3. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS or CMS containers)
     
-    5. Run a shell in the machine/container running Open edX, and install the plugin using pip
+    4. Run a shell in the machine/container running Open edX, and install the plugin using pip
 
 ### Tutor
 - Option 1: Install from PyPI
 
     For Tutor-based Open edX environments, it's recommended to configure plugins as persistent requirements:
     
-    1. Add the plugin to Tutor's configuration:
+    1. Add the plugin to Tutor's configuration using the following command:
     ```bash
-    # For PyPI packages
     tutor config save --append OPENEDX_EXTRA_PIP_REQUIREMENTS="<plugin-name>"  # Replace `<plugin-name>` with the specific plugin you want to install
-    
-    # For GitHub repositories
-    tutor config save --append OPENEDX_EXTRA_PIP_REQUIREMENTS="git+<github-repository-url>"
-    
-    # Verify that the requirement has been correctly added
+    ```
+    Verify that the requirement has been correctly added
+    ```bash
     tutor config printvalue OPENEDX_EXTRA_PIP_REQUIREMENTS
     ```
 
-    2. Rebuild the OpenedX image:
+    2. Rebuild the OpenedX image using one of the following commands:
     ```bash
     # For development environment
     tutor images build openedx-dev
@@ -57,7 +53,7 @@ You can install any plugin from this collection using one of the following metho
     tutor images build openedx
     ```
 
-    3. Restart your Tutor environment:
+    3. Restart your Tutor environment using one of the following commands:
     ```bash
     # For development environment
     tutor dev start
@@ -84,7 +80,7 @@ You can install any plugin from this collection using one of the following metho
     cd src
     git clone https://github.com/mitodl/open-edx-plugins/
     cd open-edx-plugins
-    pants package :: .
+    pants package ::
     ```
 
     3. Rebuild and launch Tutor:
@@ -99,7 +95,7 @@ You can install any plugin from this collection using one of the following metho
     pip install /openedx/src/open-edx-plugins/dist/[package-filename]
     ```
     
-    Note: The package filename in the dist/ directory will include the package name, version number, and other information (e.g., edx-sysadmin-0.3.0.tar.gz). Make sure to check the dist/ directory for the exact filename before installation.
+    Note: The package filename in the dist/ directory will include the plugin name, version number, and other information (e.g., edx-sysadmin-0.3.0.tar.gz). Make sure to check the dist/ directory for the exact filename before installation.
 
 
 ### Post-Installation Steps
