@@ -1,12 +1,4 @@
-<div class="form-container">
-    <form id="ol-chat-form" data-block-id="{{ block_id }}">
-        <!-- Checkbox -->
-        <div class="checkbox-container">
-            <input class="enabled-check" type="checkbox" id="is-enabled-{{ block_id }}" name="is-enabled" {% if is_enabled %} checked {% endif %}/>
-            <label class="enabled-label" for="is-enabled-{{ block_id }}">Enable AI Chat Assistant</label>
-        </div>
-
-        <!-- Save Button -->
-        <button type="submit" id="save-chat-config">Save</button>
-    </form>
+<div class="enable-ai-assistant-container">
+  <input class="enabled-check" type="checkbox" id="is-enabled-{{ block_id }}" name="is-enabled" {% if is_enabled %} checked {% endif %}/>
+  <label class="enabled-label" for="is-enabled-{{ block_id }}">Enable AI Chat Assistant</label>
 </div>
