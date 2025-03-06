@@ -64,7 +64,7 @@ You can install any plugin from this collection using one of the following metho
 
     Note: While it's possible to install plugins directly inside the Tutor LMS/CMS containers using pip, these changes will not persist after rebuilding the containers. The method above ensures plugins remain installed across container rebuilds.
 
-- Option 2B: Local Development
+- Option 2: Local Development
 
     For local development and testing with Tutor, you can mount a local directory and install packages directly:
 
