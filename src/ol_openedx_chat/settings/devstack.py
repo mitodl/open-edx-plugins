@@ -7,4 +7,5 @@ def plugin_settings(settings):
     """
     Populate devstack settings
     """
-    settings.OL_CHAT_SETTINGS = {"GPT1": "TEST", "GPT2": "123", "GPT3": ""}
+    env_tokens = getattr(settings, "ENV_TOKENS", {})
+    settings.LEARN_AI_API_URL = env_tokens.get("LEARN_AI_API_URL", "")
