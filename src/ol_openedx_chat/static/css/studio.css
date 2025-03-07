@@ -1,59 +1,20 @@
-.form-container {
-    margin: 20px auto;
-    padding: 20px;
-    background-color: #f9f9f9;
-}
-.form-container label {
-    display: block;
-    margin: 18px 0 8px;
-    font-weight: 400;
-    font-size: 14px;
-    font-style: normal;
-}
-.form-container input,
-.form-container select,
-.form-container textarea {
-    width: 100%;
-    min-height: 96px;
-    font-style: normal;
-    font-size: 16px;
-    font-weight: 400;
-}
-.form-container button {
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 10px;
-}
-
-.checkbox-container {
+.enable-ai-assistant-container {
     display: flex;
     align-items: center;
     padding: 16px 0;
-}
-.enabled-check {
-    min-height: 16px !important;
-    width: auto !important;
-    margin-right: 8px;
-}
-.enabled-label {
-    margin: 0 !important;
-}
+    margin-left: 20px;
 
-.sub-label {
-    font-size: 12px !important;
-    font-weight: 400 !important;
-    margin: 2px 0 8px !important;
+    .enabled-check {
+        min-height: 16px !important;
+        width: auto !important;
+        margin-right: 8px;
+    }
 
-}
-
-.llm-dropdown {
-    height: 48px !important;
-    min-height: 48px !important;
-}
-.enabled-checkbox {
-    min-height: auto !important;
-}
-
-#ask-tim-drawer-title {
-    min-height: unset;
+    .enabled-label {
+        margin: 0 !important;
+        display: block;
+        font-weight: 400;
+        font-size: 14px;
+        font-style: normal;
+    }
 }
