@@ -5,7 +5,11 @@ from django.conf import settings
 from django.template import Context, Template
 from django.utils.translation import gettext_lazy as _
 from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
-from ol_openedx_chat.constants import ENGLISH_LANGUAGE_TRANSCRIPT, VIDEO_BLOCK_CATEGORY
+from ol_openedx_chat.constants import (
+    ENGLISH_LANGUAGE_TRANSCRIPT,
+    MIT_AI_CHAT_URL_PATHS,
+    VIDEO_BLOCK_CATEGORY,
+)
 from ol_openedx_chat.utils import is_aside_applicable_to_block
 from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
@@ -113,7 +117,8 @@ class OLChatAside(XBlockAside):
             "ask_tim_drawer_title": f"about {block.display_name}",
             "user_id": self.runtime.user_id,
             "block_id": block_id,
-            "learn_ai_api_url": settings.LEARN_AI_API_URL,
+            "edx_module_id": block_usage_key,
+            "chat_api_url": f"{settings.LEARN_AI_API_URL}/{MIT_AI_CHAT_URL_PATHS[block_type]}",  # noqa: E501
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
             "request_body": request_body,
         }
