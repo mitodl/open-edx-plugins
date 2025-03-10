@@ -30,7 +30,7 @@ from xmodule.util.sandboxing import DEFAULT_PYTHON_LIB_FILENAME
 
 log = logging.getLogger(__name__)
 
-DEFAULT_GIT_REPO_DIR = "/edx/var/app/edxapp/git_course_repos"
+DEFAULT_GIT_REPO_DIR = "/openedx/course_repos"
 
 
 # pylint: disable=raise-missing-from
@@ -243,6 +243,8 @@ def add_repo(repo, rdir_in=None, branch=None):  # noqa: PLR0912, PLR0915, C901
     python_lib_filename = getattr(
         settings, "PYTHON_LIB_FILENAME", DEFAULT_PYTHON_LIB_FILENAME
     )
+
+    print("helllooo")
 
     if not os.path.isdir(git_repo_dir):  # noqa: PTH112
         raise GitImportNoDirError(git_repo_dir)

@@ -31,13 +31,14 @@ container (``make dev.shell.lms``):
 Juniper release or more recent
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you’re using any release from Juniper onward, make sure the following
-property exists with the given value in ``/edx/etc/lms.yml`` and
-``/edx/etc/studio.yml``:
+If you’re using any release from Juniper onward, make sure the following property exists with the given value in ``/edx/etc/lms.yml`` and
+``/edx/etc/studio.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py`` and ``cms/envs/private.py``:
 
 .. code:: yaml
 
    - ALLOW_ALL_ADVANCED_COMPONENTS: true
+
+Note: For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
 Any release before Juniper
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
