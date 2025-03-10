@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
 from ol_openedx_chat.constants import (
     ENGLISH_LANGUAGE_TRANSCRIPT,
-    LEARN_AI_CHAT_URL_PATH,
+    MIT_AI_CHAT_URL_PATHS,
     VIDEO_BLOCK_CATEGORY,
 )
 from ol_openedx_chat.utils import is_aside_applicable_to_block
@@ -118,7 +118,7 @@ class OLChatAside(XBlockAside):
             "user_id": self.runtime.user_id,
             "block_id": block_id,
             "edx_module_id": block_usage_key,
-            "chat_api_url": f"{settings.LEARN_AI_API_URL}/{LEARN_AI_CHAT_URL_PATH[block_type]}",  # noqa: E501
+            "chat_api_url": f"{settings.LEARN_AI_API_URL}/{MIT_AI_CHAT_URL_PATHS[block_type]}",  # noqa: E501
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
             "request_body": request_body,
         }

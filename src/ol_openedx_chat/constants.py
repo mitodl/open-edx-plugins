@@ -2,7 +2,11 @@
 # applicable if a block has sub-blocks or sub category, that should be added in the list
 VIDEO_BLOCK_CATEGORY = "video"
 PROBLEM_BLOCK_CATEGORY = "problem"
-LEARN_AI_CHAT_URL_PATH = {
+
+# The actual chat URL is `https://api-learn-ai.ol.mit.edu/http/video_gpt_agent/`
+# for video blocks and`https://api-learn-ai.ol.mit.edu/http/tutor_agent/`
+# for problem blocks.
+MIT_AI_CHAT_URL_PATHS = {
     VIDEO_BLOCK_CATEGORY: "http/video_gpt_agent/",
     PROBLEM_BLOCK_CATEGORY: "http/tutor_agent/",
 }
