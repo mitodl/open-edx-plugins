@@ -34,13 +34,20 @@ Installation required in:
 * LMS
 * CMS
 
-Once you have installed the plugin you can visit ``<EDX_BASE_URL>/sysadmin`` to access the plugin features.
+Upon installation you need to create ``/openedx/course_repos`` directory within the LMS service:
+
+.. code-block::
+
+    tutor dev exec lms bash
+    mkdir course_repos
+
+After this, you can visit ``<EDX_BASE_URL>/sysadmin`` to access the plugin features.
 
 Configurations
 --------------
 The plugin offers multiple settings for customization that can be set using the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py``.
 
-* **GIT_REPO_DIR:** This path defines where the imported repositories will be placed in storage. Default value is ``/edx/var/edxapp/course_repos``. For Tutor installations, set this value to ``/openedx/course_repos``.
+* **GIT_REPO_DIR:** This path defines where the imported repositories will be placed in storage. Default value is ``/openedx/course_repos``. For Devstack, set this value to ``/edx/var/edxapp/course_repos``.
 * **GIT_IMPORT_STATIC:** This is a boolean that tells the plugin to either load the static content from the course repo or not. Default value is ``True``
 * **SYSADMIN_GITHUB_WEBHOOK_KEY:** This value is used to save either of ``sha256 or sha1`` hashes. (This key is only used for Github Webhooks). Default value is ``None``.
 * **SYSADMIN_DEFAULT_BRANCH:** This value is used to specify environment specific branch name to be used for course reload/import through Github Webhooks. (This key is only used for Github Webhooks). Default value is ``None``
