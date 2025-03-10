@@ -11,15 +11,16 @@ from django.db import transaction
 from django.db.models import Count
 from django.template import Context, Template
 from django.utils.translation import gettext_lazy as _
-from rapid_response_xblock.models import (
-    RapidResponseRun,
-    RapidResponseSubmission,
-)
 from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope
 from xmodule.modulestore.django import modulestore
+
+from rapid_response_xblock.models import (
+    RapidResponseRun,
+    RapidResponseSubmission,
+)
 
 log = logging.getLogger(__name__)
 
