@@ -17,8 +17,6 @@
         apiURL: init_args.chat_api_url
       }, function (event) {
 
-        console.log(event.data)
-
         window.parent.postMessage(
           {
             type: "smoot-design::chat-open",
