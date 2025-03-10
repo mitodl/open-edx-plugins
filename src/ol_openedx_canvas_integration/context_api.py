@@ -5,8 +5,9 @@ The initialization of the context for the Canvas Integration Plugin
 import pkg_resources
 from django.urls import reverse
 from django.utils.translation import gettext as _
-from ol_openedx_canvas_integration.utils import get_canvas_course_id
 from web_fragments.fragment import Fragment
+
+from ol_openedx_canvas_integration.utils import get_canvas_course_id
 
 
 def get_resource_bytes(path):
