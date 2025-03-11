@@ -117,6 +117,7 @@ class OLChatAside(XBlockAside):
             "ask_tim_drawer_title": f"about {block.display_name}",
             "user_id": self.runtime.user_id,
             "block_id": block_id,
+            "block_type": block_type,
             "edx_module_id": block_usage_key,
             "chat_api_url": f"{settings.LEARN_AI_API_URL}/{MIT_AI_CHAT_URL_PATHS[block_type]}",  # noqa: E501
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,

@@ -12,6 +12,7 @@
       $(`#chat-button-${init_args.block_id}`).on("click", {
         askTimTitle: init_args.ask_tim_drawer_title,
         blockId: init_args.block_id,
+        blockType: init_args.block_type,
         edxModuleId: init_args.edx_module_id,
         requestBody: init_args.request_body,
         apiURL: init_args.chat_api_url
@@ -22,6 +23,7 @@
             type: "smoot-design::chat-open",
             payload: {
               chatId: event.data.blockId,
+              blockType: event.data.blockType,
               edxModuleId: event.data.edxModuleId,
               askTimTitle: event.data.askTimTitle,
               apiUrl: event.data.apiURL,
