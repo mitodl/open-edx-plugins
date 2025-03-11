@@ -244,8 +244,6 @@ def add_repo(repo, rdir_in=None, branch=None):  # noqa: PLR0912, PLR0915, C901
         settings, "PYTHON_LIB_FILENAME", DEFAULT_PYTHON_LIB_FILENAME
     )
 
-    print("helllooo")
-
     if not os.path.isdir(git_repo_dir):  # noqa: PTH112
         raise GitImportNoDirError(git_repo_dir)
     # pull from git
