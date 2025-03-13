@@ -4,8 +4,10 @@ import pkg_resources
 from django.conf import settings
 from django.template import Context, Template
 from django.utils.translation import gettext_lazy as _
+from lms.djangoapps.courseware.courses import get_course_by_id
 from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
 from ol_openedx_chat.constants import (
+    BLOCK_TYPE_TO_SETTINGS,
     ENGLISH_LANGUAGE_TRANSCRIPT,
     MIT_AI_CHAT_URL_PATHS,
     VIDEO_BLOCK_CATEGORY,
@@ -52,7 +54,7 @@ class OLChatAside(XBlockAside):
 
     ol_chat_enabled = Boolean(
         display_name=_("Open Learning Chat enabled status"),
-        default=False,
+        default=True,
         scope=Scope.settings,
         help=_("Indicates whether or not Open Learning chat is enabled for a block"),
     )
@@ -72,12 +74,12 @@ class OLChatAside(XBlockAside):
             return self.author_view_aside(block, context)
 
         fragment = Fragment("")
-        if not self.ol_chat_enabled:
-            return fragment
-
         block_usage_key = self.scope_ids.usage_id.usage_key
         block_id = block_usage_key.block_id
         block_type = getattr(block, "category", None)
+
+        if not self.is_ol_chat_enabled(block_type, block_usage_key.course_key):
+            return fragment
 
         fragment.add_content(
             render_template(
@@ -171,5 +173,23 @@ class OLChatAside(XBlockAside):
                 "Invalid request body", status=api_status.HTTP_400_BAD_REQUEST
             )
 
-        self.ol_chat_enabled = posted_data.get("is_enabled", False)
+        self.ol_chat_enabled = posted_data.get("is_enabled", True)
         return Response()
+
+    def is_ol_chat_enabled(self, block_type, course_key):
+        """
+        Return whether OL Chat is enabled or not for the block type
+
+        Args:
+            block_type (str): The type of block
+            course_key (CourseKey): The course key
+
+        Returns:
+            bool: True if OL Chat is enabled, False otherwise
+        """
+        course = get_course_by_id(course_key)
+        other_course_settings = course.other_course_settings
+        return (
+            other_course_settings.get(BLOCK_TYPE_TO_SETTINGS.get(block_type))
+            and self.ol_chat_enabled
+        )
