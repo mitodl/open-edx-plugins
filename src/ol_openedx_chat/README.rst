@@ -48,9 +48,9 @@ Configuration
    .. code-block::
 
      `npm pack @mitodl/smoot-design@^3.4.0`
-   
+
      `tar -xvzf mitodl-smoot-design*.tgz`
-   
+
      `mv package mitodl-smoot-design`
 
 4. Create env.config.jsx in the frontend-app-learning and add the below code:
@@ -58,18 +58,18 @@ Configuration
    .. code-block::
 
      import { getConfig } from '@edx/frontend-platform';
-   
+
      import * as remoteAiChatDrawer from "./mitodl-smoot-design/dist/bundles/remoteAiChatDrawer.umd.js";
-   
+
      remoteAiChatDrawer.init({
        messageOrigin: getConfig().LMS_BASE_URL,
        transformBody: messages => ({ message: messages[messages.length - 1].content }),
      })
-   
+
      const config = {
        ...process.env,
      };
-   
+
      export default config;
 
 5. Now start learning MFE by `npm run dev`
