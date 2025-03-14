@@ -72,7 +72,8 @@ Configuration
 
 5. Now start learning MFE by `npm run dev`
 6. Now enable the `ol_openedx_chat.ol_openedx_chat_enabled` waffle flag at `/admin/waffle/flag/` in LMS
-7. Now go to any course in CMS > Settings > Advanced Settings and add `{
+7. Now go to any course in CMS > Settings > Advanced Settings and add the below in `Other Course Settings`
+`{
     "OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true,
     "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true
 }`
