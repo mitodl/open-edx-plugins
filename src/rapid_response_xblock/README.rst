@@ -38,7 +38,7 @@ If you’re using any release from Juniper onward, make sure the following prope
 
    - ALLOW_ALL_ADVANCED_COMPONENTS: true
 
-Note: For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
+For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
 Any release before Juniper
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
