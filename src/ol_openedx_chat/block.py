@@ -96,6 +96,7 @@ class OLChatAside(XBlockAside):
 
         request_body = {
             "edx_module_id": block_usage_key,
+            "block_siblings": [sibling.usage_key for sibling in block.get_parent().get_children()],
         }
 
         if block_type == VIDEO_BLOCK_CATEGORY:
