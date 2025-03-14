@@ -76,10 +76,7 @@ Configuration
 
 .. code-block::
 
-{
-    "OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true,
-    "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true
-}
+{"OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true, "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true}
 
 8. Now AI Chat/VideoGPT is enabled for all videos and problems.
 9. You can disable it for a single block by disabling the `Enable AI Chat Assistant` checkbox against the block.
