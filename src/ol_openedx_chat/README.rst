@@ -25,15 +25,13 @@ Configuration
 1. edx-platform configuration
 -----------------------------
 
-   ::
-
-
-   Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. These should be added to the top level. **Ask a fellow developer or devops for these values.**
+- Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py``. These should be added to the top level. **Ask a fellow developer or devops for these values.**
 
    .. code-block::
 
+      LEARN_AI_API_URL: <LEARN_AI_API_URL>
 
-   LEARN_AI_API_URL: <LEARN_AI_API_URL>
+- For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
 2. Add database record
 ----------------------
@@ -46,29 +44,33 @@ Configuration
 ``/admin/xblock_config/studioconfig/``).
 
 3. In frontend-app-learning, Run the below in the shell inside the learning MFE folder:
-  `npm pack @mitodl/smoot-design@^3.4.0`
 
-  `tar -xvzf mitodl-smoot-design*.tgz`
+   .. code-block::
 
-  `mv package mitodl-smoot-design`
+     `npm pack @mitodl/smoot-design@^3.4.0`
+
+     `tar -xvzf mitodl-smoot-design*.tgz`
+
+     `mv package mitodl-smoot-design`
 
 4. Create env.config.jsx in the frontend-app-learning and add the below code:
 
-  .. code-block::
-  import { getConfig } from '@edx/frontend-platform';
+   .. code-block::
 
-  import * as remoteAiChatDrawer from "./mitodl-smoot-design/dist/bundles/remoteAiChatDrawer.umd.js";
+     import { getConfig } from '@edx/frontend-platform';
 
-  remoteAiChatDrawer.init({
-    messageOrigin: getConfig().LMS_BASE_URL,
-    transformBody: messages => ({ message: messages[messages.length - 1].content }),
-  })
+     import * as remoteAiChatDrawer from "./mitodl-smoot-design/dist/bundles/remoteAiChatDrawer.umd.js";
 
-  const config = {
-    ...process.env,
-  };
+     remoteAiChatDrawer.init({
+       messageOrigin: getConfig().LMS_BASE_URL,
+       transformBody: messages => ({ message: messages[messages.length - 1].content }),
+     })
 
-  export default config;
+     const config = {
+       ...process.env,
+     };
+
+     export default config;
 
 5. Now start learning MFE by `npm run dev`
 6. Now enable the `ol_openedx_chat.ol_openedx_chat_enabled` waffle flag for a course at <LMS_URL>/admin/waffle_utils/waffleflagcourseoverridemodel/
