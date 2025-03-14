@@ -29,7 +29,7 @@ Configuration
         }
 
 - Restart the server using ``make studio-restart`` on Devstack or ``tutor dev/local restart openedx`` on Tutor.
-- For Tutor installations, these values can also be managed through a [custom tutor plugin](https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial).
+- For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
 Setup github authentication for plugin
 ---------------------------------------
