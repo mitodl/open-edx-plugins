@@ -73,10 +73,12 @@ Configuration
 5. Now start learning MFE by `npm run dev`
 6. Now enable the `ol_openedx_chat.ol_openedx_chat_enabled` waffle flag at `/admin/waffle/flag/` in LMS
 7. Now go to any course in CMS > Settings > Advanced Settings and add the below in `Other Course Settings`
-`{
+`
+{
     "OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true,
     "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true
-}`
+}
+`
 8. Now AI Chat/VideoGPT is enabled for all videos and problems.
 9. You can disable it for a single block by disabling the `Enable AI Chat Assistant` checkbox against the block.
 9. Visit the LMS and you will see a chat button. Clicking on button should open chat drawer.
