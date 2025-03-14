@@ -11,9 +11,6 @@ Installation required in:
 Configuration
 =============
 
-1. edx-platform configuration
------------------------------
-
 - Enable the following FEATURES flags in the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/cms.yml``. If you're using ``private.py``, you will need to enable these FEATURES in ``cms/envs/private.py``.
 
     .. code-block::
@@ -22,7 +19,7 @@ Configuration
             "ENABLE_EXPORT_GIT": true,
         }
 
-- Set your commit user in `cms/envs/common.py`, if you don't want to use the default one
+- Set your commit user in ``cms/envs/common.py``, if you don't want to use the default one
 
     .. code-block::
 
@@ -31,8 +28,8 @@ Configuration
             'email': 'STUDIO_EXPORT_TO_GIT@example.com'
         }
 
-- Restart the server using `make studio-restart` or on Tutor `tutor dev/local restart openedx`
-- Note: For Tutor installations, these values can also be managed through a [custom tutor plugin](https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial).
+- Restart the server using ``make studio-restart`` on Devstack or ``tutor dev/local restart openedx`` on Tutor.
+- For Tutor installations, these values can also be managed through a [custom tutor plugin](https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial).
 
 Setup github authentication for plugin
 ---------------------------------------
@@ -44,6 +41,6 @@ https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account)
 Studio/CMS UI settings
 ----------------------
 - Open studio then course and go to advance settings.
-- Choose field GIT URL and add you OLX git repo. For example `https://github.com/amir-qayyum-khan/test_edx_course.git`.
+- Choose field GIT URL and add you OLX git repo. For example ``https://github.com/amir-qayyum-khan/test_edx_course.git``.
 - Make a change to the course content and publish.
 - Test commit count increase on your OLX repo.

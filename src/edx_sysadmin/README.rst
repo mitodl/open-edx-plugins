@@ -39,7 +39,7 @@ Upon installation you need to create ``/openedx/course_repos`` directory within 
 .. code-block::
 
     tutor dev exec lms bash
-    mkdir course_repos
+    mkdir /openedx/course_repos
 
 After this, you can visit ``<EDX_BASE_URL>/sysadmin`` to access the plugin features.
 
