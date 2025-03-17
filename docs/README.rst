@@ -40,36 +40,41 @@ Tutor
   For Tutor-based Open edX environments, it's recommended to configure plugins as persistent requirements:
 
   1. Add the plugin to Tutor's configuration using the following command:
-
-  .. code-block:: bash
-
-    tutor config save --append OPENEDX_EXTRA_PIP_REQUIREMENTS="<plugin-name>"  # Replace `<plugin-name>` with the specific plugin you want to install
-
-  Verify that the requirement has been correctly added
-
-  .. code-block:: bash
-
-    tutor config printvalue OPENEDX_EXTRA_PIP_REQUIREMENTS
+      .. code-block:: bash
+    
+        tutor config save --append OPENEDX_EXTRA_PIP_REQUIREMENTS="<plugin-name>"  # Replace `<plugin-name>` with the specific plugin you want to install
+      
+      **Verify** that the requirement has been correctly added
+      
+      .. code-block:: bash
+    
+        tutor config printvalue OPENEDX_EXTRA_PIP_REQUIREMENTS
 
   2. Rebuild the OpenedX image using one of the following commands:
+      - **For development environment**
+      
+        .. code-block:: bash
+         
+          tutor images build openedx-dev
 
-  .. code-block:: bash
+      - **For production environment**
 
-    # For development environment
-    tutor images build openedx-dev
-
-    # For production environment
-    tutor images build openedx
+        .. code-block:: bash
+           
+          tutor images build openedx
 
   3. Restart your Tutor environment using one of the following commands:
+      - **For development environment**
+      
+        .. code-block:: bash
+         
+          tutor dev start
 
-  .. code-block:: bash
+      - **For production environment**
 
-    # For development environment
-    tutor dev start
-
-    # For production environment
-    tutor local start
+        .. code-block:: bash
+           
+          tutor local start
 
   Note: While it's possible to install plugins directly inside the Tutor LMS/CMS containers using pip, these changes will not persist after rebuilding the containers. The method above ensures plugins remain installed across container rebuilds.
 
