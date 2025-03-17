@@ -71,12 +71,10 @@ Configuration
   export default config;
 
 5. Now start learning MFE by `npm run dev`
-6. Now enable the `ol_openedx_chat.ol_openedx_chat_enabled` waffle flag at `/admin/waffle/flag/` in LMS
+6. In LMS, enable the `ol_openedx_chat.ol_openedx_chat_enabled` waffle flag at `/admin/waffle/flag/` to enable it for all courses OR you can disable it and add a `Waffle Flag Course Override` at `/admin/waffle_utils/waffleflagcourseoverridemodel/` to enable it for a single course.
 7. Now go to any course in CMS > Settings > Advanced Settings and add the below in "Other Course Settings"
-
-.. code-block::
-
-{"OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true, "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true}
+  .. code-block::
+  {"OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true, "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true}
 
 8. Now AI Chat/VideoGPT is enabled for all videos and problems.
 9. You can disable it for a single block by disabling the `Enable AI Chat Assistant` checkbox against the block.
