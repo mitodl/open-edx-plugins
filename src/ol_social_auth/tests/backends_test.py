@@ -3,18 +3,19 @@
 from urllib.parse import urljoin
 
 import pytest
+
 from ol_social_auth.backends import OLOAuth2
 
 # pylint: disable=redefined-outer-name
 
 
-@pytest.fixture()
+@pytest.fixture
 def strategy(mocker):
     """Mock strategy"""
     return mocker.Mock()
 
 
-@pytest.fixture()
+@pytest.fixture
 def backend(strategy):
     """OLOAuth2 backend fixture"""
     return OLOAuth2(strategy)

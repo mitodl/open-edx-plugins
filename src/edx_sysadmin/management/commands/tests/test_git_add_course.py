@@ -16,6 +16,10 @@ from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test.utils import override_settings
+from xmodule.modulestore import ModuleStoreEnum
+from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
+
 from edx_sysadmin import git_import
 from edx_sysadmin.git_import import (
     GitImportBadRepoError,
@@ -25,9 +29,6 @@ from edx_sysadmin.git_import import (
     GitImportRemoteBranchMissingError,
     GitImportUrlBadError,
 )
-from xmodule.modulestore import ModuleStoreEnum
-from xmodule.modulestore.django import modulestore
-from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
 
 
 @override_settings(
