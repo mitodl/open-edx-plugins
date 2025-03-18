@@ -83,6 +83,7 @@ This will enable the ol_openedx_chat plugin for all courses. You can disable it 
 Once, enabled, you will see a checkbox below problem and video blocks in CMS. It is enabled by default.
 
 CMS View
+
 .. image:: static/images/ai_chat_aside_cms_view.png
 
 7. Go to any course in CMS > Settings > Advanced Settings and add the below in "Other Course Settings"
@@ -95,9 +96,11 @@ OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED is used to enable/disable the VideoGPT for a
 Once, these settings are added, you will see a Chat Button with the title "AskTIM about this video/problem" in the LMS. Now AI Chat/VideoGPT is enabled for all videos and problems.
 
 LMS View with AskTIM button
+
 .. image:: static/images/ai_chat_aside_lms_view.png
 
 LMS Chat Drawer View
+
 .. image:: static/images/ai_chat_aside_lms_drawer_view.png
 
 9. Disable it for a single block
