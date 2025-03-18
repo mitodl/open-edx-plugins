@@ -28,7 +28,7 @@ Configuration
    ::
 
 
-   Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. These should be added to the top level. **Ask a fellow developer or devops for these values.**
+   Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. These should be added to the top level. **Ask a fellow developer for these values.**
 
    .. code-block::
 
@@ -46,6 +46,9 @@ Configuration
 ``/admin/xblock_config/studioconfig/``).
 
 3. In frontend-app-learning, Run the below in the shell inside the learning MFE folder:
+----------------------
+This will generate a bundle for the remoteAiChatDrawer. This bundle will be used in the learning MFE to render the chat drawer.
+
   `npm pack @mitodl/smoot-design@^3.4.0`
 
   `tar -xvzf mitodl-smoot-design*.tgz`
@@ -53,6 +56,8 @@ Configuration
   `mv package mitodl-smoot-design`
 
 4. Create env.config.jsx in the frontend-app-learning and add the below code:
+----------------------
+The Unit is rendered inside an Iframe and we use postMessage to communicate between the Iframe and the parent window. The below code is used to initialize the remoteAiChatDrawer.
 
   .. code-block::
   import { getConfig } from '@edx/frontend-platform';
@@ -70,15 +75,34 @@ Configuration
 
   export default config;
 
-5. Now start learning MFE by `npm run dev`
-6. In LMS, enable the `ol_openedx_chat.ol_openedx_chat_enabled` waffle flag at `/admin/waffle/flag/` to enable it for all courses OR you can disable it and add a `Waffle Flag Course Override` at `/admin/waffle_utils/waffleflagcourseoverridemodel/` to enable it for a single course.
-7. Now go to any course in CMS > Settings > Advanced Settings and add the below in "Other Course Settings"
+5. Start learning MFE by `npm run dev`
+----------------------
+6. In LMS, enable the `ol_openedx_chat.ol_openedx_chat_enabled` waffle flag at `/admin/waffle/flag/`
+----------------------
+This will enable the ol_openedx_chat plugin for all courses. You can disable it and add a `Waffle Flag Course Override` at `/admin/waffle_utils/waffleflagcourseoverridemodel/` to enable it for a single course.
+Once, enabled, you will see a checkbox below problem and video blocks in CMS. It is enabled by default.
+
+CMS View
+.. image:: static/images/ai_chat_aside_cms_view.png
+
+7. Go to any course in CMS > Settings > Advanced Settings and add the below in "Other Course Settings"
+----------------------
+
   .. code-block::
   {"OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true, "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true}
 
-8. Now AI Chat/VideoGPT is enabled for all videos and problems.
-9. You can disable it for a single block by disabling the `Enable AI Chat Assistant` checkbox against the block.
-9. Visit the LMS and you will see a chat button. Clicking on button should open chat drawer.
+OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED is used to enable/disable the VideoGPT for all videos. Similarly, OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED is used to enable/disable the AI Chat for all problems.
+Once, these settings are added, you will see a Chat Button with the title "AskTIM about this video/problem" in the LMS. Now AI Chat/VideoGPT is enabled for all videos and problems.
+
+LMS View with AskTIM button
+.. image:: static/images/ai_chat_aside_lms_view.png
+
+LMS Chat Drawer View
+.. image:: static/images/ai_chat_aside_lms_drawer_view.png
+
+9. Disable it for a single block
+----------------------
+If you have disable it for a few videos then you disable the `Enable AI Chat Assistant` checkbox against the block in CMS.
 
 Documentation
 =============
