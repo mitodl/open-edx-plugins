@@ -105,7 +105,7 @@ LMS Chat Drawer View
 
 9. Disable it for a single block
 ----------------------
-If you have disable it for a few videos then you disable the `Enable AI Chat Assistant` checkbox against the block in CMS.
+If you want to disable it for a few videos/problems then you disable the `Enable AI Chat Assistant` checkbox against the block in CMS.
 
 Documentation
 =============
