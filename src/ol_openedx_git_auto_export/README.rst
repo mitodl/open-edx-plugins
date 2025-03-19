@@ -13,20 +13,20 @@ Configuration
 
 - Enable the following FEATURES flags in the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/cms.yml``. If you're using ``private.py``, you will need to enable these FEATURES in ``cms/envs/private.py``.
 
-    .. code-block::
+  .. code-block::
 
-        "FEATURES": {
-            "ENABLE_EXPORT_GIT": true,
-        }
+    "FEATURES": {
+        "ENABLE_EXPORT_GIT": true,
+    }
 
 - Set your commit user in ``cms/envs/common.py``, if you don't want to use the default one
 
-    .. code-block::
+  .. code-block::
 
-        GIT_EXPORT_DEFAULT_IDENT = {
-            'name': 'STUDIO_EXPORT_TO_GIT',
-            'email': 'STUDIO_EXPORT_TO_GIT@example.com'
-        }
+    GIT_EXPORT_DEFAULT_IDENT = {
+        'name': 'STUDIO_EXPORT_TO_GIT',
+        'email': 'STUDIO_EXPORT_TO_GIT@example.com'
+    }
 
 - Restart the server using ``make studio-restart`` on Devstack or ``tutor dev/local restart openedx`` on Tutor.
 - For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
