@@ -24,9 +24,9 @@ To configure this plugin, you need to do one of the following steps:
 
 - Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py``. These should be added to the top level. **Ask a fellow developer or devops for these values.**
 
-    .. code-block::
+  .. code-block::
 
-        FEATURES["ENABLE_EDX_USERNAME_CHANGER"] = True
+    FEATURES["ENABLE_EDX_USERNAME_CHANGER"] = True
 
 
 - For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
