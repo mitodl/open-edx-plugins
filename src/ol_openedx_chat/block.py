@@ -8,8 +8,8 @@ from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
 from ol_openedx_chat.constants import (
     ENGLISH_LANGUAGE_TRANSCRIPT,
     MIT_AI_CHAT_URL_PATHS,
-    VIDEO_BLOCK_CATEGORY,
     PROBLEM_BLOCK_CATEGORY,
+    VIDEO_BLOCK_CATEGORY,
 )
 from ol_openedx_chat.utils import (
     is_aside_applicable_to_block,
