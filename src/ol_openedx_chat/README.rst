@@ -27,9 +27,9 @@ Configuration
 
 - Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py``. These should be added to the top level. **Ask a fellow developer or devops for these values.**
 
-   .. code-block::
+  .. code-block::
 
-      LEARN_AI_API_URL: <LEARN_AI_API_URL>
+    LEARN_AI_API_URL: <LEARN_AI_API_URL>
 
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
