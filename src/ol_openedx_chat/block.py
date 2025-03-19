@@ -4,15 +4,17 @@ import pkg_resources
 from django.conf import settings
 from django.template import Context, Template
 from django.utils.translation import gettext_lazy as _
-from lms.djangoapps.courseware.courses import get_course_by_id
 from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
 from ol_openedx_chat.constants import (
-    BLOCK_TYPE_TO_SETTINGS,
     ENGLISH_LANGUAGE_TRANSCRIPT,
     MIT_AI_CHAT_URL_PATHS,
     VIDEO_BLOCK_CATEGORY,
+    PROBLEM_BLOCK_CATEGORY,
 )
-from ol_openedx_chat.utils import is_aside_applicable_to_block
+from ol_openedx_chat.utils import (
+    is_aside_applicable_to_block,
+    is_ol_chat_enabled_for_course,
+)
 from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.response import Response
@@ -74,11 +76,11 @@ class OLChatAside(XBlockAside):
             return self.author_view_aside(block, context)
 
         fragment = Fragment("")
-        block_usage_key = self.scope_ids.usage_id.usage_key
+        block_usage_key = block.usage_key
         block_id = block_usage_key.block_id
         block_type = getattr(block, "category", None)
 
-        if not self.is_ol_chat_enabled(block_type, block_usage_key.course_key):
+        if not self.ol_chat_enabled:
             return fragment
 
         fragment.add_content(
@@ -96,10 +98,12 @@ class OLChatAside(XBlockAside):
 
         request_body = {
             "edx_module_id": block_usage_key,
-            "block_siblings": [
-                sibling.usage_key for sibling in block.get_parent().get_children()
-            ],
         }
+
+        if block_type == PROBLEM_BLOCK_CATEGORY:
+            request_body["block_siblings"] = [
+                sibling.usage_key for sibling in block.get_parent().get_children()
+            ]
 
         if block_type == VIDEO_BLOCK_CATEGORY:
             try:
@@ -162,9 +166,13 @@ class OLChatAside(XBlockAside):
         instances, the problem type of the given block needs to be retrieved in
         different ways.
         """  # noqa: D401
-        return get_ol_openedx_chat_enabled_flag().is_enabled(
-            block.scope_ids.usage_id.context_key
-        ) and is_aside_applicable_to_block(block=block)
+        return (
+            get_ol_openedx_chat_enabled_flag().is_enabled(
+                block.scope_ids.usage_id.context_key
+            )
+            and is_aside_applicable_to_block(block=block)
+            and is_ol_chat_enabled_for_course(block=block)
+        )
 
     @XBlock.handler
     def update_chat_config(self, request, suffix=""):  # noqa: ARG002
@@ -178,21 +186,3 @@ class OLChatAside(XBlockAside):
 
         self.ol_chat_enabled = posted_data.get("is_enabled", True)
         return Response()
-
-    def is_ol_chat_enabled(self, block_type, course_key):
-        """
-        Return whether OL Chat is enabled or not for the block type
-
-        Args:
-            block_type (str): The type of block
-            course_key (CourseKey): The course key
-
-        Returns:
-            bool: True if OL Chat is enabled, False otherwise
-        """
-        course = get_course_by_id(course_key)
-        other_course_settings = course.other_course_settings
-        return (
-            other_course_settings.get(BLOCK_TYPE_TO_SETTINGS.get(block_type))
-            and self.ol_chat_enabled
-        )
