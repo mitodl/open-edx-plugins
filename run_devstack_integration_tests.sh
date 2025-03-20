@@ -63,6 +63,11 @@ for subdir in "src"/*; do
                 echo "No tests found, skipping pytest."
             fi
 
+            # Run the pytest command with CMS settings (for ol_openedx_chat)
+            if [[ "$subdir" == *"ol_openedx_chat"* ]]; then
+                pytest . --cov . --ds=cms.envs.test
+            fi
+
             PYTEST_SUCCESS=$?
 
             if [[ $PYTEST_SUCCESS -ne 0 ]]
