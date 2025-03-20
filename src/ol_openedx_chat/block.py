@@ -8,9 +8,13 @@ from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
 from ol_openedx_chat.constants import (
     ENGLISH_LANGUAGE_TRANSCRIPT,
     MIT_AI_CHAT_URL_PATHS,
+    PROBLEM_BLOCK_CATEGORY,
     VIDEO_BLOCK_CATEGORY,
 )
-from ol_openedx_chat.utils import is_aside_applicable_to_block
+from ol_openedx_chat.utils import (
+    is_aside_applicable_to_block,
+    is_ol_chat_enabled_for_course,
+)
 from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.response import Response
@@ -52,7 +56,7 @@ class OLChatAside(XBlockAside):
 
     ol_chat_enabled = Boolean(
         display_name=_("Open Learning Chat enabled status"),
-        default=False,
+        default=True,
         scope=Scope.settings,
         help=_("Indicates whether or not Open Learning chat is enabled for a block"),
     )
@@ -72,12 +76,12 @@ class OLChatAside(XBlockAside):
             return self.author_view_aside(block, context)
 
         fragment = Fragment("")
-        if not self.ol_chat_enabled:
-            return fragment
-
-        block_usage_key = self.scope_ids.usage_id.usage_key
+        block_usage_key = block.usage_key
         block_id = block_usage_key.block_id
         block_type = getattr(block, "category", None)
+
+        if not self.ol_chat_enabled:
+            return fragment
 
         fragment.add_content(
             render_template(
@@ -95,6 +99,11 @@ class OLChatAside(XBlockAside):
         request_body = {
             "edx_module_id": block_usage_key,
         }
+
+        if block_type == PROBLEM_BLOCK_CATEGORY:
+            request_body["block_siblings"] = [
+                sibling.usage_key for sibling in block.get_parent().get_children()
+            ]
 
         if block_type == VIDEO_BLOCK_CATEGORY:
             try:
@@ -157,9 +166,13 @@ class OLChatAside(XBlockAside):
         instances, the problem type of the given block needs to be retrieved in
         different ways.
         """  # noqa: D401
-        return get_ol_openedx_chat_enabled_flag().is_enabled(
-            block.scope_ids.usage_id.context_key
-        ) and is_aside_applicable_to_block(block=block)
+        return (
+            get_ol_openedx_chat_enabled_flag().is_enabled(
+                block.scope_ids.usage_id.context_key
+            )
+            and is_aside_applicable_to_block(block=block)
+            and is_ol_chat_enabled_for_course(block=block)
+        )
 
     @XBlock.handler
     def update_chat_config(self, request, suffix=""):  # noqa: ARG002
@@ -171,5 +184,5 @@ class OLChatAside(XBlockAside):
                 "Invalid request body", status=api_status.HTTP_400_BAD_REQUEST
             )
 
-        self.ol_chat_enabled = posted_data.get("is_enabled", False)
+        self.ol_chat_enabled = posted_data.get("is_enabled", True)
         return Response()

@@ -1,3 +1,6 @@
+
+
+
 ol-openedx-chat
 ###############
 
@@ -28,12 +31,13 @@ Configuration
    ::
 
 
-   Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. These should be added to the top level. **Ask a fellow developer or devops for these values.**
-
-   .. code-block::
+Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. These should be added to the top level. **Ask a fellow developer for these values.**
 
 
-   LEARN_AI_API_URL: <LEARN_AI_API_URL>
+.. code-block::
+
+    LEARN_AI_API_URL: <LEARN_AI_API_URL>
+
 
 2. Add database record
 ----------------------
@@ -46,35 +50,68 @@ Configuration
 ``/admin/xblock_config/studioconfig/``).
 
 3. In frontend-app-learning, Run the below in the shell inside the learning MFE folder:
-  `npm pack @mitodl/smoot-design@^3.4.0`
+----------------------
+This will generate a bundle for the remoteAiChatDrawer. This bundle will be used in the learning MFE to render the chat drawer.
 
-  `tar -xvzf mitodl-smoot-design*.tgz`
+.. code-block:: sh
 
-  `mv package mitodl-smoot-design`
+   npm pack @mitodl/smoot-design@^3.4.0
+   tar -xvzf mitodl-smoot-design*.tgz
+   mv package mitodl-smoot-design
 
 4. Create env.config.jsx in the frontend-app-learning and add the below code:
+----------------------
+The Unit is rendered inside an Iframe and we use postMessage to communicate between the Iframe and the parent window. The below code is used to initialize the remoteAiChatDrawer.
 
-  .. code-block::
-  import { getConfig } from '@edx/frontend-platform';
+.. code-block:: js
 
-  import * as remoteAiChatDrawer from "./mitodl-smoot-design/dist/bundles/remoteAiChatDrawer.umd.js";
+   import { getConfig } from '@edx/frontend-platform';
 
-  remoteAiChatDrawer.init({
-    messageOrigin: getConfig().LMS_BASE_URL,
-    transformBody: messages => ({ message: messages[messages.length - 1].content }),
-  })
+   import * as remoteAiChatDrawer from "./mitodl-smoot-design/dist/bundles/remoteAiChatDrawer.umd.js";
 
-  const config = {
+   remoteAiChatDrawer.init({
+       messageOrigin: getConfig().LMS_BASE_URL,
+       transformBody: messages => ({ message: messages[messages.length - 1].content }),
+   })
+
+    const config = {
     ...process.env,
-  };
+    };
 
-  export default config;
+   export default config;
 
-5. Now start learning MFE by `npm run dev`
-6. Now enable the `ol_openedx_chat.ol_openedx_chat_enabled` waffle flag for a course at <LMS_URL>/admin/waffle_utils/waffleflagcourseoverridemodel/
-7. AI Assistant will be enabled for this course.
-8. In CMS, you will see a single checkbox to enable the AI Chat for a problem/video block
-9. Enable it for a block and visit the LMS and you will see a chat button. Clicking on button should open chat drawer.
+5. Start learning MFE by ``npm run dev``
+----------------------
+6. In LMS, enable the ``ol_openedx_chat.ol_openedx_chat_enabled`` waffle flag at ``<LMS>/admin/waffle/flag/``
+----------------------
+This will enable the ol_openedx_chat plugin for all courses. You can disable it and add a `Waffle Flag Course Override` at ``/admin/waffle_utils/waffleflagcourseoverridemodel/`` to enable it for a single course.
+Once, enabled, you will see a checkbox below problem and video blocks in CMS. It is enabled by default.
+
+CMS View
+
+.. image:: static/images/ai_chat_aside_cms_view.png
+
+7. Go to any course in CMS > Settings > Advanced Settings and add the below in "Other Course Settings"
+----------------------
+
+   .. code-block::
+
+      {"OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true, "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true}
+
+   `OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED` is used to enable/disable the VideoGPT for all videos. Similarly, `OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED` is used to enable/disable the AI Chat for all problems.
+   Once, these settings are added, you will see a Chat Button titled "AskTIM about this video/problem" in the LMS. Now AI Chat/VideoGPT is enabled for all videos and problems.
+
+LMS View with AskTIM button
+
+.. image:: static/images/ai_chat_aside_lms_view.png
+
+LMS Chat Drawer View
+
+.. image:: static/images/ai_chat_aside_lms_drawer_view.png
+
+9. Disable it for a single block
+----------------------
+If you want to disable it for a few videos/problems then you disable the `Enable AI Chat Assistant` checkbox against the block in CMS.
 
 Documentation
 =============
