@@ -20,8 +20,8 @@ from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope
-from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 from xmodule.video_block.transcripts_utils import Transcript
+from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 log = logging.getLogger(__name__)
 
