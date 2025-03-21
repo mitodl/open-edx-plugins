@@ -73,6 +73,8 @@ class RuntimeEnabledTestCase(ModuleStoreTestCase):
         self.staff = AdminFactory.create()
         self.course = self.import_test_course()
         self.block = BlockFactory(category="pure", parent=self.course)
+        self.problem_block = BlockFactory(category="problem", parent=self.course)
+        self.video_block = BlockFactory(category="video", parent=self.course)
         self.course_id = self.course.id
         self.instructor = StaffFactory.create(course_key=self.course_id)
         self.runtime = self.make_runtime()

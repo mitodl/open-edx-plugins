@@ -21,6 +21,7 @@ from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
+from xmodule.video_block.transcripts_utils import Transcript
 
 log = logging.getLogger(__name__)
 
@@ -66,7 +67,6 @@ class OLChatAside(XBlockAside):
         """
         Renders the aside contents for the student view
         """  # noqa: D401
-        from xmodule.video_block.transcripts_utils import Transcript
 
         # This is a workaround for those blocks which do not have has_author_view=True
         # because when a block does not define has_author_view=True in it, the only view
