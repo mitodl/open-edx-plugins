@@ -41,10 +41,9 @@ class OLChatAsideTests(RuntimeEnabledTestCase):
     @unpack
     def test_student_view(self, ol_chat_enabled_value, should_render_aside):
         """
-        Test that the aside student view returns a fragment if the block is
-        rapid-response-enabled
+        Test that the aside student view returns a fragment if ol-chat is enabled.
         """
-        self.aside_instance.enabled = ol_chat_enabled_value
+        self.aside_instance.ol_chat_enabled = ol_chat_enabled_value
         with patch(
             "ol_openedx_chat.block.OLChatAside.ol_chat_enabled",
             new=ol_chat_enabled_value,
@@ -62,12 +61,12 @@ class OLChatAsideTests(RuntimeEnabledTestCase):
     #     """
     #     Test that the aside student view has the proper context variables
     #     """
-    #     self.aside_instance.enabled = True
+    #     self.aside_instance.ol_chat_enabled = True
     #     with patch(
     #         "rapid_response_xblock.block.RapidResponseAside.has_open_run",
     #         new_callable=PropertyMock,
     #     ) as has_open_run_mock, patch(
-    #         "rapid_response_xblock.block.RapidResponseAside.enabled", new=True
+    #         "ol_openedx_chat.block.OLChatAside.ol_chat_enabled", new=True
     #     ):
     #         has_open_run_mock.return_value = is_open
     #         fragment = self.aside_instance.student_view_aside(Mock())
