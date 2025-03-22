@@ -670,13 +670,13 @@ semantic-version = "*"
 
 [[package]]
 name = "edx-opaque-keys"
-version = "2.11.0"
+version = "2.12.0"
 description = ""
 optional = false
 python-versions = "*"
 files = [
-    {file = "edx_opaque_keys-2.11.0-py3-none-any.whl", hash = "sha256:d66ea02144b86e7d44b9d524624f541413d9f9db099861609aa09dbbacdf5c9e"},
-    {file = "edx_opaque_keys-2.11.0.tar.gz", hash = "sha256:10fb508ceef957a0063f1d2bb0962e290a58aa5d456d2bb4dffda447eb605d0d"},
+    {file = "edx_opaque_keys-2.12.0-py3-none-any.whl", hash = "sha256:c40231ed16275d6d39cf1c4ecdac8bd48403c7b75a17c0bbf743d866b3ff9ad1"},
+    {file = "edx_opaque_keys-2.12.0.tar.gz", hash = "sha256:9b929651225dbbd89925947999e96999afe12a7b3ccc0fb7bec7c9b95b21b167"},
 ]
 
 [package.dependencies]
