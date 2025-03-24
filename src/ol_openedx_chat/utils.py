@@ -2,6 +2,7 @@
 """Utility methods for the AI chat"""
 
 from lms.djangoapps.courseware.courses import get_course_by_id
+
 from ol_openedx_chat.constants import BLOCK_TYPE_TO_SETTINGS, CHAT_APPLICABLE_BLOCKS
 
 
