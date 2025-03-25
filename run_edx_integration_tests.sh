@@ -14,7 +14,7 @@ pip install -e .
 
 cp -r /openedx/staticfiles test_root/staticfiles
 
-cd /open-edx-plugins
+cd /openedx/open-edx-plugins
 
 # Installing test dependencies
 pip install pytest-mock==3.14.0
@@ -45,7 +45,7 @@ for subdir in "src"/*; do
             tarball=$(ls dist | grep "$plugin_name" | head -n 1)
             pip install "dist/$tarball"
 
-            cp -r /openedx/edx-platform/test_root/ "/open-edx-plugins/$subdir/test_root"
+            cp -r /openedx/edx-platform/test_root/ "/openedx/open-edx-plugins/$subdir/test_root"
             echo "==============Running $subdir tests=================="
             cd "$subdir"
 
