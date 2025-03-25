@@ -99,11 +99,28 @@ run_plugin_tests() {
     cd ../..
 }
 
+# Check if a specific plugin name was provided
+plugin="$1"
+
 # Main loop to process each plugin
 set +e
-for subdir in "src"/*; do
-    if [ -d "$subdir" ]; then
-        run_plugin_tests "$subdir"
+if [ -n "$plugin" ]; then
+    # Run tests only for the specified plugin
+    plugin_dir="src/$plugin"
+    if [ -d "$plugin_dir" ]; then
+        echo "Running tests for specified plugin: $plugin"
+        run_plugin_tests "$plugin_dir"
+    else
+        echo "Error: Plugin directory '$plugin_dir' not found."
+        exit 1
     fi
-done
+else
+    # Run tests for all plugins
+    echo "Running tests for all plugins"
+    for subdir in "src"/*; do
+        if [ -d "$subdir" ]; then
+            run_plugin_tests "$subdir"
+        fi
+    done
+fi
 set -e
