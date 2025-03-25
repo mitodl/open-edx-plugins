@@ -82,36 +82,28 @@ Tutor
 
   For local development and testing with Tutor, you can mount a local directory and install packages directly:
 
-  1. Create and mount a source directory:
+  1. Clone, mount and build the plugins:
 
   .. code-block:: bash
 
-    # Create src directory (recommended: adjacent to edx-platform)
-    mkdir src
-    tutor mounts add lms,cms:/path/to/src:/openedx/src
-
-  2. Clone and build the plugins:
-
-  .. code-block:: bash
-
-    cd src
     git clone https://github.com/mitodl/open-edx-plugins/
+    tutor mounts add lms,cms:/path/to/open-edx-plugins:/openedx/open-edx-plugins
     cd open-edx-plugins
     pants package ::
 
-  3. Rebuild and launch Tutor:
+  2. Rebuild and launch Tutor:
 
   .. code-block:: bash
 
     tutor images build openedx-dev
     tutor dev launch --skip-build
 
-  4. Install the package:
+  3. Install the package:
 
   .. code-block:: bash
 
     tutor dev exec lms/cms bash
-    pip install /openedx/src/open-edx-plugins/dist/[package-filename]
+    pip install /openedx/open-edx-plugins/dist/[package-filename]
 
   Note: The package filename in the dist/ directory will include the plugin name, version number, and other information (e.g., edx-sysadmin-0.3.0.tar.gz). Make sure to check the dist/ directory for the exact filename before installation.
 
