@@ -7,10 +7,10 @@ pwd
 
 mkdir -p reports
 
-pip install -r ./requirements/edx/testing.txt
+# pip install -r ./requirements/edx/testing.txt
 
 # Installing edx-platform
-pip install -e .
+# pip install -e .
 
 cp -r /openedx/staticfiles test_root/staticfiles
 
@@ -32,66 +32,78 @@ pip install codecov
 pip freeze
 
 export EDXAPP_TEST_MONGO_HOST=mongodb
+
+# Function to run tests for a plugin
+run_plugin_tests() {
+
+    local plugin_dir="$1"
+    local tests_directory="$plugin_dir/tests"
+
+    # Check if tests directory exists
+    if [ ! -d "$tests_directory" ]; then
+        return 0
+    fi 
+
+    # Installing the plugin
+    plugin_name=$(basename "$plugin_dir" | sed 's/src\///' | sed 's/_/-/g')
+    tarball=$(ls dist | grep "$plugin_name" | head -n 1)
+    pip install "dist/$tarball"
+
+    cp -r /openedx/edx-platform/test_root/ "/openedx/open-edx-plugins/$plugin_dir/test_root"
+    echo "==============Running $plugin_dir tests=================="
+    cd "$plugin_dir"
+
+    # Check for the existence of settings/test.py
+    if [ -f "settings/test.py" ]; then
+        pytest_command="pytest . --cov . --ds=settings.test"
+    else
+        pytest_command="pytest . --cov . --ds=lms.envs.test"
+    fi
+
+    # Run the pytest command
+    local PYTEST_SUCCESS=0
+    if $pytest_command --collect-only; then
+        $pytest_command
+        PYTEST_SUCCESS=$?
+    else
+        echo "No tests found, skipping pytest."
+    fi
+
+    if [[ $PYTEST_SUCCESS -ne 0 ]]
+    then
+        echo "pytest exited with a non-zero status"
+        exit $PYTEST_SUCCESS
+    fi
+
+    # Run the pytest command with CMS settings (for ol_openedx_chat)
+    if [[ "$plugin_dir" == *"ol_openedx_chat"* ]]; then
+        pytest . --cov . --ds=cms.envs.test
+
+        PYTEST_SUCCESS=$?
+        if [[ $PYTEST_SUCCESS -ne 0 ]]
+        then
+            echo "pytest exited with a non-zero status"
+            exit $PYTEST_SUCCESS
+        fi
+    fi
+
+    coverage xml
+
+    # Check if the plugin name is in the isolated_plugins list and uninstall it
+    for plugin in "${isolated_plugins[@]}"; do
+        if [[ "$plugin_name" == "$plugin" ]]; then
+            pip uninstall -y "$plugin_name"
+            break
+        fi
+    done
+    cd ../..
+}
+
+# Main loop to process each plugin
 set +e
 for subdir in "src"/*; do
     if [ -d "$subdir" ]; then
-        tests_directory="$subdir/tests"
-
-        # Check if tests directory exists
-        if [ -d "$tests_directory" ]; then
-
-            # Installing the plugin
-            plugin_name=$(basename "$subdir" | sed 's/src\///' | sed 's/_/-/g')
-            tarball=$(ls dist | grep "$plugin_name" | head -n 1)
-            pip install "dist/$tarball"
-
-            cp -r /openedx/edx-platform/test_root/ "/openedx/open-edx-plugins/$subdir/test_root"
-            echo "==============Running $subdir tests=================="
-            cd "$subdir"
-
-            # Check for the existence of settings/test.py
-            if [ -f "settings/test.py" ]; then
-                pytest_command="pytest . --cov . --ds=settings.test"
-            else
-                pytest_command="pytest . --cov . --ds=lms.envs.test"
-            fi
-
-            # Run the pytest command
-            if $pytest_command --collect-only; then
-                $pytest_command
-            else
-                echo "No tests found, skipping pytest."
-            fi
-
-            PYTEST_SUCCESS=$?
-            if [[ $PYTEST_SUCCESS -ne 0 ]]
-            then
-                echo "pytest exited with a non-zero status"
-                exit $PYTEST_SUCCESS
-            fi
-
-            # Run the pytest command with CMS settings (for ol_openedx_chat)
-            if [[ "$subdir" == *"ol_openedx_chat"* ]]; then
-                pytest . --cov . --ds=cms.envs.test
-
-                PYTEST_SUCCESS=$?
-                if [[ $PYTEST_SUCCESS -ne 0 ]]
-                then
-                    echo "pytest exited with a non-zero status"
-                    exit $PYTEST_SUCCESS
-                fi
-            fi
-
-            coverage xml
-            # Check if the plugin name is in the isolated_plugins list and uninstall it
-            for plugin in "${isolated_plugins[@]}"; do
-                if [[ "$plugin_name" == "$plugin" ]]; then
-                    pip uninstall -y "$plugin_name"
-                    break
-                fi
-            done
-            cd ../..
-        fi
+        run_plugin_tests "$subdir"
     fi
 done
 set -e
