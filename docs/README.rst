@@ -112,3 +112,32 @@ Post-Installation Steps
 
 1. After installing any plugin, you may need to restart the edx-platform services to apply the changes
 2. Some plugins may require additional configuration - refer to the individual plugin's documentation for specific setup instructions
+
+
+Testing Guide
+-------------
+
+Running Integration tests
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+1. Access the container:
+
+.. code-block:: bash
+  
+  tutor dev exec lms/cms bash
+
+2. Run the tests:
+
+- For all plugins:
+
+  .. code-block:: bash
+
+    ../openedx-plugins/run_edx_integration_tests.sh
+
+- For a specific plugin:
+
+  .. code-block:: bash
+
+    ../openedx-plugins/run_edx_integration_tests.sh <plugin-name>
+
+The script generates coverage reports in XML format and exits with a non-zero status if any tests fail.
