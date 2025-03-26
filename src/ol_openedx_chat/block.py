@@ -1,5 +1,5 @@
 import logging
-from urllib.parse import quote as urlquote  # pylint: disable=ungrouped-imports
+from urllib.parse import quote as urlquote
 
 import pkg_resources
 from django.conf import settings
