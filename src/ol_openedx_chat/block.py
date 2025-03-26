@@ -129,9 +129,9 @@ class OLChatAside(XBlockAside):
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
             "drawer_payload": {
                 "blockType": block_type,
+                "title": f"about {block.display_name}",
                 "chat": {
                     "chatId": block_id,
-                    "askTimTitle": f"about {block.display_name}",
                     "initialMessages": TUTOR_INITIAL_MESSAGES,
                     "apiUrl": f"{settings.MIT_LEARN_AI_API_URL}/{MIT_AI_CHAT_URL_PATHS[block_type]}",  # noqa: E501
                     "requestBody": request_body,
