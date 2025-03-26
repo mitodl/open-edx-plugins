@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import quote as urlquote  # pylint: disable=ungrouped-imports
 
 import pkg_resources
 from django.conf import settings
@@ -22,11 +23,6 @@ from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
-
-try:
-    from django.utils.http import urlquote
-except ImportError:
-    from urllib.parse import quote as urlquote  # pylint: disable=ungrouped-imports
 
 log = logging.getLogger(__name__)
 
@@ -150,7 +146,7 @@ class OLChatAside(XBlockAside):
             url_quoted_transcript_id = urlquote(
                 str(request_body["transcript_asset_id"])
             )
-            content_url = f"{settings.MIT_LEARN_API_URL}/api/v1/contentfiles/?edx_module_id={url_quoted_transcript_id}"  # noqa: E501
+            content_url = f"{settings.MIT_LEARN_SUMMARY_FLASHCARD_URL}?edx_module_id={url_quoted_transcript_id}"  # noqa: E501
             extra_context["drawer_payload"].update(
                 {
                     "summary": {
