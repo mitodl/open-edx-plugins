@@ -19,3 +19,10 @@ BLOCK_TYPE_TO_SETTINGS = {
 CHAT_APPLICABLE_BLOCKS = [PROBLEM_BLOCK_CATEGORY, VIDEO_BLOCK_CATEGORY]
 
 ENGLISH_LANGUAGE_TRANSCRIPT = "en"
+
+TUTOR_INITIAL_MESSAGES = [
+    {
+        "content": "Hi! Do you need any help?",
+        "role": "assistant",
+    },
+]

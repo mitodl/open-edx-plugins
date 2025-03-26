@@ -9,6 +9,7 @@ from ol_openedx_chat.constants import (
     ENGLISH_LANGUAGE_TRANSCRIPT,
     MIT_AI_CHAT_URL_PATHS,
     PROBLEM_BLOCK_CATEGORY,
+    TUTOR_INITIAL_MESSAGES,
     VIDEO_BLOCK_CATEGORY,
 )
 from ol_openedx_chat.utils import (
@@ -21,6 +22,11 @@ from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
+
+try:
+    from django.utils.http import urlquote
+except ImportError:
+    from urllib.parse import quote as urlquote  # pylint: disable=ungrouped-imports
 
 log = logging.getLogger(__name__)
 
@@ -123,15 +129,35 @@ class OLChatAside(XBlockAside):
                 )
 
         extra_context = {
-            "ask_tim_drawer_title": f"about {block.display_name}",
-            "user_id": self.runtime.user_id,
             "block_id": block_id,
-            "block_type": block_type,
-            "edx_module_id": block_usage_key,
-            "chat_api_url": f"{settings.LEARN_AI_API_URL}/{MIT_AI_CHAT_URL_PATHS[block_type]}",  # noqa: E501
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
-            "request_body": request_body,
+            "drawer_payload": {
+                "blockType": block_type,
+                "chat": {
+                    "chatId": block_id,
+                    "askTimTitle": f"about {block.display_name}",
+                    "initialMessages": TUTOR_INITIAL_MESSAGES,
+                    "apiUrl": f"{settings.MIT_LEARN_AI_API_URL}/{MIT_AI_CHAT_URL_PATHS[block_type]}",  # noqa: E501
+                    "requestBody": request_body,
+                    "userId": self.runtime.user_id,
+                },
+            },
         }
+
+        if block_type == VIDEO_BLOCK_CATEGORY and request_body.get(
+            "transcript_asset_id"
+        ):
+            url_quoted_transcript_id = urlquote(
+                str(request_body["transcript_asset_id"])
+            )
+            content_url = f"{settings.MIT_LEARN_API_URL}/api/v1/contentfiles/?edx_module_id={url_quoted_transcript_id}"  # noqa: E501
+            extra_context["drawer_payload"].update(
+                {
+                    "summary": {
+                        "contentUrl": content_url,
+                    }
+                }
+            )
 
         fragment.initialize_js("AiChatAsideInit", json_args=extra_context)
         return fragment

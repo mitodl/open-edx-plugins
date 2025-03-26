@@ -36,7 +36,8 @@ Add the following configuration values to the config file in Open edX. For any r
 
 .. code-block::
 
-    LEARN_AI_API_URL: <LEARN_AI_API_URL>
+    MIT_LEARN_AI_API_URL: <MIT_LEARN_AI_API_URL>
+    MIT_LEARN_API_URL: <MIT_LEARN_API_URL>
 
 
 2. Add database record
