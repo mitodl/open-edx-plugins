@@ -150,7 +150,7 @@ class OLChatAside(XBlockAside):
             extra_context["drawer_payload"].update(
                 {
                     "summary": {
-                        "contentUrl": content_url,
+                        "apiUrl": content_url,
                     }
                 }
             )
