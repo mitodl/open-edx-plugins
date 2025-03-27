@@ -9,15 +9,14 @@ This fix wraps the original handler, converts protocol v2 messages to v1 format,
 ensures UserTask-based tasks work properly without generating errors.
 """
 
-from celery import signals, chain
-from user_tasks.signals import create_user_task
+from celery import chain, signals
 from cms.celery import APP
+from user_tasks.signals import create_user_task
 
 signals.before_task_publish.disconnect(create_user_task)
 
 
 def create_user_task_wrapper(sender=None, body=None, **kwargs):
-
     return create_user_task(
         sender,
         body
