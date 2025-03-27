@@ -22,6 +22,10 @@ from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope
+from xmodule.video_block.transcripts_utils import (
+    Transcript,
+    get_available_transcript_languages,
+)
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 log = logging.getLogger(__name__)
@@ -68,7 +72,6 @@ class OLChatAside(XBlockAside):
         """
         Renders the aside contents for the student view
         """  # noqa: D401
-        from xmodule.video_block.transcripts_utils import Transcript
 
         # This is a workaround for those blocks which do not have has_author_view=True
         # because when a block does not define has_author_view=True in it, the only view
@@ -117,6 +120,15 @@ class OLChatAside(XBlockAside):
                         block.location,
                         transcripts_info["transcripts"][ENGLISH_LANGUAGE_TRANSCRIPT],
                     )
+                else:
+                    transcript_languages = get_available_transcript_languages(
+                        block.edx_video_id
+                    )
+                    if ENGLISH_LANGUAGE_TRANSCRIPT in transcript_languages:
+                        request_body["transcript_asset_id"] = Transcript.asset_location(
+                            block.location,
+                            f"{block.edx_video_id}-{ENGLISH_LANGUAGE_TRANSCRIPT}.srt",
+                        )
 
             except Exception:  # noqa: BLE001
                 log.info(
