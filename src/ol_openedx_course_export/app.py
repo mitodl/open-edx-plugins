@@ -31,3 +31,9 @@ class CourseExportConfig(AppConfig):
             }
         },
     }
+
+    def ready(self):
+        """
+        Import signals to enable celery task protocol workaround
+        """
+        import ol_openedx_course_export.signals
