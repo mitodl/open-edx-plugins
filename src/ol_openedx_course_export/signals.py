@@ -40,7 +40,7 @@ def proto2_to_proto1(body, headers):
     return new_body
 
 
-def _extract_proto2_headers(
+def _extract_proto2_headers(  # noqa: PLR0913
     task_id, retries, eta, expires, group, timelimit, task, **_
 ):
     return {
