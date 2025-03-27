@@ -9,7 +9,11 @@ from django.conf import settings
 from django.test.client import Client
 from django.urls import reverse
 from ol_openedx_chat.block import OLChatAside
-from ol_openedx_chat.constants import PROBLEM_BLOCK_CATEGORY, VIDEO_BLOCK_CATEGORY
+from ol_openedx_chat.constants import (
+    PROBLEM_BLOCK_CATEGORY,
+    TUTOR_INITIAL_MESSAGES,
+    VIDEO_BLOCK_CATEGORY,
+)
 from opaque_keys.edx.asides import AsideUsageKeyV2
 from openedx.core.djangolib.testing.utils import skip_unless_cms, skip_unless_lms
 from pytz import UTC
@@ -137,72 +141,99 @@ class OLChatAsideTests(ModuleStoreTestCase):
                 assert fragment.content == ""
                 return
 
+            if not should_render_aside:
+                return
+
             expected_json_init_args_keys = [
-                "ask_tim_drawer_title",
-                "user_id",
                 "block_id",
-                "block_type",
-                "edx_module_id",
-                "chat_api_url",
                 "learning_mfe_base_url",
-                "request_body",
+                "drawer_payload",
             ]
+            assert list(fragment.json_init_args.keys()) == expected_json_init_args_keys
+
+            expected_drawer_payload_keys = [
+                "blockType",
+                "title",
+                "chat",
+            ]
+            if block_type == VIDEO_BLOCK_CATEGORY:
+                expected_drawer_payload_keys += ["summary"]
 
             assert (
-                list(fragment.json_init_args.keys()) == expected_json_init_args_keys
-            ) is should_render_aside
+                list(fragment.json_init_args["drawer_payload"].keys())
+                == expected_drawer_payload_keys
+            )
+
+            expected_drawer_payload_chat_keys = [
+                "chatId",
+                "initialMessages",
+                "apiUrl",
+                "requestBody",
+                "userId",
+            ]
+            assert (
+                list(fragment.json_init_args["drawer_payload"]["chat"].keys())
+                == expected_drawer_payload_chat_keys
+            )
+
+            if block_type == VIDEO_BLOCK_CATEGORY:
+                expected_drawer_payload_summary_keys = ["apiUrl"]
+                assert (
+                    list(fragment.json_init_args["drawer_payload"]["summary"].keys())
+                    == expected_drawer_payload_summary_keys
+                )
 
             expected_request_body_keys = ["edx_module_id"]
             if block_type == PROBLEM_BLOCK_CATEGORY:
                 expected_request_body_keys += ["block_siblings"]
-                chat_api_url = "/http/tutor_agent/"
+                chat_api_url = f"{settings.MIT_LEARN_AI_API_URL}/http/tutor_agent/"
 
             elif block_type == VIDEO_BLOCK_CATEGORY:
                 expected_request_body_keys += ["transcript_asset_id"]
-                chat_api_url = "/http/video_gpt_agent/"
+                chat_api_url = f"{settings.MIT_LEARN_AI_API_URL}/http/video_gpt_agent/"
 
             assert (
-                list(fragment.json_init_args["request_body"].keys())
+                list(
+                    fragment.json_init_args["drawer_payload"]["chat"][
+                        "requestBody"
+                    ].keys()
+                )
                 == expected_request_body_keys
-            ) is should_render_aside
-            assert (
-                fragment.json_init_args["ask_tim_drawer_title"]
-                == f"about {block.display_name}"
-            ) is should_render_aside
-            assert (
-                fragment.json_init_args["user_id"] == self.runtime.user_id
-            ) is should_render_aside
-            assert (
-                fragment.json_init_args["block_id"] == block.usage_key.block_id
-            ) is should_render_aside
-            assert (
-                fragment.json_init_args["block_type"] == block_type
-            ) is should_render_aside
-            assert (
-                fragment.json_init_args["edx_module_id"] == block.usage_key
-            ) is should_render_aside
-            assert (
-                fragment.json_init_args["chat_api_url"] == chat_api_url
-            ) is should_render_aside
+            )
+
+            assert fragment.json_init_args["block_id"] == block.usage_key.block_id
             assert (
                 fragment.json_init_args["learning_mfe_base_url"]
                 == settings.LEARNING_MICROFRONTEND_URL
-            ) is should_render_aside
-            assert (
-                fragment.json_init_args["request_body"]["edx_module_id"]
-                == block.usage_key
-            ) is should_render_aside
+            )
 
+            expected_request_body = {
+                "edx_module_id": block.usage_key,
+            }
             if block_type == PROBLEM_BLOCK_CATEGORY:
-                assert (
-                    fragment.json_init_args["request_body"]["block_siblings"]
-                    == [block.usage_key for block in block.get_parent().get_children()]
-                ) is should_render_aside
+                expected_request_body["block_siblings"] = [
+                    sibling.usage_key for sibling in block.get_parent().get_children()
+                ]
             elif block_type == VIDEO_BLOCK_CATEGORY:
-                assert (
-                    fragment.json_init_args["request_body"]["transcript_asset_id"]
-                    == "video-transcript-en.srt"
-                ) is should_render_aside
+                expected_request_body["transcript_asset_id"] = "video-transcript-en.srt"
+
+            expected_payload = {
+                "blockType": block_type,
+                "title": f"about {block.display_name}",
+                "chat": {
+                    "chatId": block.usage_key.block_id,
+                    "initialMessages": TUTOR_INITIAL_MESSAGES,
+                    "apiUrl": chat_api_url,
+                    "requestBody": expected_request_body,
+                    "userId": self.runtime.user_id,
+                },
+            }
+            if block_type == VIDEO_BLOCK_CATEGORY:
+                expected_payload["summary"] = {
+                    "apiUrl": f"{settings.MIT_LEARN_SUMMARY_FLASHCARD_URL}?edx_module_id=video-transcript-en.srt"  # noqa: E501
+                }
+
+            assert fragment.json_init_args["drawer_payload"] == expected_payload
 
     @data(
         *[

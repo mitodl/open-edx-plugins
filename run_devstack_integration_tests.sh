@@ -63,20 +63,26 @@ for subdir in "src"/*; do
                 echo "No tests found, skipping pytest."
             fi
 
-            # Run the pytest command with CMS settings (for ol_openedx_chat)
-            if [[ "$subdir" == *"ol_openedx_chat"* ]]; then
-                pytest . --cov . --ds=cms.envs.test
-            fi
-
             PYTEST_SUCCESS=$?
-
             if [[ $PYTEST_SUCCESS -ne 0 ]]
             then
                 echo "pytest exited with a non-zero status"
                 exit $PYTEST_SUCCESS
             fi
-            coverage xml
 
+            # Run the pytest command with CMS settings (for ol_openedx_chat)
+            if [[ "$subdir" == *"ol_openedx_chat"* ]]; then
+                pytest . --cov . --ds=cms.envs.test
+
+                PYTEST_SUCCESS=$?
+                if [[ $PYTEST_SUCCESS -ne 0 ]]
+                then
+                    echo "pytest exited with a non-zero status"
+                    exit $PYTEST_SUCCESS
+                fi
+            fi
+
+            coverage xml
             # Check if the plugin name is in the isolated_plugins list and uninstall it
             for plugin in "${isolated_plugins[@]}"; do
                 if [[ "$plugin_name" == "$plugin" ]]; then
