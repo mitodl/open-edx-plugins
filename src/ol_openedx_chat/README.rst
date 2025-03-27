@@ -36,7 +36,9 @@ Add the following configuration values to the config file in Open edX. For any r
 
 .. code-block::
 
-    LEARN_AI_API_URL: <LEARN_AI_API_URL>
+    MIT_LEARN_AI_API_URL: <MIT_LEARN_AI_API_URL>
+    MIT_LEARN_API_BASE_URL: <MIT_LEARN_API_BASE_URL>
+    MIT_LEARN_SUMMARY_FLASHCARD_URL: <MIT_LEARN_SUMMARY_FLASHCARD_URL>
 
 
 2. Add database record
@@ -55,7 +57,7 @@ This will generate a bundle for the remoteAiChatDrawer. This bundle will be used
 
 .. code-block:: sh
 
-   npm pack @mitodl/smoot-design@^3.4.0
+   npm pack @mitodl/smoot-design@^5.0.0
    tar -xvzf mitodl-smoot-design*.tgz
    mv package mitodl-smoot-design
 
@@ -67,9 +69,9 @@ The Unit is rendered inside an Iframe and we use postMessage to communicate betw
 
    import { getConfig } from '@edx/frontend-platform';
 
-   import * as remoteAiChatDrawer from "./mitodl-smoot-design/dist/bundles/remoteAiChatDrawer.umd.js";
+   import * as remoteTutorDrawer from "./mitodl-smoot-design/dist/bundles/remoteTutorDrawer.umd.js";
 
-   remoteAiChatDrawer.init({
+   remoteTutorDrawer.init({
        messageOrigin: getConfig().LMS_BASE_URL,
        transformBody: messages => ({ message: messages[messages.length - 1].content }),
    })

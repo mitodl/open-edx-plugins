@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import quote as urlquote
 
 import pkg_resources
 from django.conf import settings
@@ -9,6 +10,7 @@ from ol_openedx_chat.constants import (
     ENGLISH_LANGUAGE_TRANSCRIPT,
     MIT_AI_CHAT_URL_PATHS,
     PROBLEM_BLOCK_CATEGORY,
+    TUTOR_INITIAL_MESSAGES,
     VIDEO_BLOCK_CATEGORY,
 )
 from ol_openedx_chat.utils import (
@@ -123,15 +125,35 @@ class OLChatAside(XBlockAside):
                 )
 
         extra_context = {
-            "ask_tim_drawer_title": f"about {block.display_name}",
-            "user_id": self.runtime.user_id,
             "block_id": block_id,
-            "block_type": block_type,
-            "edx_module_id": block_usage_key,
-            "chat_api_url": f"{settings.LEARN_AI_API_URL}/{MIT_AI_CHAT_URL_PATHS[block_type]}",  # noqa: E501
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
-            "request_body": request_body,
+            "drawer_payload": {
+                "blockType": block_type,
+                "title": f"about {block.display_name}",
+                "chat": {
+                    "chatId": block_id,
+                    "initialMessages": TUTOR_INITIAL_MESSAGES,
+                    "apiUrl": f"{settings.MIT_LEARN_AI_API_URL}/{MIT_AI_CHAT_URL_PATHS[block_type]}",  # noqa: E501
+                    "requestBody": request_body,
+                    "userId": self.runtime.user_id,
+                },
+            },
         }
+
+        if block_type == VIDEO_BLOCK_CATEGORY and request_body.get(
+            "transcript_asset_id"
+        ):
+            url_quoted_transcript_id = urlquote(
+                str(request_body["transcript_asset_id"])
+            )
+            content_url = f"{settings.MIT_LEARN_SUMMARY_FLASHCARD_URL}?edx_module_id={url_quoted_transcript_id}"  # noqa: E501
+            extra_context["drawer_payload"].update(
+                {
+                    "summary": {
+                        "apiUrl": content_url,
+                    }
+                }
+            )
 
         fragment.initialize_js("AiChatAsideInit", json_args=extra_context)
         return fragment
