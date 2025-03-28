@@ -57,7 +57,7 @@ This will generate a bundle for the remoteAiChatDrawer. This bundle will be used
 
 .. code-block:: sh
 
-   npm pack @mitodl/smoot-design@^5.0.0
+   npm pack @mitodl/smoot-design@^6.0.0
    tar -xvzf mitodl-smoot-design*.tgz
    mv package mitodl-smoot-design
 
