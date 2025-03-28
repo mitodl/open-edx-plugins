@@ -102,7 +102,6 @@ run_plugin_tests() {
 # Check if a specific plugin name was provided
 plugin="$1"
 
-# Main loop to process each plugin
 set +e
 if [ -n "$plugin" ]; then
     # Run tests only for the specified plugin
