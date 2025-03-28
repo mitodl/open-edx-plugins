@@ -83,7 +83,7 @@ The Unit is rendered inside an Iframe and we use postMessage to communicate betw
 ----------------------
 6. In LMS, enable the ``ol_openedx_chat.ol_openedx_chat_enabled`` waffle flag at ``<LMS>/admin/waffle/flag/``
 ----------------------
-This will enable the ol_openedx_chat plugin for all courses. You can disable it and add a `Waffle Flag Course Override` at ``/admin/waffle_utils/waffleflagcourseoverridemodel/`` to enable it for a single course.
+This will enable the ol_openedx_chat plugin for all courses. You can disable it and add a ``Waffle Flag Course Override`` at ``/admin/waffle_utils/waffleflagcourseoverridemodel/`` to enable it for a single course.
 Once, enabled, you will see a checkbox below problem and video blocks in CMS. It is enabled by default.
 
 CMS View
@@ -92,13 +92,12 @@ CMS View
 
 7. Go to any course in CMS > Settings > Advanced Settings and add the below in "Other Course Settings"
 ----------------------
+.. code-block::
 
-   .. code-block::
+   {"OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true, "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true}
 
-      {"OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true, "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true}
-
-   `OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED` is used to enable/disable the VideoGPT for all videos. Similarly, `OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED` is used to enable/disable the AI Chat for all problems.
-   Once, these settings are added, you will see a Chat Button titled "AskTIM about this video/problem" in the LMS. Now AI Chat/VideoGPT is enabled for all videos and problems.
+``OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED`` is used to enable/disable the VideoGPT for all videos. Similarly, ``OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED`` is used to enable/disable the AI Chat for all problems.
+Once, these settings are added, you will see a Chat Button titled "AskTIM about this video/problem" in the LMS. Now AI Chat/VideoGPT is enabled for all videos and problems.
 
 LMS View with AskTIM button
 
@@ -110,7 +109,7 @@ LMS Chat Drawer View
 
 9. Disable it for a single block
 ----------------------
-If you want to disable it for a few videos/problems then you disable the `Enable AI Chat Assistant` checkbox against the block in CMS.
+If you want to disable it for a few videos/problems then you disable the ``Enable AI Chat Assistant`` checkbox against the block in CMS.
 
 Documentation
 =============
