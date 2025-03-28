@@ -1,4 +1,4 @@
-Open edX auth companion
+Open edX Auth Companion
 =======================
 
 An Open edX plugin that redirects users from edx-platform to MIT applications

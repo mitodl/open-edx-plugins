@@ -1,4 +1,4 @@
-edx-sysadmin
+edX Sysadmin
 =============================
 
 This is a django app plugin extracted from `edx-platform <https://github.com/edx/edx-platform>`_ which enables certian users to perform some specific operations in Open edX environment (which are described under ``Features`` section below).
