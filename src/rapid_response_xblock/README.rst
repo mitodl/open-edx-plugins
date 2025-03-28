@@ -1,4 +1,4 @@
-rapid-response-xblock
+Rapid Response xBlock
 =====================
 
 A django app plugin for edx-platform

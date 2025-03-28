@@ -1,3 +1,5 @@
+Git Auto Export Plugin
+######################
 
 Installation
 ============

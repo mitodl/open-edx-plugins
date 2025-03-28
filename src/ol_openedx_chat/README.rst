@@ -1,7 +1,7 @@
 
 
 
-ol-openedx-chat
+OL Openedx Chat
 ###############
 
 An xBlock aside to add MIT Open Learning chat into xBlocks.
