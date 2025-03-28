@@ -84,26 +84,26 @@ Tutor
 
   1. Clone, mount and build the plugins:
 
-  .. code-block:: bash
+     .. code-block:: bash
 
-    git clone https://github.com/mitodl/open-edx-plugins/
-    tutor mounts add lms,cms:/path/to/open-edx-plugins:/openedx/open-edx-plugins
-    cd open-edx-plugins
-    pants package ::
+        git clone https://github.com/mitodl/open-edx-plugins/
+        tutor mounts add lms,cms:/path/to/open-edx-plugins:/openedx/open-edx-plugins
+        cd open-edx-plugins
+        pants package ::
 
   2. Rebuild and launch Tutor:
 
-  .. code-block:: bash
+     .. code-block:: bash
 
-    tutor images build openedx-dev
-    tutor dev launch --skip-build
+        tutor images build openedx-dev
+        tutor dev launch --skip-build
 
   3. Install the package:
 
-  .. code-block:: bash
+     .. code-block:: bash
 
-    tutor dev exec lms/cms bash
-    pip install /openedx/open-edx-plugins/dist/[package-filename]
+        tutor dev exec lms/cms bash
+        pip install /openedx/open-edx-plugins/dist/[package-filename]
 
   Note: The package filename in the dist/ directory will include the plugin name, version number, and other information (e.g., edx-sysadmin-0.3.0.tar.gz). Make sure to check the dist/ directory for the exact filename before installation.
 
@@ -122,22 +122,22 @@ Running Integration tests
 
 1. Access the container:
 
-.. code-block:: bash
-  
-  tutor dev exec lms/cms bash
+   .. code-block:: bash
+
+      tutor dev exec lms/cms bash
 
 2. Run the tests:
 
-- For all plugins:
-
-  .. code-block:: bash
-
-    ../openedx-plugins/run_edx_integration_tests.sh
-
-- For a specific plugin:
-
-  .. code-block:: bash
-
-    ../openedx-plugins/run_edx_integration_tests.sh <plugin-name>
+   - For all plugins:
+  
+     .. code-block:: bash
+  
+       ../open-edx-plugins/run_edx_integration_tests.sh
+  
+   - For a specific plugin:
+  
+     .. code-block:: bash
+  
+       ../open-edx-plugins/run_edx_integration_tests.sh <plugin-name>
 
 The script generates coverage reports in XML format and exits with a non-zero status if any tests fail.
