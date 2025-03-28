@@ -141,7 +141,8 @@ class OLChatAside(XBlockAside):
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
             "drawer_payload": {
                 "blockType": block_type,
-                "title": f"about {block.display_name}",
+                # Frontend will style AskTIM slightly
+                "title": f"AskTIM about {block.display_name}",
                 "chat": {
                     "chatId": block_id,
                     "initialMessages": TUTOR_INITIAL_MESSAGES,
