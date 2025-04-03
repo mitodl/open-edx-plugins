@@ -219,7 +219,7 @@ class OLChatAsideTests(ModuleStoreTestCase):
 
             expected_payload = {
                 "blockType": block_type,
-                "title": f"about {block.display_name}",
+                "title": f"AskTIM about {block.display_name}",
                 "chat": {
                     "chatId": block.usage_key.block_id,
                     "initialMessages": TUTOR_INITIAL_MESSAGES,
