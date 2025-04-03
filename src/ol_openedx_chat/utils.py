@@ -3,6 +3,7 @@
 
 from lms.djangoapps.courseware.courses import get_course_by_id
 from ol_openedx_chat.constants import BLOCK_TYPE_TO_SETTINGS, CHAT_APPLICABLE_BLOCKS
+from opaque_keys.edx.locator import CourseLocator
 
 
 def is_aside_applicable_to_block(block):
@@ -20,7 +21,17 @@ def is_ol_chat_enabled_for_course(block):
     Returns:
         bool: True if OL Chat is enabled, False otherwise
     """
-    course = get_course_by_id(block.usage_key.course_key)
+    # This is kind of a hack for course import. During course import, the course_key
+    # string is in the format `{org}/{course_code}/{run_code}` and not in the format
+    # `course-v1:{org}+{course_code}+{run_code}`. This results in no course found.
+    if "/" in str(block.usage_key.course_key):
+        course_id = str(block.usage_key.course_key)
+        course_id = course_id.replace("/", "+")
+        course_id = CourseLocator.from_string(f"course-v1:{course_id}")
+    else:
+        course_id = block.usage_key.course_key
+
+    course = get_course_by_id(course_id)
     other_course_settings = course.other_course_settings
     block_type = getattr(block, "category", None)
     return other_course_settings.get(BLOCK_TYPE_TO_SETTINGS.get(block_type))
