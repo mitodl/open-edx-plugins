@@ -67,7 +67,7 @@ functionality for a problem through course outline in CMS. Enable
 
    - ENABLE_RAPID_RESPONSE_AUTHOR_VIEW: true or false
 
-\__NOTE: Once this flag is enabled and you toggle the rapid response
+\NOTE: Once this flag is enabled and you toggle the rapid response
 from course outline, It will auto publish the problem if it was not in
 draft.
 
