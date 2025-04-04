@@ -42,7 +42,7 @@ run_plugin_tests() {
     # Check if tests directory exists
     if [ ! -d "$tests_directory" ]; then
         return 0
-    fi 
+    fi
 
     # Installing the plugin
     plugin_name=$(basename "$plugin_dir" | sed 's/src\///' | sed 's/_/-/g')

@@ -129,15 +129,15 @@ Running Integration tests
 2. Run the tests:
 
    - For all plugins:
-  
+
      .. code-block:: bash
-  
+
        ../open-edx-plugins/run_edx_integration_tests.sh
-  
+
    - For a specific plugin:
-  
+
      .. code-block:: bash
-  
+
        ../open-edx-plugins/run_edx_integration_tests.sh <plugin-name>
 
 The script generates coverage reports in XML format and exits with a non-zero status if any tests fail.
