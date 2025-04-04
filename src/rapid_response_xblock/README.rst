@@ -38,8 +38,6 @@ If you’re using any release from Juniper onward, make sure the following prope
 
    - ALLOW_ALL_ADVANCED_COMPONENTS: true
 
-For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
-
 Any release before Juniper
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -69,9 +67,12 @@ functionality for a problem through course outline in CMS. Enable
 
    - ENABLE_RAPID_RESPONSE_AUTHOR_VIEW: true or false
 
-\__NOTE:__Once this flag is enabled and you toggle the rapid response
+\__NOTE: Once this flag is enabled and you toggle the rapid response
 from course outline, It will auto publish the problem if it was not in
 draft.
+
+For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
+
 
 3) Add database record
 ~~~~~~~~~~~~~~~~~~~~~~

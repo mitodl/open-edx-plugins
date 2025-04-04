@@ -58,7 +58,7 @@ A sample request looks like below:
 
 ::
 
-    http://localhost:18000/checkout-external?sku=ABC45F
+    http://local.openedx.io:8000/checkout-external?sku=ABC45F
 
 
 API Response
