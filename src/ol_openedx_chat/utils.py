@@ -21,15 +21,12 @@ def is_ol_chat_enabled_for_course(block):
     Returns:
         bool: True if OL Chat is enabled, False otherwise
     """
-    # This is kind of a hack for course import. During course import, the course_key
-    # string is in the format `{org}/{course_code}/{run_code}` and not in the format
-    # `course-v1:{org}+{course_code}+{run_code}`. This results in no course found.
-    if "/" in str(block.usage_key.course_key):
-        course_id = str(block.usage_key.course_key)
-        course_id = course_id.replace("/", "+")
-        course_id = CourseLocator.from_string(f"course-v1:{course_id}")
-    else:
-        course_id = block.usage_key.course_key
+    # During course import, the course_key uses older format `{org}/{course}/{run}`
+    # as explained in `edx-platform/xmodule/modulestore/xml.py:XMLModuleStore.get_id`.
+    # It results in no course found. We convert it to latest course key.
+    course_id = block.usage_key.course_key
+    if course_id.deprecated:
+        course_id = CourseLocator(course_id.org, course_id.course, course_id.run)
 
     course = get_course_by_id(course_id)
     other_course_settings = course.other_course_settings
