@@ -63,6 +63,12 @@ class OLChatTestCase(ModuleStoreTestCase):
             display_name="My Video",
             user_id=self.user.id,
         )
+        self.html_block = BlockFactory.create(
+            category="html",
+            parent_location=self.vertical.location,
+            display_name="An HTML Block",
+            user_id=self.user.id,
+        )
 
         self.aside_name = "ol_openedx_chat"
         self.problem_aside_instance = self.create_aside(PROBLEM_BLOCK_CATEGORY)

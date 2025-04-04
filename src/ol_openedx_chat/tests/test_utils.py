@@ -3,12 +3,13 @@
 from unittest.mock import patch
 
 from ddt import data, ddt, unpack
-from ol_openedx_chat.tests.utils import OLChatTestCase
 from ol_openedx_chat.utils import (
     is_aside_applicable_to_block,
     is_ol_chat_enabled_for_course,
 )
-from opaque_keys.edx.locator import CourseLocator
+from opaque_keys.edx.locator import BlockUsageLocator, CourseLocator
+from tests.utils import OLChatTestCase
+from xmodule.modulestore.tests.factories import BlockFactory
 
 
 @ddt
@@ -40,24 +41,37 @@ class OLChatUtilTests(OLChatTestCase):
         Test the is_ol_chat_enabled_for_course function
         """
         """Tests that `is_ol_chat_enabled_for_course` returns the expected value"""
-        with patch(
-            "ol_openedx_chat.utils.get_course_by_id", new=self.course
-        ) as mock_get_course_by_id:
-            mock_get_course_by_id.return_value.other_course_settings = {
+        with patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id:
+            self.course.other_course_settings = {
                 "OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": video_block_setting,
                 "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": problem_block_setting,
             }
+            mock_get_course_by_id.return_value = self.course
             block = (
                 self.problem_block if block_category == "problem" else self.video_block
             )
             if is_course_key_deprecated:
-                block.usage_key.course_key.deprecated = True
-                block.usage_key.course_key = CourseLocator(
+                course_key = CourseLocator(
                     block.usage_key.course_key.org,
                     block.usage_key.course_key.course,
                     block.usage_key.course_key.run,
+                    deprecated=True,
                 )
-            assert is_ol_chat_enabled_for_course(block) == expected_is_enabled
+                usage_key = BlockUsageLocator(
+                    course_key=course_key,
+                    block_type=block_category,
+                    block_id=block_category,
+                )
+                block = BlockFactory.create(
+                    category=block_category,
+                    parent_location=self.vertical.location,
+                    display_name=f"A {block_category} Block",
+                    user_id=self.user.id,
+                    location=usage_key,
+                )
+                assert is_ol_chat_enabled_for_course(block) == expected_is_enabled
+            else:
+                assert is_ol_chat_enabled_for_course(block) == expected_is_enabled
 
     @data(
         *[
@@ -69,5 +83,10 @@ class OLChatUtilTests(OLChatTestCase):
     @unpack
     def test_is_aside_applicable_to_block(self, block_category, is_aside_applicable):
         """Tests that `is_aside_applicable_to_block` returns the expected value"""
-        block = self.problem_block if block_category == "problem" else self.video_block
+        if block_category == "problem":
+            block = self.problem_block
+        elif block_category == "video":
+            block = self.video_block
+        elif block_category == "html":
+            block = self.html_block
         assert is_aside_applicable_to_block(block) == is_aside_applicable
