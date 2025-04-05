@@ -648,13 +648,13 @@ stevedore = "*"
 
 [[package]]
 name = "edx-drf-extensions"
-version = "10.5.0"
+version = "10.6.0"
 description = "edX extensions of Django REST Framework"
 optional = false
 python-versions = "*"
 files = [
-    {file = "edx_drf_extensions-10.5.0-py2.py3-none-any.whl", hash = "sha256:5102d5348652e229ee02bc04d300934ec9f331e9cc64936241cf960475d09a39"},
-    {file = "edx_drf_extensions-10.5.0.tar.gz", hash = "sha256:301706fc07a536dcdcba3c6d396af9c04fcaec216b15294b97124729b366c01a"},
+    {file = "edx_drf_extensions-10.6.0-py2.py3-none-any.whl", hash = "sha256:82603edc63f7f34a3d1ab024808320ad0e175e608484f392f3c76e594d7715d1"},
+    {file = "edx_drf_extensions-10.6.0.tar.gz", hash = "sha256:c633be6aeb615836a5cbb118b52311d87905942273fdb470bfcc1c95fd5f84b7"},
 ]
 
 [package.dependencies]
@@ -666,7 +666,7 @@ edx-django-utils = ">=3.8.0"
 edx-opaque-keys = "*"
 pyjwt = {version = ">=2.1.0", extras = ["crypto"]}
 requests = ">=2.7.0"
-semantic-version = "*"
+semantic_version = "*"
 
 [[package]]
 name = "edx-opaque-keys"
