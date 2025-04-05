@@ -1,4 +1,4 @@
-rapid-response-xblock
+Rapid Response xBlock
 =====================
 
 A django app plugin for edx-platform
@@ -31,9 +31,8 @@ container (``make dev.shell.lms``):
 Juniper release or more recent
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you’re using any release from Juniper onward, make sure the following
-property exists with the given value in ``/edx/etc/lms.yml`` and
-``/edx/etc/studio.yml``:
+If you’re using any release from Juniper onward, make sure the following property exists with the given value in ``/edx/etc/lms.yml`` and
+``/edx/etc/studio.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py`` and ``cms/envs/private.py``:
 
 .. code:: yaml
 
@@ -68,9 +67,12 @@ functionality for a problem through course outline in CMS. Enable
 
    - ENABLE_RAPID_RESPONSE_AUTHOR_VIEW: true or false
 
-\__NOTE:__Once this flag is enabled and you toggle the rapid response
+NOTE: Once this flag is enabled and you toggle the rapid response
 from course outline, It will auto publish the problem if it was not in
 draft.
+
+For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
+
 
 3) Add database record
 ~~~~~~~~~~~~~~~~~~~~~~
