@@ -22,7 +22,7 @@ def is_ol_chat_enabled_for_course(block):
         bool: True if OL Chat is enabled, False otherwise
     """
     # During course import, the course_key uses older format `{org}/{course}/{run}`
-    # as explained in `https://github.com/open-craft/edx-platform/blob/8ad4d081fbdc024ed08cd1477380b395d78bb051/common/lib/xmodule/xmodule/modulestore/xml.py#L573`.
+    # as explained in `https://github.com/openedx/edx-platform/blob/8ad4d081fbdc024ed08cd1477380b395d78bb051/common/lib/xmodule/xmodule/modulestore/xml.py#L573`.
     # We convert it to the latest course key if course_id is deprecated/old format.
     course_id = block.usage_key.course_key
     if course_id.deprecated:
