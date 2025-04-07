@@ -5,6 +5,17 @@ import pkg_resources
 from django.conf import settings
 from django.template import Context, Template
 from django.utils.translation import gettext_lazy as _
+from rest_framework import status as api_status
+from web_fragments.fragment import Fragment
+from webob.response import Response
+from xblock.core import XBlock, XBlockAside
+from xblock.fields import Boolean, Scope
+from xmodule.video_block.transcripts_utils import (
+    Transcript,
+    get_available_transcript_languages,
+)
+from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
+
 from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
 from ol_openedx_chat.constants import (
     ENGLISH_LANGUAGE_TRANSCRIPT,
@@ -17,16 +28,6 @@ from ol_openedx_chat.utils import (
     is_aside_applicable_to_block,
     is_ol_chat_enabled_for_course,
 )
-from rest_framework import status as api_status
-from web_fragments.fragment import Fragment
-from webob.response import Response
-from xblock.core import XBlock, XBlockAside
-from xblock.fields import Boolean, Scope
-from xmodule.video_block.transcripts_utils import (
-    Transcript,
-    get_available_transcript_languages,
-)
-from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 log = logging.getLogger(__name__)
 
