@@ -3,6 +3,7 @@
 
 from lms.djangoapps.courseware.courses import get_course_by_id
 from ol_openedx_chat.constants import BLOCK_TYPE_TO_SETTINGS, CHAT_APPLICABLE_BLOCKS
+from opaque_keys.edx.locator import CourseLocator
 
 
 def is_aside_applicable_to_block(block):
@@ -20,7 +21,14 @@ def is_ol_chat_enabled_for_course(block):
     Returns:
         bool: True if OL Chat is enabled, False otherwise
     """
-    course = get_course_by_id(block.usage_key.course_key)
+    # During course import, the course_key uses older format `{org}/{course}/{run}`
+    # as explained in `https://github.com/openedx/edx-platform/blob/8ad4d081fbdc024ed08cd1477380b395d78bb051/common/lib/xmodule/xmodule/modulestore/xml.py#L573`.
+    # We convert it to the latest course key if course_id is deprecated/old format.
+    course_id = block.usage_key.course_key
+    if course_id.deprecated:
+        course_id = CourseLocator(course_id.org, course_id.course, course_id.run)
+
+    course = get_course_by_id(course_id)
     other_course_settings = course.other_course_settings
     block_type = getattr(block, "category", None)
     return other_course_settings.get(BLOCK_TYPE_TO_SETTINGS.get(block_type))
