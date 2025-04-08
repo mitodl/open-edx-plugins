@@ -59,7 +59,7 @@ jobs:
           DIRECTORY="tutor"
           DEV="tutor_dev"
         fi
-        EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name $DEV run -v $PWD/../open-edx-plugins:/open-edx-plugins lms /open-edx-plugins/run_devstack_integration_tests.sh
+        EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name $DEV run -v $PWD/../open-edx-plugins:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh
 
     - name: Upload coverage to CodeCov
       uses: codecov/codecov-action@v5

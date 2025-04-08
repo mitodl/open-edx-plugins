@@ -1,4 +1,4 @@
-Open edX auth companion
+Open edX Auth Companion
 =======================
 
 An Open edX plugin that redirects users from edx-platform to MIT applications
@@ -30,4 +30,4 @@ Working
 --------
 * Install the plugin in the lms following the installation steps above.
 * Verify that you are not logged in on edx-platform.
-* Go to `localhost:18000`. You should be redirected to the ``MITX_REDIRECT_LOGIN_URL``
+* Go to `http://local.openedx.io:8000`. You should be redirected to the ``MITX_REDIRECT_LOGIN_URL``

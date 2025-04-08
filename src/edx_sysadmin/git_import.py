@@ -30,7 +30,7 @@ from xmodule.util.sandboxing import DEFAULT_PYTHON_LIB_FILENAME
 
 log = logging.getLogger(__name__)
 
-DEFAULT_GIT_REPO_DIR = "/edx/var/app/edxapp/git_course_repos"
+DEFAULT_GIT_REPO_DIR = "/openedx/course_repos"
 
 
 # pylint: disable=raise-missing-from

@@ -17,7 +17,7 @@ Installation required in:
 Configuration
 ------------
 
-The plugin offers multiple settings for customization:
+The plugin offers multiple settings for customization that can be set using the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py``.
 
 .. code-block:: python
 

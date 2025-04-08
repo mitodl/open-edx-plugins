@@ -21,7 +21,7 @@ The API supports a GET API call with two optional query parameters
 
 To call the API, it requires superuser account for GET request to ``<LMS_BASE>/api/courses/v0/<course_id>/``:
 
-The successful response for ``http://localhost:18000/api/course-structure/v0/course-v1:edX+DemoX+Demo_Course/`` would look like:
+The successful response for ``http://local.openedx.io:8000/api/course-structure/v0/course-v1:edX+DemoX+Demo_Course/`` would look like:
 
 .. code-block::
 
@@ -43,7 +43,8 @@ The successful response for ``http://localhost:18000/api/course-structure/v0/cou
     }
 
 
-The successful response for ``http://localhost:18000/api/course-structure/v0/course-v1:edX+DemoX+Demo_Course/?inherited_metadata=true&inherited_metadata_default=true`` would look like:
+The successful response for ``http://local.openedx.io:8000//api/course-structure/v0/course-v1:edX+DemoX+Demo_Course/?inherited_metadata=true&inherited_metadata_default=true`` would look like:
+
 .. code-block::
 
      {
