@@ -7,30 +7,35 @@ from ol_openedx_chat.utils import (
     is_aside_applicable_to_block,
     is_ol_chat_enabled_for_course,
 )
+from opaque_keys.edx.locator import BlockUsageLocator, CourseLocator
 from tests.utils import OLChatTestCase
+from xmodule.modulestore.tests.factories import BlockFactory
 
 
 @ddt
 class OLChatUtilTests(OLChatTestCase):
     @data(
         *[
-            ("problem", True, True, True),
-            ("problem", True, False, False),
-            ("problem", False, True, True),
-            ("problem", False, False, False),
-            ("video", True, True, True),
-            ("video", True, False, True),
-            ("video", False, True, False),
-            ("video", False, False, False),
+            ("problem", True, True, True, True),
+            ("problem", True, True, True, False),
+            ("problem", True, False, False, False),
+            ("problem", False, True, True, False),
+            ("problem", False, False, False, False),
+            ("video", True, True, True, True),
+            ("video", True, True, True, False),
+            ("video", True, False, True, False),
+            ("video", False, True, False, False),
+            ("video", False, False, False, False),
         ]
     )
     @unpack
-    def test_is_ol_chat_enabled_for_course(
+    def test_is_ol_chat_enabled_for_course(  # noqa: PLR0913
         self,
         block_category,
         video_block_setting,
         problem_block_setting,
         expected_is_enabled,
+        is_course_key_deprecated,
     ):
         """
         Test the is_ol_chat_enabled_for_course function
@@ -44,12 +49,34 @@ class OLChatUtilTests(OLChatTestCase):
             block = (
                 self.problem_block if block_category == "problem" else self.video_block
             )
-            assert is_ol_chat_enabled_for_course(block) == expected_is_enabled
+            if is_course_key_deprecated:
+                course_key = CourseLocator(
+                    block.usage_key.course_key.org,
+                    block.usage_key.course_key.course,
+                    block.usage_key.course_key.run,
+                    deprecated=True,
+                )
+                usage_key = BlockUsageLocator(
+                    course_key=course_key,
+                    block_type=block_category,
+                    block_id=block_category,
+                )
+                block = BlockFactory.create(
+                    category=block_category,
+                    parent_location=self.vertical.location,
+                    display_name=f"A {block_category} Block",
+                    user_id=self.user.id,
+                    location=usage_key,
+                )
+                assert is_ol_chat_enabled_for_course(block) == expected_is_enabled
+            else:
+                assert is_ol_chat_enabled_for_course(block) == expected_is_enabled
 
     @data("problem", "video")
     def test_is_ol_chat_enabled_for_course_when_no_course_found(self, block_category):
         """
-        Test the `is_ol_chat_enabled_for_course` function when `get_course_by_id` fails
+        Tests that `is_ol_chat_enabled_for_course` return
+        True when `get_course_by_id` fails
         """
         with patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id:
             mock_get_course_by_id.side_effect = Exception()
