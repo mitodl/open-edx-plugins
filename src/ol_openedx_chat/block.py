@@ -202,8 +202,14 @@ class OLChatAside(XBlockAside):
         instances, the problem type of the given block needs to be retrieved in
         different ways.
         """  # noqa: D401
+        # During the course import, this method is called and the block is not
+        # updated with the course information where it is being imported.
+        # In that case, we cannot check for the course settings and waffle flag.
+        # We only check for the block type. For normal CMS and LMS flows, it will
+        # check for the course settings and waffle flag.
         if isinstance(block.runtime, ImportSystem):
             return is_aside_applicable_to_block(block=block)
+
         return (
             get_ol_openedx_chat_enabled_flag().is_enabled(
                 block.scope_ids.usage_id.context_key

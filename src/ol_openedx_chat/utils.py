@@ -28,6 +28,9 @@ def is_ol_chat_enabled_for_course(block):
     if course_id.deprecated:
         course_id = CourseLocator(course_id.org, course_id.course, course_id.run)
 
+    # Sometimes we cannot find a course by the ID i.e. during course import.
+    # We return True in that case to avoid breaking the import process.
+    # This will work fine with LMS and CMS.
     try:
         course = get_course_by_id(course_id)
     except Exception:  # noqa: BLE001
