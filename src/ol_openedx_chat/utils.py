@@ -28,7 +28,11 @@ def is_ol_chat_enabled_for_course(block):
     if course_id.deprecated:
         course_id = CourseLocator(course_id.org, course_id.course, course_id.run)
 
-    course = get_course_by_id(course_id)
+    try:
+        course = get_course_by_id(course_id)
+    except Exception:  # noqa: BLE001
+        return True
+
     other_course_settings = course.other_course_settings
     block_type = getattr(block, "category", None)
     return other_course_settings.get(BLOCK_TYPE_TO_SETTINGS.get(block_type))
