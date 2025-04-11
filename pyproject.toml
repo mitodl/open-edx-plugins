@@ -1,9 +1,27 @@
-[tool.poetry]
+[project]
 name = "edx-extensions"
 version = "0.1.0"
 description = "Collection of plugins for extending and enhancing the functionality of the Open edX platform"
-authors = ["MIT Open Learning Engineering"]
+authors = [{ name = "MIT Open Learning Engineering" }]
+requires-python = ">=3.11,<3.13"
 license = "BSD-3-Clause"
+dependencies = [
+    "Django>4.0",
+    "celery>=4.4.7",
+    "djangorestframework>=3.14.0,<4",
+    "edx-django-utils>4.0.0",
+    "edx-drf-extensions>=10.0.0,<11",
+    "edx-opaque-keys>=2.5.1,<3",
+    "gitpython>=3.1.37,<4",
+    "python-json-logger>=2.0.2,<3",
+    "sentry-sdk>=2.0.0,<3",
+    "XBlock",
+    "social-auth-core>=4.5.4,<5",
+    "opentelemetry-distro",
+    "opentelemetry-instrumentation-django",
+    "opentelemetry-exporter-richconsole",
+    "opentelemetry-exporter-otlp-proto-http",
+]
 
 [tool.poetry.dependencies]
 python = ">=3.8"
@@ -14,7 +32,7 @@ edx-django-utils = ">4.0.0"
 edx-drf-extensions = "^10.0.0"
 edx-opaque-keys = "^2.5.1"
 gitpython = "^3.1.37"
-python-json-logger = "^3.0.0"
+python-json-logger = "^2.0.2"
 sentry-sdk = "^2.0.0"
 XBlock = "*"
 social-auth-core = "^4.5.4"
@@ -31,8 +49,32 @@ ruff = "^0.11.0"
 pytest-mock = "^3.14.0"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+# Defines the members of the uv workspace.
+# These are the paths to the directories containing the individual package pyproject.toml files.
+members = [
+    "src/edx_sysadmin",
+    "src/edx_username_changer",
+    "src/ol_openedx_canvas_integration",
+    "src/ol_openedx_chat",
+    "src/ol_openedx_checkout_external",
+    "src/ol_openedx_course_export",
+    "src/ol_openedx_course_structure_api",
+    "src/ol_openedx_git_auto_export",
+    "src/ol_openedx_logging",
+    "src/ol_openedx_otel_monitoring",
+    "src/ol_openedx_rapid_response_reports",
+    "src/ol_openedx_sentry",
+    "src/ol_social_auth",
+    "src/openedx_companion_auth",
+    "src/rapid_response_xblock",
+]
 
 [tool.ruff]
 target-version = "py38"
@@ -129,3 +171,4 @@ inline-quotes = "double"
 "tests/**" = ["S101"]
 "test_*.py" = ["S101"]
 "src/ol_openedx_rapid_response_reports/docs/conf.py" = ["ERA"]
+# Root pyproject.toml for managing the workspace with uv

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ol-openedx-sentry"
+version = "0.2.1"
+description = "An Open edX plugin to enable error tracking with Sentry"
+license = "BSD-3-Clause"
+requires-python = ">=3.8"
+keywords = ["Python", "edx", "sentry", "error-tracking"]
+classifiers = [
+  "Framework :: Django",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+]
+
+[project.entry-points."lms.djangoapp"]
+ol_openedx_sentry = "ol_openedx_sentry.app:EdxSentry"
+
+[project.entry-points."cms.djangoapp"]
+ol_openedx_sentry = "ol_openedx_sentry.app:EdxSentry"
+
+[tool.hatch.build]
+include = [
+    "*.py",
+    "settings/**/*.py",
+]
+# Ensure package data is included
+[tool.hatch.build.targets.wheel]
+packages = ["."]
