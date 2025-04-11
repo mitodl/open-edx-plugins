@@ -21,23 +21,54 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python_version }}
+        cache: 'pip' # Cache pip dependencies
 
-    - name: Set up Pants
+    - name: Install uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    - name: Install build tool and dependencies
       run: |
-        # Install Pants
-        export PATH=$PATH:/root/.local/bin
-        curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
-        pants package ::
+        # Install the build tool
+        uv pip install --system build
+        # Install dev dependencies defined in the root pyproject.toml (if any)
+        # uv pip sync --dev # Uncomment if you have [tool.uv.dev-dependencies]
+
+    - name: Build all packages
+      run: |
+        # Iterate through workspace members and build each one
+        # Extract members from root pyproject.toml (requires toml parser like yq or similar, or hardcode)
+        # For simplicity, listing them explicitly based on pyproject.toml:
+        PACKAGES=(
+            "src/edx_sysadmin"
+            "src/edx_username_changer"
+            "src/ol_openedx_canvas_integration"
+            "src/ol_openedx_chat"
+            "src/ol_openedx_checkout_external"
+            "src/ol_openedx_course_export"
+            "src/ol_openedx_course_structure_api"
+            "src/ol_openedx_git_auto_export"
+            "src/ol_openedx_logging"
+            "src/ol_openedx_otel_monitoring"
+            "src/ol_openedx_rapid_response_reports"
+            "src/ol_openedx_sentry"
+            "src/ol_social_auth"
+            "src/openedx_companion_auth"
+            "src/rapid_response_xblock"
+        )
+        for pkg_dir in "${PACKAGES[@]}"; do
+          echo "Building $pkg_dir..."
+          python -m build "$pkg_dir"
+        done
 
     - name: Install tutor
       run: |
         if [[ "${{ matrix.edx_branch }}" == "open-release/redwood.master" ]]; then
-          pip install tutor==18.2.2
+          uv pip install --system tutor==18.2.2
         elif [[ "${{ matrix.edx_branch }}" == "master" ]]; then
           git clone --branch=main https://github.com/overhangio/tutor.git
-          pip install -e "./tutor"
+          uv pip install --system -e "./tutor"
         else
-          pip install tutor==19.0.0
+          uv pip install --system tutor==19.0.0
         fi
 
     - name: Set up tutor with edx-platform

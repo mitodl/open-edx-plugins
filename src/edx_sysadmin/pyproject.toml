@@ -1,0 +1,51 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "edx-sysadmin"
+version = "0.3.0"
+description = "An Open edX plugin to enable SysAdmin panel"
+license = "BSD-3-Clause"
+requires-python = ">=3.8"
+authors = [
+  { name = "MIT Office of Digital Learning" },
+]
+keywords = ["Python", "edx"]
+classifiers = [
+  "Framework :: Django",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+]
+
+# Dependencies inferred from Pants BUILD dependencies (adjust if needed)
+# dependencies = [
+#    "django>=3.2", # Example, add actual dependencies if known
+# ]
+
+[project.entry-points."lms.djangoapp"]
+edx_sysadmin = "edx_sysadmin.apps:EdxSysAdminConfig"
+
+[project.entry-points."cms.djangoapp"]
+edx_sysadmin = "edx_sysadmin.apps:EdxSysAdminConfig"
+
+[tool.hatch.build]
+include = [
+    # Python source files
+    "*.py",
+    "api/**/*.py",
+    "conf/locale/**/*.yaml",
+    "management/commands/**/*.py",
+    "migrations/**/*.py",
+    "settings/**/*.py",
+    "templatetags/**/*.py",
+    "utils/**/*.py",
+    # Static assets & templates
+    "static/**",
+    "templates/**",
+]
+# Ensure package data is included
+[tool.hatch.build.targets.wheel]
+packages = ["."]

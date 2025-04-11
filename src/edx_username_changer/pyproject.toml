@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "edx-username-changer"
+version = "0.3.2"
+description = "An edX plugin to change username of edx accounts through admin panel"
+license = "BSD-3-Clause"
+requires-python = ">=3.8"
+authors = [
+  { name = "MIT Office of Digital Learning" },
+]
+keywords = ["Python", "edx"]
+classifiers = [
+  "Framework :: Django",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+]
+
+[project.entry-points."lms.djangoapp"]
+edx_username_changer = "edx_username_changer.apps:EdxUsernameChangerConfig"
+
+[project.entry-points."cms.djangoapp"]
+edx_username_changer = "edx_username_changer.apps:EdxUsernameChangerConfig"
+
+[tool.hatch.build]
+include = [
+    "*.py",
+    "settings/**/*.py",
+]
+# Ensure package data is included (if any non-code files exist)
+[tool.hatch.build.targets.wheel]
+packages = ["."]

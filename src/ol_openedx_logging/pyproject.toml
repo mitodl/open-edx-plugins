@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ol-openedx-logging"
+version = "0.1.0"
+description = "An Open edX plugin to customize the logging configuration used by the edx-platform application"
+license = "BSD-3-Clause"
+requires-python = ">=3.8"
+keywords = ["Python", "edx", "logging"]
+classifiers = [
+  "Framework :: Django",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+]
+
+# Dependencies inferred from Pants BUILD (adjust if needed)
+dependencies = [
+   "python-json-logger",
+]
+
+[project.entry-points."lms.djangoapp"]
+ol_openedx_logging = "ol_openedx_logging.app:EdxLoggingLMS"
+
+[project.entry-points."cms.djangoapp"]
+ol_openedx_logging = "ol_openedx_logging.app:EdxLoggingCMS"
+
+[tool.hatch.build]
+include = [
+    "*.py",
+    "settings/**/*.py",
+]
+# Ensure package data is included
+[tool.hatch.build.targets.wheel]
+packages = ["."]

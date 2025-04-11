@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rapid-response-xblock"
+version = "0.9.1"
+description = "An Open edX plugin to add rapid response aside for problem xBlocks"
+license = "BSD-3-Clause"
+requires-python = ">=3.8"
+authors = [
+  { name = "MIT Office of Digital Learning" },
+]
+keywords = ["Python", "edx", "xblock", "rapid-response"]
+classifiers = [
+  "Framework :: Django",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+]
+
+[project.entry-points."xblock_asides.v1"]
+rapid_response_xblock = "rapid_response_xblock.block:RapidResponseAside"
+
+[project.entry-points."lms.djangoapp"]
+rapid_response_xblock = "rapid_response_xblock.apps:RapidResponseAppConfig"
+
+[project.entry-points."cms.djangoapp"]
+rapid_response_xblock = "rapid_response_xblock.apps:RapidResponseAppConfig"
+
+[tool.hatch.build]
+include = [
+    "*.py",
+    "migrations/**/*.py",
+    "settings/**/*.py",
+    "static/**", # Includes js, css, html subdirs
+    "tests/**/*.py", # Assuming tests should be included based on BUILD structure
+]
+# Ensure package data is included
+[tool.hatch.build.targets.wheel]
+packages = ["."]

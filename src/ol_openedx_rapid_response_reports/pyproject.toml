@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ol-openedx-rapid-response-reports"
+version = "0.3.0"
+description = "An Open edX plugin to add rapid response reports support"
+license = "BSD-3-Clause"
+requires-python = ">=3.8"
+keywords = ["Python", "edx", "rapid-response", "reports"]
+classifiers = [
+  "Framework :: Django",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+]
+
+[project.entry-points."lms.djangoapp"]
+ol_openedx_rapid_response_reports = "ol_openedx_rapid_response_reports.app:RapidResponsePluginConfig"
+
+# cms.djangoapp entry point was empty in BUILD
+
+[tool.hatch.build]
+include = [
+    "*.py",
+    "docs/**/*.py", # Include docs source based on BUILD structure
+    "settings/**/*.py",
+    "templates/**",
+]
+# Ensure package data is included
+[tool.hatch.build.targets.wheel]
+packages = ["."]
