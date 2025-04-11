@@ -8,30 +8,6 @@ Installation Guide
 
 You can install any plugin from this collection using one of the following methods:
 
-Devstack
-~~~~~~~~
-
-- Option 1: Install from PyPI
-
-  The simplest way to install a plugin in Devstack is directly from PyPI. If you're running devstack in Docker, first open a shell as per requirement and then install the desired plugin using pip:
-
-  .. code-block:: bash
-
-    # For LMS or CMS installation
-    make lms-shell  # For LMS
-    make cms-shell  # For Studio (CMS) installation
-
-    pip install <plugin-name>  # Replace `<plugin-name>` with the specific plugin you want to install
-
-- Option 2: Build the package locally and install it
-
-  Follow these steps in a terminal on your machine:
-
-  1. Navigate to the ``open-edx-plugins`` directory
-  2. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all plugins
-  3. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS or CMS containers)
-  4. Run a shell in the machine/container running Open edX, and install the plugin using pip
-
 Tutor
 ~~~~~
 
@@ -91,14 +67,7 @@ Tutor
         cd open-edx-plugins
         pants package ::
 
-  2. Rebuild and launch Tutor:
-
-     .. code-block:: bash
-
-        tutor images build openedx-dev
-        tutor dev launch --skip-build
-
-  3. Install the package:
+  2. Install the package:
 
      .. code-block:: bash
 
@@ -120,6 +89,11 @@ Testing Guide
 Running Integration tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
+**Note:** If you have followed the above installation steps, your local ``open-edx-plugins`` clone
+is mounted at ``/openedx/open-edx-plugins`` in the LMS,CMS containers. This path is used to run the
+tests script in the below commands. If you have mounted ``open-edx-plugins`` at a different path,
+please adjust the commands accordingly.
+
 1. Access the container:
 
    .. code-block:: bash
@@ -132,12 +106,12 @@ Running Integration tests
 
      .. code-block:: bash
 
-       ../open-edx-plugins/run_edx_integration_tests.sh
+       /openedx/open-edx-plugins/run_edx_integration_tests.sh
 
    - For a specific plugin:
 
      .. code-block:: bash
 
-       ../open-edx-plugins/run_edx_integration_tests.sh <plugin-name>
+       /openedx/open-edx-plugins/run_edx_integration_tests.sh <plugin-name>
 
 The script generates coverage reports in XML format and exits with a non-zero status if any tests fail.
