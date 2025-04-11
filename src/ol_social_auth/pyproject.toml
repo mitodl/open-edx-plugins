@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ol-social-auth"
+version = "0.1.0"
+description = "An Open edX plugin implementing MIT social auth backend"
+license = "BSD-3-Clause"
+requires-python = ">=3.8"
+authors = [
+  { name = "MIT Office of Digital Learning" },
+]
+keywords = ["Python", "edx", "social-auth", "authentication"]
+classifiers = [
+  "Framework :: Django",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+]
+
+# Dependencies inferred from Pants BUILD (adjust if needed)
+dependencies = [
+   "social-auth-core",
+]
+
+# No entry points defined in BUILD
+
+[tool.hatch.build]
+include = [
+    "*.py",
+    "tests/**/*.py", # Assuming tests should be included based on BUILD structure
+]
+# Ensure package data is included
+[tool.hatch.build.targets.wheel]
+packages = ["."]
