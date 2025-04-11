@@ -40,7 +40,6 @@ class OLChatUtilTests(OLChatTestCase):
         """
         Test the is_ol_chat_enabled_for_course function
         """
-        """Tests that `is_ol_chat_enabled_for_course` returns the expected value"""
         with patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id:
             self.course.other_course_settings = {
                 "OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": video_block_setting,
@@ -72,6 +71,19 @@ class OLChatUtilTests(OLChatTestCase):
                 assert is_ol_chat_enabled_for_course(block) == expected_is_enabled
             else:
                 assert is_ol_chat_enabled_for_course(block) == expected_is_enabled
+
+    @data("problem", "video")
+    def test_is_ol_chat_enabled_for_course_when_no_course_found(self, block_category):
+        """
+        Tests that `is_ol_chat_enabled_for_course` return
+        True when `get_course_by_id` fails
+        """
+        with patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id:
+            mock_get_course_by_id.side_effect = Exception()
+            block = (
+                self.problem_block if block_category == "problem" else self.video_block
+            )
+            assert is_ol_chat_enabled_for_course(block)
 
     @data(
         *[

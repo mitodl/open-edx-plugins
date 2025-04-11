@@ -18,6 +18,7 @@ from openedx.core.djangolib.testing.utils import skip_unless_cms, skip_unless_lm
 from tests.utils import OLChatTestCase
 from xblock.core import XBlockAside
 from xmodule.modulestore import ModuleStoreEnum
+from xmodule.modulestore.xml import ImportSystem
 
 
 @ddt
@@ -199,22 +200,25 @@ class OLChatAsideTests(OLChatTestCase):
 
     @data(
         *[
-            [PROBLEM_BLOCK_CATEGORY, True, True, True],
-            [PROBLEM_BLOCK_CATEGORY, False, True, False],
-            [PROBLEM_BLOCK_CATEGORY, True, False, False],
-            [PROBLEM_BLOCK_CATEGORY, False, False, False],
-            [VIDEO_BLOCK_CATEGORY, True, True, True],
-            [VIDEO_BLOCK_CATEGORY, False, True, False],
-            [VIDEO_BLOCK_CATEGORY, True, False, False],
-            [VIDEO_BLOCK_CATEGORY, False, False, False],
+            [PROBLEM_BLOCK_CATEGORY, True, True, True, True],
+            [PROBLEM_BLOCK_CATEGORY, False, True, False, False],
+            [PROBLEM_BLOCK_CATEGORY, True, False, False, False],
+            [PROBLEM_BLOCK_CATEGORY, False, False, False, False],
+            [PROBLEM_BLOCK_CATEGORY, False, False, True, True],
+            [VIDEO_BLOCK_CATEGORY, True, True, True, True],
+            [VIDEO_BLOCK_CATEGORY, False, True, False, False],
+            [VIDEO_BLOCK_CATEGORY, True, False, False, False],
+            [VIDEO_BLOCK_CATEGORY, False, False, False, False],
+            [VIDEO_BLOCK_CATEGORY, False, False, True, True],
         ]
     )
     @unpack
-    def test_should_apply_to_block(
+    def test_should_apply_to_block(  # noqa: PLR0913
         self,
         block_category,
         waffle_flag_enabled,
         other_course_setting_enabled,
+        is_import_runtime,
         should_apply,
     ):
         """
@@ -241,6 +245,10 @@ class OLChatAsideTests(OLChatTestCase):
                 if block_category == PROBLEM_BLOCK_CATEGORY
                 else self.video_block
             )
+
+            if is_import_runtime:
+                block.runtime = Mock(spec=ImportSystem)
+
             aside_instance = (
                 self.problem_aside_instance
                 if block_category == PROBLEM_BLOCK_CATEGORY
