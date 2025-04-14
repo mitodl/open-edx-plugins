@@ -6,10 +6,13 @@ from crum import get_current_request
 from django.conf import settings
 from django.dispatch import receiver
 from django.template.defaultfilters import slugify
-from ol_openedx_git_auto_export.constants import ENABLE_AUTO_GITHUB_REPO_CREATION, ENABLE_GIT_AUTO_EXPORT
+from ol_openedx_git_auto_export.constants import (
+    ENABLE_AUTO_GITHUB_REPO_CREATION,
+    ENABLE_GIT_AUTO_EXPORT,
+)
 from ol_openedx_git_auto_export.tasks import async_export_to_git
-from xmodule.modulestore.django import SignalHandler, modulestore
 from openedx_events.content_authoring.signals import COURSE_CREATED
+from xmodule.modulestore.django import SignalHandler, modulestore
 
 from .utils import get_or_create_git_export_repo_dir
 
@@ -36,6 +39,7 @@ def listen_for_course_publish(
             course_key,
         )
         async_export_to_git.delay(str(course_key))
+
 
 @receiver(COURSE_CREATED)
 def listen_for_course_created(**kwargs):
@@ -74,7 +78,7 @@ def listen_for_course_created(**kwargs):
     }
     payload = {
         "name": course_id_slugified,
-        "description": f"Git repository for {str(course_id)}",
+        "description": f"Git repository for {course_id!s}",
         "private": True,
         "has_issues": False,
         "has_project": False,
@@ -94,7 +98,9 @@ def listen_for_course_created(**kwargs):
     repo_data = response.json()
     html_url = repo_data.get("html_url")
     if html_url:
-        html_url = html_url.replace("https://", f"https://{gh_access_token}:{gh_access_token}@")
+        html_url = html_url.replace(
+            "https://", f"https://{gh_access_token}:{gh_access_token}@"
+        )
         course_module.giturl = html_url
         CourseMetadata.validate_and_update_from_json(
             course_module,
