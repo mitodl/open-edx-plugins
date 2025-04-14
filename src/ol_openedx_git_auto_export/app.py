@@ -30,6 +30,11 @@ class GitAutoExportConfig(AppConfig):
                         PluginSignals.RECEIVER_FUNC_NAME: "listen_for_course_publish",
                         PluginSignals.SIGNAL_PATH: "xmodule.modulestore.django.COURSE_PUBLISHED",  # noqa: E501
                         PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_course_publish",  # noqa: E501
+                    },
+                    {
+                        PluginSignals.RECEIVER_FUNC_NAME: "listen_for_course_created",
+                        PluginSignals.SIGNAL_PATH: "openedx_events.content_authoring.signals.COURSE_CREATED",  # noqa: E501
+                        PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_course_created",  # noqa: E501
                     }
                 ],
             },
