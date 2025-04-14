@@ -1,6 +1,9 @@
 """Production settings unique to the git auto export plugin."""
 
-from ol_openedx_git_auto_export.constants import ENABLE_GIT_AUTO_EXPORT, ENABLE_AUTO_GITHUB_REPO_CREATION
+from ol_openedx_git_auto_export.constants import (
+    ENABLE_AUTO_GITHUB_REPO_CREATION,
+    ENABLE_GIT_AUTO_EXPORT,
+)
 
 
 def plugin_settings(settings):
