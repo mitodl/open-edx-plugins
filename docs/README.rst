@@ -92,7 +92,7 @@ Running Integration tests
 **Note:** If you have followed the above installation steps, your local ``open-edx-plugins`` clone
 is mounted at ``/openedx/open-edx-plugins`` in the LMS,CMS containers. This path is used to run the
 tests script in the below commands. If you have mounted ``open-edx-plugins`` at a different path,
-please adjust the commands accordingly. Also, update the path in ``run_edx_integration_tests.sh``.
+please adjust the commands accordingly and update the path in ``run_edx_integration_tests.sh``.
 
 1. Access the container:
 
