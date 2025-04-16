@@ -7,10 +7,12 @@ pwd
 
 mkdir -p reports
 
-pip install -r ./requirements/edx/testing.txt
+if [ $CI ]; then
+  pip install -r ./requirements/edx/testing.txt
 
-# Installing edx-platform
-pip install -e .
+  # Installing edx-platform
+  pip install -e .
+fi
 
 cp -r /openedx/staticfiles test_root/staticfiles
 
