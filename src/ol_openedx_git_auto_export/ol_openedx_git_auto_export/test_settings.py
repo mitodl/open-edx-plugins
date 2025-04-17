@@ -35,7 +35,9 @@ INSTALLED_APPS = (
 )
 
 LOCALE_PATHS = [
-    root("ol_openedx_git_auto_export", "conf", "locale"),
+    # The root function now points to the directory containing this file,
+    # so we only need the path relative to that.
+    root("conf", "locale"),
 ]
 
 ROOT_URLCONF = "ol_openedx_git_auto_export.urls"
