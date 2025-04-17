@@ -15,10 +15,11 @@ from ol_openedx_chat.constants import (
 )
 from opaque_keys.edx.asides import AsideUsageKeyV2
 from openedx.core.djangolib.testing.utils import skip_unless_cms, skip_unless_lms
-from tests.utils import OLChatTestCase
 from xblock.core import XBlockAside
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.xml import ImportSystem
+
+from tests.utils import OLChatTestCase
 
 
 @ddt

@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ol-openedx-otel-monitoring"
+version = "0.1.1"
+description = "OTel Monitoring"
+license = "BSD-3-Clause"
+requires-python = ">=3.8"
+keywords = ["Python", "edx", "opentelemetry", "otel", "monitoring"]
+classifiers = [
+  "Framework :: Django",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+]
+
+# Dependencies inferred from Pants BUILD (adjust if needed)
+dependencies = [
+   "opentelemetry-distro",
+   "opentelemetry-instrumentation-django",
+   "opentelemetry-exporter-richconsole",
+   "opentelemetry-exporter-otlp-proto-http",
+]
+
+[project.entry-points."lms.djangoapp"]
+ol_openedx_otel_monitoring = "ol_openedx_otel_monitoring.apps:OTelMonitoringConfig"
+
+[project.entry-points."cms.djangoapp"]
+ol_openedx_otel_monitoring = "ol_openedx_otel_monitoring.apps:OTelMonitoringConfig"
+
+[tool.hatch.build]
+include = [
+    "*.py",
+    "settings/**/*.py",
+]
+# Ensure package data is included
+[tool.hatch.build.targets.wheel]
+packages = ["."]
