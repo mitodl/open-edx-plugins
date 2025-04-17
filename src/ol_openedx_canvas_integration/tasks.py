@@ -8,6 +8,7 @@ from celery import shared_task
 from lms.djangoapps.instructor_task.api_helper import submit_task
 from lms.djangoapps.instructor_task.tasks_base import BaseInstructorTask
 from lms.djangoapps.instructor_task.tasks_helper.runner import run_main_task
+
 from ol_openedx_canvas_integration import task_helpers
 from ol_openedx_canvas_integration.constants import (
     TASK_TYPE_PUSH_EDX_GRADES_TO_CANVAS,

@@ -15,8 +15,6 @@ from django.conf import settings
 from django.test.client import Client
 from django.test.utils import override_settings
 from django.urls import reverse
-from edx_sysadmin.git_import import GitImportNoDirError
-from edx_sysadmin.models import CourseGitLog
 from opaque_keys.edx.locator import CourseLocator
 from openedx.core.djangolib.markup import Text
 from pytz import UTC
@@ -25,6 +23,9 @@ from xmodule.modulestore.tests.django_utils import (
     TEST_DATA_SPLIT_MODULESTORE,
     SharedModuleStoreTestCase,
 )
+
+from edx_sysadmin.git_import import GitImportNoDirError
+from edx_sysadmin.models import CourseGitLog
 
 
 class SysadminBaseTestCase(SharedModuleStoreTestCase):  # pragma: allowlist secret

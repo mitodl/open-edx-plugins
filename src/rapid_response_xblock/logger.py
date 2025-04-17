@@ -9,6 +9,7 @@ from common.djangoapps.track.backends import BaseBackend
 from django.db import transaction
 from opaque_keys.edx.keys import UsageKey
 from opaque_keys.edx.locator import CourseLocator
+
 from rapid_response_xblock.block import MULTIPLE_CHOICE_TYPE
 from rapid_response_xblock.models import (
     RapidResponseRun,
