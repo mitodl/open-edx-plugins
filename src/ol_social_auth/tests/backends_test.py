@@ -3,7 +3,6 @@
 from urllib.parse import urljoin
 
 import pytest
-
 from ol_social_auth.backends import OLOAuth2
 
 # pylint: disable=redefined-outer-name
