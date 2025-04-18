@@ -49,14 +49,6 @@ def listen_for_course_created(**kwargs):
     course_module = store.get_course(course_id, depth=0)
     user = get_current_request().user
     if not settings.FEATURES.get(ENABLE_AUTO_GITHUB_REPO_CREATION):
-        CourseMetadata.validate_and_update_from_json(
-            course_module,
-            {
-                "giturl": None,
-            },
-            user,
-        )
-        store.update_item(course_module, user.id)
         log.info(
             "GitHub repo creation is disabled. Skipping GitHub repo creation for course %s",
             course_id,
@@ -64,13 +56,13 @@ def listen_for_course_created(**kwargs):
         return
 
     gh_access_token = settings.GITHUB_ACCESS_TOKEN
-    if not settings.GITHUB_ORG or not gh_access_token:
+    if not settings.GITHUB_ORG_API_URL or not gh_access_token:
         log.error(
-            "GITHUB_ORG or GITHUB_ACCESS_TOKEN is not set in settings. Skipping GitHub repo creation."
+            "GITHUB_ORG_API_URL or GITHUB_ACCESS_TOKEN is not set in settings. Skipping GitHub repo creation."
         )
         return
 
-    url = f"https://api.github.com/orgs/{settings.GITHUB_ORG}/repos"
+    url = f"{settings.GITHUB_ORG_API_URL}/repos"
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {gh_access_token}",
@@ -94,18 +86,13 @@ def listen_for_course_created(**kwargs):
         )
         return
 
-    # Get the SSH URL of the created repository
     repo_data = response.json()
-    html_url = repo_data.get("html_url")
-    if html_url:
-        html_url = html_url.replace(
-            "https://", f"https://{gh_access_token}:{gh_access_token}@"
-        )
-        course_module.giturl = html_url
+    ssh_url = repo_data.get("ssh_url")
+    if ssh_url:
         CourseMetadata.validate_and_update_from_json(
             course_module,
             {
-                "giturl": html_url,
+                "giturl": {"value": ssh_url},
             },
             user,
         )
@@ -113,11 +100,11 @@ def listen_for_course_created(**kwargs):
         log.info(
             "GitHub repository created for course %s: %s",
             course_id,
-            html_url,
+            ssh_url,
         )
     else:
         log.error(
-            "Failed to retrieve SSH URL for GitHub repository for course %s",
+            "Failed to retrieve URL for GitHub repository for course %s",
             course_id,
         )
         return
