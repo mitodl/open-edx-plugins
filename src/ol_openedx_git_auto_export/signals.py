@@ -4,15 +4,18 @@ import requests
 from django.conf import settings
 from django.dispatch import receiver
 from django.template.defaultfilters import slugify
-from ol_openedx_git_auto_export.constants import ENABLE_AUTO_GITHUB_REPO_CREATION, ENABLE_GIT_AUTO_EXPORT
+from ol_openedx_git_auto_export.constants import (
+    ENABLE_AUTO_GITHUB_REPO_CREATION,
+    ENABLE_GIT_AUTO_EXPORT,
+)
 from ol_openedx_git_auto_export.tasks import async_export_to_git
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx_events.content_authoring.data import CourseData
 from openedx_events.content_authoring.signals import COURSE_CREATED
 from xmodule.modulestore.django import SignalHandler, modulestore
 
-from .utils import get_or_create_git_export_repo_dir
 from .models import CourseGitRepo
+from .utils import get_or_create_git_export_repo_dir
 
 log = logging.getLogger(__name__)
 
@@ -42,9 +45,10 @@ def listen_for_course_publish(
         # if course_overview.created and course_module.published_on has difference of less than 2 minutes
         # Consider creating Giturl for the course if it doesn't exist
         time_difference = course_module.published_on - course_overview.created
-        if time_difference.total_seconds() < 120 and not CourseGitRepo.objects.filter(
-            course_id=str(course_key)
-        ).exists():
+        if (
+            time_difference.total_seconds() < 120
+            and not CourseGitRepo.objects.filter(course_id=str(course_key)).exists()
+        ):
             log.info(
                 "Creating GitHub repository for course (Re-run) %s",
                 course_key,
@@ -52,6 +56,7 @@ def listen_for_course_publish(
             listen_for_course_created(course=CourseData(course_key=course_key))
 
         async_export_to_git.delay(str(course_key))
+
 
 @receiver(COURSE_CREATED)
 def listen_for_course_created(**kwargs):
@@ -87,7 +92,7 @@ def listen_for_course_created(**kwargs):
     }
     payload = {
         "name": course_id_slugified,
-        "description": f"Git repository for {str(course_id)}",
+        "description": f"Git repository for {course_id!s}",
         "private": True,
         "has_issues": False,
         "has_project": False,
