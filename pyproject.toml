@@ -22,6 +22,7 @@ opentelemetry-distro = "*"
 opentelemetry-instrumentation-django = "*"
 opentelemetry-exporter-richconsole = "*"
 opentelemetry-exporter-otlp-proto-http = "*"
+openedx-events = "9.14.0"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.0.0"

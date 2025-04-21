@@ -5,6 +5,7 @@ python_sources(
         "src/ol_openedx_git_auto_export/migrations:git_auto_export_migrations",
         "//:external_dependencies#edx-opaque-keys",
         "//:external_dependencies#celery",
+        "//:external_dependencies#openedx-events",
     ],
 )
 
