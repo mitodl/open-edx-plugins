@@ -10,6 +10,6 @@ def plugin_settings(settings):
     """Settings for the git auto export plugin."""  # noqa: D401
     settings.GIT_REPO_EXPORT_DIR = "/edx/var/edxapp/export_course_repos"
     settings.GITHUB_ORG_API_URL = "https://api.github.com/orgs/edx"
-    settings.GITHUB_ACCESS_TOKEN = "token"
+    settings.GITHUB_ACCESS_TOKEN = "token"  # noqa: S105
     settings.FEATURES[ENABLE_GIT_AUTO_EXPORT] = True
     settings.FEATURES[ENABLE_AUTO_GITHUB_REPO_CREATION] = False

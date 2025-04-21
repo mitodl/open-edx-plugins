@@ -11,10 +11,10 @@ class CourseGitRepo(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"CourseGitRepo(course_id={self.course_id}, git_url={self.git_url})"
-
     class Meta:
         verbose_name = "Course Git Repository"
         verbose_name_plural = "Course Git Repositories"
         ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"CourseGitRepo(course_id={self.course_id}, git_url={self.git_url})"

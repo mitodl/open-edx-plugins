@@ -41,12 +41,12 @@ def listen_for_course_publish(
         )
         course_overview = CourseOverview.get_from_id(course_key)
         course_module = modulestore().get_course(course_key)
-        # HACK: To create auto git repo for Re-runs as it does not emit COURSE_CREATED signal
-        # if course_overview.created and course_module.published_on has difference of less than 2 minutes
-        # Consider creating Giturl for the course if it doesn't exist
+        # To create auto git repo for Re-runs as it does not emit COURSE_CREATED signal
+        # if course created and published_on dates has difference of less
+        # than 2 minutes. Consider creating Giturl for the course if it doesn't exist
         time_difference = course_module.published_on - course_overview.created
         if (
-            time_difference.total_seconds() < 120
+            time_difference.total_seconds() < 120  # noqa: PLR2004
             and not CourseGitRepo.objects.filter(course_id=str(course_key)).exists()
         ):
             log.info(
@@ -64,7 +64,7 @@ def listen_for_course_created(**kwargs):
     course_id_slugified = slugify(str(course_id))
     if not settings.FEATURES.get(ENABLE_AUTO_GITHUB_REPO_CREATION):
         log.info(
-            "GitHub repo creation is disabled. Skipping GitHub repo creation for course %s",
+            "GitHub repo creation is disabled. Skipping GitHub repo creation for course %s",  # noqa: E501
             course_id,
         )
         return
@@ -80,7 +80,7 @@ def listen_for_course_created(**kwargs):
     gh_access_token = settings.GITHUB_ACCESS_TOKEN
     if not settings.GITHUB_ORG_API_URL or not gh_access_token:
         log.error(
-            "GITHUB_ORG_API_URL or GITHUB_ACCESS_TOKEN is not set in settings. Skipping GitHub repo creation."
+            "GITHUB_ORG_API_URL or GITHUB_ACCESS_TOKEN is not set in settings. Skipping GitHub repo creation."  # noqa: E501
         )
         return
 
@@ -99,8 +99,8 @@ def listen_for_course_created(**kwargs):
         "has_wiki": False,
         "auto_init": True,
     }
-    response = requests.post(url, headers=headers, json=payload)
-    if response.status_code != 201:
+    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    if response.status_code != 201:  # noqa: PLR2004
         log.error(
             "Failed to create GitHub repository for course %s: %s",
             course_id,
