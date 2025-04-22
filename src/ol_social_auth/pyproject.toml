@@ -29,8 +29,7 @@ dependencies = [
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "tests/**/*.py", # Assuming tests should be included based on BUILD structure
+    "ol_social_auth/**.py",
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

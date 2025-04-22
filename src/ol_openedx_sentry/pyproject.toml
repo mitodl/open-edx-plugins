@@ -25,8 +25,7 @@ ol_openedx_sentry = "ol_openedx_sentry.app:EdxSentry"
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
+    "ol_openedx_sentry/**.py",
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

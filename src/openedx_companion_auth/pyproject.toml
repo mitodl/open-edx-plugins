@@ -27,8 +27,7 @@ openedx_companion_auth = "openedx_companion_auth.apps:MITxCoreConfig"
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
+    "openedx_companion_auth/**.py",
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

@@ -30,8 +30,7 @@ ol_openedx_git_auto_export = "ol_openedx_git_auto_export.app:GitAutoExportConfig
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
+    "ol_openedx_git_auto_export/**.py",
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

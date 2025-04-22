@@ -28,8 +28,7 @@ edx_username_changer = "edx_username_changer.apps:EdxUsernameChangerConfig"
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
+    "edx_username_changer/**.py",
 ]
 # Ensure package data is included (if any non-code files exist)
 [tool.hatch.build.targets.wheel]

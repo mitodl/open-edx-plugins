@@ -24,8 +24,7 @@ ol_openedx_checkout_external = "ol_openedx_checkout_external.app:ExternalCheckou
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
+    "ol_openedx_checkout_external/**.py",
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

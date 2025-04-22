@@ -14,7 +14,6 @@ classifiers = [
   "License :: OSI Approved :: BSD License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
 ]
 
 [project.entry-points."lms.djangoapp"]
@@ -24,8 +23,7 @@ ol_openedx_course_structure_api = "ol_openedx_course_structure_api.app:CourseStr
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
+    "ol_openedx_course_structure_api/**.py",
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

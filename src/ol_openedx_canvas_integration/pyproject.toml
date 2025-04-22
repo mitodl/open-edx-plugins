@@ -24,10 +24,9 @@ ol_openedx_canvas_integration = "ol_openedx_canvas_integration.app:CanvasIntegra
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
-    "static/**",
-    "templates/**",
+    "ol_openedx_canvas_integration/**.py",
+    "ol_openedx_canvas_integration/static/**",
+    "ol_openedx_canvas_integration/templates/**",
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

@@ -1,3 +1,4 @@
+# ruff: noqa: ERA001
 """
 ol_openedx_rapid_response_reports documentation build configuration file.
 

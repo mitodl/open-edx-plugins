@@ -30,8 +30,7 @@ ol_openedx_logging = "ol_openedx_logging.app:EdxLoggingCMS"
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
+    "ol_openedx_logging/**.py",
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

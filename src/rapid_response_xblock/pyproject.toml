@@ -31,11 +31,8 @@ rapid_response_xblock = "rapid_response_xblock.apps:RapidResponseAppConfig"
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "migrations/**/*.py",
-    "settings/**/*.py",
-    "static/**", # Includes js, css, html subdirs
-    "tests/**/*.py", # Assuming tests should be included based on BUILD structure
+    "rapid_response_xblock/**.py",
+    "rapid_response_xblock/static/**", # Includes js, css, html subdirs
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

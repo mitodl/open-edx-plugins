@@ -24,8 +24,7 @@ ol_openedx_course_export = "ol_openedx_course_export.app:CourseExportConfig"
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
+    "ol_openedx_course_export/**.py",
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

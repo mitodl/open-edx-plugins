@@ -31,10 +31,8 @@ ol_openedx_chat = "ol_openedx_chat.apps:OLOpenedxChatConfig"
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
-    "static/**", # Includes js, css, html, images subdirs
-    "tests/**/*.py", # Assuming tests should be included based on BUILD structure
+    "ol_openedx_chat/**.py",
+    "ol_openedx_chat/static/**", # Includes js, css, html, images subdirs
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]

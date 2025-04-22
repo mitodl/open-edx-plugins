@@ -33,8 +33,7 @@ ol_openedx_otel_monitoring = "ol_openedx_otel_monitoring.apps:OTelMonitoringConf
 
 [tool.hatch.build]
 include = [
-    "*.py",
-    "settings/**/*.py",
+    "ol_openedx_otel_monitoring/**.py",
 ]
 # Ensure package data is included
 [tool.hatch.build.targets.wheel]
