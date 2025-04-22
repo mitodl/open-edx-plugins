@@ -3,6 +3,7 @@ python_sources(
     dependencies=[
         "src/ol_openedx_git_auto_export/settings:git_auto_export_settings",
         "src/ol_openedx_git_auto_export/migrations:git_auto_export_migrations",
+        "src/ol_openedx_git_auto_export/management/commands:git_auto_export_management_commands",
         "//:external_dependencies#edx-opaque-keys",
         "//:external_dependencies#celery",
         "//:external_dependencies#openedx-events",
