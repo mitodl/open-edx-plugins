@@ -89,10 +89,10 @@ Testing Guide
 Running Integration tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Note:** If you have followed the above installation steps, your local ``open-edx-plugins`` clone  
-should be mounted at ``/openedx/open-edx-plugins`` in both `LMS` and `CMS` containers. This path is used to run the  
-tests script in the below commands. If you have mounted ``open-edx-plugins`` at a different path,  
-please update the path in ``run_edx_integration_tests.sh``. 
+**Note:** If you have followed the above installation steps, your local ``open-edx-plugins`` clone
+should be mounted at ``/openedx/open-edx-plugins`` in both `LMS` and `CMS` containers. This path is used to run the
+tests script in the below commands. If you have mounted ``open-edx-plugins`` at a different path,
+please update the path in ``run_edx_integration_tests.sh``.
 
 1. Access the container:
 
