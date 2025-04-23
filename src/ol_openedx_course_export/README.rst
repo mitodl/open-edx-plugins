@@ -18,7 +18,7 @@ Configuration
 
 **1) edx-platform configuration**
 
-- You might need to add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py``. These should be added to the top level. **Ask a fellow developer or devops for these values.**
+- You might need to add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/cms.yml``. If you're using ``private.py``, add these values to ``cms/envs/private.py``. These should be added to the top level. **Ask a fellow developer or devops for these values.**
 
   .. code-block::
 
