@@ -8,30 +8,6 @@ Installation Guide
 
 You can install any plugin from this collection using one of the following methods:
 
-Devstack
-~~~~~~~~
-
-- Option 1: Install from PyPI
-
-  The simplest way to install a plugin in Devstack is directly from PyPI. If you're running devstack in Docker, first open a shell as per requirement and then install the desired plugin using pip:
-
-  .. code-block:: bash
-
-    # For LMS or CMS installation
-    make lms-shell  # For LMS
-    make cms-shell  # For Studio (CMS) installation
-
-    pip install <plugin-name>  # Replace `<plugin-name>` with the specific plugin you want to install
-
-- Option 2: Build the package locally and install it
-
-  Follow these steps in a terminal on your machine:
-
-  1. Navigate to the ``open-edx-plugins`` directory
-  2. Run ``./pants package ::``. This will create a "dist" directory inside "open-edx-plugins" directory with ".whl" & ".tar.gz" format packages for all plugins
-  3. Move/copy any of the ".whl" or ".tar.gz" files for this plugin that were generated in the above step to the machine/container running Open edX (NOTE: If running devstack via Docker, you can use ``docker cp`` to copy these files into your LMS or CMS containers)
-  4. Run a shell in the machine/container running Open edX, and install the plugin using pip
-
 Tutor
 ~~~~~
 
@@ -91,26 +67,19 @@ Tutor
         cd open-edx-plugins
         pants package ::
 
-  2. Rebuild and launch Tutor:
+  2. Install the package:
 
      .. code-block:: bash
 
-        tutor images build openedx-dev
-        tutor dev launch --skip-build
-
-  3. Install the package:
-
-     .. code-block:: bash
-
-        tutor dev exec lms/cms bash
+        tutor dev exec <lms or cms> bash
         pip install /openedx/open-edx-plugins/dist/[package-filename]
 
-  Note: The package filename in the dist/ directory will include the plugin name, version number, and other information (e.g., edx-sysadmin-0.3.0.tar.gz). Make sure to check the dist/ directory for the exact filename before installation.
+  **Note:** The package filename in the dist/ directory will include the plugin name, version number, and other information (e.g., edx-sysadmin-0.3.0.tar.gz). Make sure to check the dist/ directory for the exact filename before installation.
 
 Post-Installation Steps
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-1. After installing any plugin, you may need to restart the edx-platform services to apply the changes
+1. After installing any plugin, you may need to restart the edx-platform services to apply the changes. You can restart lms/cms by running run ``tutor dev restart <lms or cms>``
 2. Some plugins may require additional configuration - refer to the individual plugin's documentation for specific setup instructions
 
 
@@ -119,6 +88,11 @@ Testing Guide
 
 Running Integration tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Note:** If you have followed the above installation steps, your local ``open-edx-plugins`` clone
+should be mounted at ``/openedx/open-edx-plugins`` in both `LMS` and `CMS` containers. This path is used to run the
+tests script in the below commands. If you have mounted ``open-edx-plugins`` at a different path,
+please update the path in ``run_edx_integration_tests.sh``.
 
 1. Access the container:
 
@@ -132,12 +106,12 @@ Running Integration tests
 
      .. code-block:: bash
 
-       ../open-edx-plugins/run_edx_integration_tests.sh
+       /openedx/open-edx-plugins/run_edx_integration_tests.sh
 
    - For a specific plugin:
 
      .. code-block:: bash
 
-       ../open-edx-plugins/run_edx_integration_tests.sh <plugin-name>
+       /openedx/open-edx-plugins/run_edx_integration_tests.sh <plugin-name>
 
 The script generates coverage reports in XML format and exits with a non-zero status if any tests fail.
