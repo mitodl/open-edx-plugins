@@ -19,6 +19,7 @@ from rapid_response_xblock.models import (
     RapidResponseRun,
     RapidResponseSubmission,
 )
+
 from tests.utils import (
     RuntimeEnabledTestCase,
     make_scope_ids,

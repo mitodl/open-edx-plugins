@@ -8,8 +8,9 @@ from ol_openedx_chat.utils import (
     is_ol_chat_enabled_for_course,
 )
 from opaque_keys.edx.locator import BlockUsageLocator, CourseLocator
-from tests.utils import OLChatTestCase
 from xmodule.modulestore.tests.factories import BlockFactory
+
+from tests.utils import OLChatTestCase
 
 
 @ddt

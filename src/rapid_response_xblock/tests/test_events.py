@@ -13,12 +13,13 @@ from rapid_response_xblock.models import (
     RapidResponseRun,
     RapidResponseSubmission,
 )
+from xmodule.modulestore.django import modulestore
+
 from tests.utils import (
     RuntimeEnabledTestCase,
     combine_dicts,
     make_scope_ids,
 )
-from xmodule.modulestore.django import modulestore
 
 
 # pylint: disable=no-member
