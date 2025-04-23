@@ -90,7 +90,7 @@ This will enable the ol_openedx_chat plugin for all courses. You can disable it 
 
 * ``OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED`` is used to enable/disable the VideoGPT for all videos.
 * ``OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED`` is used to enable/disable the AI Chat for all problems.
-* Once, enabled, you will see a checkbox below problem and video blocks in CMS. It is enabled by default.
+* Once these settings are enabled, you will see a checkbox ``Enable AI Chat Assistant`` below problem and video blocks in the CMS course unit.
 
 CMS View
 
