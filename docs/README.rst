@@ -71,15 +71,15 @@ Tutor
 
      .. code-block:: bash
 
-        tutor dev exec lms/cms bash
+        tutor dev exec <lms or cms> bash
         pip install /openedx/open-edx-plugins/dist/[package-filename]
 
-  Note: The package filename in the dist/ directory will include the plugin name, version number, and other information (e.g., edx-sysadmin-0.3.0.tar.gz). Make sure to check the dist/ directory for the exact filename before installation.
+  **Note:** The package filename in the dist/ directory will include the plugin name, version number, and other information (e.g., edx-sysadmin-0.3.0.tar.gz). Make sure to check the dist/ directory for the exact filename before installation.
 
 Post-Installation Steps
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-1. After installing any plugin, you may need to restart the edx-platform services to apply the changes
+1. After installing any plugin, you may need to restart the edx-platform services to apply the changes. You can restart lms/cms by running run ``tutor dev restart <lms or cms>``
 2. Some plugins may require additional configuration - refer to the individual plugin's documentation for specific setup instructions
 
 
@@ -89,10 +89,10 @@ Testing Guide
 Running Integration tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Note:** If you have followed the above installation steps, your local ``open-edx-plugins`` clone
-is mounted at ``/openedx/open-edx-plugins`` in the LMS,CMS containers. This path is used to run the
-tests script in the below commands. If you have mounted ``open-edx-plugins`` at a different path,
-please adjust the commands accordingly and update the path in ``run_edx_integration_tests.sh``.
+**Note:** If you have followed the above installation steps, your local ``open-edx-plugins`` clone  
+should be mounted at ``/openedx/open-edx-plugins`` in both `LMS` and `CMS` containers. This path is used to run the  
+tests script in the below commands. If you have mounted ``open-edx-plugins`` at a different path,  
+please update the path in ``run_edx_integration_tests.sh``. 
 
 1. Access the container:
 

@@ -77,7 +77,7 @@ The Unit is rendered inside an Iframe and we use postMessage to communicate betw
    export default config;
 
 5. Start learning MFE by ``npm run dev``
-----------------------------------------
+-------------------
 6. In LMS, enable the ``ol_openedx_chat.ol_openedx_chat_enabled`` waffle flag at ``<LMS>/admin/waffle/flag/``
 -------------------------------------------------------------------------------------------------------------
 This will enable the ol_openedx_chat plugin for all courses. You can disable it and add a ``Waffle Flag Course Override`` at ``/admin/waffle_utils/waffleflagcourseoverridemodel/`` to enable it for a single course.
