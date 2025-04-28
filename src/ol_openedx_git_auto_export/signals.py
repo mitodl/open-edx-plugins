@@ -9,10 +9,8 @@ from ol_openedx_git_auto_export.constants import (
     ENABLE_GIT_AUTO_EXPORT,
 )
 from ol_openedx_git_auto_export.tasks import async_export_to_git
-from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
-from openedx_events.content_authoring.data import CourseData
 from openedx_events.content_authoring.signals import COURSE_CREATED
-from xmodule.modulestore.django import SignalHandler, modulestore
+from xmodule.modulestore.django import SignalHandler
 
 from .models import CourseGitRepo
 from .utils import get_or_create_git_export_repo_dir
@@ -39,22 +37,6 @@ def listen_for_course_publish(
             "Course published with auto-export enabled. Starting export... (course id: %s)",  # noqa: E501
             course_key,
         )
-        course_overview = CourseOverview.get_from_id(course_key)
-        course_module = modulestore().get_course(course_key)
-        # To create auto git repo for Re-runs as it does not emit COURSE_CREATED signal
-        # if course created and published_on dates has difference of less
-        # than 2 minutes. Consider creating Giturl for the course if it doesn't exist
-        time_difference = course_module.published_on - course_overview.created
-        if (
-            time_difference.total_seconds() < 120  # noqa: PLR2004
-            and not CourseGitRepo.objects.filter(course_id=str(course_key)).exists()
-        ):
-            log.info(
-                "Creating GitHub repository for course (Re-run) %s",
-                course_key,
-            )
-            listen_for_course_created(course=CourseData(course_key=course_key))
-
         async_export_to_git.delay(str(course_key))
 
 
