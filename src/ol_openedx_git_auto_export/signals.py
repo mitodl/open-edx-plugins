@@ -49,7 +49,7 @@ def listen_for_course_created(**kwargs):
             "GitHub repo creation is disabled. Skipping GitHub repo creation for course %s",  # noqa: E501
             course_id,
         )
-        return
+        return None
 
     # SignalHandler.course_published is called before COURSE_CREATED signal
     if CourseGitRepo.objects.filter(course_id=str(course_id)).exists():
@@ -57,14 +57,14 @@ def listen_for_course_created(**kwargs):
             "GitHub repository already exists for course %s. Skipping creation.",
             course_id,
         )
-        return
+        return None
 
     gh_access_token = settings.GITHUB_ACCESS_TOKEN
     if not settings.GITHUB_ORG_API_URL or not gh_access_token:
         log.error(
             "GITHUB_ORG_API_URL or GITHUB_ACCESS_TOKEN is not set in settings. Skipping GitHub repo creation."  # noqa: E501
         )
-        return
+        return None
 
     url = f"{settings.GITHUB_ORG_API_URL}/repos"
     headers = {
@@ -88,7 +88,7 @@ def listen_for_course_created(**kwargs):
             course_id,
             response.json(),
         )
-        return
+        return None
 
     repo_data = response.json()
     ssh_url = repo_data.get("ssh_url")
@@ -107,4 +107,5 @@ def listen_for_course_created(**kwargs):
             "Failed to retrieve URL for GitHub repository for course %s",
             course_id,
         )
-        return
+
+    return ssh_url
