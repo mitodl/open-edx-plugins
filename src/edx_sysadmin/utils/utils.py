@@ -19,13 +19,14 @@ from django.http import Http404
 from django.urls import reverse
 from django.utils.translation import gettext as _
 from django_countries import countries
-from edx_sysadmin.models import CourseGitLog
-from edx_sysadmin.utils.markup import HTML, Text
 from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from openedx.core.djangoapps.user_authn.toggles import (
     is_require_third_party_auth_enabled,
 )
 from xmodule.modulestore.django import modulestore
+
+from edx_sysadmin.models import CourseGitLog
+from edx_sysadmin.utils.markup import HTML, Text
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
