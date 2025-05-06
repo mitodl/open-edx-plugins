@@ -47,13 +47,14 @@ Configuration
 
 3. In frontend-app-learning, Run the below in the shell inside the learning MFE folder:
 ---------------------------------------------------------------------------------------
-This will generate a bundle for the remoteAiChatDrawer. This bundle will be used in the learning MFE to render the chat drawer.
+This will download the smoot-design package and copy the pre-bundled JS file to a location loadable by OpenEdx.
 
 .. code-block:: sh
 
-   npm pack @mitodl/smoot-design@^6.0.0
+   npm pack @mitodl/smoot-design@^6.4.0
    tar -xvzf mitodl-smoot-design*.tgz
-   mv package mitodl-smoot-design
+   mkdir -p public/static/smoot-design
+   cp package/dist/bundles/* public/static/smoot-design
 
 4. Create env.config.jsx in the frontend-app-learning and add the below code:
 -----------------------------------------------------------------------------
@@ -61,20 +62,22 @@ The Unit is rendered inside an Iframe and we use postMessage to communicate betw
 
 .. code-block:: js
 
-   import { getConfig } from '@edx/frontend-platform';
-
-   import * as remoteTutorDrawer from "./mitodl-smoot-design/dist/bundles/remoteTutorDrawer.umd.js";
-
-   remoteTutorDrawer.init({
-       messageOrigin: getConfig().LMS_BASE_URL,
-       transformBody: messages => ({ message: messages[messages.length - 1].content }),
+   import(
+      /* webpackIgnore: true */
+   "/static/smoot-design/remoteTutorDrawer.es.js").then(module => {
+      module.init({
+         messageOrigin: "http://local.openedx.io:8000",
+         transformBody: messages => ({ message: messages[messages.length - 1].content }),
+      })
    })
 
-    const config = {
-    ...process.env,
-    };
+   const config = {
+   ...process.env,
+   };
 
    export default config;
+
+(Alternatively, you can import the drawer code from a CDN like kg.com/@mitodl/smoot-design@6.4.0/dist/bundles/remoteTutorDrawer.umd.js to skip Step 3. However, the steps outlined here are most similar to what we do in production.)
 
 5. Start learning MFE by ``npm run dev``
 -------------------
