@@ -61,12 +61,13 @@ This will download the smoot-design package and copy the pre-bundled JS file to 
 The Unit is rendered inside an Iframe and we use postMessage to communicate between the Iframe and the parent window. The below code is used to initialize the remoteAiChatDrawer.
 
 .. code-block:: js
+   import { getConfig } from '@edx/frontend-platform';
 
    import(
       /* webpackIgnore: true */
    "/static/smoot-design/remoteTutorDrawer.es.js").then(module => {
       module.init({
-         messageOrigin: "http://local.openedx.io:8000",
+         messageOrigin: getConfig().LMS_BASE_URL,
          transformBody: messages => ({ message: messages[messages.length - 1].content }),
       })
    })
@@ -85,7 +86,11 @@ The Unit is rendered inside an Iframe and we use postMessage to communicate betw
 -------------------------------------------------------------------------------------------------------------
 This will enable the ol_openedx_chat plugin for all courses. You can disable it and add a ``Waffle Flag Course Override`` at ``/admin/waffle_utils/waffleflagcourseoverridemodel/`` to enable it for a single course.
 
-7. Go to any course in CMS > Settings > Advanced Settings and add the below in "Other Course Settings"
+7. Set `FEATURES["ENABLE_OTHER_COURSE_SETTINGS"] = True` in your `cms/envs/private.py` and `lms/envs/private.py` files
+----------------------------------------------------------
+This enables "Other Course Settings" below.
+
+8. Go to any course in CMS > Settings > Advanced Settings and add the below in "Other Course Settings"
 ------------------------------------------------------------------------------------------------------
 .. code-block::
 
@@ -109,7 +114,7 @@ LMS Chat Drawer View
 
 .. image:: static/images/ai_chat_aside_lms_drawer_view.png
 
-9. Disable it for a single block
+7. Disable it for a single block
 --------------------------------
 If you want to disable it for a few videos/problems then you disable the ``Enable AI Chat Assistant`` checkbox against the block in CMS.
 
