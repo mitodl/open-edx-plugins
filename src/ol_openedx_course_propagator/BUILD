@@ -1,5 +1,9 @@
 python_sources(
     name="ol_openedx_course_propagator_source",
+    dependencies=[
+        "//:external_dependencies#edx-opaque-keys",
+        "//:external_dependencies#celery",
+    ],
 )
 
 python_distribution(
@@ -15,9 +19,7 @@ python_distribution(
         zip_safe=False,
         keywords="Python edx",
         entry_points={
-            "lms.djangoapp": [
-                "ol_openedx_course_propagator = ol_openedx_course_propagator.apps:OLOpenEdxCoursePropagatorConfig",
-            ],
+            "lms.djangoapp": [],
             "cms.djangoapp": [
                 "ol_openedx_course_propagator = ol_openedx_course_propagator.apps:OLOpenEdxCoursePropagatorConfig",
             ],

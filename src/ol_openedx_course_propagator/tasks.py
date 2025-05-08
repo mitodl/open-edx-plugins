@@ -1,14 +1,14 @@
-"""
-Utility methods for ol-openedx-course-propagator plugin
-"""
+from celery import shared_task  # pylint: disable=import-error
+from celery.utils.log import get_task_logger
+from cms.djangoapps.contentstore.git_export_utils import GitExportError, export_to_git
+from opaque_keys.edx.keys import CourseKey
 from xmodule.modulestore.django import modulestore
-from xmodule.modulestore.django import SignalHandler
-from opaque_keys.edx.locator import CourseLocator
 
-def copy_course(user_id, source_course_id, dest_course_id):
-    """
-    Copy course content from source course to destination course.
-    """
+LOGGER = get_task_logger(__name__)
+
+
+@shared_task
+def async_course_propagator(user_id, source_course_id, dest_course_id):
     module_store = modulestore()
     source_course_key = CourseLocator.from_string(source_course_id)
     source_course_draft = source_course_key.for_branch("draft-branch")
