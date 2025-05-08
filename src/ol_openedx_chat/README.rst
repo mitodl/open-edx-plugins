@@ -61,6 +61,7 @@ This will download the smoot-design package and copy the pre-bundled JS file to 
 The Unit is rendered inside an Iframe and we use postMessage to communicate between the Iframe and the parent window. The below code is used to initialize the remoteAiChatDrawer.
 
 .. code-block:: js
+
    import { getConfig } from '@edx/frontend-platform';
 
    import(
@@ -100,7 +101,7 @@ This enables "Other Course Settings" below.
 * ``OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED`` is used to enable/disable the AI Chat for all problems.
 * Once these settings are enabled, you will see a checkbox ``Enable AI Chat Assistant`` below problem and video blocks in the CMS course unit.
 
-CMS View
+CMS View 
 
 .. image:: static/images/ai_chat_aside_cms_view.png
 
@@ -114,7 +115,7 @@ LMS Chat Drawer View
 
 .. image:: static/images/ai_chat_aside_lms_drawer_view.png
 
-7. Disable it for a single block
+9. Disable it for a single block
 --------------------------------
 If you want to disable it for a few videos/problems then you disable the ``Enable AI Chat Assistant`` checkbox against the block in CMS.
 
