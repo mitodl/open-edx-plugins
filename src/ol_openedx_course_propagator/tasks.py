@@ -1,7 +1,5 @@
 from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
-from cms.djangoapps.contentstore.git_export_utils import GitExportError, export_to_git
-from opaque_keys.edx.keys import CourseKey
 from xmodule.modulestore.django import modulestore
 
 LOGGER = get_task_logger(__name__)
@@ -24,7 +22,11 @@ def async_course_propagator(user_id, source_course_id, dest_course_id):
     # to have only course re-runs go to split. This code, however, uses the config'd priority
     dest_modulestore = module_store._get_modulestore_for_courselike(dest_course_key)
     if source_modulestore == dest_modulestore:
-        source_modulestore.copy(user_id, source_course_draft, dest_course_draft, subtree_list)
-        source_modulestore.copy(user_id, source_course_published, dest_course_published, subtree_list)
+        source_modulestore.copy(
+            user_id, source_course_draft, dest_course_draft, subtree_list
+        )
+        source_modulestore.copy(
+            user_id, source_course_published, dest_course_published, subtree_list
+        )
         SignalHandler.course_published.send(sender=None, course_key=dest_course_key)
         return

@@ -1,14 +1,10 @@
 """
 Utility methods for ol-openedx-course-propagator plugin
 """
-from xmodule.modulestore.django import modulestore
-from xmodule.modulestore.django import SignalHandler
-from xmodule.modulestore import ModuleStoreEnum
-from opaque_keys.edx.locator import CourseLocator
-from xmodule.modulestore.django import SignalHandler
 
-from ol_openedx_course_propagator.models import CourseSyncMasterOrg, CourseSyncMapping
+from ol_openedx_course_propagator.models import CourseSyncMapping, CourseSyncMasterOrg
 from ol_openedx_course_propagator.tasks import async_course_propagator
+from xmodule.modulestore.django import SignalHandler
 
 log = logging.getLogger(__name__)
 
@@ -34,8 +30,5 @@ def listen_for_course_publish(
                 # Call the async task to copy the course content
                 async_course_propagator.delay(user_id, source_course, target_course)
         else:
-            log.warning(
-                "No mapping found for course %s. Skipping copy.", course_key.id
-            )
+            log.warning("No mapping found for course %s. Skipping copy.", course_key.id)
             return
-
