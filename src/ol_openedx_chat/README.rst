@@ -101,7 +101,7 @@ This enables "Other Course Settings" below.
 * ``OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED`` is used to enable/disable the AI Chat for all problems.
 * Once these settings are enabled, you will see a checkbox ``Enable AI Chat Assistant`` below problem and video blocks in the CMS course unit.
 
-CMS View 
+CMS View
 
 .. image:: static/images/ai_chat_aside_cms_view.png
 
