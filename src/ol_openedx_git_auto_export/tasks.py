@@ -15,13 +15,6 @@ def async_export_to_git(course_key_string, user=None):
     course_key = CourseKey.from_string(course_key_string)
     course_module = modulestore().get_course(course_key)
 
-    if course_module.giturl is None:
-        LOGGER.debug(
-            "Course %s does not have a giturl, skipping export.",
-            course_module.id,
-        )
-        return
-
     try:
         LOGGER.debug(
             "Starting async course content export to git (course id: %s)",
