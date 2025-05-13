@@ -12,7 +12,7 @@ python_distribution(
     dependencies=[":git_auto_export"],
     provides=setup_py(
         name="ol-openedx-git-auto-export",
-        version="0.3.1",
+        version="0.3.2",
         license="BSD-3-Clause",
         description="A plugin that auto saves the course OLX to git when an author publishes it",
         entry_points={
