@@ -21,6 +21,9 @@ class CourseSyncParentOrg(models.Model):
 
     organization = models.CharField(max_length=255, unique=True)
 
+    class Meta:
+        app_label = "ol_openedx_course_sync"
+
     def __str__(self):
         return f"{self.organization} Course Sync Parent Org"
 
@@ -38,6 +41,9 @@ class CourseSyncMap(models.Model):
     target_courses = models.TextField(
         blank=True, help_text="Comma separated list of target course keys"
     )
+
+    class Meta:
+        app_label = "ol_openedx_course_sync"
 
     def __str__(self):
         return f"{self.source_course} Course Sync Map"
