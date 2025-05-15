@@ -2,8 +2,6 @@ python_sources(
     name="ol_openedx_course_sync_source",
     dependencies=[
         "src/ol_openedx_course_sync/migrations:ol_openedx_course_sync_migrations",
-        "//:external_dependencies#edx-opaque-keys",
-        "//:external_dependencies#celery",
     ],
 )
 
