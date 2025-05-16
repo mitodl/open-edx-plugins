@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 
 import pytz
@@ -45,7 +46,7 @@ class CanvasClient:
         pieces = pieces._replace(query=query_string)
         return pieces.geturl()
 
-    def _paginate(self, url, *args, **kwargs):
+    def _paginate(self, url, *args, **kwargs) -> list[dict[str, Any]]:
         """
         Iterate over the paginated results of a request
         """
@@ -96,6 +97,23 @@ class CanvasClient:
             f"/api/v1/courses/{self.canvas_course_id}/assignments",
         )
         return self._paginate(url)
+
+    def get_student_id_by_email(self, email: str) -> int | None:
+        """
+        Searches students and return the canvas ID of the learner with given email.
+
+        Returns:
+            int: Canvas ID of the student user. None if no student is found.
+        """
+        url = urljoin(
+            settings.CANVAS_BASE_URL,
+            f"/api/v1/courses/{self.canvas_course_id}/search_users",
+        )
+        search_results = self._paginate(
+            url,
+            params={"search_term": email, "enrollment_type[]": "student"}
+        )
+        return next((user["id"] for user in search_results if user["email"] == email), None)
 
     def get_assignments_by_int_id(self):
         assignments = self.list_canvas_assignments()
@@ -189,7 +207,7 @@ def create_assignment_payload(subsection_block):
     }
 
 
-def update_grade_payload_kv(user_id, grade_percent):
+def update_grade_payload_kv(user_id, grade_percent) -> tuple[str, str]:
     """
     Returns a key/value pair that will be used in the body of a bulk grade update request
 
