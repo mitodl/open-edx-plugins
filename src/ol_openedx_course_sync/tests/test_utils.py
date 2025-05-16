@@ -40,7 +40,6 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
                 ),
             )
             copy_course_content(
-                None,
                 self.source_course.usage_key.course_key,
                 self.target_course.usage_key.course_key,
                 branch,

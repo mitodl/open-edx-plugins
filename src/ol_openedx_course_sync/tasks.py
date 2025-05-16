@@ -13,7 +13,7 @@ logger = get_task_logger(__name__)
 
 
 @shared_task
-def async_course_sync(user_id, source_course_id, dest_course_id):
+def async_course_sync(source_course_id, dest_course_id):
     """
     Sync course content from source course to destination course.
     """
@@ -28,7 +28,7 @@ def async_course_sync(user_id, source_course_id, dest_course_id):
     )
     # Copy draft branch content
     copy_course_content(
-        user_id, source_course_key, dest_course_key, ModuleStoreEnum.BranchName.draft
+        source_course_key, dest_course_key, ModuleStoreEnum.BranchName.draft
     )
 
     logger.info(
@@ -38,7 +38,6 @@ def async_course_sync(user_id, source_course_id, dest_course_id):
     )
     # copy published branch content
     copy_course_content(
-        user_id,
         source_course_key,
         dest_course_key,
         ModuleStoreEnum.BranchName.published,
