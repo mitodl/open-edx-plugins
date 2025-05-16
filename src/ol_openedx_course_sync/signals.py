@@ -34,7 +34,6 @@ def listen_for_course_publish(
         return
 
     source_course = str(course_sync_map.source_course)
-    user_id = None
     target_keys = [
         key for key in course_sync_map.target_courses.strip().split(",") if key
     ]
@@ -45,7 +44,7 @@ def listen_for_course_publish(
             target_course_key,
         )
         # Call the async task to copy the course content
-        async_course_sync.delay(user_id, source_course, target_course_key)
+        async_course_sync.delay(source_course, target_course_key)
 
 
 @receiver(post_save, sender=CourseRerunState)
