@@ -1,5 +1,5 @@
 """
-Utility methods for the ol-openedx-course-sync plugin
+Utilities for the ol-openedx-course-sync plugin
 """
 
 from xmodule.modulestore.django import modulestore

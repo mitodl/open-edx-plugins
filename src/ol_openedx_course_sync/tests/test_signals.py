@@ -1,3 +1,6 @@
+"""
+Tests for ol-openedx-course-sync signal handlers
+"""
 from unittest import mock
 
 import pytest
@@ -108,7 +111,7 @@ def test_signal_logs_validation_error_on_save(mock_log):
 @skip_unless_cms
 class TestCoursePublishSignal(SharedModuleStoreTestCase):
     """
-    Test the course publish signal.
+    Test the course publish signal handler.
     """
 
     ENABLED_SIGNALS = ["course_published"]
