@@ -43,7 +43,6 @@ def listen_for_course_publish(
             source_course,
             target_course_key,
         )
-        # Call the async task to copy the course content
         async_course_sync.delay(source_course, target_course_key)
 
 
