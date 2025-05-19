@@ -5,7 +5,12 @@ from common.djangoapps.course_action_state.models import CourseRerunState
 from django.core.exceptions import ValidationError
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
 from ol_openedx_course_sync.models import CourseSyncMap, CourseSyncParentOrg
+from ol_openedx_course_sync.signals import listen_for_course_publish
+from opaque_keys.edx.locator import CourseLocator
 from openedx.core.djangolib.testing.utils import skip_unless_cms
+from xmodule.modulestore.django import SignalHandler
+from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
+from xmodule.modulestore.tests.factories import CourseFactory
 
 
 @skip_unless_cms
@@ -98,3 +103,53 @@ def test_signal_logs_validation_error_on_save(mock_log):
             "Failed to update CourseSyncMap for %s",
             instance.source_course_key,
         )
+
+
+@skip_unless_cms
+class TestCoursePublishSignal(SharedModuleStoreTestCase):
+    """
+    Test the course publish signal.
+    """
+
+    ENABLED_SIGNALS = ["course_published"]
+
+    def setUp(self):
+        super().setUp()
+        SignalHandler.course_published.disconnect(listen_for_course_publish)
+        self.source_course_key = CourseLocator.from_string(
+            "course-v1:TestOrg+CS101+2025"
+        )
+        CourseFactory.create(
+            org="TestOrg",
+            number="CS101",
+            run="2025",
+            display_name="Test Course",
+        )
+
+    def tearDown(self):
+        super().tearDown()
+        SignalHandler.course_published.disconnect(listen_for_course_publish)
+
+    @mock.patch("ol_openedx_course_sync.signals.async_course_sync")
+    def test_publish_signal_triggers_copy_tasks(self, mock_task):
+        """
+        Test that the course publish signal triggers the async_course_sync task
+        """
+        CourseSyncParentOrg.objects.create(organization="TestOrg")
+        CourseSyncMap.objects.create(
+            source_course=str(self.source_course_key),
+            target_courses="course-v1:TestOrg+Target1+2025,course-v1:TestOrg+Target2+2025",
+        )
+        SignalHandler.course_published.connect(listen_for_course_publish)
+        SignalHandler.course_published.send(
+            sender=None, course_key=self.source_course_key
+        )
+        calls = [
+            mock.call.delay(
+                str(self.source_course_key), "course-v1:TestOrg+Target1+2025"
+            ),
+            mock.call.delay(
+                str(self.source_course_key), "course-v1:TestOrg+Target2+2025"
+            ),
+        ]
+        mock_task.assert_has_calls(calls, any_order=True)
