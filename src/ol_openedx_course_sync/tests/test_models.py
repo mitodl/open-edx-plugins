@@ -4,7 +4,7 @@ Tests for models
 
 import pytest
 from django.core.exceptions import ValidationError
-from ol_openedx_course_sync.models import CourseSyncMap
+from ol_openedx_course_sync.models import CourseRunSyncMap
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 
 
@@ -51,14 +51,14 @@ from openedx.core.djangolib.testing.utils import skip_unless_cms
         ),
     ],
 )
-def test_course_sync_map_clean_conflicts(existing, new, expected_error_field):
+def test_course_run_sync_map_clean_conflicts(existing, new, expected_error_field):
     """
-    Parametrized test to validate CourseSyncMap.clean() conflicts:
+    Parametrized test to validate CourseRunSyncMap.clean() conflicts:
     - A source course cannot be used as a target.
     - A target course cannot be used as a source.
     """
-    CourseSyncMap.objects.create(**existing)
-    obj = CourseSyncMap(**new)
+    CourseRunSyncMap.objects.create(**existing)
+    obj = CourseRunSyncMap(**new)
 
     with pytest.raises(ValidationError) as context:
         obj.full_clean()
@@ -67,9 +67,9 @@ def test_course_sync_map_clean_conflicts(existing, new, expected_error_field):
 
 @skip_unless_cms
 @pytest.mark.django_db()
-def test_valid_course_sync_map():
-    """Valid CourseSyncMap instance should pass validation."""
-    obj = CourseSyncMap(
+def test_valid_course_run_sync_map():
+    """Valid CourseRunSyncMap instance should pass validation."""
+    obj = CourseRunSyncMap(
         source_course="course-v1:edX+DemoX+2040",
         target_course="course-v1:edX+DemoX+2041",
     )
