@@ -11,7 +11,7 @@ python_distribution(
     provides=setup_py(
         name="ol-openedx-course-sync",
         version="0.1.0",
-        description="An edX plugin to sync changes in a course to its target/child/rerun courses",
+        description="An Open edX plugin to sync course changes to its reruns.",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
         entry_points={

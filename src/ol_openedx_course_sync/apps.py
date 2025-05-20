@@ -8,6 +8,10 @@ from openedx.core.djangoapps.plugins.constants import ProjectType
 
 
 class OLOpenEdxCourseSyncConfig(AppConfig):
+    """
+    App configuration for the ol-openedx-course-sync app.
+    """
+
     name = "ol_openedx_course_sync"
     verbose_name = "Open edX Course Sync"
 

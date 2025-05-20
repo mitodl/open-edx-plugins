@@ -1,12 +1,12 @@
 OL Open edX Course Sync
 =======================
 
-A plugin to enable course updates to sync with the target/child/rerun courses.
+An Open edX plugin to sync course changes to its reruns.
 
 Version Compatibility
 ---------------------
 
-It only supports the latest releases of Open edX.
+It supports Open edX releases from `Sumac` and onwards.
 
 Installing The Plugin
 ---------------------
@@ -23,7 +23,7 @@ Usage
 1. Install the plugin and run the migrations in the CMS.
 2. Add the parent/source organization in the CMS admin model `CourseSyncParentOrg`.
   #. Course sync will only work for this organization. It will treat all the courses under this organization as parent/source courses.
-3. The plugin will automatically add course reruns created from the CMS as the target/child courses for any of the parent courses from the organization added above.
+3. The plugin will automatically add course re-runs created from the CMS as the child courses.
   #. The organization can be different for the reruns.
 4. Target/child/rerun courses can be managed in the CMS admin model `CourseSyncMap`.
   #. You can update the comma-separated target course list.

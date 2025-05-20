@@ -4,6 +4,7 @@ Tasks for the ol-openedx-course-sync plugin.
 
 from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
+from ol_openedx_course_sync.apps import OLOpenEdxCourseSyncConfig
 from ol_openedx_course_sync.utils import copy_course_content
 from opaque_keys.edx.locator import CourseLocator
 from xmodule.modulestore import ModuleStoreEnum
@@ -44,7 +45,9 @@ def async_course_sync(source_course_id, dest_course_id):
     )
 
     # trigger course publish signal to trigger outline and relevant updates
-    SignalHandler.course_published.send(sender=None, course_key=dest_course_key)
+    SignalHandler.course_published.send(
+        sender=OLOpenEdxCourseSyncConfig, course_key=dest_course_key
+    )
     logger.debug(
         "Finished async course sync from %s to %s", source_course_key, dest_course_key
     )

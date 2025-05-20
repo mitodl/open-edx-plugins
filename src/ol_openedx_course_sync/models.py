@@ -13,10 +13,8 @@ class CourseSyncOrganization(models.Model):
     """
     Model for source course organizations
 
-    Any source course that is part of this organization
-    will sync changes with the child/rerun courses. This model
-    will help us exclude any organizations where we don't
-    want to sync source course.
+    Any course that is part of this organization
+    will sync the content changes to the child/rerun courses.
     """
 
     organization = models.CharField(max_length=255, unique=True)
@@ -29,7 +27,7 @@ class CourseSyncOrganization(models.Model):
         return f"{self.organization} Course Sync Parent Org"
 
 
-class CourseSyncMap(models.Model):
+class CourseRunSyncMap(models.Model):
     """
     Model to keep track of source and target courses.
     """
@@ -57,7 +55,7 @@ class CourseSyncMap(models.Model):
         """
         super().clean()
 
-        conflicting_target = CourseSyncMap.objects.filter(
+        conflicting_target = CourseRunSyncMap.objects.filter(
             target_course=self.source_course
         ).first()
         if conflicting_target:
@@ -68,7 +66,7 @@ class CourseSyncMap(models.Model):
                 }
             )
 
-        conflicting_source = CourseSyncMap.objects.filter(
+        conflicting_source = CourseRunSyncMap.objects.filter(
             source_course=self.target_course
         ).first()
         if conflicting_source:
