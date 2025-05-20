@@ -105,7 +105,7 @@ class GitReloadAPIView(APIView):
         if status_code == status.HTTP_200_OK:
             logger.info(f"{self.__class__.__name__}:: {msg}")  # noqa: G004
         else:
-            logger.debug(f"{self.__class__.__name__}:: {msg}")  # noqa: G004
+            logger.info(f"{self.__class__.__name__}:: {msg}")  # noqa: G004
 
         return Response(
             {"message": msg},
