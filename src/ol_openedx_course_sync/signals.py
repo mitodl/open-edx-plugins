@@ -11,12 +11,10 @@ from django.dispatch import receiver
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
 from ol_openedx_course_sync.models import CourseSyncMap, CourseSyncParentOrg
 from ol_openedx_course_sync.tasks import async_course_sync
-from xmodule.modulestore.django import SignalHandler
 
 log = logging.getLogger(__name__)
 
 
-@receiver(SignalHandler.course_published)
 def listen_for_course_publish(
     sender,  # noqa: ARG001
     course_key,
