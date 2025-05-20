@@ -1,6 +1,7 @@
 """
 Tests for ol-openedx-course-sync signal handlers
 """
+
 from unittest import mock
 
 import pytest
