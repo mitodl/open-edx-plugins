@@ -66,7 +66,6 @@ def test_course_run_sync_map_clean_conflicts(existing, new, expected_error_field
 
 
 @skip_unless_cms
-@pytest.mark.django_db()
 def test_valid_course_run_sync_map():
     """Valid CourseRunSyncMap instance should pass validation."""
     obj = CourseRunSyncMap(

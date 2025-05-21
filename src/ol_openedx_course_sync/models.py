@@ -24,7 +24,7 @@ class CourseSyncOrganization(models.Model):
         app_label = "ol_openedx_course_sync"
 
     def __str__(self):
-        return f"{self.organization} Course Sync Parent Org"
+        return f"{self.organization} Course Sync Organization"
 
 
 class CourseRunSyncMap(models.Model):
@@ -40,7 +40,7 @@ class CourseRunSyncMap(models.Model):
         app_label = "ol_openedx_course_sync"
 
     def __str__(self):
-        return f"{self.source_course} Course Sync Map"
+        return f"{self.source_course} Course Run Sync Map"
 
     def save(self, *args, **kwargs):
         """

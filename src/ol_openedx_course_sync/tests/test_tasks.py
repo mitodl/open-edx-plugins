@@ -1,5 +1,5 @@
 """
-Tests for ol-openedx-course-sync utils.
+Tests for ol-openedx-course-sync tasks.
 """
 
 from unittest import mock
@@ -10,15 +10,15 @@ from tests.utils import OLOpenedXCourseSyncTestCase
 from xmodule.modulestore import ModuleStoreEnum
 
 
-class TestUtils(OLOpenedXCourseSyncTestCase):
+class TestTasks(OLOpenedXCourseSyncTestCase):
     """
-    Test the ol_openedx_course_sync utils.
+    Test the ol_openedx_course_sync tasks.
     """
 
     @skip_unless_cms
-    def test_copy_course_content(self):
+    def test_async_course_sync(self):
         """
-        Test the copy_course_content function.
+        Test the async_course_sync task.
         """
         with mock.patch(
             "ol_openedx_course_sync.tasks.copy_course_content"
