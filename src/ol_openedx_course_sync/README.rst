@@ -21,10 +21,10 @@ Usage
 -----
 
 * Install the plugin and run the migrations in the CMS.
-* Add the parent/source organization in the CMS admin model `CourseSyncParentOrg`.
+* Add the parent/source organization in the CMS admin model `CourseSyncOrganization`.
     * Course sync will only work for this organization. It will treat all the courses under this organization as parent/source courses.
 * The plugin will automatically add course re-runs created from the CMS as the child courses.
     * The organization can be different for the reruns.
-* Target/child/rerun courses can be managed in the CMS admin model `CourseSyncMap`.
+* Target/rerun courses can be managed in the CMS admin model `CourseRunSyncMap`.
     * You can update the comma-separated target course list.
-* Now, any changes made in the parent/source course will be synced to the target/child/rerun courses.
+* Now, any changes made in the source course will be synced to the target courses.

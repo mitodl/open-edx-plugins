@@ -51,7 +51,7 @@ def listen_for_course_publish(
 def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa: ARG001
     """
     Listen for `CourseRerunState` post_save and
-    update target courses in `CourseRunSyncMap`
+    create target courses in `CourseRunSyncMap`
     """
     if instance.state != COURSE_RERUN_STATE_SUCCEEDED:
         return
