@@ -7,8 +7,8 @@ import logging
 from django import forms
 from django.contrib import admin
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
-from organizations.models import Organization
 from ol_openedx_course_sync.tasks import async_course_sync
+from organizations.models import Organization
 
 log = logging.getLogger(__name__)
 
@@ -41,9 +41,9 @@ class CourseSyncMappingAdmin(admin.ModelAdmin):
     list_filter = ("is_active",)
     actions = ("sync_course_content",)
 
-    def get_readonly_fields(self, request, obj=None):
+    def get_readonly_fields(self, request, obj=None):  # noqa: ARG002
         if obj:
-            return self.readonly_fields + ('source_course',)
+            return (*self.readonly_fields, "source_course")
         return self.readonly_fields
 
     @admin.action(description="Sync Course Content")
