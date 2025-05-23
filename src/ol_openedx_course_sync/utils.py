@@ -16,8 +16,8 @@ def copy_course_content(source_course_key, target_course_key, branch):
     target_course_key_for_branch = target_course_key.for_branch(branch)
 
     source_modulestore = module_store._get_modulestore_for_courselike(source_course_key)  # noqa: SLF001
-    dest_modulestore = module_store._get_modulestore_for_courselike(target_course_key)  # noqa: SLF001
-    if source_modulestore == dest_modulestore:
+    target_modulestore = module_store._get_modulestore_for_courselike(target_course_key)  # noqa: SLF001
+    if source_modulestore == target_modulestore:
         user_id = None
         source_modulestore.copy(
             user_id,

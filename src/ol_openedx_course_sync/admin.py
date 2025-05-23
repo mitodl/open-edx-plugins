@@ -31,6 +31,10 @@ class CourseSyncOrganizationForm(forms.ModelForm):
 
 
 class CourseSyncOrganizationAdmin(admin.ModelAdmin):
+    """
+    Admin for CourseSyncOrganization model
+    """
+
     form = CourseSyncOrganizationForm
     list_display = ("organization", "is_active")
 
@@ -44,12 +48,19 @@ class CourseSyncOrganizationAdmin(admin.ModelAdmin):
 
 
 class CourseSyncMappingAdmin(admin.ModelAdmin):
+    """
+    Admin for CourseSyncMapping model
+    """
+
     list_display = ("source_course", "target_course", "is_active")
     search_fields = ("source_course", "target_course")
     list_filter = ("is_active",)
     actions = ("sync_course_content",)
 
     def get_readonly_fields(self, request, obj=None):  # noqa: ARG002
+        """
+        Make source_course readonly if object already exists.
+        """
         if obj:
             return (*self.readonly_fields, "source_course")
         return self.readonly_fields
@@ -57,7 +68,7 @@ class CourseSyncMappingAdmin(admin.ModelAdmin):
     @admin.action(description="Sync Course Content")
     def sync_course_content(self, request, queryset):
         """
-        Sync course content for selected CourseSyncMapping
+        Sync course content for selected CourseSyncMapping(s)
         """
         for course_sync_mapping in queryset:
             log.info(
