@@ -10,7 +10,7 @@ from tests.utils import OLOpenedXCourseSyncTestCase
 from xmodule.modulestore import ModuleStoreEnum
 
 
-class TestTasks(OLOpenedXCourseSyncTestCase):
+class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
     """
     Test the ol_openedx_course_sync tasks.
     """
@@ -18,7 +18,7 @@ class TestTasks(OLOpenedXCourseSyncTestCase):
     @skip_unless_cms
     def test_async_course_sync(self):
         """
-        Test the async_course_sync task.
+        Test the async_course_sync task works as expected.
         """
         with mock.patch(
             "ol_openedx_course_sync.tasks.copy_course_content"

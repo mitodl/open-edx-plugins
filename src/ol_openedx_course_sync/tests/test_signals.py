@@ -8,7 +8,7 @@ import pytest
 from common.djangoapps.course_action_state.models import CourseRerunState
 from django.core.exceptions import ValidationError
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
-from ol_openedx_course_sync.models import CourseRunSyncMap, CourseSyncOrganization
+from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
 from ol_openedx_course_sync.signals import listen_for_course_publish
 from opaque_keys.edx.locator import CourseLocator
 from openedx.core.djangolib.testing.utils import skip_unless_cms
@@ -29,9 +29,9 @@ from xmodule.modulestore.tests.factories import CourseFactory
 )
 def test_signal_does_nothing_in_invalid_conditions(state, create_org, sync_map_exists):
     """
-    Test that signal creates CourseRunSyncMap only when:
+    Test that signal creates CourseSyncMapping only when:
     - CourseRerunState is in COURSE_RERUN_STATE_SUCCEEDED state
-    - CourseSyncParentOrg exists for the organization
+    - CourseSyncOrganization exists for the organization
     """
     if create_org:
         CourseSyncOrganization.objects.create(organization="TestOrg")
@@ -41,10 +41,10 @@ def test_signal_does_nothing_in_invalid_conditions(state, create_org, sync_map_e
         course_key="course-v1:TestOrg+NewCourse+2025",
         source_course_key="course-v1:TestOrg+OldCourse+2024",
     )
-    assert CourseRunSyncMap.objects.exists() == sync_map_exists
+    assert CourseSyncMapping.objects.exists() == sync_map_exists
 
     if sync_map_exists:
-        sync_map = CourseRunSyncMap.objects.get(
+        sync_map = CourseSyncMapping.objects.get(
             source_course=course_rerun_state.source_course_key,
         )
         assert str(course_rerun_state.course_key) == str(sync_map.target_course)
@@ -55,12 +55,12 @@ def test_signal_does_nothing_in_invalid_conditions(state, create_org, sync_map_e
 @mock.patch("ol_openedx_course_sync.signals.log")
 def test_signal_logs_validation_error_on_create(mock_log):
     """
-    Test that signal logs an error when CourseRunSyncMap creation fails.
+    Test that signal logs an error when CourseSyncMapping creation fails.
     """
     CourseSyncOrganization.objects.create(organization="TestOrg")
 
     with mock.patch(
-        "ol_openedx_course_sync.models.CourseRunSyncMap.objects.create"
+        "ol_openedx_course_sync.models.CourseSyncMapping.objects.create"
     ) as mock_get_or_create:
         mock_get_or_create.side_effect = ValidationError("Mock error")
 
@@ -71,7 +71,7 @@ def test_signal_logs_validation_error_on_create(mock_log):
         )
 
         mock_log.exception.assert_called_once_with(
-            "Failed to create CourseRunSyncMap for %s",
+            "Failed to create CourseSyncMapping for %s",
             instance.source_course_key,
         )
 
@@ -107,11 +107,11 @@ class TestCoursePublishSignal(SharedModuleStoreTestCase):
         Test that the course publish signal triggers the async_course_sync task
         """
         CourseSyncOrganization.objects.create(organization="TestOrg")
-        CourseRunSyncMap.objects.create(
+        CourseSyncMapping.objects.create(
             source_course=str(self.source_course_key),
             target_course="course-v1:TestOrg+Target1+2025",
         )
-        CourseRunSyncMap.objects.create(
+        CourseSyncMapping.objects.create(
             source_course=str(self.source_course_key),
             target_course="course-v1:TestOrg+Target2+2025",
         )

@@ -8,6 +8,8 @@ from opaque_keys.edx.django.models import (
     CourseKeyField,
 )
 
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
+
 
 class CourseSyncOrganization(models.Model):
     """
@@ -27,7 +29,7 @@ class CourseSyncOrganization(models.Model):
         return f"{self.organization} Course Sync Organization"
 
 
-class CourseRunSyncMap(models.Model):
+class CourseSyncMapping(models.Model):
     """
     Model to keep track of source and target courses.
     """
@@ -55,7 +57,17 @@ class CourseRunSyncMap(models.Model):
         """
         super().clean()
 
-        conflicting_target = CourseRunSyncMap.objects.filter(
+        if not CourseOverview.objects.filter(id=self.source_course).exists():
+            raise ValidationError(
+                {"source_course": "Source course does not exist"}
+            )
+
+        if not CourseOverview.objects.filter(id=self.target_course).exists():
+            raise ValidationError(
+                {"target_course": "Target course does not exist"}
+            )
+
+        conflicting_target = CourseSyncMapping.objects.filter(
             target_course=self.source_course
         ).first()
         if conflicting_target:
@@ -66,7 +78,7 @@ class CourseRunSyncMap(models.Model):
                 }
             )
 
-        conflicting_source = CourseRunSyncMap.objects.filter(
+        conflicting_source = CourseSyncMapping.objects.filter(
             source_course=self.target_course
         ).first()
         if conflicting_source:

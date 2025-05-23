@@ -13,7 +13,7 @@ from xmodule.modulestore.django import SignalHandler
 logger = get_task_logger(__name__)
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 2})
 def async_course_sync(source_course_id, dest_course_id):
     """
     Sync course content from source course to destination course.
