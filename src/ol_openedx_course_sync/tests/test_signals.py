@@ -11,12 +11,13 @@ from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
 from ol_openedx_course_sync.signals import listen_for_course_publish
 from opaque_keys.edx.locator import CourseLocator
+from openedx.core.djangoapps.content.course_overviews.tests.factories import (
+    CourseOverviewFactory,
+)
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from xmodule.modulestore.django import SignalHandler
 from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory
-from openedx.core.djangoapps.content.course_overviews.tests.factories import CourseOverviewFactory
-from opaque_keys.edx.locator import CourseLocator
 
 
 @skip_unless_cms
@@ -38,8 +39,12 @@ def test_signal_does_nothing_in_invalid_conditions(state, create_org, sync_map_e
     if create_org:
         CourseSyncOrganization.objects.create(organization="TestOrg")
 
-    CourseOverviewFactory.create(id=CourseLocator.from_string("course-v1:TestOrg+NewCourse+2025"))
-    CourseOverviewFactory.create(id=CourseLocator.from_string("course-v1:TestOrg+OldCourse+2024"))
+    CourseOverviewFactory.create(
+        id=CourseLocator.from_string("course-v1:TestOrg+NewCourse+2025")
+    )
+    CourseOverviewFactory.create(
+        id=CourseLocator.from_string("course-v1:TestOrg+OldCourse+2024")
+    )
     course_rerun_state = CourseRerunState.objects.create(
         state=state,
         course_key="course-v1:TestOrg+NewCourse+2025",
@@ -111,8 +116,12 @@ class TestCoursePublishSignal(SharedModuleStoreTestCase):
         Test that the course publish signal triggers the async_course_sync task
         """
         CourseOverviewFactory.create(id=self.source_course_key)
-        CourseOverviewFactory.create(id=CourseLocator.from_string("course-v1:TestOrg+Target1+2025"))
-        CourseOverviewFactory.create(id=CourseLocator.from_string("course-v1:TestOrg+Target2+2025"))
+        CourseOverviewFactory.create(
+            id=CourseLocator.from_string("course-v1:TestOrg+Target1+2025")
+        )
+        CourseOverviewFactory.create(
+            id=CourseLocator.from_string("course-v1:TestOrg+Target2+2025")
+        )
         CourseSyncOrganization.objects.create(organization="TestOrg")
         CourseSyncMapping.objects.create(
             source_course=str(self.source_course_key),
