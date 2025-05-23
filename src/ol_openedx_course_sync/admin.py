@@ -34,6 +34,14 @@ class CourseSyncOrganizationAdmin(admin.ModelAdmin):
     form = CourseSyncOrganizationForm
     list_display = ("organization", "is_active")
 
+    def has_delete_permission(self, request, obj=None):
+        """
+        Disable delete permission if CourseSyncMapping is not clean
+        """
+        if obj and not obj.can_be_deleted():
+            return False
+        return super().has_delete_permission(request, obj)
+
 
 class CourseSyncMappingAdmin(admin.ModelAdmin):
     list_display = ("source_course", "target_course", "is_active")
