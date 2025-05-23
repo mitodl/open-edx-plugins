@@ -7,6 +7,9 @@ from django.core.exceptions import ValidationError
 from ol_openedx_course_sync.models import CourseSyncMapping
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 
+from openedx.core.djangoapps.content.course_overviews.tests.factories import CourseOverviewFactory
+from opaque_keys.edx.locator import CourseLocator
+
 
 @skip_unless_cms
 @pytest.mark.django_db()
@@ -63,12 +66,16 @@ from openedx.core.djangolib.testing.utils import skip_unless_cms
         ),
     ],
 )
-def test_course_sync_mapping_clean_conflicts(existing, new, expected_error_field):
+def test_course_sync_mapping_clean(existing, new, expected_error_field):
     """
     Parametrized test to validate CourseSyncMapping.clean() conflicts:
     - A source course cannot be used as a target.
     - A target course cannot be used as a source.
     """
+    CourseOverviewFactory.create(id=CourseLocator.from_string(existing["source_course"]))
+    CourseOverviewFactory.create(id=CourseLocator.from_string(existing["target_course"]))
+    CourseOverviewFactory.create(id=CourseLocator.from_string(new["source_course"]))
+    CourseOverviewFactory.create(id=CourseLocator.from_string(new["target_course"]))
     CourseSyncMapping.objects.create(**existing)
     obj = CourseSyncMapping(**new)
 
