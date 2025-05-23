@@ -24,9 +24,7 @@ def async_course_sync(source_course_id, dest_course_id):
     """
     Sync course content from source course to destination course.
     """
-    logger.info(
-        "Starting async course sync from %s to %s", source_course_id, dest_course_id
-    )
+    logger.info("Starting course sync from %s to %s", source_course_id, dest_course_id)
     source_course_key = CourseLocator.from_string(source_course_id)
     dest_course_key = CourseLocator.from_string(dest_course_id)
 
@@ -55,5 +53,5 @@ def async_course_sync(source_course_id, dest_course_id):
         sender=OLOpenEdxCourseSyncConfig, course_key=dest_course_key
     )
     logger.debug(
-        "Finished async course sync from %s to %s", source_course_key, dest_course_key
+        "Finished course sync from %s to %s", source_course_key, dest_course_key
     )

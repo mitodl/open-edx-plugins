@@ -26,5 +26,4 @@ Usage
 * The plugin will automatically add course re-runs created from the CMS as the child courses.
     * The organization can be different for the reruns.
 * Target/rerun courses can be managed in the CMS admin model `CourseSyncMapping`.
-    * You can update the comma-separated target course list.
 * Now, any changes made in the source course will be synced to the target courses.

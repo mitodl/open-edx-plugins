@@ -15,7 +15,7 @@ class CourseSyncOrganization(models.Model):
     Model for source course organizations
 
     Any course that is part of this organization
-    will sync the content changes to the child/rerun courses.
+    will sync the content changes to the target/rerun courses.
     """
 
     organization = models.CharField(max_length=255, unique=True)
@@ -60,7 +60,7 @@ class CourseSyncMapping(models.Model):
         app_label = "ol_openedx_course_sync"
 
     def __str__(self):
-        return f"{self.source_course} Course Run Sync Map"
+        return f"{self.source_course} Course Sync Mapping"
 
     def save(self, *args, **kwargs):
         """

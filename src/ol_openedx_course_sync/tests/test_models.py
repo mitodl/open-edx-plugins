@@ -69,7 +69,7 @@ from openedx.core.djangolib.testing.utils import skip_unless_cms
             True,
             None,
         ),
-        # Case 5: Failure, target and source course overviews do not exist
+        # Case 5: Failure, target course overview does not exist
         (
             {
                 "source_course": "course-v1:edX+DemoX+2025",
@@ -91,6 +91,7 @@ def test_course_sync_mapping_clean(
     Parametrized test to validate CourseSyncMapping.clean() conflicts:
     - A source course cannot be used as a target.
     - A target course cannot be used as a source.
+    - Course overview should exist.
     """
     CourseOverviewFactory.create(
         id=CourseLocator.from_string(existing["source_course"])
