@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
-from ol_openedx_course_sync.models import CourseRunSyncMap, CourseSyncOrganization
+from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
 from ol_openedx_course_sync.tasks import async_course_sync
 
 log = logging.getLogger(__name__)
@@ -28,22 +28,22 @@ def listen_for_course_publish(
     ).exists():
         return
 
-    course_run_sync_maps = CourseRunSyncMap.objects.filter(
+    course_sync_mappings = CourseSyncMapping.objects.filter(
         source_course=course_key, is_active=True
     )
-    if not course_run_sync_maps:
-        log.info("No mapping found for course %s. Skipping copy.", str(course_key))
+    if not course_sync_mappings:
+        log.info("No mapping found for course %s. Skipping sync.", str(course_key))
         return
 
-    for course_run_sync_map in course_run_sync_maps:
+    for course_sync_mapping in course_sync_mappings:
         log.info(
-            "Initializing async course content sync from %s to %s",
-            course_run_sync_map.source_course,
-            course_run_sync_map.target_course,
+            "Initializing course content sync from %s to %s",
+            course_sync_mapping.source_course,
+            course_sync_mapping.target_course,
         )
         async_course_sync.delay(
-            str(course_run_sync_map.source_course),
-            str(course_run_sync_map.target_course),
+            str(course_sync_mapping.source_course),
+            str(course_sync_mapping.target_course),
         )
 
 
@@ -51,7 +51,7 @@ def listen_for_course_publish(
 def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa: ARG001
     """
     Listen for `CourseRerunState` post_save and
-    create target courses in `CourseRunSyncMap`
+    create target courses in `CourseSyncMapping`
     """
     if instance.state != COURSE_RERUN_STATE_SUCCEEDED:
         return
@@ -62,19 +62,19 @@ def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa
         return
 
     try:
-        course_run_sync_map = CourseRunSyncMap.objects.create(
+        course_sync_mapping = CourseSyncMapping.objects.create(
             source_course=instance.source_course_key,
             target_course=instance.course_key,
         )
     except ValidationError:
         log.exception(
-            "Failed to create CourseRunSyncMap for %s",
+            "Failed to create CourseSyncMapping for %s",
             instance.source_course_key,
         )
     else:
         # Trigger course sync to sync the published changes.
         # When a course clone or rerun is created, published changes are not synced.
         async_course_sync.delay(
-            str(course_run_sync_map.source_course),
-            str(course_run_sync_map.target_course),
+            str(course_sync_mapping.source_course),
+            str(course_sync_mapping.target_course),
         )
