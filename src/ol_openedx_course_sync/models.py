@@ -7,7 +7,6 @@ from django.db import models
 from opaque_keys.edx.django.models import (
     CourseKeyField,
 )
-
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 
 
@@ -58,14 +57,10 @@ class CourseSyncMapping(models.Model):
         super().clean()
 
         if not CourseOverview.objects.filter(id=self.source_course).exists():
-            raise ValidationError(
-                {"source_course": "Source course does not exist"}
-            )
+            raise ValidationError({"source_course": "Source course does not exist"})
 
         if not CourseOverview.objects.filter(id=self.target_course).exists():
-            raise ValidationError(
-                {"target_course": "Target course does not exist"}
-            )
+            raise ValidationError({"target_course": "Target course does not exist"})
 
         conflicting_target = CourseSyncMapping.objects.filter(
             target_course=self.source_course

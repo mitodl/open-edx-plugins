@@ -51,15 +51,15 @@ from openedx.core.djangolib.testing.utils import skip_unless_cms
         ),
         # Case 4: Success, target and source courses are not in conflict
         (
-                {
-                    "source_course": "course-v1:edX+DemoX+2025",
-                    "target_course": "course-v1:edX+DemoX+2026",
-                },
-                {
-                    "source_course": "course-v1:edX+DemoX+2025",
-                    "target_course": "course-v1:edX+DemoX+2027",
-                },
-                None,
+            {
+                "source_course": "course-v1:edX+DemoX+2025",
+                "target_course": "course-v1:edX+DemoX+2026",
+            },
+            {
+                "source_course": "course-v1:edX+DemoX+2025",
+                "target_course": "course-v1:edX+DemoX+2027",
+            },
+            None,
         ),
     ],
 )
