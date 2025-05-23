@@ -4,6 +4,7 @@ Tasks for the ol-openedx-course-sync plugin.
 
 from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
+from celery_utils.persist_on_failure import LoggedPersistOnFailureTask
 from ol_openedx_course_sync.apps import OLOpenEdxCourseSyncConfig
 from ol_openedx_course_sync.utils import copy_course_content
 from opaque_keys.edx.locator import CourseLocator
@@ -13,7 +14,12 @@ from xmodule.modulestore.django import SignalHandler
 logger = get_task_logger(__name__)
 
 
-@shared_task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 2})
+@shared_task(
+    base=LoggedPersistOnFailureTask,
+    autoretry_for=(Exception,),
+    max_retries=3,
+    default_retry_delay=30,
+)
 def async_course_sync(source_course_id, dest_course_id):
     """
     Sync course content from source course to destination course.
