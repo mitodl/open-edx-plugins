@@ -27,6 +27,25 @@ class CourseSyncOrganization(models.Model):
     def __str__(self):
         return f"{self.organization} Course Sync Organization"
 
+    def delete(self, *args, **kwargs):
+        """
+        Override delete method to perform custom validations.
+        """
+        if not self.can_be_deleted():
+            raise ValidationError(  # noqa: TRY003
+                "Cannot delete organization with existing CourseSyncMapping objects."  # noqa: EM101
+            )
+        super().delete(*args, **kwargs)
+
+    def can_be_deleted(self):
+        """
+        Check if the organization can be deleted.
+        """
+        return not CourseSyncMapping.objects.filter(
+            models.Q(source_course__contains=self.organization)
+            | models.Q(target_course__contains=self.organization)
+        ).exists()
+
 
 class CourseSyncMapping(models.Model):
     """
