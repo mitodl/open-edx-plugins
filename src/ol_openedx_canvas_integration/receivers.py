@@ -7,7 +7,7 @@ from ol_openedx_canvas_integration.tasks import sync_user_grade_with_canvas
 log = logging.getLogger(__name__)
 
 
-def update_grade_in_canvas(sender, instance, created, **kwargs):
+def update_grade_in_canvas(sender, instance, created, **kwargs):  # noqa: ARG001
     """
     Automatically update grades in Canvas when assignments are synced.
 
