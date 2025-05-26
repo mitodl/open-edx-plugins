@@ -44,7 +44,7 @@ class CanvasIntegrationConfig(AppConfig):
                     {
                         PluginSignals.RECEIVER_FUNC_NAME: "update_grade_in_canvas",
                         PluginSignals.SIGNAL_PATH: "django.db.models.signals.post_save",
-                        PluginSignals.SENDER_PATH: "lms.djangoapps.grades.models.PersistentSubsectionGrade",
+                        PluginSignals.SENDER_PATH: "lms.djangoapps.grades.models.PersistentSubsectionGrade",  # noqa: E501
                     }
                 ],
             }

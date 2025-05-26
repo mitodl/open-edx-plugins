@@ -9,6 +9,8 @@ from lms.djangoapps.courseware.access import has_access
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.grades.context import grading_context_for_course
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
+from opaque_keys.edx.locator import CourseLocator
+
 from ol_openedx_canvas_integration.client import (
     CanvasClient,
     create_assignment_payload,
@@ -16,7 +18,6 @@ from ol_openedx_canvas_integration.client import (
 )
 from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
 from ol_openedx_canvas_integration.utils import get_canvas_course_id
-from opaque_keys.edx.locator import CourseLocator
 
 log = logging.getLogger(__name__)
 
@@ -109,7 +110,9 @@ def get_subsection_user_grades(course):
     return subsection_grade_dict
 
 
-def get_subsection_grade_for_user(course_id: str, subsection_usage_key: str, user_id: int):
+def get_subsection_grade_for_user(
+    course_id: str, subsection_usage_key: str, user_id: int
+):
     """
     Fetch a learner's grade for a subsection.
 

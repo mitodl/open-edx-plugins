@@ -1,10 +1,10 @@
 import logging
-from typing import Any
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 
 import pytz
 import requests
 from django.conf import settings
+
 from ol_openedx_canvas_integration.constants import DEFAULT_ASSIGNMENT_POINTS
 
 log = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ class CanvasClient:
         pieces = pieces._replace(query=query_string)
         return pieces.geturl()
 
-    def _paginate(self, url, *args, **kwargs) -> list[dict[str, Any]]:
+    def _paginate(self, url, *args, **kwargs):
         """
         Iterate over the paginated results of a request
         """
@@ -97,22 +97,23 @@ class CanvasClient:
         )
         return self._paginate(url)
 
-    def get_student_id_by_email(self, email: str) -> int | None:
+    def get_student_id_by_email(self, email: str):
         """
-        Searches students and return the canvas ID of the learner with given email.
+        Get the canvas ID of the learner with the given email.
 
         Returns:
-            int: Canvas ID of the student user. None if no student is found.
+            int: Canvas ID of the student if enrolled in the course. None otherwise.
         """
         url = urljoin(
             settings.CANVAS_BASE_URL,
             f"/api/v1/courses/{self.canvas_course_id}/search_users",
         )
         search_results = self._paginate(
-            url,
-            params={"search_term": email, "enrollment_type[]": "student"}
+            url, params={"search_term": email, "enrollment_type[]": "student"}
         )
-        return next((user["id"] for user in search_results if user["email"] == email), None)
+        return next(
+            (user["id"] for user in search_results if user["email"] == email), None
+        )
 
     def get_assignments_by_int_id(self):
         assignments = self.list_canvas_assignments()
@@ -206,7 +207,7 @@ def create_assignment_payload(subsection_block):
     }
 
 
-def update_grade_payload_kv(user_id, grade_percent) -> tuple[str, str]:
+def update_grade_payload_kv(user_id, grade_percent):
     """
     Returns a key/value pair that will be used in the body of a bulk grade update request
 
