@@ -110,7 +110,9 @@ def get_subsection_user_grades(course):
     return subsection_grade_dict
 
 
-def get_subsection_grade_for_user(course_id: str, subsection_usage_key: str, user_id: int):
+def get_subsection_grade_for_user(
+    course_id: str, subsection_usage_key: str, user_id: int
+):
     """
     Fetch a learner's grade for a subsection.
 
