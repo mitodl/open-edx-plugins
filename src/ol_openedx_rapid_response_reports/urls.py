@@ -3,6 +3,7 @@ URLs for ol_openedx_rapid_response_reports.
 """
 
 from django.urls import re_path
+
 from ol_openedx_rapid_response_reports.api import get_rapid_response_report
 
 urlpatterns = [

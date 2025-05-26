@@ -83,7 +83,7 @@ class CourseStructureView(DeveloperErrorViewMixin, GenericAPIView):
         try:
             course_key = CourseKey.from_string(course_id)
         except InvalidKeyError:
-            raise DeveloperErrorViewMixin.api_error(  # noqa: B904, TRY200
+            raise DeveloperErrorViewMixin.api_error(  # noqa: B904
                 status_code=status.HTTP_404_NOT_FOUND,
                 developer_message="Invalid course_id",
             )

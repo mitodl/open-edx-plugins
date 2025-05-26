@@ -8,9 +8,10 @@ import logging
 
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.translation import gettext as _
-from edx_sysadmin import git_import
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.xml import XMLModuleStore
+
+from edx_sysadmin import git_import
 
 log = logging.getLogger(__name__)
 
@@ -57,4 +58,4 @@ class Command(BaseCommand):
         try:
             git_import.add_repo(options["repository_url"], rdir_arg, branch)
         except git_import.GitImportError as ex:
-            raise CommandError(str(ex))  # noqa: B904, TRY200
+            raise CommandError(str(ex))  # noqa: B904

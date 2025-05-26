@@ -7,7 +7,6 @@ from common.djangoapps.student.models import (
 )
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from edx_username_changer.exceptions import UpdateFailedException
 from openedx.core.djangoapps.django_comment_common.comment_client.comment import (
     Comment,
 )
@@ -18,6 +17,8 @@ from openedx.core.djangoapps.django_comment_common.comment_client.utils import (
     perform_request as perform_forum_request,
 )
 from social_django.models import UserSocialAuth
+
+from edx_username_changer.exceptions import UpdateFailedException
 
 User = get_user_model()
 

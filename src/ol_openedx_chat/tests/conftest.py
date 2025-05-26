@@ -33,8 +33,8 @@ def pytest_configure(config):
         logging.disable(logging.WARNING)
 
 
-@pytest.fixture()
-def example_event(request):  # noqa: PT004
+@pytest.fixture
+def example_event(request):
     """An example real event captured previously"""  # noqa: D401
     with Path.open(BASE_DIR / ".." / "test_data" / "example_event.json") as f:
         request.cls.example_event = json.load(f)

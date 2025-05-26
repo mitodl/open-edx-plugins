@@ -15,6 +15,11 @@ from importlib import import_module
 from urllib.parse import urlparse
 
 from django.conf import settings
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+from opentelemetry.sdk.resources import Resource
+
 from ol_openedx_otel_monitoring.exceptions import (
     ConfigurationError,
     EnvironmentVariableError,
@@ -22,10 +27,6 @@ from ol_openedx_otel_monitoring.exceptions import (
     InitializationError,
     InstrumentationError,
 )
-from opentelemetry import metrics
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import Resource
 
 logger = logging.getLogger(__name__)
 
