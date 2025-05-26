@@ -3,7 +3,12 @@ Canvas Integration Application Configuration
 """
 
 from django.apps import AppConfig
-from edx_django_utils.plugins import PluginContexts, PluginSettings, PluginURLs, PluginSignals
+from edx_django_utils.plugins import (
+    PluginContexts,
+    PluginSettings,
+    PluginURLs,
+    PluginSignals,
+)
 from lms.djangoapps.instructor.constants import INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME
 from openedx.core.constants import COURSE_ID_PATTERN
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
