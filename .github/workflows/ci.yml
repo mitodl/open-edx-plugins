@@ -39,15 +39,21 @@ jobs:
         else
           pip install tutor==19.0.0
         fi
-
-    - name: Set up tutor with edx-platform
+    - name: clone edx-platform and add mounts
       run: |
         cd ..
         git clone https://github.com/openedx/edx-platform
         cd edx-platform
         git checkout ${{ matrix.edx_branch }}
         tutor mounts add .
-        tutor dev launch --non-interactive
+
+    - name: Build Tutor images
+      run: |
+        tutor images build openedx-dev
+
+    - name: Launch Tutor
+      run: |
+        tutor dev launch -I --skip-build
         tutor dev stop
 
     - name: Run tests on tutor
