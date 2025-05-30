@@ -7,10 +7,11 @@ import logging
 from botocore.exceptions import ClientError
 from celery import shared_task  # pylint: disable=import-error
 from cms.djangoapps.contentstore.tasks import CourseExportTask, create_export_tarball
-from ol_openedx_course_export.s3_client import S3Client
 from opaque_keys.edx.keys import CourseKey
 from user_tasks.models import UserTaskStatus
 from xmodule.modulestore.django import modulestore
+
+from ol_openedx_course_export.s3_client import S3Client
 
 log = logging.getLogger(__name__)
 

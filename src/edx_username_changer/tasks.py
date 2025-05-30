@@ -4,15 +4,16 @@ This file contains celery tasks related to edx_username_changer plugin.
 
 from celery import shared_task
 from django.contrib.auth import get_user_model
+from openedx.core.djangoapps.django_comment_common.comment_client.user import (
+    User as CommentUser,
+)
+
 from edx_username_changer.utils import (
     get_authored_threads_and_comments,
     get_enrolled_course_ids,
     update_comment_user_username,
     update_comment_username,
     update_thread_username,
-)
-from openedx.core.djangoapps.django_comment_common.comment_client.user import (
-    User as CommentUser,
 )
 
 COMMENT_TYPE = "comment"

@@ -4,8 +4,9 @@ This module initializes and configures the Django application with OTel monitori
 
 from django.apps import AppConfig
 from edx_django_utils.plugins import PluginSettings, PluginURLs
-from ol_openedx_otel_monitoring.client import initialize_otel
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
+
+from ol_openedx_otel_monitoring.client import initialize_otel
 
 
 class OTelMonitoringConfig(AppConfig):

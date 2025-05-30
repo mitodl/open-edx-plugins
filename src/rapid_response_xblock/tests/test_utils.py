@@ -3,9 +3,10 @@
 import pytest
 from common.djangoapps.student.tests.factories import UserFactory
 from opaque_keys.edx.keys import UsageKey
+from tests.utils import RuntimeEnabledTestCase
+
 from rapid_response_xblock.models import RapidResponseRun, RapidResponseSubmission
 from rapid_response_xblock.utils import get_run_data_for_course, get_run_submission_data
-from tests.utils import RuntimeEnabledTestCase
 
 
 class TestUtils(RuntimeEnabledTestCase):

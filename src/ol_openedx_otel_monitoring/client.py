@@ -9,6 +9,8 @@ It also supports enabling SQLCommenter instrumentation for Django.
 import logging
 
 from django.conf import settings
+from opentelemetry.instrumentation.django import DjangoInstrumentor
+
 from ol_openedx_otel_monitoring.exceptions import (
     ConfigurationError,
     InitializationError,
@@ -16,7 +18,6 @@ from ol_openedx_otel_monitoring.exceptions import (
 )
 from ol_openedx_otel_monitoring.metrics import prepare_metrics
 from ol_openedx_otel_monitoring.tracing import setup_tracing
-from opentelemetry.instrumentation.django import DjangoInstrumentor
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)

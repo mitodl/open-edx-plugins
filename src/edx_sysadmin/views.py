@@ -19,6 +19,9 @@ from django.views.decorators.cache import cache_control
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import condition
 from django.views.generic.base import RedirectView, TemplateView
+from opaque_keys.edx.keys import CourseKey
+from xmodule.modulestore.django import modulestore
+
 from edx_sysadmin import git_import
 from edx_sysadmin.forms import UserRegistrationForm
 from edx_sysadmin.git_import import GitImportError
@@ -35,8 +38,6 @@ from edx_sysadmin.utils.utils import (
     user_has_access_to_sysadmin,
     user_has_access_to_users_panel,
 )
-from opaque_keys.edx.keys import CourseKey
-from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger(__name__)
 

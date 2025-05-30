@@ -6,17 +6,18 @@ from cms.djangoapps.contentstore.api.views.course_import import (
     CourseImportExportViewMixin,
 )
 from cms.djangoapps.contentstore.tasks import CourseExportTask
-from ol_openedx_course_export.tasks import task_upload_course_s3
-from ol_openedx_course_export.utils import (
-    get_aws_file_url,
-    is_bucket_configuration_valid,
-)
 from openedx.core.lib.api.view_utils import verify_course_exists
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from user_tasks.models import UserTaskStatus
+
+from ol_openedx_course_export.tasks import task_upload_course_s3
+from ol_openedx_course_export.utils import (
+    get_aws_file_url,
+    is_bucket_configuration_valid,
+)
 
 log = logging.getLogger(__name__)
 
@@ -159,7 +160,7 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
             return Response({"state": task_status.state})
         except Exception as e:
             log.exception(str(e))  # noqa: TRY401
-            raise self.api_error(  # noqa: B904, TRY200
+            raise self.api_error(  # noqa: B904
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 developer_message=str(e),
                 error_code="internal_error",

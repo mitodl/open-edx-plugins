@@ -2,8 +2,9 @@
 """Utility methods for the AI chat"""
 
 from lms.djangoapps.courseware.courses import get_course_by_id
-from ol_openedx_chat.constants import BLOCK_TYPE_TO_SETTINGS, CHAT_APPLICABLE_BLOCKS
 from opaque_keys.edx.locator import CourseLocator
+
+from ol_openedx_chat.constants import BLOCK_TYPE_TO_SETTINGS, CHAT_APPLICABLE_BLOCKS
 
 
 def is_aside_applicable_to_block(block):

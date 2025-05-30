@@ -14,11 +14,12 @@ from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.instructor import permissions
 from lms.djangoapps.instructor.views.api import require_course_permission
 from lms.djangoapps.instructor_task.api_helper import AlreadyRunningError
+from opaque_keys.edx.locator import CourseLocator
+
 from ol_openedx_canvas_integration import tasks
 from ol_openedx_canvas_integration.client import CanvasClient
 from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
 from ol_openedx_canvas_integration.utils import get_canvas_course_id
-from opaque_keys.edx.locator import CourseLocator
 
 log = logging.getLogger(__name__)
 

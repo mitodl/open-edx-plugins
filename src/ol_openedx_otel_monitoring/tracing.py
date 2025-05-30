@@ -14,6 +14,11 @@ from importlib import import_module
 from urllib.parse import urlparse
 
 from django.conf import settings
+from opentelemetry import trace
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
 from ol_openedx_otel_monitoring.exceptions import (
     ConfigurationError,
     EnvironmentVariableError,
@@ -21,10 +26,6 @@ from ol_openedx_otel_monitoring.exceptions import (
     InitializationError,
     InstrumentationError,
 )
-from opentelemetry import trace
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)

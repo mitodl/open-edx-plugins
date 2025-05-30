@@ -7,6 +7,7 @@ from common.djangoapps.course_modes.models import CourseMode
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponseRedirect
+
 from ol_openedx_checkout_external.exceptions import ExternalCheckoutError
 
 log = logging.getLogger(__name__)
