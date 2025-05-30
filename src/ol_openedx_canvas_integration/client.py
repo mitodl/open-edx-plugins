@@ -97,6 +97,24 @@ class CanvasClient:
         )
         return self._paginate(url)
 
+    def get_student_id_by_email(self, email: str):
+        """
+        Get the canvas ID of the learner with the given email.
+
+        Returns:
+            int: Canvas ID of the student if enrolled in the course. None otherwise.
+        """
+        url = urljoin(
+            settings.CANVAS_BASE_URL,
+            f"/api/v1/courses/{self.canvas_course_id}/search_users",
+        )
+        search_results = self._paginate(
+            url, params={"search_term": email, "enrollment_type[]": "student"}
+        )
+        return next(
+            (user["id"] for user in search_results if user["email"] == email), None
+        )
+
     def get_assignments_by_int_id(self):
         assignments = self.list_canvas_assignments()
         assignments_dict = {
