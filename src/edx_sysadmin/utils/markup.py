@@ -18,4 +18,4 @@ def HTML(html):  # noqa: N802
     used in conjunction with ``Text()``, and both ``HTML()`` and ``Text()``
     must be closed before any calls to ``format()``::
     """
-    return markupsafe.Markup(html)
+    return markupsafe.Markup(html)  # noqa: S704
