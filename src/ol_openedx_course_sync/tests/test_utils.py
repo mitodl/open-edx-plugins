@@ -5,11 +5,12 @@ Tests for ol-openedx-course-sync utils.
 from unittest import mock
 
 from ddt import data, ddt
-from ol_openedx_course_sync.utils import copy_course_content
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from tests.utils import OLOpenedXCourseSyncTestCase
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
+
+from ol_openedx_course_sync.utils import copy_course_content
 
 
 @ddt

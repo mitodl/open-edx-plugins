@@ -6,9 +6,10 @@ import logging
 
 from django import forms
 from django.contrib import admin
+from organizations.models import Organization
+
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
 from ol_openedx_course_sync.tasks import async_course_sync
-from organizations.models import Organization
 
 log = logging.getLogger(__name__)
 

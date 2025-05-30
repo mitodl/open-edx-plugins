@@ -8,6 +8,7 @@ from common.djangoapps.course_action_state.models import CourseRerunState
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
 from ol_openedx_course_sync.tasks import async_course_sync

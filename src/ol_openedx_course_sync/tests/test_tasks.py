@@ -4,10 +4,11 @@ Tests for ol-openedx-course-sync tasks.
 
 from unittest import mock
 
-from ol_openedx_course_sync.tasks import async_course_sync
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from tests.utils import OLOpenedXCourseSyncTestCase
 from xmodule.modulestore import ModuleStoreEnum
+
+from ol_openedx_course_sync.tasks import async_course_sync
 
 
 class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
