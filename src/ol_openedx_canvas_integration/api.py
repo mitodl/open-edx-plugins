@@ -110,19 +110,17 @@ def get_subsection_user_grades(course):
     return subsection_grade_dict
 
 
-def get_subsection_grade_for_user(
-    course_id: str, subsection_usage_key: str, user_id: int
-):
+def get_subsection_grade_for_user(course_id, subsection_usage_key, user_id):
     """
     Fetch a learner's grade for a subsection.
 
     Args:
-        course_id: ID of the Open edX course
-        subsection_usage_key: the full usage key of the subsection
-        user_id: the learner's user id
+        course_id (str): ID of the Open edX course
+        subsection_usage_key (BlockUsageLocator): usage key of the subsection/block
+        user_id (int): the learner's user id
 
     Returns:
-        the grade object
+        the grade object or None
     """
     student = User.objects.get(id=user_id)
     course = get_course_by_id(course_id)
@@ -130,9 +128,9 @@ def get_subsection_grade_for_user(
     subsection_grade_dict_items = course_grade.graded_subsections_by_format().values()
     grade = None
     for subsection_grade_dict in subsection_grade_dict_items:
-        for locator, subsection_grade in subsection_grade_dict.items():
-            if str(locator) == str(subsection_usage_key):
-                grade = subsection_grade
+        grade = subsection_grade_dict.get(subsection_usage_key, None)
+        if grade:
+            return grade
     return grade
 
 
