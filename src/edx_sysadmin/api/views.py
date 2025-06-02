@@ -59,7 +59,7 @@ class GitReloadAPIView(APIView):
                 err_msg = _("SYSADMIN_DEFAULT_BRANCH is not configured in settings")
             elif clean_pushed_branch != settings.SYSADMIN_DEFAULT_BRANCH:
                 err_msg = _(
-                    "Couldn't entertain reload request for the branch ({}), expected branch is ({}) "  # noqa: E501
+                    "Couldn't reload course from the branch ({}), expected branch was ({}) "  # noqa: E501
                 ).format(clean_pushed_branch, settings.SYSADMIN_DEFAULT_BRANCH)
             else:
                 repo = get_local_course_repo(repo_name)
@@ -94,8 +94,9 @@ class GitReloadAPIView(APIView):
                         return self.get_reload_response(
                             msg=msg, status_code=status.HTTP_200_OK
                         )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             err_msg = str(e)
+            logger.exception(f"{self.__class__.__name__}:: {err_msg}")  # noqa: G004
 
         return self.get_reload_response(
             msg=err_msg, status_code=status.HTTP_400_BAD_REQUEST
@@ -105,7 +106,7 @@ class GitReloadAPIView(APIView):
         if status_code == status.HTTP_200_OK:
             logger.info(f"{self.__class__.__name__}:: {msg}")  # noqa: G004
         else:
-            logger.exception(f"{self.__class__.__name__}:: {msg}")  # noqa: G004
+            logger.info(f"{self.__class__.__name__}:: {msg}")  # noqa: G004
 
         return Response(
             {"message": msg},
