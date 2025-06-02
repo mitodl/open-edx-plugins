@@ -6,8 +6,8 @@ from django.apps import AppConfig
 from edx_django_utils.plugins import (
     PluginContexts,
     PluginSettings,
-    PluginURLs,
     PluginSignals,
+    PluginURLs,
 )
 from lms.djangoapps.instructor.constants import INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME
 from openedx.core.constants import COURSE_ID_PATTERN
