@@ -1,6 +1,13 @@
 Release Notes
 =============
 
+Version 0.26.0
+--------------
+
+- feat!: Adding django52 support. (#368)
+- fix: reduce project coverage threshold (#371)
+- fix: CI breaking on an external package (fancycompleter) (#370)
+
 Version 0.25.3 (Released March 17, 2025)
 --------------
 
