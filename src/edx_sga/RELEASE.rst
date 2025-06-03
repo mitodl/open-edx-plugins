@@ -1,7 +1,7 @@
 Release Notes
 =============
 
-Version 0.26.0
+Version 0.26.0 (Released June 03, 2025)
 --------------
 
 - feat!: Adding django52 support. (#368)
