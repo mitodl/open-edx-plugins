@@ -9,13 +9,32 @@ from functools import partial
 
 import pytz
 from django.conf import settings
-from django.core.files.storage import default_storage as django_default_storage, get_storage_class
+from django.core.files.storage import default_storage as django_default_storage
+from django.core.files.storage import storages
+from django.utils.module_loading import import_string
 from edx_sga.constants import BLOCK_SIZE
 
 
 def get_default_storage():
     """
-    Get config for storage from settings, use Django's default_storage if no such settings are defined
+    Return the configured SGA file storage backend, using this priority:
+    1. Django ≥4.2 `STORAGES` registry:
+       - If `settings.STORAGES["sga_storage"]` exists, returns that storage instance.
+
+
+    2. Legacy `SGA_STORAGE_SETTINGS` dict:
+       {
+           "STORAGE_CLASS": "<dotted.path.to.StorageClass>",
+           "STORAGE_KWARGS": { ... },
+       }
+       If present, imports and instantiates that class with the given kwargs.
+
+    3. As a final fallback, returns Django’s shared `default_storage` singleton.
+
+    This ensures:
+      • Forward compatibility with the new `STORAGES`-based configuration.
+      • Backward compatibility with old `SGA_STORAGE_SETTINGS`.
+      • No breakage if neither setting is defined.
     """
     # .. setting_name: SGA_STORAGE_SETTINGS
     # .. setting_default: {}
@@ -25,10 +44,15 @@ def get_default_storage():
     #        STORAGE_CLASS: 'storage',
     #        STORAGE_KWARGS: {}
     #    }
-    sga_storage_settings = getattr(settings, "SGA_STORAGE_SETTINGS", None)
+    # Priority 1: Django 5's STORAGES config
+    storages_config = getattr(settings, 'STORAGES', {})
+    if "sga_storage" in storages_config:
+        return storages["sga_storage"]
 
+    # Priority 2: Legacy config (backward compatibility)
+    sga_storage_settings = getattr(settings, 'SGA_STORAGE_SETTINGS', None)
     if sga_storage_settings:
-        return get_storage_class(
+        return import_string(
             sga_storage_settings['STORAGE_CLASS']
         )(**sga_storage_settings['STORAGE_KWARGS'])
 

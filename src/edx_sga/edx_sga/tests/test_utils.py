@@ -55,3 +55,32 @@ def test_get_default_storage_without_settings_override():
     """
     storage = get_default_storage()
     assert storage == default_storage
+
+@override_settings(
+    SGA_STORAGE_SETTINGS=None
+)
+def test_sga_backend_with_default():
+    """ verify the storage in case of STORAGES"""
+    storage = get_default_storage()
+    assert storage.__class__ == default_storage.__class__
+
+@override_settings(
+    SGA_STORAGE_SETTINGS=None,
+    STORAGES={
+        'sga_storage': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+            'OPTIONS': {
+                'bucket_name': 'sga',
+                'default_acl': 'public',
+                'location': 'sga/images',
+            }
+        }
+    }
+)
+def test_sga_backend_with_new_sga_settings():
+    """ verify the sga-storage in case of STORAGES dict"""
+    storage = get_default_storage()
+    assert storage.__class__ == S3Boto3Storage
+    assert storage.bucket_name, "sga"
+    assert storage.default_acl, 'public'
+    assert storage.location, "sga/images"

@@ -181,7 +181,7 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         Set values on block from file upload.
         """
         try:
-            now = datetime.datetime.now(datetime.UTC)  # pylint: disable=no-member
+            now = datetime.datetime.now(datetime.UTC)
         except:  # pylint: disable=bare-except
             now = datetime.datetime.utcnow()
         now = now.replace(
@@ -749,7 +749,7 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         """
         block = self.make_xblock()
         try:
-            timestamp = datetime.datetime.now(datetime.UTC)  # pylint: disable=no-member
+            timestamp = datetime.datetime.now(datetime.UTC)
         except:  # pylint: disable=bare-except
             timestamp = datetime.datetime.utcnow()
         get_sorted_submissions.return_value = [

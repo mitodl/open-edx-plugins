@@ -25,12 +25,43 @@ the SGA XBlock in devstack.**
 
     To configure SGA to use local storage, edit `lms/envs/private.py`
     to include these settings (and create the file if it doesn't exist yet):
+    
+    Starting with Django 4.2, the `get_storage_class` function has been deprecated and is scheduled
+    for removal in Django 5.2. To ensure forward compatibility, Django has introduced a new 
+    storages system. You can now define all your custom or third-party storage backends using
+    the STORAGES dictionary in your settings. 
+    
+    Do not use both DEFAULT_FILE_STORAGE and STORAGES in your settings.
+    They are mutually exclusive, and you should use only one of these options.
 
     ```
     MEDIA_ROOT = "/edx/var/edxapp/uploads"
+   
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
-    ```
+    or
+    STORAGES = {
+        # The default file storage backend (fallback for user-uploaded media, etc.)
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
     
+        # Static files storage (used by collectstatic etc.)
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    
+        # Your SGA-specific storage backend
+        "sga_storage": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "bucket_name": "sga",
+                "default_acl": "public-read",
+                "location": "sga/images",
+            },
+        },
+    }
+    ```
+
     You can also configure S3 to be used as the file storage backend. Ask a fellow developer or devops for the
     correct settings to enable this. If you're using ansible to provision devstack, you may want to refer to 
     [this edX article on configuring data storage](https://openedx.atlassian.net/wiki/spaces/OpenOPS/pages/112001105/Configuring+Data+Storage).

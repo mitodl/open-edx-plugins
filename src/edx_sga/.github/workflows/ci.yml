@@ -19,7 +19,7 @@ jobs:
         os: [ubuntu-24.04]
         python-version: ['3.12']
         edx_branch: ['master', 'open-release/redwood.master', 'open-release/sumac.master']
-        toxenv: [py312-django32, py312-django42]
+        toxenv: [py312-django42, py312-django52]
 
     steps:
       - uses: actions/checkout@v4

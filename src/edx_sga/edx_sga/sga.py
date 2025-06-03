@@ -182,7 +182,7 @@ class StaffGradedAssignmentXBlock(
 
     @classmethod
     def parse_xml(cls, node, runtime, keys):
-        # pylint: disable=arguments-differ,unused-argument
+        # pylint: disable=unused-argument
         """
         Override default serialization to handle <solution /> elements
         """
