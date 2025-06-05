@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 import pytz
 import requests
 from django.conf import settings
+
 from ol_openedx_canvas_integration.constants import DEFAULT_ASSIGNMENT_POINTS
 
 log = logging.getLogger(__name__)
@@ -157,9 +158,9 @@ class CanvasClient:
         return self.session.put(
             url=urljoin(
                 settings.CANVAS_BASE_URL,
-                f"/api/v1/courses/{self.canvas_course_id}/assignments/{assignment_id}"
+                f"/api/v1/courses/{self.canvas_course_id}/assignments/{assignment_id}",
             ),
-            json=payload
+            json=payload,
         )
 
     def delete_canvas_assignment(self, assignment_id):
@@ -172,7 +173,7 @@ class CanvasClient:
         return self.session.delete(
             url=urljoin(
                 settings.CANVAS_BASE_URL,
-                f"/api/v1/courses/{self.canvas_course_id}/assignments/{assignment_id}"
+                f"/api/v1/courses/{self.canvas_course_id}/assignments/{assignment_id}",
             ),
         )
 

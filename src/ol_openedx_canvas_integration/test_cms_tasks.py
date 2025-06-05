@@ -1,8 +1,7 @@
 import pytest
 
-from uuid import uuid4
-from ol_openedx_canvas_integration.cms_tasks import diff_assignments
 from ol_openedx_canvas_integration.api import create_assignment_payload
+from ol_openedx_canvas_integration.cms_tasks import diff_assignments
 
 
 class MockSubsection:
@@ -16,7 +15,7 @@ class MockSubsection:
         return create_assignment_payload(self)
 
 
-subsection_mocks = [MockSubsection(f'id-{i}') for i in range(10)]
+subsection_mocks = [MockSubsection(f"id-{i}") for i in range(10)]
 
 
 @pytest.mark.parametrize(
@@ -31,8 +30,8 @@ subsection_mocks = [MockSubsection(f'id-{i}') for i in range(10)]
             {
                 "add": [s.payload for s in subsection_mocks[0:3]],
                 "update": {},
-                "delete": []
-            }
+                "delete": [],
+            },
         ),
         # Update existing assignments
         (
@@ -48,7 +47,7 @@ subsection_mocks = [MockSubsection(f'id-{i}') for i in range(10)]
                     1009: subsection_mocks[9].payload,
                 },
                 "delete": [],
-            }
+            },
         ),
         # Remove existing assignments
         (
@@ -57,20 +56,16 @@ subsection_mocks = [MockSubsection(f'id-{i}') for i in range(10)]
                 "synced-1": 1002,
                 "synced-2": 1003,
             },
-            {
-                "add": [],
-                "update": {},
-                "delete": [1002, 1003]
-            }
+            {"add": [], "update": {}, "delete": [1002, 1003]},
         ),
         # Add some, update some and remove some assignments
         (
             subsection_mocks[4:8],
             {
-                "id-2": 12, # remove
-                "id-3": 13, # remove
-                "id-4": 14, # update
-                "id-5": 15, # update
+                "id-2": 12,  # remove
+                "id-3": 13,  # remove
+                "id-4": 14,  # update
+                "id-5": 15,  # update
             },
             {
                 "add": [s.payload for s in subsection_mocks[6:8]],
@@ -79,9 +74,11 @@ subsection_mocks = [MockSubsection(f'id-{i}') for i in range(10)]
                     15: subsection_mocks[5].payload,
                 },
                 "delete": [12, 13],
-            }
-        )
-    ]
+            },
+        ),
+    ],
 )
 def test_diff_assignments(openedx_assignments, canvas_assignments_map, expected_output):
-    assert diff_assignments(openedx_assignments, canvas_assignments_map) == expected_output
+    assert (
+        diff_assignments(openedx_assignments, canvas_assignments_map) == expected_output
+    )

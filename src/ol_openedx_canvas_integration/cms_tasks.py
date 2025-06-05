@@ -8,9 +8,10 @@ making handler.py depend on tasks.py results in initialization failures.
 So, this module has been added without any dependencies on LMS only
 settings.
 """
-import logging
-import requests
 
+import logging
+
+import requests
 from celery import shared_task
 from lms.djangoapps.courseware.courses import get_course_by_id
 from opaque_keys.edx.locator import CourseLocator
@@ -39,11 +40,7 @@ def diff_assignments(openedx_assignments, canvas_assignments_map):
             "delete": ["Integer IDs of Canvas assignments"]
         }
     """
-    diff = {
-        "add": [],
-        "update": {},
-        "delete": []
-    }
+    diff = {"add": [], "update": {}, "delete": []}
 
     for subsection in openedx_assignments:
         payload = create_assignment_payload(subsection)
@@ -74,17 +71,24 @@ def sync_course_assignments_with_canvas(course_id):
     canvas_course_id = get_canvas_course_id(course)
 
     if not canvas_course_id:
-        logger.info("Course %s is not mapped to a Canvas Course. Skipping assignment sync.", course_id)
+        logger.info(
+            "Course %s is not mapped to a Canvas Course. Skipping assignment sync.",
+            course_id,
+        )
         return
 
-    openedx_assignments = [item["subsection_block"] for _, item, _ in course_graded_items(course)]
+    openedx_assignments = [
+        item["subsection_block"] for _, item, _ in course_graded_items(course)
+    ]
     canvas = CanvasClient(canvas_course_id=canvas_course_id)
     canvas_assignments = canvas.get_assignments_by_int_id()
 
     operations_map = diff_assignments(openedx_assignments, canvas_assignments)
     logger.info(
         "Syncing assignments with Canvas. Adding: %d, Updating: %d, Deleting: %d",
-        len(operations_map["add"]), len(operations_map["update"]), len(operations_map["delete"])
+        len(operations_map["add"]),
+        len(operations_map["update"]),
+        len(operations_map["delete"]),
     )
 
     succeeded = 0
@@ -96,14 +100,15 @@ def sync_course_assignments_with_canvas(course_id):
         except requests.HTTPError as e:
             logger.warning(
                 "Failed to create new assignment for subsection: %s. Error: %s",
-                payload["assignment"]["integration_id"], str(e)
+                payload["assignment"]["integration_id"],
+                str(e),
             )
     if operations_map["add"]:
         logger.info(
             "%d of %d new assignments were successfully added in Canvas.",
-            succeeded, len(operations_map["add"])
+            succeeded,
+            len(operations_map["add"]),
         )
-
 
     succeeded = 0
     for canvas_id, payload in operations_map["update"].items():
@@ -113,13 +118,13 @@ def sync_course_assignments_with_canvas(course_id):
             succeeded += 1
         except requests.HTTPError as e:
             logger.warning(
-                "Failed to update Canvas Assignment %d. Error: %s",
-                canvas_id, str(e)
+                "Failed to update Canvas Assignment %d. Error: %s", canvas_id, str(e)
             )
     if operations_map["update"]:
         logger.info(
             "%d of %d assignments were successfully updated in Canvas.",
-            succeeded, len(operations_map["update"])
+            succeeded,
+            len(operations_map["update"]),
         )
 
     succeeded = 0
@@ -130,11 +135,11 @@ def sync_course_assignments_with_canvas(course_id):
             succeeded += 1
         except requests.HTTPError as e:
             logger.warning(
-                "Failed to delete Canvas assignment: %d. Error %s",
-                canvas_id, str(e)
+                "Failed to delete Canvas assignment: %d. Error %s", canvas_id, str(e)
             )
     if operations_map["delete"]:
         logger.info(
             "%d for %d assignments were successfully deleted in Canvas.",
-            succeeded, len(operations_map["delete"])
+            succeeded,
+            len(operations_map["delete"]),
         )
