@@ -47,7 +47,4 @@ class CanvasIntegrationConfig(AppConfig):
 
     def ready(self):
         """Perform initialization tasks required for the plugin."""
-        print("^"*100)
-        print("The ready function has been called.")
-        print("^"*100)
         from ol_openedx_canvas_integration import handlers  # noqa: F401

@@ -1,3 +1,13 @@
+"""
+Module containing the Celery tasks that are called from the CMS.
+
+This module ideally should be merged with tasks.py. However, tasks.py
+contains references to settings which are not present in the 'cms'.
+Since cms dynamically loads handlers.py via ready() in app config,
+making handler.py depend on tasks.py results in initialization failures.
+So, this module has been added without any dependencies on LMS only
+settings.
+"""
 import logging
 import requests
 
