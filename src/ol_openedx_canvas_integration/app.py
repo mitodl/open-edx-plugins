@@ -3,7 +3,12 @@ Canvas Integration Application Configuration
 """
 
 from django.apps import AppConfig
-from edx_django_utils.plugins import PluginContexts, PluginSettings, PluginURLs
+from edx_django_utils.plugins import (
+    PluginContexts,
+    PluginSettings,
+    PluginSignals,
+    PluginURLs,
+)
 from lms.djangoapps.instructor.constants import INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME
 from openedx.core.constants import COURSE_ID_PATTERN
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
@@ -35,6 +40,18 @@ class CanvasIntegrationConfig(AppConfig):
         PluginContexts.CONFIG: {
             ProjectType.LMS: {
                 INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME: "ol_openedx_canvas_integration.context_api.plugin_context"  # noqa: E501
+            }
+        },
+        PluginSignals.CONFIG: {
+            ProjectType.LMS: {
+                PluginSignals.RELATIVE_PATH: "receivers",
+                PluginSignals.RECEIVERS: [
+                    {
+                        PluginSignals.RECEIVER_FUNC_NAME: "update_grade_in_canvas",
+                        PluginSignals.SIGNAL_PATH: "django.db.models.signals.post_save",
+                        PluginSignals.SENDER_PATH: "lms.djangoapps.grades.models.PersistentSubsectionGrade",  # noqa: E501
+                    }
+                ],
             }
         },
     }

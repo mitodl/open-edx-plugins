@@ -110,6 +110,30 @@ def get_subsection_user_grades(course):
     return subsection_grade_dict
 
 
+def get_subsection_grade_for_user(course_id, subsection_usage_key, user_id):
+    """
+    Fetch a learner's grade for a subsection.
+
+    Args:
+        course_id (str): ID of the Open edX course
+        subsection_usage_key (BlockUsageLocator): usage key of the subsection/block
+        user_id (int): the learner's user id
+
+    Returns:
+        the grade object or None
+    """
+    student = User.objects.get(id=user_id)
+    course = get_course_by_id(course_id)
+    course_grade = CourseGradeFactory().read(student, course)
+    subsection_grade_dict_items = course_grade.graded_subsections_by_format().values()
+    grade = None
+    for subsection_grade_dict in subsection_grade_dict_items:
+        grade = subsection_grade_dict.get(subsection_usage_key, None)
+        if grade:
+            return grade
+    return grade
+
+
 def get_subsection_block_user_grades(course):
     """
     Builds a dict of user grades grouped by the subsection XBlock representing each graded item.
