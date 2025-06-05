@@ -43,7 +43,7 @@ class CanvasIntegrationConfig(AppConfig):
             }
         },
         PluginSignals.CONFIG: {
-            "lms.djangoapp": {
+            ProjectType.LMS: {
                 PluginSignals.RELATIVE_PATH: "receivers",
                 PluginSignals.RECEIVERS: [
                     {
