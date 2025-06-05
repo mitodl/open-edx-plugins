@@ -23,7 +23,6 @@ def listen_for_course_publish(
     if settings.FEATURES.get("ENABLE_EXPORT_GIT") and settings.FEATURES.get(
         ENABLE_GIT_AUTO_EXPORT
     ):
-
         course_module = modulestore().get_course(course_key)
         if not course_module.giturl:
             log.info(
