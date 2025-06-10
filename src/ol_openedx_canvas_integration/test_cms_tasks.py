@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 from ol_openedx_canvas_integration.api import create_assignment_payload
@@ -8,7 +10,7 @@ class MockSubsection:
     def __init__(self, location) -> None:
         self.location = location
         self.display_name = "Mock Assignment in " + str(location)
-        self.fields = {}
+        self.fields: dict[str, str] = {}
 
     @property
     def payload(self):
