@@ -25,7 +25,18 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
             "ol_openedx_course_sync.tasks.copy_course_content"
         ) as mock_copy_course_content, mock.patch(
             "ol_openedx_course_sync.tasks.SignalHandler"
-        ) as mock_signal_handler:
+        ) as mock_signal_handler, mock.patch(
+            "ol_openedx_course_sync.tasks.modulestore"
+        ) as mock_modulestore, mock.patch(
+            "ol_openedx_course_sync.tasks.copy_course_videos"
+        ) as mock_copy_course_videos:
+            mock_copy_all_course_assets = mock.Mock()
+            mock_contentstore = mock.Mock()
+            mock_contentstore.copy_all_course_assets = mock_copy_all_course_assets
+
+            mock_module_store_instance = mock.Mock()
+            mock_module_store_instance.contentstore = mock_contentstore
+            mock_modulestore.return_value = mock_module_store_instance
             mock_signal_handler.return_value = mock.Mock(
                 course_published=mock.Mock(send=mock.Mock())
             )
@@ -48,3 +59,8 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
                 ]
             )
             mock_signal_handler.course_published.send.assert_called_once()
+            mock_copy_course_videos.assert_called_once_with(
+                self.source_course.usage_key.course_key,
+                self.target_course.usage_key.course_key,
+            )
+            mock_copy_all_course_assets.assert_called_once()
