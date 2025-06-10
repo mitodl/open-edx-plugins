@@ -19,7 +19,7 @@ subsection_mocks = [MockSubsection(f"id-{i}") for i in range(10)]
 
 
 @pytest.mark.parametrize(
-    "openedx_assignments,canvas_assignments_map,expected_output",
+    ("openedx_assignments", "canvas_assignments_map", "expected_output"),
     [
         # All empty
         ([], {}, {"add": [], "update": {}, "delete": []}),

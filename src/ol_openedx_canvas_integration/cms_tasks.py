@@ -61,7 +61,7 @@ def diff_assignments(openedx_assignments, canvas_assignments_map):
 @shared_task
 def sync_course_assignments_with_canvas(course_id):
     """
-    Syncs the assignments in the course with Canvas if there is a linked Canvas course.
+    Sync the assignments in the course with Canvas if there is a linked Canvas course.
 
     Args:
         course_id (str): Open edX Course ID

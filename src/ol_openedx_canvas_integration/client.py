@@ -165,7 +165,7 @@ class CanvasClient:
 
     def delete_canvas_assignment(self, assignment_id):
         """
-        Deletes an assignment with the given ID in Canvas.
+        Delete an assignment with the given ID in Canvas.
 
         Args:
             assignment_id (int): ID of the Canvas Assignment
