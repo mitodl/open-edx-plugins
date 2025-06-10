@@ -43,7 +43,7 @@ def async_course_sync(source_course_id, dest_course_id):
         source_course_key,
         dest_course_key,
     )
-    # Copy course assets and update discussion state.
+    # Copy course assets and videos.
     # These steps are taken from the course_rerun task in edx-platform.
     module_store = modulestore()
     if module_store.contentstore:
