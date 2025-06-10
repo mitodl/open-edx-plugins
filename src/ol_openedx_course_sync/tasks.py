@@ -5,9 +5,10 @@ Tasks for the ol-openedx-course-sync plugin.
 from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
 from celery_utils.persist_on_failure import LoggedPersistOnFailureTask
+from edxval.api import copy_course_videos
 from opaque_keys.edx.locator import CourseLocator
 from xmodule.modulestore import ModuleStoreEnum
-from xmodule.modulestore.django import SignalHandler
+from xmodule.modulestore.django import SignalHandler, modulestore
 
 from ol_openedx_course_sync.apps import OLOpenEdxCourseSyncConfig
 from ol_openedx_course_sync.utils import copy_course_content
@@ -36,6 +37,20 @@ def async_course_sync(source_course_id, dest_course_id):
     copy_course_content(
         source_course_key, dest_course_key, ModuleStoreEnum.BranchName.draft
     )
+
+    logger.info(
+        "Copying course assets from %s to %s",
+        source_course_key,
+        dest_course_key,
+    )
+    # Copy course assets and videos.
+    # These steps are taken from the course_rerun task in edx-platform.
+    module_store = modulestore()
+    if module_store.contentstore:
+        module_store.contentstore.copy_all_course_assets(
+            source_course_key, dest_course_key
+        )
+    copy_course_videos(source_course_key, dest_course_key)
 
     logger.info(
         "Copying published course content from %s to %s",
