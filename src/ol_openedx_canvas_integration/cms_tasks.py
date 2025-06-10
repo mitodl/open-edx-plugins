@@ -9,6 +9,8 @@ So, this module has been added without any dependencies on LMS only
 settings.
 """
 
+from __future__ import annotations
+
 import logging
 
 import requests
@@ -58,6 +60,70 @@ def diff_assignments(openedx_assignments, canvas_assignments_map):
     return diff
 
 
+def add_assignments(canvas, assignment_payloads: list[dict]):
+    """Add new assignments in Canvas from provided Open edX assignments."""
+
+    succeeded = 0
+    for payload in assignment_payloads:
+        res = canvas.create_canvas_assignment(payload)
+        try:
+            res.raise_for_status()
+            succeeded += 1
+        except requests.HTTPError as e:
+            logger.warning(
+                "Failed to create new assignment for subsection: %s. Error: %s",
+                payload["assignment"]["integration_id"],
+                str(e),
+            )
+    if succeeded:
+        logger.info(
+            "%d of %d new assignments were successfully added in Canvas.",
+            succeeded,
+            len(assignment_payloads),
+        )
+
+
+def update_assignments(canvas, assignment_map: dict[int, dict]):
+    """Update existing assignments in Canvas with the latest data."""
+
+    succeeded = 0
+    for canvas_id, payload in assignment_map.items():
+        res = canvas.update_canvas_assignment(canvas_id, payload)
+        try:
+            res.raise_for_status()
+            succeeded += 1
+        except requests.HTTPError as e:
+            logger.warning(
+                "Failed to update Canvas Assignment %d. Error: %s", canvas_id, str(e)
+            )
+    if succeeded:
+        logger.info(
+            "%d of %d assignments were successfully updated in Canvas.",
+            succeeded,
+            len(assignment_map),
+        )
+
+
+def delete_assignments(canvas, assignment_ids: list[int]):
+    """Delete given assignments from Canvas."""
+    succeeded = 0
+    for canvas_id in assignment_ids:
+        res = canvas.delete_canvas_assignment(canvas_id)
+        try:
+            res.raise_for_status()
+            succeeded += 1
+        except requests.HTTPError as e:
+            logger.warning(
+                "Failed to delete Canvas assignment: %d. Error %s", canvas_id, str(e)
+            )
+    if succeeded:
+        logger.info(
+            "%d for %d assignments were successfully deleted in Canvas.",
+            succeeded,
+            len(assignment_ids),
+        )
+
+
 @shared_task
 def sync_course_assignments_with_canvas(course_id):
     """
@@ -91,55 +157,6 @@ def sync_course_assignments_with_canvas(course_id):
         len(operations_map["delete"]),
     )
 
-    succeeded = 0
-    for payload in operations_map["add"]:
-        res = canvas.create_canvas_assignment(payload)
-        try:
-            res.raise_for_status()
-            succeeded += 1
-        except requests.HTTPError as e:
-            logger.warning(
-                "Failed to create new assignment for subsection: %s. Error: %s",
-                payload["assignment"]["integration_id"],
-                str(e),
-            )
-    if operations_map["add"]:
-        logger.info(
-            "%d of %d new assignments were successfully added in Canvas.",
-            succeeded,
-            len(operations_map["add"]),
-        )
-
-    succeeded = 0
-    for canvas_id, payload in operations_map["update"].items():
-        res = canvas.update_canvas_assignment(canvas_id, payload)
-        try:
-            res.raise_for_status()
-            succeeded += 1
-        except requests.HTTPError as e:
-            logger.warning(
-                "Failed to update Canvas Assignment %d. Error: %s", canvas_id, str(e)
-            )
-    if operations_map["update"]:
-        logger.info(
-            "%d of %d assignments were successfully updated in Canvas.",
-            succeeded,
-            len(operations_map["update"]),
-        )
-
-    succeeded = 0
-    for canvas_id in operations_map["delete"]:
-        res = canvas.delete_canvas_assignment(canvas_id)
-        try:
-            res.raise_for_status()
-            succeeded += 1
-        except requests.HTTPError as e:
-            logger.warning(
-                "Failed to delete Canvas assignment: %d. Error %s", canvas_id, str(e)
-            )
-    if operations_map["delete"]:
-        logger.info(
-            "%d for %d assignments were successfully deleted in Canvas.",
-            succeeded,
-            len(operations_map["delete"]),
-        )
+    add_assignments(canvas, operations_map["add"])
+    update_assignments(canvas, operations_map["update"])
+    delete_assignments(canvas, operations_map["delete"])
