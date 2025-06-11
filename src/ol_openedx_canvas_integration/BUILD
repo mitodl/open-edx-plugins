@@ -19,7 +19,9 @@ python_distribution(
             "lms.djangoapp": [
                 "ol_openedx_canvas_integration = ol_openedx_canvas_integration.app:CanvasIntegrationConfig"
             ],
-            "cms.djangoapp": [],
+            "cms.djangoapp": [
+                "ol_openedx_canvas_integration = ol_openedx_canvas_integration.app:CanvasIntegrationConfig"
+            ],
         },
     ),
 )
