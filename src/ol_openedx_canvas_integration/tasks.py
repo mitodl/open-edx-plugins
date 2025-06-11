@@ -124,9 +124,8 @@ def sync_user_grade_with_canvas(grade_id):
     )
     try:
         grade = grade_dict[grade_instance.full_usage_key][openedx_user]
-        if not grade:
-            raise ValueError("Grade is None")
-    except (KeyError, ValueError):
+        payload = dict([update_grade_payload_kv(canvas_user_id, grade.percent_graded)])
+    except (KeyError, AttributeError):
         TASK_LOG.error(
             "Couldn't get grade for subsection <%s> with user <%s>",
             grade_instance.full_usage_key,
@@ -134,7 +133,6 @@ def sync_user_grade_with_canvas(grade_id):
         )
         return
 
-    payload = dict([update_grade_payload_kv(canvas_user_id, grade.percent_graded)])
     res = client.update_assignment_grades(canvas_assignment_id, payload)
 
     if res.status_code != requests.codes.ok:
