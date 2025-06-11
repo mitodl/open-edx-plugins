@@ -5,6 +5,7 @@ import pytz
 import requests
 from django.conf import settings
 from django.core.cache import cache
+
 from ol_openedx_canvas_integration.constants import DEFAULT_ASSIGNMENT_POINTS
 
 log = logging.getLogger(__name__)
