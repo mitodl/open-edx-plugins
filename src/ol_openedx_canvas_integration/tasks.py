@@ -124,8 +124,9 @@ def sync_user_grade_with_canvas(grade_id):
     )
     try:
         grade = grade_dict[grade_instance.full_usage_key][openedx_user]
-        assert grade
-    except (KeyError, AssertionError):
+        if not grade:
+            raise ValueError("Grade is None")
+    except (KeyError, ValueError):
         TASK_LOG.error(
             "Couldn't get grade for subsection <%s> with user <%s>",
             grade_instance.full_usage_key,
