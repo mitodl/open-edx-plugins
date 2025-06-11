@@ -12,9 +12,8 @@ from lms.djangoapps.grades.models import PersistentSubsectionGrade
 from lms.djangoapps.instructor_task.api_helper import submit_task
 from lms.djangoapps.instructor_task.tasks_base import BaseInstructorTask
 from lms.djangoapps.instructor_task.tasks_helper.runner import run_main_task
-
 from ol_openedx_canvas_integration import task_helpers
-from ol_openedx_canvas_integration.api import get_subsection_grade_for_user
+from ol_openedx_canvas_integration.api import get_subsection_user_grades
 from ol_openedx_canvas_integration.client import CanvasClient, update_grade_payload_kv
 from ol_openedx_canvas_integration.constants import (
     TASK_TYPE_PUSH_EDX_GRADES_TO_CANVAS,
@@ -120,10 +119,13 @@ def sync_user_grade_with_canvas(grade_id):
     # NOTE, theoritically we could simply use grade points from the ``grade_instance``.
     # However, the grade calculation seems a bit more complicated with overrides.
     # So, this uses the CourseGrade Python API.
-    grade = get_subsection_grade_for_user(
-        grade_instance.course_id, grade_instance.full_usage_key, grade_instance.user_id
+    grade_dict = get_subsection_user_grades(
+        course, grade_instance.full_usage_key, openedx_user
     )
-    if not grade:
+    try:
+        grade = grade_dict[grade_instance.full_usage_key][openedx_user]
+        assert grade
+    except (KeyError, AssertionError):
         TASK_LOG.error(
             "Couldn't get grade for subsection <%s> with user <%s>",
             grade_instance.full_usage_key,

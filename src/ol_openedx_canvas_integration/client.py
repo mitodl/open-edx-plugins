@@ -5,7 +5,6 @@ import pytz
 import requests
 from django.conf import settings
 from django.core.cache import cache
-
 from ol_openedx_canvas_integration.constants import DEFAULT_ASSIGNMENT_POINTS
 
 log = logging.getLogger(__name__)
@@ -117,7 +116,8 @@ class CanvasClient:
             url, params={"search_term": email, "enrollment_type[]": "student"}
         )
         student_id = next(
-            (user["id"] for user in search_results if user["email"] == email), None
+            (user["id"] for user in search_results if user.get("email", "") == email),
+            None,
         )
         if student_id:
             cache.set(key, student_id)

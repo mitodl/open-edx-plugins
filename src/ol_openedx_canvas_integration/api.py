@@ -9,8 +9,6 @@ from lms.djangoapps.courseware.access import has_access
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.grades.context import grading_context_for_course
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
-from opaque_keys.edx.locator import CourseLocator
-
 from ol_openedx_canvas_integration.client import (
     CanvasClient,
     create_assignment_payload,
@@ -18,6 +16,7 @@ from ol_openedx_canvas_integration.client import (
 )
 from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
 from ol_openedx_canvas_integration.utils import get_canvas_course_id
+from opaque_keys.edx.locator import CourseLocator
 
 log = logging.getLogger(__name__)
 
@@ -76,13 +75,15 @@ def enroll_emails_in_course(emails, course_key):
     return results
 
 
-def get_subsection_user_grades(course):
+def get_subsection_user_grades(course, subsection_usage_key=None, user=None):
     """
     Builds a dict of user grades grouped by block locator. Only returns grades if the assignment has been attempted
     by the given user.
 
     Args:
         course: The course object (of the type returned by courseware.courses.get_course_by_id)
+        subsection_usage_key (BlockUsageLocator): subsection to filter the grades
+        user: specific user to filter the grades
 
     Returns:
         dict: Block locators for graded items (assignments, exams, etc.) mapped to a dict of users
@@ -94,13 +95,24 @@ def get_subsection_user_grades(course):
                 }
             }
     """  # noqa: D401, E501
-    enrolled_students = CourseEnrollment.objects.users_enrolled_in(course.id)
+    if user:
+        enrolled_students = [user]
+    else:
+        enrolled_students = CourseEnrollment.objects.users_enrolled_in(course.id)
+
     subsection_grade_dict = defaultdict(dict)
     for student, course_grade, _error in CourseGradeFactory().iter(
         users=enrolled_students, course=course
     ):
         for subsection_dict in course_grade.graded_subsections_by_format().values():
             for subsection_block_locator, subsection_grade in subsection_dict.items():
+                # Filter when subsection is specified
+                if (
+                    subsection_usage_key
+                    and subsection_block_locator != subsection_usage_key
+                ):
+                    continue
+
                 subsection_grade_dict[subsection_block_locator].update(
                     # Only include grades if the assignment/exam/etc. has been attempted
                     {student: subsection_grade}
@@ -108,30 +120,6 @@ def get_subsection_user_grades(course):
                     else {}
                 )
     return subsection_grade_dict
-
-
-def get_subsection_grade_for_user(course_id, subsection_usage_key, user_id):
-    """
-    Fetch a learner's grade for a subsection.
-
-    Args:
-        course_id (str): ID of the Open edX course
-        subsection_usage_key (BlockUsageLocator): usage key of the subsection/block
-        user_id (int): the learner's user id
-
-    Returns:
-        the grade object or None
-    """
-    student = User.objects.get(id=user_id)
-    course = get_course_by_id(course_id)
-    course_grade = CourseGradeFactory().read(student, course)
-    subsection_grade_dict_items = course_grade.graded_subsections_by_format().values()
-    grade = None
-    for subsection_grade_dict in subsection_grade_dict_items:
-        grade = subsection_grade_dict.get(subsection_usage_key, None)
-        if grade:
-            return grade
-    return grade
 
 
 def get_subsection_block_user_grades(course):
