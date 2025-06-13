@@ -105,7 +105,7 @@ def sync_user_grade_with_canvas(grade_id):
 
     if str(grade_instance.full_usage_key) not in existing_assignments_map:
         TASK_LOG.warning(
-            "The assignement %s is not synced with Canvas. Skipping grade sync.",
+            "The assignment %s is not synced with Canvas. Skipping grade sync.",
             grade_instance.usage_key,
         )
         return
