@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 import pytz
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 from ol_openedx_canvas_integration.constants import DEFAULT_ASSIGNMENT_POINTS
 
@@ -96,6 +97,32 @@ class CanvasClient:
             f"/api/v1/courses/{self.canvas_course_id}/assignments",
         )
         return self._paginate(url)
+
+    def get_student_id_by_email(self, email: str):
+        """
+        Get the canvas ID of the learner with the given email.
+
+        Returns:
+            int: Canvas ID of the student if enrolled in the course. None otherwise.
+        """
+        key = "canvas-id-" + email
+        if student_id := cache.get(key):
+            return student_id
+
+        url = urljoin(
+            settings.CANVAS_BASE_URL,
+            f"/api/v1/courses/{self.canvas_course_id}/search_users",
+        )
+        search_results = self._paginate(
+            url, params={"search_term": email, "enrollment_type[]": "student"}
+        )
+        student_id = next(
+            (user["id"] for user in search_results if user.get("email", "") == email),
+            None,
+        )
+        if student_id:
+            cache.set(key, student_id)
+        return student_id
 
     def get_assignments_by_int_id(self):
         assignments = self.list_canvas_assignments()
