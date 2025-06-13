@@ -117,7 +117,7 @@ def sync_user_grade_with_canvas(grade_id):
         TASK_LOG.warning("The user %s is not enrolled in Canvas.", openedx_user)
         return
 
-    # NOTE, theoritically we could simply use grade points from the ``grade_instance``.
+    # NOTE, theoretically we could simply use grade points from the ``grade_instance``.
     # However, the grade calculation seems a bit more complicated with overrides.
     # So, this uses the CourseGrade Python API.
     grade_dict = get_subsection_user_grades(
