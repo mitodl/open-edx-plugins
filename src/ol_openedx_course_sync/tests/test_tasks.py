@@ -31,8 +31,10 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
             "ol_openedx_course_sync.tasks.copy_course_videos"
         ) as mock_copy_course_videos:
             mock_copy_all_course_assets = mock.Mock()
+            mock_delete_all_course_assets = mock.Mock()
             mock_contentstore = mock.Mock()
             mock_contentstore.copy_all_course_assets = mock_copy_all_course_assets
+            mock_contentstore.delete_all_course_assets = mock_delete_all_course_assets
 
             mock_module_store_instance = mock.Mock()
             mock_module_store_instance.contentstore = mock_contentstore
@@ -64,3 +66,4 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
                 self.target_course.usage_key.course_key,
             )
             mock_copy_all_course_assets.assert_called_once()
+            mock_delete_all_course_assets.assert_called_once()

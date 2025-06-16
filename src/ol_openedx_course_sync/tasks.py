@@ -47,6 +47,7 @@ def async_course_sync(source_course_id, dest_course_id):
     # These steps are taken from the course_rerun task in edx-platform.
     module_store = modulestore()
     if module_store.contentstore:
+        module_store.contentstore.delete_all_course_assets(dest_course_key)
         module_store.contentstore.copy_all_course_assets(
             source_course_key, dest_course_key
         )
