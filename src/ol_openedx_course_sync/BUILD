@@ -10,7 +10,7 @@ python_distribution(
     dependencies=[":ol_openedx_course_sync_source"],
     provides=setup_py(
         name="ol-openedx-course-sync",
-        version="0.2.0",
+        version="0.3.0",
         description="An Open edX plugin to sync course changes to its reruns.",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
