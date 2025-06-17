@@ -76,13 +76,15 @@ def enroll_emails_in_course(emails, course_key):
     return results
 
 
-def get_subsection_user_grades(course):
+def get_subsection_user_grades(course, subsection_usage_key=None, user=None):
     """
     Builds a dict of user grades grouped by block locator. Only returns grades if the assignment has been attempted
     by the given user.
 
     Args:
         course: The course object (of the type returned by courseware.courses.get_course_by_id)
+        subsection_usage_key (BlockUsageLocator): subsection to filter the grades
+        user: specific user to filter the grades
 
     Returns:
         dict: Block locators for graded items (assignments, exams, etc.) mapped to a dict of users
@@ -94,13 +96,24 @@ def get_subsection_user_grades(course):
                 }
             }
     """  # noqa: D401, E501
-    enrolled_students = CourseEnrollment.objects.users_enrolled_in(course.id)
+    if user:
+        enrolled_students = [user]
+    else:
+        enrolled_students = CourseEnrollment.objects.users_enrolled_in(course.id)
+
     subsection_grade_dict = defaultdict(dict)
     for student, course_grade, _error in CourseGradeFactory().iter(
         users=enrolled_students, course=course
     ):
         for subsection_dict in course_grade.graded_subsections_by_format().values():
             for subsection_block_locator, subsection_grade in subsection_dict.items():
+                # Filter when subsection is specified
+                if (
+                    subsection_usage_key
+                    and subsection_block_locator != subsection_usage_key
+                ):
+                    continue
+
                 subsection_grade_dict[subsection_block_locator].update(
                     # Only include grades if the assignment/exam/etc. has been attempted
                     {student: subsection_grade}
