@@ -11,7 +11,11 @@ from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import SignalHandler, modulestore
 
 from ol_openedx_course_sync.apps import OLOpenEdxCourseSyncConfig
-from ol_openedx_course_sync.utils import copy_course_content
+from ol_openedx_course_sync.utils import (
+    copy_course_content,
+    copy_static_tabs,
+    update_default_tabs,
+)
 
 logger = get_task_logger(__name__)
 
@@ -52,6 +56,8 @@ def async_course_sync(source_course_id, dest_course_id):
             source_course_key, dest_course_key
         )
     copy_course_videos(source_course_key, dest_course_key)
+    copy_static_tabs(source_course_key, dest_course_key)
+    update_default_tabs(source_course_key, dest_course_key)
 
     logger.info(
         "Copying published course content from %s to %s",
