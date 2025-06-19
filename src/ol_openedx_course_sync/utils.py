@@ -97,6 +97,11 @@ def copy_static_tabs(source_course_key, target_course_key):
             if tab.get("url_slug") != tab_usage_key.block_id
         ]
         store.update_item(target_course, User.objects.last().id)
+        try:
+            store.get_item(tab_usage_key, User.objects.last().id)
+        except ItemNotFoundError:
+            # If the tab does not exist, we can skip deletion
+            continue
         store.delete_item(tab_usage_key, User.objects.last().id)
 
     target_course_usage_key = target_course.usage_key
