@@ -78,3 +78,22 @@ def async_course_sync(source_course_id, dest_course_id):
     logger.debug(
         "Finished course sync from %s to %s", source_course_key, dest_course_key
     )
+
+
+@shared_task
+def sync_course_static_tabs(source_course_id, target_course_id):
+    """
+    Sync static tabs from source course to target course.
+    """
+    logger.info("Syncing static tabs from %s to %s", source_course_id, target_course_id)
+    source_course_key = CourseLocator.from_string(source_course_id)
+    target_course_key = CourseLocator.from_string(target_course_id)
+
+    copy_static_tabs(source_course_key, target_course_key)
+    update_default_tabs(source_course_key, target_course_key)
+
+    logger.info(
+        "Finished syncing static tabs from %s to %s",
+        source_course_key,
+        target_course_key,
+    )
