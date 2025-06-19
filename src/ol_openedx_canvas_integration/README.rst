@@ -53,6 +53,7 @@ For detailed installation instructions, please refer to the `plugin installation
 Installation required in:
 
 * LMS
+* CMS
 
 Configuration
 ------------
@@ -75,9 +76,37 @@ Configuration
 3) Enable other course settings by enabling ``ENABLE_OTHER_COURSE_SETTINGS`` feature flag in CMS
 4) Open course advanced settings in Open edX CMS, Add a dictionary in ``{"canvas_id": <canvas_course_id>}``. The ``canvas_course_id`` should be the id of a course that exists on Canvas. (NOTE: Canvas tab would only be visible if this value is set)
 
+Configuring Tutor for development
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Create a simple Tutor plugin with the following content
+
+  .. code-block::
+
+    from tutor import hooks
+
+    hooks.Filters.ENV_PATCHES.add_items([
+        (
+            "openedx-common-settings",
+            """
+    CANVAS_ACCESS_TOKEN = '<Access token from canvas>'
+    CANVAS_BASE_URL = 'http://<canvas.local.domain.or.ip>'
+    """
+        ),
+        (
+            "cms-env-features",
+            """
+    "ENABLE_OTHER_COURSE_SETTINGS": true
+    """
+        )
+    ])
+
 
 How To Use
 ----------
+
+Manual Operations
+^^^^^^^^^^^^^^^^^
 
 1. In Studio, create/navigate to a course and create some graded assignments/quizzes.
 2. In LMS, open the above course, navigate to the "Instructor" tab, and make sure that you see can see a "Canvas" tab.
@@ -90,3 +119,25 @@ Some of the functionality available in this tab:
 - ``Overload enrollment list using Canvas`` - Ensure that enrollment records in edX match the enrollments in Canvas (i.e.: create any enrollments that exist in Canvas but don't exist in edX, and delete enrollments that exist in edX but not in Canvas)
 - ``Push all MITx grades to Canvas`` - Ensure that Canvas has the equivalent assignments/quizzes for the course, and create/update the user grades for those assignments/quizzes in Canvas (The assignments must have a `Published` status on Canvas)
 - ``List Canvas assignments`` - Show a dropdown of all the assignments that are present on Canvas, and upon selecting an assignment, show a list of grades.
+
+Background Operations
+^^^^^^^^^^^^^^^^^^^^^
+
+When a Canvas course is linked by adding the ``canvas_id`` the **Advanced Settings** of a course, the following background operations are performed based on user events.
+
+1. Automatic Syncing of Assignments
+"""""""""""""""""""""""""""""""""""
+
+Whenever the course is **Published** from the Studio, the **graded subsections** of the Open edX Course are automatically synced to the linked Canvas course. This includes
+
+* adding new assignments when new graded subsections are added
+* updating the existing assignments
+* removing any assignment that might exist, when subsections are removed
+
+.. IMPORTANT::
+   The assignments that are updated in Canvas are set to "Unpublished" state by default. Instructors will have to manually publish them in Canvas to make it available to students.
+
+2. Automatic Syncing of Grades
+""""""""""""""""""""""""""""""
+
+Whenever a learner interacts with a graded question in Open edX, the latest grades are automatically posted to Canvas, if it's a part of a synced assignment.
