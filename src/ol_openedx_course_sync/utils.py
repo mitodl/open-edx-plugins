@@ -40,6 +40,7 @@ def copy_static_tabs(source_course_key, target_course_key, user):
         target_course_key (CourseLocator): The course key of the target course.
         user (User): The user performing the update.
     """
+    breakpoint()
     store = modulestore()
     source_course = store.get_course(source_course_key)
     target_course = store.get_course(target_course_key)
@@ -96,7 +97,8 @@ def copy_static_tabs(source_course_key, target_course_key, user):
                 url_slug=target_tab_usage_key.block_id,
             )
         )
-        store.update_item(target_course, user.id)
+
+    store.update_item(target_course, user.id)
 
 
 def update_default_tabs(source_course_key, target_course_key, user):

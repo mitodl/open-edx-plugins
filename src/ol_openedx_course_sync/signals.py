@@ -36,7 +36,7 @@ def listen_for_course_publish(
     ).exists():
         return
 
-    if not settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME:
+    if not getattr(settings, "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME", None):
         log.error(
             "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set. "
             "Course sync will not be performed."
@@ -110,7 +110,7 @@ def listen_for_static_tab_changes(**kwargs):
     if xblock_info.block_type != "static_tab":
         return
 
-    if not settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME:
+    if not getattr(settings, "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME", None):
         log.error(
             "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set. "
             "Static tab sync will not be performed."
