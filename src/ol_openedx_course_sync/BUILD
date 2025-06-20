@@ -2,6 +2,7 @@ python_sources(
     name="ol_openedx_course_sync_source",
     dependencies=[
         "src/ol_openedx_course_sync/migrations:ol_openedx_course_sync_migrations",
+        "src/ol_openedx_course_sync/settings:ol_openedx_course_sync_settings",
     ],
 )
 
