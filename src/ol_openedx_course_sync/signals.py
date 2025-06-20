@@ -18,7 +18,7 @@ from openedx_events.content_authoring.signals import (
 
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
-from ol_openedx_course_sync.tasks import async_course_sync, sync_course_static_tabs
+from ol_openedx_course_sync.tasks import async_course_sync
 
 log = logging.getLogger(__name__)
 
@@ -130,7 +130,8 @@ def listen_for_static_tab_changes(**kwargs):
         return
 
     for course_sync_mapping in course_sync_mappings:
-        sync_course_static_tabs.delay(
+        async_course_sync.delay(
             str(course_sync_mapping.source_course),
             str(course_sync_mapping.target_course),
+            sync_tabs=True,
         )
