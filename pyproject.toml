@@ -28,7 +28,7 @@ openedx-events = "*"
 pre-commit = "^3.0.0"
 pytest = "^8.0.0"
 twine = "^5.0.0"
-ruff = "^0.11.0"
+ruff = "^0.12.0"
 pytest-mock = "^3.14.0"
 
 [build-system]
