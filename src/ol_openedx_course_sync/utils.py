@@ -5,13 +5,12 @@ Utilities for the ol-openedx-course-sync plugin
 from uuid import uuid4
 
 from cms.djangoapps.contentstore.utils import duplicate_block
-from django.contrib.auth.models import User
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.tabs import CourseTabList, StaticTab
 
 
-def copy_course_content(source_course_key, target_course_key, branch):
+def copy_course_content(source_course_key, target_course_key, branch, user_id=None):
     """
     Copy course content from source_course to target_course
     on the specified branch.
@@ -24,7 +23,6 @@ def copy_course_content(source_course_key, target_course_key, branch):
     source_modulestore = module_store._get_modulestore_for_courselike(source_course_key)  # noqa: SLF001
     target_modulestore = module_store._get_modulestore_for_courselike(target_course_key)  # noqa: SLF001
     if source_modulestore == target_modulestore:
-        user_id = None
         source_modulestore.copy(
             user_id,
             source_course_key_for_branch,
@@ -33,9 +31,14 @@ def copy_course_content(source_course_key, target_course_key, branch):
         )
 
 
-def copy_static_tabs(source_course_key, target_course_key):
+def copy_static_tabs(source_course_key, target_course_key, user):
     """
     Copy static tabs from source to target course.
+
+    Args:
+        source_course_key (CourseLocator): The course key of the source course.
+        target_course_key (CourseLocator): The course key of the target course.
+        user (User): The user performing the update.
     """
     store = modulestore()
     source_course = store.get_course(source_course_key)
@@ -54,13 +57,13 @@ def copy_static_tabs(source_course_key, target_course_key):
             for tab in existing_tabs
             if tab.get("url_slug") != tab_usage_key.block_id
         ]
-        store.update_item(target_course, User.objects.last().id)
+        store.update_item(target_course, user.id)
         try:
-            store.get_item(tab_usage_key, User.objects.last().id)
+            store.get_item(tab_usage_key, user.id)
         except ItemNotFoundError:
             # If the tab does not exist, we can skip deletion
             continue
-        store.delete_item(tab_usage_key, User.objects.last().id)
+        store.delete_item(tab_usage_key, user.id)
 
     target_course_usage_key = target_course.usage_key
     for source_tab in source_course.tabs:
@@ -78,7 +81,7 @@ def copy_static_tabs(source_course_key, target_course_key):
         duplicate_block(
             target_course_usage_key,
             source_tab_usage_key,
-            User.objects.last(),
+            user,
             dest_usage_key=target_tab_usage_key,
             display_name=source_tab.name,
             shallow=True,
@@ -93,12 +96,17 @@ def copy_static_tabs(source_course_key, target_course_key):
                 url_slug=target_tab_usage_key.block_id,
             )
         )
-        store.update_item(target_course, User.objects.last().id)
+        store.update_item(target_course, user.id)
 
 
-def update_default_tabs(source_course_key, target_course_key):
+def update_default_tabs(source_course_key, target_course_key, user):
     """
     Update the `is_hidden` tab state for the default tabs like wiki, and progress tab.
+
+    Args:
+        source_course_key (CourseLocator): The course key of the source course.
+        target_course_key (CourseLocator): The course key of the target course.
+        user (User): The user performing the update.
     """
     store = modulestore()
     source_course = store.get_course(source_course_key)
@@ -113,4 +121,4 @@ def update_default_tabs(source_course_key, target_course_key):
         is_updated = True
 
     if is_updated:
-        store.update_item(target_course, User.objects.last().id)
+        store.update_item(target_course, user.id)
