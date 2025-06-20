@@ -11,9 +11,9 @@ def update_grade_in_canvas(sender, instance, created, **kwargs):  # noqa: ARG001
     """
     Automatically update grades in Canvas when assignments are synced.
 
-    This signal reciever is wired to the `post_save` signal from the
+    This signal receiver is wired to the `post_save` signal from the
     lms.djangoapps.grades.models.PersistentSubsectionGrade model. It then
-    updates Canvas course if the subsection is already synced to a Canvas
+    updates the Canvas course if the subsection is already synced to a Canvas
     course as an assignment.
     """
     log.debug("Grade updated, triggering background task")

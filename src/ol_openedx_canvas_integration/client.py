@@ -174,6 +174,52 @@ class CanvasClient:
             json=payload,
         )
 
+    def update_canvas_assignment(self, assignment_id, payload):
+        """
+        Update an assignment with the given ID in Canvas.
+
+        Args:
+            assignment_id (int): ID of the Canvas assignment
+            payload (dict): Assignment data to update in Canvas
+
+        Example payload:
+            {
+              "assignment": {
+                "name": "Midterm Exam",
+                "integration_id": "block-v1:Org+CS101type@sequential+block@exam",
+                "grading_type": "percent",
+                "points_possible": 1,
+                "due_at": "2023-11-15T23:59:59Z",
+                "submission_types": ["none"],
+                "published": False,
+              }
+            }
+
+        Returns:
+            requests.Response: The HTTP response from the Canvas API
+        """
+        return self.session.put(
+            url=urljoin(
+                settings.CANVAS_BASE_URL,
+                f"/api/v1/courses/{self.canvas_course_id}/assignments/{assignment_id}",
+            ),
+            json=payload,
+        )
+
+    def delete_canvas_assignment(self, assignment_id):
+        """
+        Delete an assignment with the given ID in Canvas.
+
+        Args:
+            assignment_id (int): ID of the Canvas Assignment
+        """
+        return self.session.delete(
+            url=urljoin(
+                settings.CANVAS_BASE_URL,
+                f"/api/v1/courses/{self.canvas_course_id}/assignments/{assignment_id}",
+            ),
+        )
+
     def update_assignment_grades(self, canvas_assignment_id, payload):
         return self.session.post(
             url=urljoin(
