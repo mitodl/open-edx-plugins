@@ -56,8 +56,6 @@ def async_course_sync(source_course_id, dest_course_id):
             source_course_key, dest_course_key
         )
     copy_course_videos(source_course_key, dest_course_key)
-    copy_static_tabs(source_course_key, dest_course_key)
-    update_default_tabs(source_course_key, dest_course_key)
 
     logger.info(
         "Copying published course content from %s to %s",
