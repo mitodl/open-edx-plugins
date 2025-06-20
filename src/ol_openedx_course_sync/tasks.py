@@ -29,7 +29,7 @@ logger = get_task_logger(__name__)
     max_retries=3,
     default_retry_delay=30,
 )
-def async_course_sync(source_course_id, dest_course_id):
+def async_course_sync(source_course_id, dest_course_id, *, sync_tabs=False):
     """
     Sync course content from source course to destination course.
     """
@@ -63,6 +63,13 @@ def async_course_sync(source_course_id, dest_course_id):
         )
     copy_course_videos(source_course_key, dest_course_key)
 
+    if sync_tabs:
+        logger.info(
+            "Syncing static tabs from %s to %s", source_course_key, dest_course_key
+        )
+        copy_static_tabs(source_course_key, dest_course_key, user)
+        update_default_tabs(source_course_key, dest_course_key, user)
+
     logger.info(
         "Copying published course content from %s to %s",
         source_course_key,
@@ -82,26 +89,4 @@ def async_course_sync(source_course_id, dest_course_id):
     )
     logger.debug(
         "Finished course sync from %s to %s", source_course_key, dest_course_key
-    )
-
-
-@shared_task
-def sync_course_static_tabs(source_course_id, target_course_id):
-    """
-    Sync static tabs from source course to target course.
-    """
-    logger.info("Syncing static tabs from %s to %s", source_course_id, target_course_id)
-    source_course_key = CourseLocator.from_string(source_course_id)
-    target_course_key = CourseLocator.from_string(target_course_id)
-    user = User.objects.get(
-        username=settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME
-    )
-
-    copy_static_tabs(source_course_key, target_course_key, user)
-    update_default_tabs(source_course_key, target_course_key, user)
-
-    logger.info(
-        "Finished syncing static tabs from %s to %s",
-        source_course_key,
-        target_course_key,
     )
