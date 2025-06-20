@@ -67,6 +67,13 @@ Configuration
     CANVAS_ACCESS_TOKEN: <some access token value>
     CANVAS_BASE_URL: <the base URL where Canvas is running>
 
+- Add the following configuration to you CMS settings (depending on you deployment method). These values defined in the LMS settings and are used in `tasks.py`. Since Celery's auto-discovery imports this automatically in the CMS worker, these values need to be defined in the CMS settings to avoid Celery worker failure.
+
+  .. code-block::
+
+    BULK_EMAIL_MAX_RETRIES = 5
+    BULK_EMAIL_DEFAULT_RETRY_DELAY = 30
+
 - For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
 **2) Add course settings value**
@@ -75,31 +82,6 @@ Configuration
 2) Navigate to "Advanced Settings".
 3) Enable other course settings by enabling ``ENABLE_OTHER_COURSE_SETTINGS`` feature flag in CMS
 4) Open course advanced settings in Open edX CMS, Add a dictionary in ``{"canvas_id": <canvas_course_id>}``. The ``canvas_course_id`` should be the id of a course that exists on Canvas. (NOTE: Canvas tab would only be visible if this value is set)
-
-Configuring Tutor for development
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Create a simple Tutor plugin with the following content
-
-  .. code-block::
-
-    from tutor import hooks
-
-    hooks.Filters.ENV_PATCHES.add_items([
-        (
-            "openedx-common-settings",
-            """
-    CANVAS_ACCESS_TOKEN = '<Access token from canvas>'
-    CANVAS_BASE_URL = 'http://<canvas.local.domain.or.ip>'
-    """
-        ),
-        (
-            "cms-env-features",
-            """
-    "ENABLE_OTHER_COURSE_SETTINGS": true
-    """
-        )
-    ])
 
 
 How To Use

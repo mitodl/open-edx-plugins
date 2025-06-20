@@ -20,4 +20,10 @@ def handle_xblock_deleted_event(signal, sender, xblock_info, metadata, **kwargs)
     Update Canvas assignments if the courses are linked.
     """
     if xblock_info.block_type in ["chapter", "sequential"]:
-        sync_course_assignments_with_canvas.delay(str(xblock_info.usage_key.course_key))
+        # Sometimes there is a race condition where the Canvas API calls are made
+        # before the Course Outline has updated, leading to the assignments not getting
+        # deleted in Canvas. So, a countdown of 10 seconds set to avoid it.
+        sync_course_assignments_with_canvas.apply_async(
+            args=[str(xblock_info.usage_key.course_key)],
+            countdown=10,
+        )
