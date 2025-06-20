@@ -33,45 +33,6 @@ def copy_course_content(source_course_key, target_course_key, branch):
         )
 
 
-def course_tabs_need_update(source_course, target_course):
-    """
-    Check if the source and target course have same static tabs.
-    """
-    if len(source_course.tabs) != len(target_course.tabs):
-        return True
-
-    for source_tab_idx, source_tab in enumerate(source_course.tabs):
-        # We only do comparison of static tabs here
-        if source_tab.type != "static_tab":
-            continue
-
-        # get the target tab at the same index to fix the ordering
-        target_tab = target_course.tabs[source_tab_idx]
-        if target_tab.type != "static_tab" or (
-            target_tab.name != source_tab.name
-            and target_tab.is_hidden != source_tab.is_hidden
-        ):
-            return True
-
-        source_tab_usage_key = source_course.id.make_usage_key(
-            "static_tab", source_tab.url_slug
-        )
-        target_tab_usage_key = target_course.id.make_usage_key(
-            "static_tab", target_tab.url_slug
-        )
-
-        store = modulestore()
-        try:
-            source_tab_block = store.get_item(source_tab_usage_key)
-            target_tab_block = store.get_item(target_tab_usage_key)
-        except ItemNotFoundError:
-            return True
-
-        if source_tab_block.data != target_tab_block.data:
-            return True
-    return False
-
-
 def copy_static_tabs(source_course_key, target_course_key):
     """
     Copy static tabs from source to target course.
@@ -79,9 +40,6 @@ def copy_static_tabs(source_course_key, target_course_key):
     store = modulestore()
     source_course = store.get_course(source_course_key)
     target_course = store.get_course(target_course_key)
-
-    if not course_tabs_need_update(source_course, target_course):
-        return
 
     # If we need to update the static tabs, we will delete the
     # old static tabs and create new ones to handle the tab ordering.
