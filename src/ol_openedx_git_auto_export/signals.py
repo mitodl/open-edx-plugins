@@ -37,7 +37,7 @@ def listen_for_course_publish(
         if not os.path.exists(git_repo_export_dir):  # noqa: PTH110
             # for development/docker/vagrant if GIT_REPO_EXPORT_DIR folder does not exist then create it  # noqa: E501
             log.error(
-                "GIT_REPO_EXPORT_DIR is not available in settings, please create it first" # noqa: E501
+                "GIT_REPO_EXPORT_DIR is not available in settings, please create it first"  # noqa: E501
             )
             os.makedirs(git_repo_export_dir, 0o755)  # noqa: PTH103
 
