@@ -63,10 +63,6 @@ def async_course_sync(source_course_id, dest_course_id):
         )
     copy_course_videos(source_course_key, dest_course_key)
 
-    logger.info("Syncing static tabs from %s to %s", source_course_key, dest_course_key)
-    copy_static_tabs(source_course_key, dest_course_key, user)
-    update_default_tabs(source_course_key, dest_course_key, user)
-
     logger.info(
         "Copying published course content from %s to %s",
         source_course_key,
@@ -79,6 +75,10 @@ def async_course_sync(source_course_id, dest_course_id):
         ModuleStoreEnum.BranchName.published,
         user.id,
     )
+
+    logger.info("Syncing static tabs from %s to %s", source_course_key, dest_course_key)
+    copy_static_tabs(source_course_key, dest_course_key, user)
+    update_default_tabs(source_course_key, dest_course_key, user)
 
     # trigger course publish signal to trigger outline and relevant updates
     SignalHandler.course_published.send(

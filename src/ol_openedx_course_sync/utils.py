@@ -117,6 +117,9 @@ def update_default_tabs(source_course_key, target_course_key, user):
     is_updated = False
 
     for tab in source_course.tabs:
+        if tab.type == STATIC_TAB_TYPE:
+            continue
+
         target_course_tab = CourseTabList.get_tab_by_type(target_course.tabs, tab.type)
         if tab.is_hidden == target_course_tab.is_hidden:
             continue
