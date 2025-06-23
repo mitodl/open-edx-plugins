@@ -9,6 +9,8 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.tabs import CourseTabList, StaticTab
 
+from ol_openedx_course_sync.constants import STATIC_TAB_TYPE
+
 
 def copy_course_content(source_course_key, target_course_key, branch, user_id=None):
     """
@@ -47,10 +49,10 @@ def copy_static_tabs(source_course_key, target_course_key, user):
     # If we need to update the static tabs, we will delete the
     # old static tabs and create new ones to handle the tab ordering.
     for tab in target_course.tabs:
-        if tab.type != "static_tab":
+        if tab.type != STATIC_TAB_TYPE:
             continue
 
-        tab_usage_key = target_course.id.make_usage_key("static_tab", tab.url_slug)
+        tab_usage_key = target_course.id.make_usage_key(STATIC_TAB_TYPE, tab.url_slug)
         existing_tabs = target_course.tabs or []
         target_course.tabs = [
             tab
@@ -67,15 +69,15 @@ def copy_static_tabs(source_course_key, target_course_key, user):
 
     target_course_usage_key = target_course.usage_key
     for source_tab in source_course.tabs:
-        if source_tab.type != "static_tab":
+        if source_tab.type != STATIC_TAB_TYPE:
             continue
 
         # Create a new usage key for the destination tab
         target_tab_usage_key = target_course_usage_key.replace(
-            category="static_tab", name=uuid4().hex
+            category=STATIC_TAB_TYPE, name=uuid4().hex
         )
         source_tab_usage_key = source_course.id.make_usage_key(
-            "static_tab", source_tab.url_slug
+            STATIC_TAB_TYPE, source_tab.url_slug
         )
 
         duplicate_block(
