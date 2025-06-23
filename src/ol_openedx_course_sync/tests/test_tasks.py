@@ -33,7 +33,11 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
             "ol_openedx_course_sync.tasks.modulestore"
         ) as mock_modulestore, mock.patch(
             "ol_openedx_course_sync.tasks.copy_course_videos"
-        ) as mock_copy_course_videos:
+        ) as mock_copy_course_videos, mock.patch(
+            "ol_openedx_course_sync.tasks.copy_static_tabs"
+        ) as mock_copy_static_tabs, mock.patch(
+            "ol_openedx_course_sync.tasks.update_default_tabs"
+        ) as mock_update_default_tabs:
             mock_copy_all_course_assets = mock.Mock()
             mock_delete_all_course_assets = mock.Mock()
             mock_contentstore = mock.Mock()
@@ -73,3 +77,5 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
             )
             mock_copy_all_course_assets.assert_called_once()
             mock_delete_all_course_assets.assert_called_once()
+            mock_copy_static_tabs.assert_called_once()
+            mock_update_default_tabs.assert_called_once()

@@ -9,8 +9,14 @@ from openedx.core.djangolib.testing.utils import skip_unless_cms
 from tests.utils import OLOpenedXCourseSyncTestCase
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.tests.factories import BlockFactory
+from xmodule.tabs import StaticTab
 
-from ol_openedx_course_sync.utils import copy_course_content
+from ol_openedx_course_sync.constants import STATIC_TAB_TYPE
+from ol_openedx_course_sync.utils import (
+    copy_course_content,
+    copy_static_tabs,
+)
 
 
 @ddt
@@ -46,3 +52,31 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
                 branch,
             )
             split_modulestore_mock.copy.assert_called_once()
+
+    def test_copy_static_tabs(self):
+        """
+        Test the copy_static_tabs function.
+        """
+        self.test_tab = BlockFactory.create(
+            parent_location=self.source_course.location,
+            category="static_tab",
+            display_name="Static_1",
+        )
+        tab_usage_key = self.source_course.id.make_usage_key(
+            STATIC_TAB_TYPE, self.test_tab.usage_key.block_id
+        )
+        self.source_course.tabs.append(
+            StaticTab(name=self.test_tab.name, url_slug=tab_usage_key.block_id)
+        )
+        self.store.update_item(
+            self.source_course,
+            None,
+        )
+        copy_static_tabs(
+            self.source_course.usage_key.course_key,
+            self.target_course.usage_key.course_key,
+            self.user,
+        )
+        # refresh target course to get updated tabs
+        target_course = self.store.get_course(self.target_course.usage_key.course_key)
+        assert len(self.source_course.tabs) == len(target_course.tabs)
