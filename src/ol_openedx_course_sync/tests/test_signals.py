@@ -6,7 +6,9 @@ from unittest import mock
 
 import pytest
 from common.djangoapps.course_action_state.models import CourseRerunState
+from common.djangoapps.student.tests.factories import UserFactory
 from django.core.exceptions import ValidationError
+from django.test import override_settings
 from opaque_keys.edx.locator import CourseLocator
 from openedx.core.djangoapps.content.course_overviews.tests.factories import (
     CourseOverviewFactory,
@@ -87,6 +89,7 @@ def test_signal_logs_validation_error_on_create(mock_log):
 
 
 @skip_unless_cms
+@override_settings(OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker")
 class TestCoursePublishSignal(SharedModuleStoreTestCase):
     """
     Test the course publish signal handler.
@@ -106,6 +109,7 @@ class TestCoursePublishSignal(SharedModuleStoreTestCase):
             run="2025",
             display_name="Test Course",
         )
+        self.service_user = UserFactory.create(username="service_worker")
 
     def tearDown(self):
         super().tearDown()

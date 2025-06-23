@@ -4,6 +4,8 @@ Tests for ol-openedx-course-sync tasks.
 
 from unittest import mock
 
+from common.djangoapps.student.tests.factories import UserFactory
+from django.test import override_settings
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from tests.utils import OLOpenedXCourseSyncTestCase
 from xmodule.modulestore import ModuleStoreEnum
@@ -11,6 +13,7 @@ from xmodule.modulestore import ModuleStoreEnum
 from ol_openedx_course_sync.tasks import async_course_sync
 
 
+@override_settings(OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker")
 class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
     """
     Test the ol_openedx_course_sync tasks.
@@ -21,6 +24,7 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
         """
         Test the async_course_sync task works as expected.
         """
+        user = UserFactory.create(username="service_worker")
         with mock.patch(
             "ol_openedx_course_sync.tasks.copy_course_content"
         ) as mock_copy_course_content, mock.patch(
@@ -52,11 +56,13 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
                         self.source_course.usage_key.course_key,
                         self.target_course.usage_key.course_key,
                         ModuleStoreEnum.BranchName.draft,
+                        user.id,
                     ),
                     mock.call(
                         self.source_course.usage_key.course_key,
                         self.target_course.usage_key.course_key,
                         ModuleStoreEnum.BranchName.published,
+                        user.id,
                     ),
                 ]
             )
