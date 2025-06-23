@@ -16,6 +16,7 @@ from ol_openedx_course_sync.constants import STATIC_TAB_TYPE
 from ol_openedx_course_sync.utils import (
     copy_course_content,
     copy_static_tabs,
+    update_default_tabs,
 )
 
 
@@ -80,3 +81,26 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
         # refresh target course to get updated tabs
         target_course = self.store.get_course(self.target_course.usage_key.course_key)
         assert len(self.source_course.tabs) == len(target_course.tabs)
+
+    def test_copy_default_tabs(self):
+        """
+        Test the copy_default_tabs function.
+        """
+        for tab in self.source_course.tabs:
+            if tab.type != "progress":
+                continue
+            tab.is_hidden = True
+        self.store.update_item(self.source_course, None)
+
+        update_default_tabs(
+            self.source_course.usage_key.course_key,
+            self.target_course.usage_key.course_key,
+            self.user,
+        )
+
+        # refresh target course to get updated tabs
+        target_course = self.store.get_course(self.target_course.usage_key.course_key)
+        for tab in target_course.tabs:
+            if tab.type != "progress":
+                continue
+            assert tab.is_hidden is True
