@@ -9,12 +9,6 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from openedx_events.content_authoring.data import XBlockData
-from openedx_events.content_authoring.signals import (
-    XBLOCK_CREATED,
-    XBLOCK_DELETED,
-    XBLOCK_UPDATED,
-)
 
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
@@ -92,46 +86,4 @@ def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa
         async_course_sync.delay(
             str(course_sync_mapping.source_course),
             str(course_sync_mapping.target_course),
-        )
-
-
-@receiver(XBLOCK_CREATED)
-@receiver(XBLOCK_DELETED)
-@receiver(XBLOCK_UPDATED)
-def listen_for_static_tab_changes(**kwargs):
-    """
-    Listen for the course static tab changes and trigger static tab sync
-    """
-    xblock_info = kwargs.get("xblock_info")
-    if not xblock_info or not isinstance(xblock_info, XBlockData):
-        log.error("Received null or incorrect data for event")
-        return
-
-    if xblock_info.block_type != "static_tab":
-        return
-
-    if not getattr(settings, "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME", None):
-        log.error(
-            "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set. "
-            "Static tab sync will not be performed."
-        )
-        return
-
-    course_key = xblock_info.usage_key.course_key
-    if not CourseSyncOrganization.objects.filter(
-        organization=course_key.org, is_active=True
-    ).exists():
-        return
-
-    course_sync_mappings = CourseSyncMapping.objects.filter(
-        source_course=course_key, is_active=True
-    )
-    if not course_sync_mappings:
-        return
-
-    for course_sync_mapping in course_sync_mappings:
-        async_course_sync.delay(
-            str(course_sync_mapping.source_course),
-            str(course_sync_mapping.target_course),
-            sync_tabs=True,
         )

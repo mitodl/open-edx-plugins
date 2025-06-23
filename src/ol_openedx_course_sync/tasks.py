@@ -29,7 +29,7 @@ logger = get_task_logger(__name__)
     max_retries=3,
     default_retry_delay=30,
 )
-def async_course_sync(source_course_id, dest_course_id, *, sync_tabs=False):
+def async_course_sync(source_course_id, dest_course_id):
     """
     Sync course content from source course to destination course.
     """
@@ -63,12 +63,9 @@ def async_course_sync(source_course_id, dest_course_id, *, sync_tabs=False):
         )
     copy_course_videos(source_course_key, dest_course_key)
 
-    if sync_tabs:
-        logger.info(
-            "Syncing static tabs from %s to %s", source_course_key, dest_course_key
-        )
-        copy_static_tabs(source_course_key, dest_course_key, user)
-        update_default_tabs(source_course_key, dest_course_key, user)
+    logger.info("Syncing static tabs from %s to %s", source_course_key, dest_course_key)
+    copy_static_tabs(source_course_key, dest_course_key, user)
+    update_default_tabs(source_course_key, dest_course_key, user)
 
     logger.info(
         "Copying published course content from %s to %s",
