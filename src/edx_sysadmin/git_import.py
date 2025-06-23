@@ -385,7 +385,7 @@ def add_repo(repo, rdir_in=None, branch=None):  # noqa: PLR0912, PLR0915, C901
         if os.path.exists(cdir) and not os.path.islink(cdir):  # noqa: PTH110, PTH114
             log.debug("   -> exists, but is not symlink")
             log.debug(
-                subprocess.check_output(  # noqa: S603
+                subprocess.check_output(
                     [  # noqa: S607
                         "ls",
                         "-l",
@@ -408,7 +408,7 @@ def add_repo(repo, rdir_in=None, branch=None):  # noqa: PLR0912, PLR0915, C901
             except OSError:
                 log.exception("Unable to create course symlink")
             log.debug(
-                subprocess.check_output(  # noqa: S603
+                subprocess.check_output(
                     [  # noqa: S607
                         "ls",
                         "-l",
