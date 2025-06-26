@@ -15,8 +15,8 @@ jobs:
         - 3.11
         edx_branch:
         - master
-        - open-release/redwood.master
         - open-release/sumac.master
+        - release/teak
           # Add more branches as needed
 
     steps:
