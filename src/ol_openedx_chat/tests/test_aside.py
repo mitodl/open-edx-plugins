@@ -231,12 +231,11 @@ class OLChatAsideTests(OLChatTestCase):
         """
         with patch(
             "ol_openedx_chat.block.get_ol_openedx_chat_enabled_flag"
-        ) as mock_get_ol_openedx_chat_enabled_flag:
-            with patch(
-                "ol_openedx_chat.block.is_ol_chat_enabled_for_course",
-                return_value=other_course_setting_enabled,
-            ):
-                mock_get_ol_openedx_chat_enabled_flag.return_value = Mock(
+        ) as mock_get_ol_openedx_chat_enabled_flag, patch(
+            "ol_openedx_chat.block.is_ol_chat_enabled_for_course",
+            return_value=other_course_setting_enabled,
+        ):
+            mock_get_ol_openedx_chat_enabled_flag.return_value = Mock(
                     is_enabled=Mock(return_value=waffle_flag_enabled)
                 )
             block = (
