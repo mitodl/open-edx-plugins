@@ -35,9 +35,9 @@ def _load_exception_class(import_specifier: str) -> Union[Exception, None]:
 def sentry_event_filter(
     event,
     hint,
-    ignored_types: Optional[list[str]] = None,
-    ignored_messages: Optional[list[str]] = None,
-) -> Optional[dict[str, Any]]:
+    ignored_types: Optional[list[str]] = None,  # noqa: UP045
+    ignored_messages: Optional[list[str]] = None,  # noqa: UP045
+) -> Optional[dict[str, Any]]:  # noqa: UP045
     """Avoid sending events to Sentry that match the specified types or regexes.
 
     In order to avoid flooding Sentry with events that are not useful and prevent

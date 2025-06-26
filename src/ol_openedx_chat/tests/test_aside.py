@@ -229,14 +229,11 @@ class OLChatAsideTests(OLChatTestCase):
         is enabled for Videos and OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED
         is enabled for problems.
         """
-        with (
-            patch(
-                "ol_openedx_chat.block.get_ol_openedx_chat_enabled_flag"
-            ) as mock_get_ol_openedx_chat_enabled_flag,
-            patch(
-                "ol_openedx_chat.block.is_ol_chat_enabled_for_course",
-                return_value=other_course_setting_enabled,
-            ),
+        with patch(
+            "ol_openedx_chat.block.get_ol_openedx_chat_enabled_flag"
+        ) as mock_get_ol_openedx_chat_enabled_flag, patch(
+            "ol_openedx_chat.block.is_ol_chat_enabled_for_course",
+            return_value=other_course_setting_enabled,
         ):
             mock_get_ol_openedx_chat_enabled_flag.return_value = Mock(
                 is_enabled=Mock(return_value=waffle_flag_enabled)

@@ -13,7 +13,7 @@ def main():
     "forget to activate a virtual environment?"
 
     try:
-        from django.core.management import execute_from_command_line
+        from django.core.management import execute_from_command_line  # noqa: PLC0415
     except ImportError as exc:
         raise ImportError(error_msg) from exc
     execute_from_command_line(sys.argv)

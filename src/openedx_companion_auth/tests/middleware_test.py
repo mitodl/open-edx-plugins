@@ -41,7 +41,7 @@ def test_redirect_middleware(  # noqa: PLR0913
     settings.MITX_REDIRECT_ALLOW_RE_LIST = allowed_regexes
     settings.MITX_REDIRECT_DENY_RE_LIST = denied_regexes
 
-    from openedx_companion_auth.middleware import (
+    from openedx_companion_auth.middleware import (  # noqa: PLC0415
         RedirectAnonymousUsersToLoginMiddleware,
     )
 
