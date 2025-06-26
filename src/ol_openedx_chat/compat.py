@@ -19,7 +19,7 @@ def get_ol_openedx_chat_enabled_flag():
     """
     Import and return Waffle flag for enabling ol_openedx_chat.
     """
-    from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
+    from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag  # noqa: PLC0415
 
     return CourseWaffleFlag(
         f"{WAFFLE_FLAG_NAMESPACE}.{OL_OPENEDX_CHAT_ENABLED}", __name__

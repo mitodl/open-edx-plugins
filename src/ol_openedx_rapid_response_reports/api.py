@@ -15,9 +15,7 @@ def get_rapid_response_report(
     Return csv file corresponding to given run_id
     """
     header = ["Date", "Submitted Answer", "Username", "User Email", "Correct"]
-    from rapid_response_xblock.utils import (
-        get_run_submission_data,  # pylint: disable=import-error
-    )
+    from rapid_response_xblock.utils import get_run_submission_data  # noqa: PLC0415
 
     return csvs.create_csv_response(
         filename="rapid_response_submissions.csv",

@@ -64,4 +64,4 @@ class CanvasIntegrationConfig(AppConfig):
 
     def ready(self):
         """Perform initialization tasks required for the plugin."""
-        from ol_openedx_canvas_integration import handlers  # noqa: F401
+        from ol_openedx_canvas_integration import handlers  # noqa: F401, PLC0415
