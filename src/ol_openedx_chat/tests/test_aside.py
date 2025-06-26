@@ -236,8 +236,8 @@ class OLChatAsideTests(OLChatTestCase):
             return_value=other_course_setting_enabled,
         ):
             mock_get_ol_openedx_chat_enabled_flag.return_value = Mock(
-                    is_enabled=Mock(return_value=waffle_flag_enabled)
-                )
+                is_enabled=Mock(return_value=waffle_flag_enabled)
+            )
             block = (
                 self.problem_block
                 if block_category == PROBLEM_BLOCK_CATEGORY
