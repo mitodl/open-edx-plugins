@@ -54,6 +54,8 @@ def copy_static_tabs(source_course_key, target_course_key, user):
 
         tab_usage_key = target_course.id.make_usage_key(STATIC_TAB_TYPE, tab.url_slug)
         existing_tabs = target_course.tabs or []
+
+        # Remove the tab from the target course tabs list
         target_course.tabs = [
             tab
             for tab in existing_tabs
@@ -67,6 +69,12 @@ def copy_static_tabs(source_course_key, target_course_key, user):
             continue
         store.delete_item(tab_usage_key, user.id)
 
+    # Now copy the static tabs from the source course to the target course
+    # Steps:
+    # 1. Iterate through the static tabs in the source course.
+    # 2. For each static tab, create a new usage key for the target course.
+    # 3. Duplicate the block from the source course to the target course.
+    # 4. Update the target course's tabs list with the new tab
     target_course_usage_key = target_course.usage_key
     for source_tab in source_course.tabs:
         if source_tab.type != STATIC_TAB_TYPE:

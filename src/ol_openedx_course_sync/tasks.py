@@ -36,9 +36,16 @@ def async_course_sync(source_course_id, dest_course_id):
     logger.info("Starting course sync from %s to %s", source_course_id, dest_course_id)
     source_course_key = CourseLocator.from_string(source_course_id)
     dest_course_key = CourseLocator.from_string(dest_course_id)
-    user = User.objects.get(
+    user = User.objects.filter(
         username=settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME
-    )
+    ).first()
+
+    if not user:
+        logger.error(
+            "Service worker user %s not found. Cannot perform course sync.",
+            settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME,
+        )
+        return
 
     logger.info(
         "Copying draft course content from %s to %s", source_course_key, dest_course_key
