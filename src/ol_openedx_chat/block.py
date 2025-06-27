@@ -143,7 +143,8 @@ class OLChatAside(XBlockAside):
             "block_id": block_id,
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
             "drawer_payload": {
-                "blockUsageKey": block_usage_key,
+                "blockUsageKey": str(block_usage_key),
+                "trackingUrl": self.runtime.handler_url(self, "track_user_events"),
                 "blockType": block_type,
                 # Frontend will style AskTIM slightly
                 "title": f"AskTIM about {block.display_name}",
