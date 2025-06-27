@@ -9,7 +9,10 @@
         window.parent.postMessage(
           {
             type: "smoot-design::tutor-drawer-open",
-            payload: event.data.payload
+            payload: {
+              ...event.data.payload,
+              trackingUrl: runtime.handlerUrl(element, 'track_user_events')
+            },
           },
           init_args.learning_mfe_base_url, // Ensure correct parent origin
         );
