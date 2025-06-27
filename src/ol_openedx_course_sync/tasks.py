@@ -7,6 +7,7 @@ from celery.utils.log import get_task_logger
 from celery_utils.persist_on_failure import LoggedPersistOnFailureTask
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from edx_django_utils.cache import TieredCache, get_cache_key
 from edxval.api import copy_course_videos
 from opaque_keys.edx.locator import CourseLocator
 from xmodule.modulestore import ModuleStoreEnum
@@ -36,9 +37,18 @@ def async_course_sync(source_course_id, dest_course_id):
     logger.info("Starting course sync from %s to %s", source_course_id, dest_course_id)
     source_course_key = CourseLocator.from_string(source_course_id)
     dest_course_key = CourseLocator.from_string(dest_course_id)
-    user = User.objects.filter(
-        username=settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME
-    ).first()
+
+    cache_key = get_cache_key(
+        course_sync_service_worker=settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME
+    )
+    cache_value = TieredCache.get_cached_response(cache_key)
+    if not cache_value.is_found:
+        user = User.objects.filter(
+            username=settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME
+        ).first()
+        TieredCache.set_all_tiers(cache_key, user)
+    else:
+        user = cache_value.value
 
     if not user:
         logger.error(
