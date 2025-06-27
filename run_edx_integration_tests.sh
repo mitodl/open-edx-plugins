@@ -57,9 +57,9 @@ run_plugin_tests() {
 
     # Check for the existence of settings/test.py
     if [ -f "settings/test.py" ]; then
-        pytest_command="pytest . --cov . --ds=settings.test"
+        pytest_command="pytest . --cov . --ds=settings.test -n logical"
     else
-        pytest_command="pytest . --cov . --ds=lms.envs.test"
+        pytest_command="pytest . --cov . --ds=lms.envs.test -n logical"
     fi
 
     # Run the pytest command
@@ -79,7 +79,7 @@ run_plugin_tests() {
 
     # Run the pytest command with CMS settings (for ol_openedx_chat)
     if [[ "$plugin_dir" == *"ol_openedx_chat"* || "$plugin_dir" == *"ol_openedx_course_sync"* ]]; then
-        pytest . --cov . --ds=cms.envs.test
+        pytest . --cov . --ds=cms.envs.test -n logical
 
         PYTEST_SUCCESS=$?
         if [[ $PYTEST_SUCCESS -ne 0 ]]
