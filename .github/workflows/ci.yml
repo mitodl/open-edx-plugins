@@ -15,8 +15,8 @@ jobs:
         - 3.11
         edx_branch:
         - master
-        - open-release/redwood.master
         - open-release/sumac.master
+        - release/teak
           # Add more branches as needed
 
     steps:
@@ -36,13 +36,13 @@ jobs:
 
     - name: Install tutor
       run: |
-        if [[ "${{ matrix.edx_branch }}" == "open-release/redwood.master" ]]; then
-          pip install tutor==18.2.2
+        if [[ "${{ matrix.edx_branch }}" == "open-release/sumac.master" ]]; then
+          pip install "tutor>=19.0.0,<20.0.0"
         elif [[ "${{ matrix.edx_branch }}" == "master" ]]; then
           git clone --branch=main https://github.com/overhangio/tutor.git
           pip install -e "./tutor"
         else
-          pip install tutor==19.0.0
+          pip install "tutor>=20.0.0,<21.0.0"
         fi
     - name: clone edx-platform and add mounts
       run: |
@@ -64,13 +64,11 @@ jobs:
     - name: Run tests on tutor
       run: |
         if [[ "${{ matrix.edx_branch }}" == "master" ]]; then
-          DIRECTORY="tutor-main"
           DEV="tutor_main_dev"
         else
-          DIRECTORY="tutor"
           DEV="tutor_dev"
         fi
-        EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name $DEV run -v $PWD/../open-edx-plugins:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh
+        EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/tutor/env/local/docker-compose.yml -f /home/runner/.local/share/tutor/env/dev/docker-compose.yml --project-name $DEV run -v $PWD/../open-edx-plugins:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh
 
     - name: Upload coverage to CodeCov
       uses: codecov/codecov-action@v5
