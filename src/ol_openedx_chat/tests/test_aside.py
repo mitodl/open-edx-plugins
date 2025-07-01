@@ -59,10 +59,10 @@ class OLChatAsideTests(OLChatTestCase):
                 if block_type == PROBLEM_BLOCK_CATEGORY
                 else self.video_block
             )
-            aside_usage_key = str(AsideUsageKeyV2(
-                block.location, self.aside_name
-            ))
-            self.runtime.handler_url = Mock(return_value=f"/xblock/{aside_usage_key}/handler/track_user_events")
+            aside_usage_key = str(AsideUsageKeyV2(block.location, self.aside_name))
+            self.runtime.handler_url = Mock(
+                return_value=f"/xblock/{aside_usage_key}/handler/track_user_events"
+            )
             aside_instance.runtime = self.runtime
             fragment = aside_instance.student_view_aside(block)
 
