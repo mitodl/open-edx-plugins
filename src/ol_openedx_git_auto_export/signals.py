@@ -2,8 +2,7 @@ import logging
 import os
 
 from django.conf import settings
-from django.dispatch import receiver
-from xmodule.modulestore.django import SignalHandler, modulestore
+from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import ENABLE_GIT_AUTO_EXPORT
 from ol_openedx_git_auto_export.tasks import async_export_to_git
