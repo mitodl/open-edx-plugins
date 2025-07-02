@@ -2,7 +2,7 @@
 
 
 def plugin_settings(settings):
-    """Settings for the course sync plugin."""  # noqa: D401
+    """Configure settings for the course sync plugin."""
     # .. setting_name: OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME
     # .. setting_default: ""
     # .. setting_description: The username of the service worker that
