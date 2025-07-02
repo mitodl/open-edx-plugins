@@ -17,6 +17,13 @@ Installation required in:
 
 * CMS
 
+Configuration
+=============
+
+* Add a setting `OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME` for the studio service worker.
+    * for tutor, you can run `tutor config save --set OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME={USERNAME}`
+    * If you have a private.py for the cms settings, you can add it to `cms/envs/private.py`.
+
 Usage
 -----
 
