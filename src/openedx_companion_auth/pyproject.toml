@@ -1,0 +1,36 @@
+[project]
+name = "openedx-companion-auth"
+version = "1.1.0"
+description = "A package to add login redirection from Open edX to MIT applications"
+authors = [
+    {name = "MIT Office of Digital Learning"}
+]
+license = "BSD-3-Clause"
+readme = "README.rst"
+requires-python = ">=3.8"
+keywords = ["Python", "edx"]
+dependencies = [
+    "Django>2.0",
+    "djangorestframework>=3.14.0",
+    "edx-django-utils>4.0.0",
+]
+
+[project.entry-points."lms.djangoapp"]
+openedx_companion_auth = "openedx_companion_auth.apps:MITxCoreConfig"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["openedx_companion_auth"]
+include = [
+    "openedx_companion_auth/**/*.py",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "openedx_companion_auth/**/*",
+    "README.rst",
+    "pyproject.toml",
+]

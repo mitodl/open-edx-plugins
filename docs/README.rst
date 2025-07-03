@@ -65,7 +65,7 @@ Tutor
         git clone https://github.com/mitodl/open-edx-plugins/
         tutor mounts add lms,cms:/path/to/open-edx-plugins:/openedx/open-edx-plugins
         cd open-edx-plugins
-        pants package ::
+        uv build
 
   2. Install the package:
 
