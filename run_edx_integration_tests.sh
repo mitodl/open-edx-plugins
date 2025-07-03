@@ -18,17 +18,15 @@ cp -r /openedx/staticfiles test_root/staticfiles
 
 cd /openedx/open-edx-plugins
 
-# Installing test dependencies
-pip install pytest-mock==3.14.0
-pip install responses==0.25.3
+# Installing test dependencies using UV (this includes pytest-mock, responses, codecov, etc.)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env
+uv sync --dev
 
 # Plugins that may affect the tests of other plugins.
 # e.g. openedx-companion-auth adds a redirect to the authentication
 # that fails the authentication process for other plugins.
 isolated_plugins=("openedx-companion-auth")
-
-# Install codecov so we can upload code coverage results
-pip install codecov
 
 # output the packages which are installed for logging
 pip freeze
@@ -48,8 +46,30 @@ run_plugin_tests() {
 
     # Installing the plugin
     plugin_name=$(basename "$plugin_dir" | sed 's/src\///' | sed 's/_/-/g')
-    tarball=$(ls dist | grep "$plugin_name" | head -n 1)
-    pip install "dist/$tarball"
+
+    # Check if we have a built wheel/tarball for the plugin
+    # Try both underscore and hyphen versions of the name
+    plugin_name_underscore=$(basename "$plugin_dir" | sed 's/src\///')
+
+    tarball=""
+    # Look for wheel first, then tarball
+    for ext in "whl" "tar.gz"; do
+        for name_variant in "$plugin_name" "$plugin_name_underscore"; do
+            found_file=$(ls dist 2>/dev/null | grep -E "^${name_variant}-.*\.${ext}$" | head -n 1)
+            if [ -n "$found_file" ]; then
+                tarball="$found_file"
+                break 2
+            fi
+        done
+    done
+
+    if [ -n "$tarball" ]; then
+        echo "Installing $plugin_name from dist/$tarball"
+        pip install "dist/$tarball"
+    else
+        echo "No built package found for $plugin_name, installing in development mode"
+        pip install -e "$plugin_dir"
+    fi
 
     cp -r /openedx/edx-platform/test_root/ "/openedx/open-edx-plugins/$plugin_dir/test_root"
     echo "==============Running $plugin_dir tests=================="
