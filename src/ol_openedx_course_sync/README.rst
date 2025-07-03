@@ -20,7 +20,7 @@ Installation required in:
 Configuration
 =============
 
-* Add a setting ``OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME`` for the Studio service worker.
+* Add a setting ``OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME`` for the service worker and all the sync operations will be done on behalf of this user.
 
   * For Tutor, you can run:
 
