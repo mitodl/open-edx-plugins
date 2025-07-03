@@ -5,6 +5,7 @@ import pkg_resources
 from django.conf import settings
 from django.template import Context, Template
 from django.utils.translation import gettext_lazy as _
+from eventtracking import tracker
 from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.response import Response
@@ -142,6 +143,8 @@ class OLChatAside(XBlockAside):
             "block_id": block_id,
             "learning_mfe_base_url": settings.LEARNING_MICROFRONTEND_URL,
             "drawer_payload": {
+                "blockUsageKey": str(block_usage_key),
+                "trackingUrl": f"{settings.LMS_BASE_URL}{self.runtime.handler_url(self, 'track_user_events')}",  # noqa: E501
                 "blockType": block_type,
                 # Frontend will style AskTIM slightly
                 "title": f"AskTIM about {block.display_name}",
@@ -230,4 +233,15 @@ class OLChatAside(XBlockAside):
             )
 
         self.ol_chat_enabled = posted_data.get("is_enabled", True)
+        return Response()
+
+    @XBlock.handler
+    def track_user_events(self, request, suffix=""):  # noqa: ARG002
+        """
+        Track user events by emitting them to the event tracker.
+        """
+        request_data = request.json
+        tracker.emit(
+            request_data.get("event_type", ""), request_data.get("event_data", {})
+        )
         return Response()

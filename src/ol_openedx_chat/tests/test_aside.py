@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 from ddt import data, ddt, unpack
 from django.conf import settings
+from django.test import override_settings
 from django.test.client import Client
 from django.urls import reverse
 from opaque_keys.edx.asides import AsideUsageKeyV2
@@ -36,6 +37,7 @@ class OLChatAsideTests(OLChatTestCase):
     )
     @unpack
     @skip_unless_lms
+    @override_settings(LMS_BASE_URL="http://local.openedx.io")
     def test_student_view(self, ol_chat_enabled_value, should_render_aside, block_type):
         """
         Test that the aside student view returns a fragment if ol-chat is enabled.
@@ -59,6 +61,11 @@ class OLChatAsideTests(OLChatTestCase):
                 if block_type == PROBLEM_BLOCK_CATEGORY
                 else self.video_block
             )
+            aside_usage_key = str(AsideUsageKeyV2(block.location, self.aside_name))
+            self.runtime.handler_url = Mock(
+                return_value=f"/xblock/{aside_usage_key}/handler/track_user_events"
+            )
+            aside_instance.runtime = self.runtime
             fragment = aside_instance.student_view_aside(block)
 
             assert bool(fragment.content) is should_render_aside
@@ -81,6 +88,8 @@ class OLChatAsideTests(OLChatTestCase):
             assert list(fragment.json_init_args.keys()) == expected_json_init_args_keys
 
             expected_drawer_payload_keys = [
+                "blockUsageKey",
+                "trackingUrl",
                 "blockType",
                 "title",
                 "chat",
@@ -147,6 +156,8 @@ class OLChatAsideTests(OLChatTestCase):
                 expected_request_body["transcript_asset_id"] = "video-transcript-en.srt"
 
             expected_payload = {
+                "blockUsageKey": str(block.usage_key),
+                "trackingUrl": f"{settings.LMS_BASE_URL}/xblock/{aside_usage_key}/handler/track_user_events",  # noqa: E501
                 "blockType": block_type,
                 "title": f"AskTIM about {block.display_name}",
                 "chat": {
@@ -297,3 +308,32 @@ class OLChatAsideTests(OLChatTestCase):
             block = self.store.get_item(block.location)
             ol_chat_aside = block.runtime.get_aside_of_type(block, self.aside_name)
             assert ol_chat_aside.ol_chat_enabled == ol_chat_enabled
+
+    @XBlockAside.register_temp_plugin(OLChatAside, "ol_chat_aside")
+    @patch("ol_openedx_chat.block.tracker")
+    @skip_unless_cms
+    def test_track_user_events(self, mock_tracker):
+        """
+        Tests the track_user_events handler
+        """
+        block = self.problem_block
+        aside_usage_key = str(AsideUsageKeyV2(block.location, self.aside_name))
+        handler_url = f"/xblock/{aside_usage_key}/handler/track_user_events"
+
+        client = Client()
+        client.login(username=self.user.username, password=self.user_password)
+        response = client.post(
+            handler_url,
+            json.dumps(
+                {
+                    "event_type": "chat_opened",
+                    "event_data": {
+                        "blockUsageKey": str(block.usage_key),
+                    },
+                }
+            ),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200  # noqa: PLR2004
+        assert mock_tracker.emit.call_count == 1
