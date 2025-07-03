@@ -5,7 +5,8 @@ Signal handlers for ol-openedx-course-sync plugin
 import logging
 
 from common.djangoapps.course_action_state.models import CourseRerunState
-from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -28,6 +29,13 @@ def listen_for_course_publish(
         organization=course_key.org, is_active=True
     ).exists():
         return
+
+    if not getattr(settings, "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME", None):
+        error_msg = (
+            "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set. "
+            "Course sync will not be performed."
+        )
+        raise ImproperlyConfigured(error_msg)
 
     course_sync_mappings = CourseSyncMapping.objects.filter(
         source_course=course_key, is_active=True

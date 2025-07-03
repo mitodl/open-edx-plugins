@@ -4,6 +4,8 @@ Tests for ol-openedx-course-sync tasks.
 
 from unittest import mock
 
+from common.djangoapps.student.tests.factories import UserFactory
+from django.test import override_settings
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from tests.utils import OLOpenedXCourseSyncTestCase
 from xmodule.modulestore import ModuleStoreEnum
@@ -11,6 +13,7 @@ from xmodule.modulestore import ModuleStoreEnum
 from ol_openedx_course_sync.tasks import async_course_sync
 
 
+@override_settings(OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker")
 class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
     """
     Test the ol_openedx_course_sync tasks.
@@ -21,6 +24,7 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
         """
         Test the async_course_sync task works as expected.
         """
+        user = UserFactory.create(username="service_worker")
         with mock.patch(
             "ol_openedx_course_sync.tasks.copy_course_content"
         ) as mock_copy_course_content, mock.patch(
@@ -29,7 +33,11 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
             "ol_openedx_course_sync.tasks.modulestore"
         ) as mock_modulestore, mock.patch(
             "ol_openedx_course_sync.tasks.copy_course_videos"
-        ) as mock_copy_course_videos:
+        ) as mock_copy_course_videos, mock.patch(
+            "ol_openedx_course_sync.tasks.copy_static_tabs"
+        ) as mock_copy_static_tabs, mock.patch(
+            "ol_openedx_course_sync.tasks.update_default_tabs"
+        ) as mock_update_default_tabs:
             mock_copy_all_course_assets = mock.Mock()
             mock_delete_all_course_assets = mock.Mock()
             mock_contentstore = mock.Mock()
@@ -52,11 +60,13 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
                         self.source_course.usage_key.course_key,
                         self.target_course.usage_key.course_key,
                         ModuleStoreEnum.BranchName.draft,
+                        user.id,
                     ),
                     mock.call(
                         self.source_course.usage_key.course_key,
                         self.target_course.usage_key.course_key,
                         ModuleStoreEnum.BranchName.published,
+                        user.id,
                     ),
                 ]
             )
@@ -67,3 +77,5 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
             )
             mock_copy_all_course_assets.assert_called_once()
             mock_delete_all_course_assets.assert_called_once()
+            mock_copy_static_tabs.assert_called_once()
+            mock_update_default_tabs.assert_called_once()

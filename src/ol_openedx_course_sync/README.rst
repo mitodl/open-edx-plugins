@@ -17,6 +17,19 @@ Installation required in:
 
 * CMS
 
+Configuration
+=============
+
+* Add a setting ``OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME`` for the service worker and all the sync operations will be done on behalf of this user.
+
+  * For Tutor, you can run:
+
+    .. code-block:: bash
+
+       tutor config save --set OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME={USERNAME}
+
+  * If you have a ``private.py`` for the CMS settings, you can add it to ``cms/envs/private.py``.
+
 Usage
 -----
 
