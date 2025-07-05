@@ -1,0 +1,37 @@
+[project]
+name = "edx-username-changer"
+version = "0.3.2"
+description = "An edX plugin to change username of edx accounts through admin panel"
+authors = [
+    {name = "MIT Office of Digital Learning"}
+]
+license = "BSD-3-Clause"
+readme = "README.rst"
+requires-python = ">=3.8"
+keywords = ["Python", "edx"]
+dependencies = [
+    "Django>2.0",
+    "celery>=4.4.7",
+    "djangorestframework>=3.14.0",
+    "edx-django-utils>4.0.0",
+]
+
+[project.entry-points."lms.djangoapp"]
+edx_username_changer = "edx_username_changer.apps:EdxUsernameChangerConfig"
+
+[project.entry-points."cms.djangoapp"]
+edx_username_changer = "edx_username_changer.apps:EdxUsernameChangerConfig"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["edx_username_changer"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "edx_username_changer/**/*",
+    "README.rst",
+    "pyproject.toml",
+]
