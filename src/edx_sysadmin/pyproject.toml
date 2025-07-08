@@ -23,17 +23,23 @@ edx_sysadmin = "edx_sysadmin.apps:EdxSysAdminConfig"
 [project.entry-points."cms.djangoapp"]
 edx_sysadmin = "edx_sysadmin.apps:EdxSysAdminConfig"
 
-[tool.setuptools]
-include-package-data = true
+[tool.hatch.build.targets.wheel]
+packages = ["ol_social_auth"]
+include = [
+  "edx_sysadmin/**/*.py",
+  "edx_sysadmin/static/**/*",
+  "edx_sysadmin/templates/**/*",
+  "edx_sysadmin/conf/**/*"
+]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["edx_sysadmin*"]
-exclude = ["edx_sysadmin.tests*"]
+[tool.hatch.build.targets.sdist]
+include = [
+    "edx_sysadmin/**/*",
+    "README.rst",
+    "pyproject.toml",
+]
 
-[tool.setuptools.package-data]
-"edx_sysadmin" = ["static/**/*", "templates/**/*", "conf/**/*"]
 
 [build-system]
-requires = ["setuptools>=45", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
