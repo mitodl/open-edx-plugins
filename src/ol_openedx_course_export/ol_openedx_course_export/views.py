@@ -129,7 +129,7 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
                 task_detail = task_upload_course_s3.delay(request.user.id, course_id)
                 course_upload_urls[course_id] = get_aws_file_url(course_id)
                 upload_task_ids[course_id] = task_detail.task_id
-            except Exception as e:  # noqa: PERF203
+            except Exception as e:
                 log.exception(
                     f"Course export {course_id}: An error has occurred:"  # noqa: G004
                 )  # noqa: G004, RUF100

@@ -25,19 +25,24 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
         Test the async_course_sync task works as expected.
         """
         user = UserFactory.create(username="service_worker")
-        with mock.patch(
-            "ol_openedx_course_sync.tasks.copy_course_content"
-        ) as mock_copy_course_content, mock.patch(
-            "ol_openedx_course_sync.tasks.SignalHandler"
-        ) as mock_signal_handler, mock.patch(
-            "ol_openedx_course_sync.tasks.modulestore"
-        ) as mock_modulestore, mock.patch(
-            "ol_openedx_course_sync.tasks.copy_course_videos"
-        ) as mock_copy_course_videos, mock.patch(
-            "ol_openedx_course_sync.tasks.copy_static_tabs"
-        ) as mock_copy_static_tabs, mock.patch(
-            "ol_openedx_course_sync.tasks.update_default_tabs"
-        ) as mock_update_default_tabs:
+        with (
+            mock.patch(
+                "ol_openedx_course_sync.tasks.copy_course_content"
+            ) as mock_copy_course_content,
+            mock.patch(
+                "ol_openedx_course_sync.tasks.SignalHandler"
+            ) as mock_signal_handler,
+            mock.patch("ol_openedx_course_sync.tasks.modulestore") as mock_modulestore,
+            mock.patch(
+                "ol_openedx_course_sync.tasks.copy_course_videos"
+            ) as mock_copy_course_videos,
+            mock.patch(
+                "ol_openedx_course_sync.tasks.copy_static_tabs"
+            ) as mock_copy_static_tabs,
+            mock.patch(
+                "ol_openedx_course_sync.tasks.update_default_tabs"
+            ) as mock_update_default_tabs,
+        ):
             mock_copy_all_course_assets = mock.Mock()
             mock_delete_all_course_assets = mock.Mock()
             mock_contentstore = mock.Mock()
