@@ -6,7 +6,7 @@ authors = [
     {name = "MIT Office of Digital Learning"}
 ]
 license = "BSD-3-Clause"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dependencies = [
     "Django>2.0",
     "sentry-sdk>=2.0.0",
