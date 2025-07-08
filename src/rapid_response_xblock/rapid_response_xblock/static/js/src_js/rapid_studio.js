@@ -5,7 +5,7 @@
     // we need studio runtime to get handler capable of saving xblock data in Studio
     var studioRuntime = new window.StudioRuntime.v1();
 
-    var toggleEnabledUrl = studioRuntime.handlerUrl(element, 'toggle_block_enabled');
+    var toggleUrl = studioRuntime.handlerUrl(element, 'toggle_block_enabled');
     var $element = $(element);
 
     var rapidTopLevelSel = '.rapid-response-block';
@@ -28,7 +28,7 @@
               message: gettext('Toggling rapid response')
           });
 
-          $.post(toggleEnabledUrl).then(
+          $.post(toggleUrl).then(
             function(state) {
               render(state);
             }
