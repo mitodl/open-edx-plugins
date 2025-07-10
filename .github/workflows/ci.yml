@@ -16,7 +16,7 @@ jobs:
         edx_branch:
         - master
         - open-release/sumac.master
-        - release/teak.1
+        - release/teak
           # Add more branches as needed
 
     steps:

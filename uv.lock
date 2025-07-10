@@ -9,7 +9,6 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "edx-extensions",
     "edx-sysadmin",
     "edx-username-changer",
     "ol-openedx-canvas-integration",
@@ -24,6 +23,7 @@ members = [
     "ol-openedx-rapid-response-reports",
     "ol-openedx-sentry",
     "ol-social-auth",
+    "open-edx-plugins",
     "openedx-companion-auth",
     "rapid-response-xblock",
 ]
@@ -544,77 +544,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/07/b4/24ae933674841abb97332b134ff4d2b6ea099716d5f61935fd2128cb0d38/edx_drf_extensions-10.6.0.tar.gz", hash = "sha256:c633be6aeb615836a5cbb118b52311d87905942273fdb470bfcc1c95fd5f84b7", size = 77425, upload-time = "2025-04-04T11:43:49.648Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d6/a7/60ce0beb203878005010c396026b3666a4e604e7963608dff94571e0a6f2/edx_drf_extensions-10.6.0-py2.py3-none-any.whl", hash = "sha256:82603edc63f7f34a3d1ab024808320ad0e175e608484f392f3c76e594d7715d1", size = 76298, upload-time = "2025-04-04T11:43:47.913Z" },
-]
-
-[[package]]
-name = "edx-extensions"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "celery" },
-    { name = "django" },
-    { name = "djangorestframework" },
-    { name = "edx-django-utils" },
-    { name = "edx-drf-extensions" },
-    { name = "edx-opaque-keys" },
-    { name = "gitpython" },
-    { name = "openedx-events" },
-    { name = "opentelemetry-distro" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-exporter-richconsole" },
-    { name = "opentelemetry-instrumentation-django" },
-    { name = "python-json-logger" },
-    { name = "sentry-sdk" },
-    { name = "social-auth-core" },
-    { name = "xblock" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "codecov" },
-    { name = "ddt" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "pytest-django" },
-    { name = "pytest-mock" },
-    { name = "responses" },
-    { name = "ruff" },
-    { name = "twine" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "celery", specifier = ">=4.4.7" },
-    { name = "django", specifier = ">4.0" },
-    { name = "djangorestframework", specifier = ">=3.14.0" },
-    { name = "edx-django-utils" },
-    { name = "edx-drf-extensions", specifier = ">=10.0.0" },
-    { name = "edx-opaque-keys" },
-    { name = "gitpython", specifier = ">=3.1.37" },
-    { name = "openedx-events" },
-    { name = "opentelemetry-distro" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-exporter-richconsole" },
-    { name = "opentelemetry-instrumentation-django" },
-    { name = "python-json-logger", specifier = ">=3.0.0" },
-    { name = "sentry-sdk", specifier = ">=2.0.0" },
-    { name = "social-auth-core", specifier = ">=4.5.4" },
-    { name = "xblock" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "codecov" },
-    { name = "ddt", specifier = ">=1.7.2" },
-    { name = "pre-commit", specifier = ">=3.0.0" },
-    { name = "pytest", specifier = ">=8.0.0" },
-    { name = "pytest-cov", specifier = ">=5.0.0" },
-    { name = "pytest-django" },
-    { name = "pytest-mock" },
-    { name = "responses", specifier = ">=0.25.7" },
-    { name = "ruff", specifier = ">=0.12.0" },
-    { name = "twine", specifier = ">=5.0.0" },
 ]
 
 [[package]]
@@ -1330,6 +1259,77 @@ dependencies = [
 requires-dist = [
     { name = "django", specifier = ">2.0" },
     { name = "social-auth-core", specifier = ">=4.5.4" },
+]
+
+[[package]]
+name = "open-edx-plugins"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "celery" },
+    { name = "django" },
+    { name = "djangorestframework" },
+    { name = "edx-django-utils" },
+    { name = "edx-drf-extensions" },
+    { name = "edx-opaque-keys" },
+    { name = "gitpython" },
+    { name = "openedx-events" },
+    { name = "opentelemetry-distro" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-exporter-richconsole" },
+    { name = "opentelemetry-instrumentation-django" },
+    { name = "python-json-logger" },
+    { name = "sentry-sdk" },
+    { name = "social-auth-core" },
+    { name = "xblock" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "codecov" },
+    { name = "ddt" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-django" },
+    { name = "pytest-mock" },
+    { name = "responses" },
+    { name = "ruff" },
+    { name = "twine" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "celery", specifier = ">=4.4.7" },
+    { name = "django", specifier = ">4.0" },
+    { name = "djangorestframework", specifier = ">=3.14.0" },
+    { name = "edx-django-utils" },
+    { name = "edx-drf-extensions", specifier = ">=10.0.0" },
+    { name = "edx-opaque-keys" },
+    { name = "gitpython", specifier = ">=3.1.37" },
+    { name = "openedx-events" },
+    { name = "opentelemetry-distro" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-exporter-richconsole" },
+    { name = "opentelemetry-instrumentation-django" },
+    { name = "python-json-logger", specifier = ">=3.0.0" },
+    { name = "sentry-sdk", specifier = ">=2.0.0" },
+    { name = "social-auth-core", specifier = ">=4.5.4" },
+    { name = "xblock" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "codecov" },
+    { name = "ddt", specifier = ">=1.7.2" },
+    { name = "pre-commit", specifier = ">=3.0.0" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "pytest-django", specifier = ">=4.11.1" },
+    { name = "pytest-mock", specifier = ">=3.14.0" },
+    { name = "responses", specifier = ">=0.25.7" },
+    { name = "ruff", specifier = ">=0.12.0" },
+    { name = "twine", specifier = ">=5.0.0" },
 ]
 
 [[package]]

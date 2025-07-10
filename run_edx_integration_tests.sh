@@ -23,8 +23,8 @@ echo "===== Installing uv ====="
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source $HOME/.local/bin/env
 echo "===== Installing Packages ====="
-uv sync --dev
-
+uv export --only-dev --no-hashes --no-annotate > ol_test_requirements.txt
+pip install -r ol_test_requirements.txt
 # Plugins that may affect the tests of other plugins.
 # e.g. openedx-companion-auth adds a redirect to the authentication
 # that fails the authentication process for other plugins.
