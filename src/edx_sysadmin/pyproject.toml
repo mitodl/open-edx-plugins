@@ -24,7 +24,7 @@ edx_sysadmin = "edx_sysadmin.apps:EdxSysAdminConfig"
 edx_sysadmin = "edx_sysadmin.apps:EdxSysAdminConfig"
 
 [tool.hatch.build.targets.wheel]
-packages = ["ol_social_auth"]
+packages = ["edx_sysadmin"]
 include = [
   "edx_sysadmin/**/*.py",
   "edx_sysadmin/static/**/*",

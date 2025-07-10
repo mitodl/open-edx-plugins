@@ -8,17 +8,17 @@ from django.http.request import HttpRequest
 from lms.djangoapps.courseware.block_render import load_single_xblock
 from opaque_keys.edx.keys import UsageKey
 from opaque_keys.edx.locator import CourseLocator
-from tests.utils import (
-    RuntimeEnabledTestCase,
-    combine_dicts,
-    make_scope_ids,
-)
 from xmodule.modulestore.django import modulestore
 
 from rapid_response_xblock.logger import SubmissionRecorder
 from rapid_response_xblock.models import (
     RapidResponseRun,
     RapidResponseSubmission,
+)
+from tests.utils import (
+    RuntimeEnabledTestCase,
+    combine_dicts,
+    make_scope_ids,
 )
 
 
