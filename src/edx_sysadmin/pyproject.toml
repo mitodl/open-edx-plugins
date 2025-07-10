@@ -31,12 +31,18 @@ include = [
   "edx_sysadmin/templates/**/*",
   "edx_sysadmin/conf/**/*"
 ]
+exclude = [
+  "edx_sysadmin/**/tests/"
+]
 
 [tool.hatch.build.targets.sdist]
 include = [
     "edx_sysadmin/**/*",
     "README.rst",
     "pyproject.toml",
+]
+exclude = [
+  "edx_sysadmin/**/tests/"
 ]
 
 

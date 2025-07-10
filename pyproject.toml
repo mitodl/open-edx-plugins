@@ -1,5 +1,5 @@
 [project]
-name = "edx-extensions"
+name = "open-edx-plugins"
 version = "0.1.0"
 description = "Collection of plugins for extending and enhancing the functionality of the Open edX platform"
 authors = [
@@ -9,7 +9,7 @@ license = "BSD-3-Clause"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "Django>2.0",
+    "Django>4.0",
     "celery>=4.4.7",
     "djangorestframework>=3.14.0",
     "edx-django-utils",
@@ -31,22 +31,7 @@ dependencies = [
 
 [tool.uv.workspace]
 members = [
-    "src/edx_sysadmin",
-    "src/edx_username_changer",
-    "src/ol_openedx_canvas_integration",
-    "src/ol_openedx_chat",
-    "src/ol_openedx_checkout_external",
-    "src/ol_openedx_course_export",
-    "src/ol_openedx_course_structure_api",
-    "src/ol_openedx_course_sync",
-    "src/ol_openedx_git_auto_export",
-    "src/ol_openedx_logging",
-    "src/ol_openedx_otel_monitoring",
-    "src/ol_openedx_rapid_response_reports",
-    "src/ol_openedx_sentry",
-    "src/ol_social_auth",
-    "src/openedx_companion_auth",
-    "src/rapid_response_xblock",
+    "src/*"
 ]
 
 [build-system]

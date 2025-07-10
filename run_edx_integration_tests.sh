@@ -19,8 +19,10 @@ cp -r /openedx/staticfiles test_root/staticfiles
 cd /openedx/open-edx-plugins
 
 # Installing test dependencies using UV (this includes pytest-mock, responses, codecov, etc.)
+echo "===== Installing uv ====="
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source $HOME/.local/bin/env
+echo "===== Installing Packages ====="
 uv sync --dev
 
 # Plugins that may affect the tests of other plugins.
@@ -29,7 +31,9 @@ uv sync --dev
 isolated_plugins=("openedx-companion-auth")
 
 # output the packages which are installed for logging
-pip freeze
+echo "===== Installed Python Packages ====="
+pip freeze | sort
+echo "====================================="
 
 export EDXAPP_TEST_MONGO_HOST=mongodb
 
