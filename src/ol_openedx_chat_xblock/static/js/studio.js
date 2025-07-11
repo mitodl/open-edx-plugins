@@ -1,5 +1,5 @@
 function OLChatBlock(runtime, element, init_args) {
-    import("https://unpkg.com/@mitodl/smoot-design@0.0.0-045ab6a/dist/bundles/aiChat.es.js").then(aiChat => {
+    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@0.0.0-b703deb/dist/bundles/aiChat.es.js").then(aiChat => {
         var studioRuntime = new window.StudioRuntime.v1();
         const requestOpts = {
             apiUrl: studioRuntime.handlerUrl(element, 'ol_chat'),
