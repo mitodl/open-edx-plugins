@@ -30,5 +30,4 @@ function OLChatBlock(runtime, element, init_args) {
     }).catch(error => {
         console.error("Failed to load module:", error);
     });
-    return {};
 }

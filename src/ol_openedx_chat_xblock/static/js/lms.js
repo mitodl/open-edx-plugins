@@ -1,5 +1,6 @@
 function OLChatBlock(runtime, element, init_args) {
     import("https://unpkg.com/@mitodl/smoot-design@0.0.0-045ab6a/dist/bundles/aiChat.es.js").then(aiChat => {
+        // console.log(split('; ').find(row => row.startsWith('csrftoken=')))
         const requestOpts = {
             apiUrl: runtime.handlerUrl(element, 'ol_chat'),
             transformBody: (messages) => {
@@ -29,5 +30,4 @@ function OLChatBlock(runtime, element, init_args) {
     }).catch(error => {
         console.error("Failed to load module:", error);
     });
-    return {};
 }
