@@ -13,6 +13,7 @@ members = [
     "edx-username-changer",
     "ol-openedx-canvas-integration",
     "ol-openedx-chat",
+    "ol-openedx-chat-xblock",
     "ol-openedx-checkout-external",
     "ol-openedx-course-export",
     "ol-openedx-course-structure-api",
@@ -83,6 +84,34 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/7c/58/1546c970afcd2a2428b1bfafecf2371d8951cc34b46701bea73f4280989e/billiard-4.2.1.tar.gz", hash = "sha256:12b641b0c539073fc8d3f5b8b7be998956665c4233c7c1fcd66a7e677c4fb36f", size = 155031, upload-time = "2024-09-21T13:40:22.491Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/30/da/43b15f28fe5f9e027b41c539abc5469052e9d48fd75f8ff094ba2a0ae767/billiard-4.2.1-py3-none-any.whl", hash = "sha256:40b59a4ac8806ba2c2369ea98d876bc6108b051c227baffd928c644d15d8f3cb", size = 86766, upload-time = "2024-09-21T13:40:20.188Z" },
+]
+
+[[package]]
+name = "boto3"
+version = "1.39.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "botocore" },
+    { name = "jmespath" },
+    { name = "s3transfer" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6a/1f/b7510dcd26eb14735d6f4b2904e219b825660425a0cf0b6f35b84c7249b0/boto3-1.39.4.tar.gz", hash = "sha256:6c955729a1d70181bc8368e02a7d3f350884290def63815ebca8408ee6d47571", size = 111829, upload-time = "2025-07-09T19:23:01.512Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/12/5c/93292e4d8c809950c13950b3168e0eabdac828629c21047959251ad3f28c/boto3-1.39.4-py3-none-any.whl", hash = "sha256:f8e9534b429121aa5c5b7c685c6a94dd33edf14f87926e9a182d5b50220ba284", size = 139908, upload-time = "2025-07-09T19:22:59.808Z" },
+]
+
+[[package]]
+name = "botocore"
+version = "1.39.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jmespath" },
+    { name = "python-dateutil" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e6/9f/21c823ea2fae3fa5a6c9e8caaa1f858acd55018e6d317505a4f14c5bb999/botocore-1.39.4.tar.gz", hash = "sha256:e662ac35c681f7942a93f2ec7b4cde8f8b56dd399da47a79fa3e370338521a56", size = 14136116, upload-time = "2025-07-09T19:22:49.811Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/58/44/f120319e0a9afface645e99f300175b9b308e4724cb400b32e1bd6eb3060/botocore-1.39.4-py3-none-any.whl", hash = "sha256:c41e167ce01cfd1973c3fa9856ef5244a51ddf9c82cb131120d8617913b6812a", size = 13795516, upload-time = "2025-07-09T19:22:44.446Z" },
 ]
 
 [[package]]
@@ -655,6 +684,20 @@ wheels = [
 ]
 
 [[package]]
+name = "fs-s3fs"
+version = "1.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "boto3" },
+    { name = "fs" },
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/be/f1/b641963f8694cdf7c3daed0276fef361c2b51717bf5f3e8a89b63c8ba237/fs-s3fs-1.1.1.tar.gz", hash = "sha256:b57f8c7664460ff7b451b4b44ca2ea9623a374d74e1284c2d5e6df499dc7976c", size = 10353, upload-time = "2019-08-14T10:59:30.626Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/71/9b36a6dbd28386e2028e4ab9aac9c30874fc9c74d6b8fa0c8c2806548311/fs_s3fs-1.1.1-py2.py3-none-any.whl", hash = "sha256:9ba160eaa93390cc5992a857675666cb2fbb3721b872474dfdc659a715c39280", size = 9675, upload-time = "2019-08-14T10:59:32.547Z" },
+]
+
+[[package]]
 name = "gitdb"
 version = "4.0.12"
 source = { registry = "https://pypi.org/simple" }
@@ -787,6 +830,15 @@ wheels = [
 ]
 
 [[package]]
+name = "jmespath"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/2a/e867e8531cf3e36b41201936b7fa7ba7b5702dbef42922193f05c8976cd6/jmespath-1.0.1.tar.gz", hash = "sha256:90261b206d6defd58fdd5e85f478bf633a2901798906be2ad389150c5c60edbe", size = 25843, upload-time = "2022-06-17T18:00:12.224Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/31/b4/b9b800c45527aadd64d5b442f9b932b00648617eb5d63d2c7a6587b7cafc/jmespath-1.0.1-py3-none-any.whl", hash = "sha256:02e2e4cc71b5bcab88332eebf907519190dd9e6e82107fa7f83b1003a6252980", size = 20256, upload-time = "2022-06-17T18:00:10.251Z" },
+]
+
+[[package]]
 name = "keyring"
 version = "25.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -817,6 +869,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/0f/d3/5ff936d8319ac86b9c409f1501b07c426e6ad41966fedace9ef1b966e23f/kombu-5.5.4.tar.gz", hash = "sha256:886600168275ebeada93b888e831352fe578168342f0d1d5833d88ba0d847363", size = 461992, upload-time = "2025-06-01T10:19:22.281Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/70/a07dcf4f62598c8ad579df241af55ced65bed76e42e45d3c368a6d82dbc1/kombu-5.5.4-py3-none-any.whl", hash = "sha256:a12ed0557c238897d8e518f1d1fdf84bd1516c5e305af2dacd85c2015115feb8", size = 210034, upload-time = "2025-06-01T10:19:20.436Z" },
+]
+
+[[package]]
+name = "lazy"
+version = "1.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3c/e6/704c32da169b023a9ac86d116f5433b42d02b4afeda24c9400a69b3530e5/lazy-1.6.tar.gz", hash = "sha256:7127324ec709e8324f08cb4611c1abe01776bda53bb9ce68dc5dfa46ca0ed3e9", size = 10562, upload-time = "2023-09-14T13:31:13.666Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/11/ae/3ae578fc22dc9c5f60ddcb5c254fe808d45ee7b4cd03315245caf5db6a47/lazy-1.6-py2.py3-none-any.whl", hash = "sha256:449375c125c7acac6b7a93f71b8e7ccb06546c37b161613f92d2d3981f793244", size = 5246, upload-time = "2023-09-14T13:31:11.688Z" },
 ]
 
 [[package]]
@@ -1048,7 +1109,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat"
-version = "0.3.4"
+version = "0.3.6"
 source = { editable = "src/ol_openedx_chat" }
 dependencies = [
     { name = "django" },
@@ -1063,6 +1124,27 @@ requires-dist = [
     { name = "djangorestframework", specifier = ">=3.14.0" },
     { name = "edx-django-utils", specifier = ">4.0.0" },
     { name = "xblock" },
+]
+
+[[package]]
+name = "ol-openedx-chat-xblock"
+version = "0.1.0"
+source = { editable = "src/ol_openedx_chat_xblock" }
+dependencies = [
+    { name = "django" },
+    { name = "djangorestframework" },
+    { name = "edx-django-utils" },
+    { name = "xblock" },
+    { name = "xblock-utils" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "django", specifier = ">=3.2" },
+    { name = "djangorestframework", specifier = ">=3.14.0" },
+    { name = "edx-django-utils", specifier = ">=1.3.0" },
+    { name = "xblock", specifier = ">=1.9.0" },
+    { name = "xblock-utils", specifier = ">=1.2.0" },
 ]
 
 [[package]]
@@ -1132,7 +1214,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-sync"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "src/ol_openedx_course_sync" }
 dependencies = [
     { name = "django" },
@@ -1153,7 +1235,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-git-auto-export"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "src/ol_openedx_git_auto_export" }
 dependencies = [
     { name = "celery" },
@@ -1252,12 +1334,14 @@ version = "0.1.0"
 source = { editable = "src/ol_social_auth" }
 dependencies = [
     { name = "django" },
+    { name = "edx-django-utils" },
     { name = "social-auth-core" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "django", specifier = ">2.0" },
+    { name = "edx-django-utils", specifier = ">4.0.0" },
     { name = "social-auth-core", specifier = ">=4.5.4" },
 ]
 
@@ -1347,6 +1431,20 @@ requires-dist = [
     { name = "django", specifier = ">2.0" },
     { name = "djangorestframework", specifier = ">=3.14.0" },
     { name = "edx-django-utils", specifier = ">3.0.0" },
+]
+
+[[package]]
+name = "openedx-django-pyfs"
+version = "3.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "django" },
+    { name = "fs" },
+    { name = "fs-s3fs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6a/50/4c44ec88e72e99bbee33fd74c6540d28e8e94e60da2d21bbf9e93562e8b2/openedx_django_pyfs-3.8.0.tar.gz", hash = "sha256:79f19822880fcabb91531bf578a133b8b86381c160f030436c3fd1bbc616b420", size = 19814, upload-time = "2025-05-06T14:58:32.342Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f9/a5/20f1d740accdde884710ad155275a4c6f22d8dc3ade4dc9c3380d43877f1/openedx_django_pyfs-3.8.0-py3-none-any.whl", hash = "sha256:5b17122534d0febf38729fa994d581db5fffc55565895b0290884116cea3892f", size = 13755, upload-time = "2025-05-06T14:58:31.213Z" },
 ]
 
 [[package]]
@@ -2001,6 +2099,18 @@ wheels = [
 ]
 
 [[package]]
+name = "s3transfer"
+version = "0.13.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "botocore" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ed/5d/9dcc100abc6711e8247af5aa561fc07c4a046f72f659c3adea9a449e191a/s3transfer-0.13.0.tar.gz", hash = "sha256:f5e6db74eb7776a37208001113ea7aa97695368242b364d73e91c981ac522177", size = 150232, upload-time = "2025-05-22T19:24:50.245Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/18/17/22bf8155aa0ea2305eefa3a6402e040df7ebe512d1310165eda1e233c3f8/s3transfer-0.13.0-py3-none-any.whl", hash = "sha256:0148ef34d6dd964d0d8cf4311b2b21c474693e57c2e069ec708ce043d2b527be", size = 85152, upload-time = "2025-05-22T19:24:48.703Z" },
+]
+
+[[package]]
 name = "secretstorage"
 version = "3.3.3"
 source = { registry = "https://pypi.org/simple" }
@@ -2360,6 +2470,27 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f1/c3/0a84a89e3333652faac900af7d823cc2f12644e69a0f4a473e779019a649/XBlock-5.2.0.tar.gz", hash = "sha256:d3d1deb758a8a0ff84c64a9e10d0413821221c572ee4d5ee431e6d327d977a08", size = 119504, upload-time = "2025-04-10T07:25:42.386Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/32/2db6852a4990b1c82371279986d35e0cd412fc7a699785b43c76bf40740c/XBlock-5.2.0-py3-none-any.whl", hash = "sha256:399edefb64c953a4b7e4775d8d0c028c8de2baa6ba9e9f9e577b57994a415c60", size = 140979, upload-time = "2025-04-10T07:25:40.97Z" },
+]
+
+[package.optional-dependencies]
+django = [
+    { name = "lazy" },
+    { name = "openedx-django-pyfs" },
+]
+
+[[package]]
+name = "xblock-utils"
+version = "4.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mako" },
+    { name = "simplejson" },
+    { name = "web-fragments" },
+    { name = "xblock", extra = ["django"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bb/96/032f886808ccc9fe189e16f402193d9e3a03580530e28c7280630fa57a47/xblock-utils-4.0.0.tar.gz", hash = "sha256:a24f0cd87b7f6cc25253390f85c6234c6e27e3cb9d4457ee27289d9a0f3dfb38", size = 35575, upload-time = "2023-10-04T05:56:28.223Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/02/af/5cea407aeea6d2da117721f1df3c0d124631ed11d437fd066dfe9125fb92/xblock_utils-4.0.0-py3-none-any.whl", hash = "sha256:45c2bb9c4279b1db20353ad03c47315ee849c5a5c806dfc33ec10492cb125a2b", size = 31457, upload-time = "2023-10-04T05:56:26.459Z" },
 ]
 
 [[package]]

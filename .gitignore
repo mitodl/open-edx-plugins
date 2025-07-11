@@ -10,4 +10,5 @@ __pycache__/
 # Test Runtime
 ol_test_requirements.txt
 **/.coverage
+**/coverage.xml
 **/test_root

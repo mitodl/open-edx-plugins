@@ -12,11 +12,18 @@ keywords = ["Python", "edx"]
 dependencies = [
   "Django>2.0",
   "social-auth-core>=4.5.4",
+  "edx-django-utils>4.0.0",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[project.entry-points."lms.djangoapp"]
+ol_openedx_social_auth = "ol_social_auth.apps:OLOpenEdxSocialAuthConfig"
+
+[project.entry-points."cms.djangoapp"]
+ol_openedx_social_auth = "ol_social_auth.apps:OLOpenEdxSocialAuthConfig"
 
 [tool.hatch.build.targets.wheel]
 packages = ["ol_social_auth"]
