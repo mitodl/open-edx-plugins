@@ -1,4 +1,4 @@
-#ai-chat-container {
+.ai-chat-container {
     min-height: 400px;
     position: relative;
 }

@@ -71,11 +71,14 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         fragment.add_content(
             render_template(
                 "static/html/student_view.html",
+                {
+                    "block_id": self.usage_key.block_id,
+                }
             )
         )
         fragment.add_javascript(get_resource_bytes("static/js/lms.js"))
         fragment.add_css(get_resource_bytes("static/css/ai_chat_xblock.css"))
-        fragment.initialize_js("OLChatBlock")
+        fragment.initialize_js("OLChatBlock", json_args={"block_id": self.usage_key.block_id})
         return fragment
 
     def author_view(self, context=None):  # noqa: ARG002
@@ -86,11 +89,14 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         fragment.add_content(
             render_template(
                 "static/html/studio_view.html",
+                {
+                    "block_id": self.usage_key.block_id,
+                }
             )
         )
         fragment.add_javascript(get_resource_bytes("static/js/studio.js"))
         fragment.add_css(get_resource_bytes("static/css/ai_chat_xblock.css"))
-        fragment.initialize_js("OLChatBlock")
+        fragment.initialize_js("OLChatBlock", json_args={"block_id": self.usage_key.block_id})
         return fragment
 
     @XBlock.handler

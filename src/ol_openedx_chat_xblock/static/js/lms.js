@@ -23,7 +23,7 @@ function OLChatBlock(runtime, element, init_args) {
                 ],
             },
             {
-                container: document.getElementById("ai-chat-container"),
+                container: document.getElementById(`ai-chat-container-${init_args.block_id}`),
             },
         )
     }).catch(error => {
