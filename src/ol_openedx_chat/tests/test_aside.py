@@ -37,7 +37,7 @@ class OLChatAsideTests(OLChatTestCase):
     )
     @unpack
     @skip_unless_lms
-    @override_settings(LMS_BASE_URL="http://local.openedx.io")
+    @override_settings(LMS_BASE="http://local.openedx.io")
     def test_student_view(self, ol_chat_enabled_value, should_render_aside, block_type):
         """
         Test that the aside student view returns a fragment if ol-chat is enabled.
@@ -157,7 +157,7 @@ class OLChatAsideTests(OLChatTestCase):
 
             expected_payload = {
                 "blockUsageKey": str(block.usage_key),
-                "trackingUrl": f"{settings.LMS_BASE_URL}/xblock/{aside_usage_key}/handler/track_user_events",  # noqa: E501
+                "trackingUrl": f"{settings.LMS_BASE}/xblock/{aside_usage_key}/handler/track_user_events",  # noqa: E501
                 "blockType": block_type,
                 "title": f"AskTIM about {block.display_name}",
                 "chat": {

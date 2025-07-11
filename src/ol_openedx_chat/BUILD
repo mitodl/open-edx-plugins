@@ -16,7 +16,7 @@ python_distribution(
     ],
     provides=setup_py(
         name="ol-openedx-chat",
-        version="0.3.5",
+        version="0.3.6",
         description="An Open edX plugin to add Open Learning AI chat aside to xBlocks",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
