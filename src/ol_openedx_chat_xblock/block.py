@@ -67,9 +67,41 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
     def student_view(self, context=None):  # noqa: ARG002
         """Render the student view of the block."""
+        fragment = Fragment("")
+        fragment.add_content(
+            render_template(
+                "static/html/student_view.html",
+                {
+                    "block_id": self.usage_key.block_id,
+                },
+            )
+        )
+        fragment.add_javascript(get_resource_bytes("static/js/lms.js"))
+        fragment.add_css(get_resource_bytes("static/css/ai_chat_xblock.css"))
+        fragment.initialize_js(
+            "OLChatBlock", json_args={"block_id": self.usage_key.block_id}
+        )
+        return fragment
 
-        html = "<div>THIS IS THE STUDENT VIEW OF THE CHAT XBLOCK</div>"
-        return Fragment(html)
+    def author_view(self, context=None):  # noqa: ARG002
+        """
+        Render the author view of the block.
+        """
+        fragment = Fragment("")
+        fragment.add_content(
+            render_template(
+                "static/html/studio_view.html",
+                {
+                    "block_id": self.usage_key.block_id,
+                },
+            )
+        )
+        fragment.add_javascript(get_resource_bytes("static/js/studio.js"))
+        fragment.add_css(get_resource_bytes("static/css/ai_chat_xblock.css"))
+        fragment.initialize_js(
+            "OLChatBlock", json_args={"block_id": self.usage_key.block_id}
+        )
+        return fragment
 
     @XBlock.handler
     def ol_chat(self, request, suffix=""):  # noqa: ARG002
