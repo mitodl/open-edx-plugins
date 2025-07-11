@@ -1,4 +1,4 @@
 resources(
-    name="ol_chat_html_xblock",
+    name="ol_chat_xblock_html",
     sources=["*.html"],
 )

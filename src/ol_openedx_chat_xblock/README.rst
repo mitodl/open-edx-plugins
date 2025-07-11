@@ -32,8 +32,8 @@ Configuration
 
   .. code-block::
 
-    MIT_LEARN_XBLOCK_AI_API_URL: <MIT_LEARN_XBLOCK_AI_API_URL>
-    MIT_LEARN_XBLOCK_AI_API_TOKEN: <MIT_LEARN_XBLOCK_AI_API_TOKEN>
+    MIT_LEARN_AI_XBLOCK_CHAT_API_URL: <MIT_LEARN_AI_XBLOCK_CHAT_API_URL>
+    MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN: <MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN>
 
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 

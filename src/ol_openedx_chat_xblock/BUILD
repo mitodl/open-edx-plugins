@@ -1,7 +1,7 @@
 python_sources(
     name="ol_openedx_chat_xblock",
     dependencies=[
-        "src/ol_openedx_chat_xblock/settings:ol_chat_settings_xblock",
+        "src/ol_openedx_chat_xblock/settings:ol_chat_xblock_settings",
         ],
 )
 
@@ -9,10 +9,9 @@ python_distribution(
     name="ol_openedx_chat_xblock_package",
     dependencies=[
         ":ol_openedx_chat_xblock",
-        "src/ol_openedx_chat_xblock/static/js:ol_chat_js_xblock",
-        "src/ol_openedx_chat_xblock/static/css:ol_chat_css_xblock",
-        "src/ol_openedx_chat_xblock/static/html:ol_chat_html_xblock",
-        "src/ol_openedx_chat_xblock/static/images:ol_chat_images_xblock",
+        "src/ol_openedx_chat_xblock/static/js:ol_chat_xblock_js",
+        "src/ol_openedx_chat_xblock/static/css:ol_chat_xblock_css",
+        "src/ol_openedx_chat_xblock/static/html:ol_chat_xblock_html",
     ],
     provides=setup_py(
         name="ol-openedx-chat-xblock",

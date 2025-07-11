@@ -87,8 +87,8 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 content_type="application/json",
             )
 
-        api_url = settings.MIT_LEARN_XBLOCK_AI_API_URL
-        api_token = settings.MIT_LEARN_XBLOCK_AI_API_TOKEN
+        api_url = settings.MIT_LEARN_AI_XBLOCK_CHAT_API_URL
+        api_token = settings.MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN
 
         if not api_url or not api_token:
             log.error("Missing AI API configuration (URL or token).")
