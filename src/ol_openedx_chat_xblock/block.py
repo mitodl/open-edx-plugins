@@ -78,9 +78,9 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         fragment.initialize_js("OLChatBlock")
         return fragment
 
-    def author_view(self, context=None):
+    def author_view(self, context=None):  # noqa: ARG002
         """
-        Renders the author view of the block.
+        Render the author view of the block.
         """
         fragment = Fragment("")
         fragment.add_content(
