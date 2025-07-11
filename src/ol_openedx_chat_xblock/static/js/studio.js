@@ -1,11 +1,5 @@
 function OLChatBlock(runtime, element, init_args) {
-    function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-    }
-
-    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@0.0.0-b703deb/dist/bundles/aiChat.es.js").then(aiChat => {
+    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@0.0.0-a0ccc2c/dist/bundles/aiChat.es.js").then(aiChat => {
         var studioRuntime = new window.StudioRuntime.v1();
         const requestOpts = {
             apiUrl: studioRuntime.handlerUrl(element, 'ol_chat'),
@@ -14,11 +8,8 @@ function OLChatBlock(runtime, element, init_args) {
                     message: messages[messages.length - 1].content,
                 }
             },
-            fetchOpts: {
-                headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                },
-            },
+            csrfHeaderName: "X-CSRFToken",
+            csrfCookieName: "csrftoken",
         }
         aiChat.init(
             {
