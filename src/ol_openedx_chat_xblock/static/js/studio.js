@@ -5,9 +5,7 @@ function OLChatBlock(runtime, element, init_args) {
             apiUrl: studioRuntime.handlerUrl(element, 'ol_chat'),
             transformBody: (messages) => {
                 return {
-                    collection_name: "content_files",
                     message: messages[messages.length - 1].content,
-                    course_id: "course-v1:xPRO+PCDEx",
                 }
             },
         }
