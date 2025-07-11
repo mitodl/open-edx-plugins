@@ -1,3 +1,5 @@
+
+
 import logging
 
 import pkg_resources
@@ -119,9 +121,32 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         }
 
         try:
-            response = requests.post(api_url, json=payload, headers=headers, timeout=30)
+            # Use the cookies from the request to maintain session state
+            # This is important for the MIT Learn AI service to track user sessions
+            block_id = self.usage_key.block_id
+            req_syllabusbot_ai_threads_anon = request.cookies.get("SyllabusBot_ai_threads_anon", None)
+            req_block_id = request.cookies.get("block_id", None)
+
+            if req_block_id != block_id:
+                req_syllabusbot_ai_threads_anon = None
+
+            req_cookies = {
+                "SyllabusBot_ai_threads_anon": req_syllabusbot_ai_threads_anon
+            }
+            response = requests.post(api_url, json=payload, headers=headers, timeout=60, cookies=req_cookies)
+
+            # Check if the response was successful.
             response.raise_for_status()
-            return Response(response.content)
+            resp_syllabusbot_ai_threads_anon = response.cookies.get("SyllabusBot_ai_threads_anon")
+            xblock_response = Response(response.content)
+            xblock_response.set_cookie(
+                "SyllabusBot_ai_threads_anon", resp_syllabusbot_ai_threads_anon, httponly=True
+            )
+            xblock_response.set_cookie(
+                "block_id", block_id, httponly=True
+            )
+            return xblock_response
+
         except requests.exceptions.RequestException as e:
             log.exception("Failed to contact MIT Learn AI service.")
             return Response(
