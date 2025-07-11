@@ -1,5 +1,3 @@
-
-
 import logging
 
 import pkg_resources
@@ -124,7 +122,9 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             # Use the cookies from the request to maintain session state
             # This is important for the MIT Learn AI service to track user sessions
             block_id = self.usage_key.block_id
-            req_syllabusbot_ai_threads_anon = request.cookies.get("SyllabusBot_ai_threads_anon", None)
+            req_syllabusbot_ai_threads_anon = request.cookies.get(
+                "SyllabusBot_ai_threads_anon", None
+            )
             req_block_id = request.cookies.get("block_id", None)
 
             if req_block_id != block_id:
@@ -133,18 +133,22 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             req_cookies = {
                 "SyllabusBot_ai_threads_anon": req_syllabusbot_ai_threads_anon
             }
-            response = requests.post(api_url, json=payload, headers=headers, timeout=60, cookies=req_cookies)
+            response = requests.post(
+                api_url, json=payload, headers=headers, timeout=60, cookies=req_cookies
+            )
 
             # Check if the response was successful.
             response.raise_for_status()
-            resp_syllabusbot_ai_threads_anon = response.cookies.get("SyllabusBot_ai_threads_anon")
+            resp_syllabusbot_ai_threads_anon = response.cookies.get(
+                "SyllabusBot_ai_threads_anon"
+            )
             xblock_response = Response(response.content)
             xblock_response.set_cookie(
-                "SyllabusBot_ai_threads_anon", resp_syllabusbot_ai_threads_anon, httponly=True
+                "SyllabusBot_ai_threads_anon",
+                resp_syllabusbot_ai_threads_anon,
+                httponly=True,
             )
-            xblock_response.set_cookie(
-                "block_id", block_id, httponly=True
-            )
+            xblock_response.set_cookie("block_id", block_id, httponly=True)
             return xblock_response
 
         except requests.exceptions.RequestException as e:
