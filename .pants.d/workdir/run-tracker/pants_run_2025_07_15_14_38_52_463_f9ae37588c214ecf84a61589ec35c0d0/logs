@@ -1,0 +1,496 @@
+14:38:57.39 [33m[WARN][0m Unmatched globs from src/ol_openedx_chat_xblock:tests's `sources` field: ["src/ol_openedx_chat_xblock/*_test.py", "src/ol_openedx_chat_xblock/test_*.py", "src/ol_openedx_chat_xblock/tests.py"]
+
+Do the file(s) exist? If so, check if the file(s) are in your `.gitignore` or the global `pants_ignore` option, which may result in Pants not being able to see the file(s) even though they exist on disk. Refer to https://www.pantsbuild.org/troubleshooting#pants-cannot-find-a-file-in-your-project.
+14:38:57.40 [33m[WARN][0m Unmatched globs from src/ol_openedx_chat:tests's `sources` field: ["src/ol_openedx_chat/*_test.py", "src/ol_openedx_chat/test_*.py", "src/ol_openedx_chat/tests.py"]
+
+Do the file(s) exist? If so, check if the file(s) are in your `.gitignore` or the global `pants_ignore` option, which may result in Pants not being able to see the file(s) even though they exist on disk. Refer to https://www.pantsbuild.org/troubleshooting#pants-cannot-find-a-file-in-your-project.
+14:38:57.41 [33m[WARN][0m Unmatched globs from src/rapid_response_xblock:tests's `sources` field: ["src/rapid_response_xblock/*_test.py", "src/rapid_response_xblock/test_*.py", "src/rapid_response_xblock/tests.py"]
+
+Do the file(s) exist? If so, check if the file(s) are in your `.gitignore` or the global `pants_ignore` option, which may result in Pants not being able to see the file(s) even though they exist on disk. Refer to https://www.pantsbuild.org/troubleshooting#pants-cannot-find-a-file-in-your-project.
+14:39:00.25 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_social_auth/backends.py:ol_social_auth_source:
+
+  * social_core.backends.oauth.BaseOAuth2 (line: 3)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.43 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_rapid_response_reports/context_api.py:rapid_response_plugin_dependencies:
+
+  * web_fragments.fragment.Fragment (line: 6)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.44 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_sync/utils.py:ol_openedx_course_sync_source:
+
+  * cms.djangoapps.contentstore.utils.duplicate_block (line: 7)
+  * xmodule.modulestore.django.modulestore (line: 8)
+  * xmodule.modulestore.exceptions.ItemNotFoundError (line: 9)
+  * xmodule.tabs.CourseTabList (line: 10)
+  * xmodule.tabs.StaticTab (line: 10)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.46 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_canvas_integration/views.py:canvas_integration:
+
+  * common.djangoapps.student.models.CourseEnrollment (line: 5)
+  * common.djangoapps.student.models.CourseEnrollmentAllowed (line: 5)
+  * common.djangoapps.util.json_request.JsonResponse (line: 6)
+  * lms.djangoapps.courseware.courses.get_course_by_id (line: 13)
+  * lms.djangoapps.instructor.permissions (line: 14)
+  * lms.djangoapps.instructor.views.api.require_course_permission (line: 15)
+  * lms.djangoapps.instructor_task.api_helper.AlreadyRunningError (line: 16)
+  * opaque_keys.edx.locator.CourseLocator (line: 17)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.47 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_sync/signals.py:ol_openedx_course_sync_source:
+
+  * common.djangoapps.course_action_state.models.CourseRerunState (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.47 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_sync/admin.py:ol_openedx_course_sync_source:
+
+  * organizations.models.Organization (line: 9)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.47 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_canvas_integration/tasks.py:canvas_integration:
+
+  * lms.djangoapps.courseware.courses.get_course_by_id (line: 10)
+  * lms.djangoapps.grades.models.PersistentSubsectionGrade (line: 11)
+  * lms.djangoapps.instructor_task.api_helper.submit_task (line: 12)
+  * lms.djangoapps.instructor_task.tasks_base.BaseInstructorTask (line: 13)
+  * lms.djangoapps.instructor_task.tasks_helper.runner.run_main_task (line: 14)
+  * requests (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.49 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_otel_monitoring/tracing.py:otel_monitoring:
+
+  * opentelemetry.sdk.resources.Resource (line: 18)
+  * opentelemetry.sdk.trace.TracerProvider (line: 19)
+  * opentelemetry.sdk.trace.export.BatchSpanProcessor (line: 20)
+  * opentelemetry.trace (line: 17)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.51 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_sync/models.py:ol_openedx_course_sync_source:
+
+  * opaque_keys.edx.django.models.CourseKeyField (line: 8)
+  * openedx.core.djangoapps.content.course_overviews.models.CourseOverview (line: 10)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.51 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_canvas_integration/client.py:canvas_integration:
+
+  * pytz (line: 4)
+  * requests (line: 5)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.52 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_canvas_integration/context_api.py:canvas_integration:
+
+  * pkg_resources (line: 5)
+  * web_fragments.fragment.Fragment (line: 8)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.52 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_canvas_integration/api.py:canvas_integration:
+
+  * common.djangoapps.student.models.CourseEnrollment (line: 6)
+  * common.djangoapps.student.models.CourseEnrollmentAllowed (line: 6)
+  * lms.djangoapps.courseware.access.has_access (line: 8)
+  * lms.djangoapps.courseware.courses.get_course_by_id (line: 9)
+  * lms.djangoapps.grades.context.grading_context_for_course (line: 10)
+  * lms.djangoapps.grades.course_grade_factory.CourseGradeFactory (line: 11)
+  * opaque_keys.edx.locator.CourseLocator (line: 12)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.52 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_export/app.py:course_export:
+
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 7)
+  * openedx.core.djangoapps.plugins.constants.SettingsType (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.53 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_checkout_external/app.py:external_checkout:
+
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 7)
+  * openedx.core.djangoapps.plugins.constants.SettingsType (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.53 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_rapid_response_reports/app.py:rapid_response_plugin_dependencies:
+
+  * lms.djangoapps.instructor.constants.INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME (line: 7)
+  * openedx.core.constants.COURSE_ID_PATTERN (line: 8)
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 9)
+  * openedx.core.djangoapps.plugins.constants.SettingsType (line: 9)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.54 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_rapid_response_reports/api.py:rapid_response_plugin_dependencies:
+
+  * lms.djangoapps.instructor.permissions.VIEW_DASHBOARD (line: 2)
+  * lms.djangoapps.instructor.views.api.require_course_permission (line: 3)
+  * lms.djangoapps.instructor_analytics.csvs (line: 4)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.54 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/openedx_companion_auth/middleware.py:openedx_companion_configuration:
+
+  * urlparse.parse_qsl (line: 12)
+  * urlparse.urlsplit (line: 12)
+  * urlparse.urlunsplit (line: 12)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.55 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_canvas_integration/cms_tasks.py:canvas_integration:
+
+  * lms.djangoapps.courseware.courses.get_course_by_id (line: 18)
+  * opaque_keys.edx.locator.CourseLocator (line: 19)
+  * requests (line: 16)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.56 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_checkout_external/views.py:external_checkout:
+
+  * common.djangoapps.course_modes.models.CourseMode (line: 6)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.56 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_canvas_integration/app.py:canvas_integration:
+
+  * lms.djangoapps.instructor.constants.INSTRUCTOR_DASHBOARD_PLUGIN_VIEW_NAME (line: 12)
+  * openedx.core.constants.COURSE_ID_PATTERN (line: 13)
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 14)
+  * openedx.core.djangoapps.plugins.constants.SettingsType (line: 14)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.57 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_chat/utils.py:
+
+  * lms.djangoapps.courseware.courses.get_course_by_id (line: 4)
+  * opaque_keys.edx.locator.CourseLocator (line: 5)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.57 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_username_changer/apps.py:edx_username_changer_source:
+
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 8)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.59 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_export/views.py:course_export:
+
+  * cms.djangoapps.contentstore.api.views.course_import.CourseImportExportViewMixin (line: 6)
+  * cms.djangoapps.contentstore.tasks.CourseExportTask (line: 8)
+  * openedx.core.lib.api.view_utils.verify_course_exists (line: 9)
+  * user_tasks.models.UserTaskStatus (line: 14)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.59 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_username_changer/admin.py:edx_username_changer_source:
+
+  * common.djangoapps.student.admin.UserAdmin (line: 8)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.62 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_sync/apps.py:ol_openedx_course_sync_source:
+
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.62 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_otel_monitoring/apps.py:otel_monitoring:
+
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 7)
+  * openedx.core.djangoapps.plugins.constants.SettingsType (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.62 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_chat/compat.py:
+
+  * openedx.core.djangoapps.waffle_utils.CourseWaffleFlag (line: 22)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.62 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_chat/apps.py:
+
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 7)
+  * openedx.core.djangoapps.plugins.constants.SettingsType (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.63 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_export/tasks.py:course_export:
+
+  * botocore.exceptions.ClientError (line: 7)
+  * cms.djangoapps.contentstore.tasks.CourseExportTask (line: 9)
+  * cms.djangoapps.contentstore.tasks.create_export_tarball (line: 9)
+  * opaque_keys.edx.keys.CourseKey (line: 10)
+  * user_tasks.models.UserTaskStatus (line: 11)
+  * xmodule.modulestore.django.modulestore (line: 12)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.63 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_sync/tasks.py:ol_openedx_course_sync_source:
+
+  * celery_utils.persist_on_failure.LoggedPersistOnFailureTask (line: 7)
+  * edxval.api.copy_course_videos (line: 11)
+  * opaque_keys.edx.locator.CourseLocator (line: 12)
+  * xmodule.modulestore.ModuleStoreEnum (line: 13)
+  * xmodule.modulestore.django.SignalHandler (line: 14)
+  * xmodule.modulestore.django.modulestore (line: 14)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.63 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_structure_api/app.py:course_structure_api:
+
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 7)
+  * openedx.core.djangoapps.plugins.constants.SettingsType (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.64 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/rapid_response_xblock/apps.py:
+
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 5)
+  * openedx.core.djangoapps.plugins.constants.SettingsType (line: 5)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.64 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_git_auto_export/tasks.py:git_auto_export:
+
+  * cms.djangoapps.contentstore.git_export_utils.GitExportError (line: 3)
+  * cms.djangoapps.contentstore.git_export_utils.export_to_git (line: 3)
+  * opaque_keys.edx.keys.CourseKey (line: 4)
+  * xmodule.modulestore.django.modulestore (line: 5)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.65 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_username_changer/signals.py:edx_username_changer_source:
+
+  * common.djangoapps.util.model_utils.get_changed_fields_dict (line: 6)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.65 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_git_auto_export/app.py:git_auto_export:
+
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 7)
+  * openedx.core.djangoapps.plugins.constants.SettingsType (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.66 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_canvas_integration/task_helpers.py:canvas_integration:
+
+  * lms.djangoapps.courseware.courses.get_course_by_id (line: 9)
+  * lms.djangoapps.instructor_task.api.get_running_instructor_tasks (line: 10)
+  * lms.djangoapps.instructor_task.models.InstructorTask (line: 11)
+  * lms.djangoapps.instructor_task.tasks_helper.runner.TaskProgress (line: 12)
+  * pytz (line: 8)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.71 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_export/s3_client.py:course_export:
+
+  * boto3 (line: 1)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.72 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_chat/block.py:
+
+  * eventtracking.tracker (line: 8)
+  * pkg_resources (line: 4)
+  * web_fragments.fragment.Fragment (line: 10)
+  * webob.response.Response (line: 11)
+  * xmodule.modulestore.xml.ImportSystem (line: 14)
+  * xmodule.video_block.transcripts_utils.Transcript (line: 16)
+  * xmodule.video_block.transcripts_utils.get_available_transcript_languages (line: 17)
+  * xmodule.x_module.AUTHOR_VIEW (line: 19)
+  * xmodule.x_module.STUDENT_VIEW (line: 19)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.72 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_otel_monitoring/metrics.py:otel_monitoring:
+
+  * opentelemetry.metrics (line: 18)
+  * opentelemetry.sdk.metrics.MeterProvider (line: 19)
+  * opentelemetry.sdk.metrics.export.PeriodicExportingMetricReader (line: 20)
+  * opentelemetry.sdk.resources.Resource (line: 21)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.74 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/rapid_response_xblock/views.py:
+
+  * opaque_keys.edx.keys.UsageKey (line: 8)
+  * openedx.core.lib.xblock_utils.get_aside_from_xblock (line: 9)
+  * xmodule.modulestore.django.modulestore (line: 10)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.74 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/rapid_response_xblock/logger.py:
+
+  * common.djangoapps.track.backends.BaseBackend (line: 8)
+  * opaque_keys.edx.keys.UsageKey (line: 10)
+  * opaque_keys.edx.locator.CourseLocator (line: 11)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.75 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_chat_xblock/block.py:
+
+  * pkg_resources (line: 3)
+  * requests (line: 4)
+  * web_fragments.fragment.Fragment (line: 9)
+  * webob.response.Response (line: 10)
+  * xblockutils.studio_editable.StudioEditableXBlockMixin (line: 19)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.76 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_git_auto_export/signals.py:git_auto_export:
+
+  * xmodule.modulestore.django.modulestore (line: 5)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.76 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_username_changer/tasks.py:edx_username_changer_source:
+
+  * openedx.core.djangoapps.django_comment_common.comment_client.user.User (line: 8)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.77 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_chat_xblock/apps.py:
+
+  * openedx.core.djangoapps.plugins.constants.ProjectType (line: 7)
+  * openedx.core.djangoapps.plugins.constants.SettingsType (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.78 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_sysadmin/git_import.py:
+
+  * cms.djangoapps.contentstore.outlines.update_outline_from_modulestore (line: 16)
+  * opaque_keys.edx.locator.CourseLocator (line: 22)
+  * xmodule.modulestore.django.SignalHandler (line: 23)
+  * xmodule.util.sandboxing.DEFAULT_PYTHON_LIB_FILENAME (line: 24)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.79 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_username_changer/utils.py:edx_username_changer_source:
+
+  * common.djangoapps.student.models.CourseEnrollment (line: 6)
+  * openedx.core.djangoapps.django_comment_common.comment_client.comment.Comment (line: 11)
+  * openedx.core.djangoapps.django_comment_common.comment_client.thread.Thread (line: 14)
+  * openedx.core.djangoapps.django_comment_common.comment_client.utils.perform_request (line: 17)
+  * social_django.models.UserSocialAuth (line: 19)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.82 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/rapid_response_xblock/block.py:
+
+  * pkg_resources (line: 7)
+  * pytz (line: 8)
+  * web_fragments.fragment.Fragment (line: 14)
+  * webob.response.Response (line: 15)
+  * xmodule.modulestore.django.modulestore (line: 18)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.82 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/rapid_response_xblock/models.py:
+
+  * jsonfield.JSONField (line: 7)
+  * model_utils.models.TimeStampedModel (line: 8)
+  * opaque_keys.edx.django.models.CourseKeyField (line: 10)
+  * opaque_keys.edx.django.models.UsageKeyField (line: 11)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.83 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_sysadmin/models.py:
+
+  * jsonfield.fields.JSONField (line: 6)
+  * opaque_keys.edx.django.models.CourseKeyField (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.84 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_structure_api/views.py:course_structure_api:
+
+  * edx_rest_framework_extensions.auth.jwt.authentication.JwtAuthentication (line: 20)
+  * lms.djangoapps.courseware.management.commands.dump_course_structure.dump_module (line: 14)
+  * opaque_keys.InvalidKeyError (line: 21)
+  * opaque_keys.edx.keys.CourseKey (line: 22)
+  * openedx.core.lib.api.authentication.BearerAuthentication (line: 23)
+  * openedx.core.lib.api.view_utils.DeveloperErrorViewMixin (line: 25)
+  * openedx.core.lib.api.view_utils.verify_course_exists (line: 26)
+  * xmodule.modulestore.django.modulestore (line: 33)
+  * xmodule.modulestore.inheritance.compute_inherited_metadata (line: 34)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.90 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_sysadmin/views.py:
+
+  * common.djangoapps.student.roles.CourseInstructorRole (line: 9)
+  * opaque_keys.edx.keys.CourseKey (line: 22)
+  * xmodule.modulestore.django.modulestore (line: 23)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.95 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_canvas_integration/settings/production.py:canvas_settings:
+
+  * path.Path (line: 3)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:00.97 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_rapid_response_reports/settings/production.py:rapid_response_settings:
+
+  * path.Path (line: 3)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:01.02 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/ol_openedx_course_sync/migrations/0001_initial.py:ol_openedx_course_sync_migrations:
+
+  * opaque_keys.edx.django.models (line: 3)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:01.07 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/rapid_response_xblock/migrations/0001_initial.py:rapid_response_migrations:
+
+  * jsonfield.fields (line: 3)
+  * model_utils.fields (line: 4)
+  * opaque_keys.edx.django.models (line: 5)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:01.11 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/rapid_response_xblock/migrations/0004_run.py:rapid_response_migrations:
+
+  * model_utils.fields (line: 3)
+  * opaque_keys.edx.django.models (line: 4)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:01.12 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_sysadmin/utils/markup.py:sysadmin_utils:
+
+  * markupsafe (line: 5)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:01.13 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_sysadmin/utils/utils.py:sysadmin_utils:
+
+  * common.djangoapps.student.models.UserProfile (line: 12)
+  * common.djangoapps.student.roles.CourseInstructorRole (line: 13)
+  * common.djangoapps.util.password_policy_validators.normalize_password (line: 14)
+  * django_countries.countries (line: 21)
+  * openedx.core.djangoapps.user_authn.toggles.is_require_third_party_auth_enabled (line: 24)
+  * requests (line: 11)
+  * xmodule.modulestore.django.modulestore (line: 26)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:01.14 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_sysadmin/api/views.py:sysadmin_api:
+
+  * path.Path (line: 7)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:01.14 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_sysadmin/templatetags/sysadmin_extras.py:sysadmin_template_tags:
+
+  * common.djangoapps.util.date_utils.DEFAULT_DATE_TIME_FORMAT (line: 5)
+  * common.djangoapps.util.date_utils.get_time_display (line: 5)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:01.15 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_sysadmin/migrations/0001_course_git_log.py:sysadmin_migrations:
+
+  * jsonfield.encoder (line: 3)
+  * jsonfield.fields (line: 4)
+  * opaque_keys.edx.django.models (line: 5)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:01.15 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/rapid_response_xblock/migrations/0002_block_status.py:rapid_response_migrations:
+
+  * opaque_keys.edx.django.models (line: 1)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:01.16 [33m[WARN][0m Pants cannot infer owners for the following imports in the target src/edx_sysadmin/management/commands/git_add_course.py:sysadmin_management_commands:
+
+  * xmodule.modulestore.django.modulestore (line: 11)
+  * xmodule.modulestore.xml.XMLModuleStore (line: 12)
+
+If you do not expect an import to be inferrable, add `# pants: no-infer-dep` to the import line. Otherwise, see https://www.pantsbuild.org/2.21/docs/using-pants/troubleshooting-common-issues#import-errors-and-missing-dependencies for common problems.
+14:39:16.57 [INFO] Completed: Building build_backend.pex from resource://pants.backend.python.subsystems/setuptools.lock
+14:39:30.32 [INFO] notify invalidation: cleared 0 and dirtied 0 nodes for: {"", ".tmpOW4jcC.hardlink_canary"}
+14:39:30.32 [INFO] notify invalidation: cleared 0 and dirtied 0 nodes for: {".tmpOW4jcC.hardlink_canary", ""}
+14:39:30.32 [INFO] notify invalidation: cleared 0 and dirtied 0 nodes for: {"", ".tmpOW4jcC.hardlink_canary"}
+14:39:30.35 [INFO] notify invalidation: cleared 1 and dirtied 5741 nodes for: {"", ".tmpOW4jcC.hardlink_canary"}
+14:39:30.37 [INFO] Wrote dist/edx-sysadmin-0.3.1.tar.gz
+14:39:30.37 [INFO] Wrote dist/edx_sysadmin-0.3.1-py3-none-any.whl
+14:39:30.37 [INFO] Wrote dist/edx-username-changer-0.3.2.tar.gz
+14:39:30.37 [INFO] Wrote dist/edx_username_changer-0.3.2-py3-none-any.whl
+14:39:30.37 [INFO] Wrote dist/ol-openedx-canvas-integration-0.5.0.tar.gz
+14:39:30.38 [INFO] Wrote dist/ol_openedx_canvas_integration-0.5.0-py3-none-any.whl
+14:39:30.38 [INFO] Wrote dist/ol-openedx-chat-0.3.6.tar.gz
+14:39:30.38 [INFO] Wrote dist/ol_openedx_chat-0.3.6-py3-none-any.whl
+14:39:30.38 [INFO] Wrote dist/ol-openedx-chat-xblock-0.1.0.tar.gz
+14:39:30.38 [INFO] Wrote dist/ol_openedx_chat_xblock-0.1.0-py3-none-any.whl
+14:39:30.38 [INFO] Wrote dist/ol-openedx-checkout-external-0.1.3.tar.gz
+14:39:30.38 [INFO] Wrote dist/ol_openedx_checkout_external-0.1.3-py3-none-any.whl
+14:39:30.39 [INFO] Wrote dist/ol-openedx-course-export-0.1.2.tar.gz
+14:39:30.39 [INFO] Wrote dist/ol_openedx_course_export-0.1.2-py3-none-any.whl
+14:39:30.39 [INFO] notify invalidation: cleared 0 and dirtied 0 nodes for: {".tmpOW4jcC.hardlink_canary", ""}
+14:39:30.40 [INFO] Wrote dist/ol-openedx-course-structure-api-0.1.3.tar.gz
+14:39:30.40 [INFO] Wrote dist/ol_openedx_course_structure_api-0.1.3-py3-none-any.whl
+14:39:30.41 [INFO] Wrote dist/ol-openedx-course-sync-0.4.0.tar.gz
+14:39:30.42 [INFO] notify invalidation: cleared 1 and dirtied 5741 nodes for: {"", ".tmpOW4jcC.hardlink_canary"}
+14:39:30.43 [INFO] Wrote dist/ol_openedx_course_sync-0.4.0-py3-none-any.whl
+14:39:30.44 [INFO] Wrote dist/ol-openedx-git-auto-export-0.4.1.tar.gz
+14:39:30.44 [INFO] Wrote dist/ol_openedx_git_auto_export-0.4.1-py3-none-any.whl
+14:39:30.45 [INFO] Wrote dist/ol-openedx-logging-0.1.0.tar.gz
+14:39:30.46 [INFO] Wrote dist/ol_openedx_logging-0.1.0-py3-none-any.whl
+14:39:30.46 [INFO] Wrote dist/ol-openedx-otel-monitoring-0.1.1.tar.gz
+14:39:30.47 [INFO] Wrote dist/ol_openedx_otel_monitoring-0.1.1-py3-none-any.whl
+14:39:30.48 [INFO] Wrote dist/ol-openedx-rapid-response-reports-0.3.0.tar.gz
+14:39:30.49 [INFO] Wrote dist/ol_openedx_rapid_response_reports-0.3.0-py3-none-any.whl
+14:39:30.49 [INFO] Wrote dist/ol-openedx-sentry-0.2.1.tar.gz
+14:39:30.50 [INFO] Wrote dist/ol_openedx_sentry-0.2.1-py3-none-any.whl
+14:39:30.51 [INFO] Wrote dist/ol-social-auth-0.1.0.tar.gz
+14:39:30.51 [INFO] Wrote dist/ol_social_auth-0.1.0-py3-none-any.whl
+14:39:30.52 [INFO] Wrote dist/openedx-companion-auth-1.1.0.tar.gz
+14:39:30.53 [INFO] Wrote dist/openedx_companion_auth-1.1.0-py3-none-any.whl
+14:39:30.54 [INFO] Wrote dist/rapid-response-xblock-0.9.1.tar.gz
+14:39:30.54 [INFO] Wrote dist/rapid_response_xblock-0.9.1-py3-none-any.whl
