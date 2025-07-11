@@ -149,7 +149,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 httponly=True,
             )
             xblock_response.set_cookie("block_id", block_id, httponly=True)
-            return xblock_response
+            return xblock_response  # noqa: TRY300
 
         except requests.exceptions.RequestException as e:
             log.exception("Failed to contact MIT Learn AI service.")
