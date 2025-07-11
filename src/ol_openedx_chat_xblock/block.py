@@ -9,7 +9,7 @@ from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock
-from xblock.fields import Integer, Scope, String
+from xblock.fields import Scope, String
 
 try:
     from xblock.utils.studio_editable import StudioEditableXBlockMixin
@@ -52,13 +52,13 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
     display_name = String(
         display_name=_("Display Name"),
-        default=_("Ol Chat XBlock"),
+        default=_("OL Chat XBlock"),
         scope=Scope.settings,
         help=_(
             "This name appears in the horizontal navigation at the top of the page."
         ),
     )
-    course_id = Integer(
+    course_id = String(
         default=0,
         scope=Scope.settings,
         help=_("Course ID of the relevant course in Canvas"),
@@ -117,7 +117,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         payload = {
             "collection_name": "content_files",
             "message": message,
-            "course_id": str(self.course_id),  # ensure it's JSON-safe
+            "course_id": self.course_id
         }
 
         headers = {
