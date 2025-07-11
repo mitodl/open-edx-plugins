@@ -117,7 +117,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         payload = {
             "collection_name": "content_files",
             "message": message,
-            "course_id": self.course_id
+            "course_id": self.course_id,
         }
 
         headers = {
