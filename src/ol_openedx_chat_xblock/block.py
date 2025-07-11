@@ -59,32 +59,28 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         ),
     )
     course_id = String(
-        default=0,
+        default="",
         scope=Scope.settings,
         help=_("Course ID of the relevant course in Canvas"),
     )
     editable_fields = ("display_name", "course_id")
 
     def student_view(self, context=None):  # noqa: ARG002
-        """
-        Render the student view of the block.
-        """
+        """Render the student view of the block."""
 
         html = "<div>THIS IS THE STUDENT VIEW OF THE CHAT XBLOCK</div>"
         return Fragment(html)
 
     @XBlock.handler
     def ol_chat(self, request, suffix=""):  # noqa: ARG002
-        """Start the chat session via external AI API."""
-
+        """Start the chat session via external MIT LEARN AI API."""
         try:
             request_data = request.json
         except Exception:  # noqa: BLE001
             log.warning("Invalid JSON in chat request.")
             return Response(
-                {"error": "Invalid request body. Expected JSON."},
+                "Invalid request body. Expected JSON.",
                 status=api_status.HTTP_400_BAD_REQUEST,
-                content_type="application/json",
             )
 
         api_url = settings.MIT_LEARN_AI_XBLOCK_CHAT_API_URL
@@ -93,25 +89,22 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         if not api_url or not api_token:
             log.error("Missing AI API configuration (URL or token).")
             return Response(
-                {"error": "Missing API configurations. Please check your settings."},
+                "Missing API configurations. Please check your settings.",
                 status=api_status.HTTP_400_BAD_REQUEST,
-                content_type="application/json",
             )
 
         if not self.course_id:
             log.error("Course ID is not set for the XBlock.")
             return Response(
-                {"error": "Course ID is required."},
+                "Course ID is required.",
                 status=api_status.HTTP_400_BAD_REQUEST,
-                content_type="application/json",
             )
 
         message = request_data.get("message", "").strip()
         if not message:
             return Response(
-                {"error": "Message field is required."},
+                "Message field is required.",
                 status=api_status.HTTP_400_BAD_REQUEST,
-                content_type="application/json",
             )
 
         payload = {
@@ -128,11 +121,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         try:
             response = requests.post(api_url, json=payload, headers=headers, timeout=30)
             response.raise_for_status()
-            return Response(
-                response.text,
-                status=response.status_code,
-                content_type=response.headers.get("Content-Type", "application/json"),
-            )
+            return Response(response.content)
         except requests.exceptions.RequestException as e:
             log.exception("Failed to contact MIT Learn AI service.")
             return Response(
@@ -141,5 +130,4 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                     "details": str(e),
                 },
                 status=api_status.HTTP_502_BAD_GATEWAY,
-                content_type="application/json",
             )
