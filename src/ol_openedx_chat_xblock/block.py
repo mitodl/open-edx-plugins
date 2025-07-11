@@ -77,6 +77,16 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
     def ol_chat(self, request, suffix=""):  # noqa: ARG002
         """Start the chat session via external AI API."""
 
+        try:
+            request_data = request.json
+        except Exception:  # noqa: BLE001
+            log.warning("Invalid JSON in chat request.")
+            return Response(
+                {"error": "Invalid request body. Expected JSON."},
+                status=api_status.HTTP_400_BAD_REQUEST,
+                content_type="application/json",
+            )
+
         api_url = settings.MIT_LEARN_XBLOCK_AI_API_URL
         api_token = settings.MIT_LEARN_XBLOCK_AI_API_TOKEN
 
@@ -88,12 +98,10 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 content_type="application/json",
             )
 
-        try:
-            request_data = request.json
-        except Exception:  # noqa: BLE001
-            log.warning("Invalid JSON in chat request.")
+        if not self.course_id:
+            log.error("Course ID is not set for the XBlock.")
             return Response(
-                {"error": "Invalid request body. Expected JSON."},
+                {"error": "Course ID is required."},
                 status=api_status.HTTP_400_BAD_REQUEST,
                 content_type="application/json",
             )
@@ -118,7 +126,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         }
 
         try:
-            response = requests.post(api_url, json=payload, headers=headers, timeout=10)
+            response = requests.post(api_url, json=payload, headers=headers, timeout=30)
             response.raise_for_status()
             return Response(
                 response.text,
