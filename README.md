@@ -1,6 +1,6 @@
 # Important
 
-Ensure you update the version number in `src/<plugin>/BUILD` before any merge to `main`.
+Ensure you update the version number in `src/<plugin>/pyproject.toml` before any merge to `main`.
 
 # Build and Publish
 

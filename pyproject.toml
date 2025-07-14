@@ -33,6 +33,7 @@ dependencies = [
 members = [
     "src/*"
 ]
+exclude = ["src/__pycache__"]
 
 [build-system]
 requires = ["hatchling"]

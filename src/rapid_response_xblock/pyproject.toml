@@ -29,7 +29,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["rapid_response_xblock"]
+include = [
+    "rapid_response_xblock/**/*.py",
+    "rapid_response_xblock/static/**"
+]
 
 [tool.hatch.build.targets.sdist]
 include = [

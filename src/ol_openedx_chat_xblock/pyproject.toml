@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-chat-xblock"
-version = "0.1.0"
+version = "0.1.1"
 description = "An Open edX xBlock to add Open Learning AI chat"
 readme = "README.rst"
 license = {text = "BSD-3-Clause"}
@@ -35,11 +35,6 @@ packages = ["ol_openedx_chat_xblock"]
 include = [
   "ol_openedx_chat_xblock/**/*.py",
   "ol_openedx_chat_xblock/static/**/*",
-  "ol_openedx_chat_xblock/templates/**/*",
-  "ol_openedx_chat_xblock/conf/**/*"
-]
-exclude = [
-  "ol_openedx_chat_xblock/**/tests/"
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -47,9 +42,6 @@ include = [
     "ol_openedx_chat_xblock/**/*",
     "README.rst",
     "pyproject.toml",
-]
-exclude = [
-  "ol_openedx_chat_xblock/**/tests/"
 ]
 
 
