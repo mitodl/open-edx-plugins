@@ -157,7 +157,7 @@ class OLChatAsideTests(OLChatTestCase):
 
             expected_payload = {
                 "blockUsageKey": str(block.usage_key),
-                "trackingUrl": f"{settings.LMS_ROOT_URL}xblock/{aside_usage_key}/handler/track_user_events",  # noqa: E501
+                "trackingUrl": f"{settings.LMS_ROOT_URL}/xblock/{aside_usage_key}/handler/track_user_events",  # noqa: E501
                 "blockType": block_type,
                 "title": f"AskTIM about {block.display_name}",
                 "chat": {
