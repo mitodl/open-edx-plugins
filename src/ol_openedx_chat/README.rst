@@ -69,7 +69,7 @@ The Unit is rendered inside an Iframe and we use postMessage to communicate betw
       /* webpackIgnore: true */
    "/static/smoot-design/aiDrawerManager.es.js").then(module => {
       module.init({
-         messageOrigin: getConfig().LMS_BASE,
+         messageOrigin: getConfig().LMS_BASE_URL,
          transformBody: messages => ({ message: messages[messages.length - 1].content }),
          getTrackingClient: getAuthenticatedHttpClient,
       })
