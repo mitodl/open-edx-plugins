@@ -22,14 +22,11 @@ install_if_needed() {
   fi
 }
 
-echo "Creating test_root directory and copying static files"
+echo "Copying static files in edx-platform test_root if it doesn't exist"
 
-mkdir -p test_root
-
-if [ ! -d "test_root/staticfiles" ]; then
-  cp -r /openedx/staticfiles test_root/staticfiles
+if [ ! -d "/openedx/edx-platform/test_root/staticfiles" ]; then
+  cp -r /openedx/staticfiles /openedx/edx-platform/test_root/staticfiles
 fi
-
 
 cd /openedx/open-edx-plugins
 
