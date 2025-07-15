@@ -14,7 +14,11 @@ if [ $CI ]; then
   pip install -e .
 fi
 
-cp -r /openedx/staticfiles test_root/staticfiles
+echo "Copying static files in edx-platform test_root if it doesn't exist"
+
+if [ ! -d "/openedx/edx-platform/test_root/staticfiles" ]; then
+  cp -r /openedx/staticfiles /openedx/edx-platform/test_root/staticfiles
+fi
 
 cd /openedx/open-edx-plugins
 
@@ -75,7 +79,14 @@ run_plugin_tests() {
         pip install -e "$plugin_dir"
     fi
 
-    cp -r /openedx/edx-platform/test_root/ "/openedx/open-edx-plugins/$plugin_dir/test_root"
+    # Copying test_root only if it doesn't exist
+    DEST="/openedx/open-edx-plugins/$plugin_dir/test_root"
+    if [ ! -d "$DEST" ]; then
+        echo "Copying test_root to $DEST"
+        cp -r /openedx/edx-platform/test_root/ "$DEST"
+    else
+        echo "test_root already exists at $DEST, skipping copy."
+    fi
     echo "==============Running $plugin_dir tests=================="
     cd "$plugin_dir"
 
