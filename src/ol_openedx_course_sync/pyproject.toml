@@ -3,17 +3,17 @@ name = "ol-openedx-course-sync"
 version = "0.4.0"
 description = "An Open edX plugin to sync course changes to its reruns."
 authors = [
-    {name = "MIT Office of Digital Learning"}
+  {name = "MIT Office of Digital Learning"}
 ]
 license = "BSD-3-Clause"
 readme = "README.rst"
 requires-python = ">=3.11"
 dependencies = [
-    "Django>2.0",
-    "djangorestframework>=3.14.0",
-    "edx-django-utils>4.0.0",
-    "edx-opaque-keys",
-    "openedx-events",
+  "Django>2.0",
+  "djangorestframework>=3.14.0",
+  "edx-django-utils>4.0.0",
+  "edx-opaque-keys",
+  "openedx-events",
 ]
 
 [project.entry-points."cms.djangoapp"]
@@ -26,12 +26,12 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["ol_openedx_course_sync"]
 include = [
-    "ol_openedx_course_sync/**/*.py",
+  "ol_openedx_course_sync/**/*.py",
 ]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "ol_openedx_course_sync/**/*",
-    "README.rst",
-    "pyproject.toml",
+  "ol_openedx_course_sync/**/*",
+  "README.rst",
+  "pyproject.toml",
 ]
