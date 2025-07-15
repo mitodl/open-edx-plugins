@@ -14,44 +14,43 @@ if [ $CI ]; then
   pip install -e .
 fi
 
+install_if_needed() {
+  PACKAGE=$1
+  VERSION=$2
+  if ! pip freeze | grep -q "^${PACKAGE}==${VERSION}$"; then
+    pip install "${PACKAGE}==${VERSION}"
+  fi
+}
+
+echo "Creating test_root directory and copying static files"
+mkdir -p test_root
 cp -r /openedx/staticfiles test_root/staticfiles
 
-cd /openedx/open-edx-plugins
+cd /openedx/src/open-edx-plugins
 
-# Installing test dependencies
-pip install pytest-mock==3.14.0
-pip install responses==0.25.3
+# Install the required test packages
+install_if_needed pytest-mock 3.14.0
+install_if_needed responses 0.25.3
+install_if_needed codecov 2.1.13
 
 # Plugins that may affect the tests of other plugins.
 # e.g. openedx-companion-auth adds a redirect to the authentication
 # that fails the authentication process for other plugins.
 isolated_plugins=("openedx-companion-auth")
 
-# Install codecov so we can upload code coverage results
-pip install codecov
-
 # output the packages which are installed for logging
 pip freeze
-
-export EDXAPP_TEST_MONGO_HOST=mongodb
 
 # Function to run tests for a plugin
 run_plugin_tests() {
 
     local plugin_dir="$1"
-    local tests_directory="$plugin_dir/tests"
-
-    # Check if tests directory exists
-    if [ ! -d "$tests_directory" ]; then
-        return 0
-    fi
 
     # Installing the plugin
     plugin_name=$(basename "$plugin_dir" | sed 's/src\///' | sed 's/_/-/g')
     tarball=$(ls dist | grep "$plugin_name" | head -n 1)
     pip install "dist/$tarball"
 
-    cp -r /openedx/edx-platform/test_root/ "/openedx/open-edx-plugins/$plugin_dir/test_root"
     echo "==============Running $plugin_dir tests=================="
     cd "$plugin_dir"
 
@@ -65,6 +64,7 @@ run_plugin_tests() {
     # Run the pytest command
     local PYTEST_SUCCESS=0
     if $pytest_command --collect-only; then
+        cp -r /openedx/edx-platform/test_root/ "/openedx/src/open-edx-plugins/$plugin_dir/test_root"
         $pytest_command
         PYTEST_SUCCESS=$?
     else
