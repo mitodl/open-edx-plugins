@@ -4,7 +4,6 @@ import pkg_resources
 import requests
 from django.conf import settings
 from django.template import Context, Template
-from django.utils.translation import gettext_lazy as _
 from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.response import Response
