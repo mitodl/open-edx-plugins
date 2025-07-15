@@ -23,10 +23,18 @@ install_if_needed() {
 }
 
 echo "Creating test_root directory and copying static files"
-mkdir -p test_root
-cp -r /openedx/staticfiles test_root/staticfiles
 
-cd /openedx/src/open-edx-plugins
+mkdir -p test_root
+
+if [ ! -d "test_root/staticfiles" ]; then
+  echo "Copying staticfiles..."
+  cp -r /openedx/staticfiles test_root/staticfiles
+else
+  echo "staticfiles already exists in test_root, skipping copy."
+fi
+
+
+cd /openedx/open-edx-plugins
 
 # Install the required test packages
 install_if_needed pytest-mock 3.14.0
@@ -64,7 +72,15 @@ run_plugin_tests() {
     # Run the pytest command
     local PYTEST_SUCCESS=0
     if $pytest_command --collect-only; then
-        cp -r /openedx/edx-platform/test_root/ "/openedx/src/open-edx-plugins/$plugin_dir/test_root"
+
+        # Copying test_root only if it doesn't exist
+        DEST="/openedx/open-edx-plugins/$plugin_dir/test_root"
+        if [ ! -d "$DEST" ]; then
+            echo "Copying test_root..."
+            cp -r /openedx/edx-platform/test_root/ "$DEST"
+        else
+            echo "test_root already exists at $DEST, skipping copy."
+        fi
         $pytest_command
         PYTEST_SUCCESS=$?
     else
