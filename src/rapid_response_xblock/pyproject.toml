@@ -1,0 +1,42 @@
+[project]
+name = "rapid-response-xblock"
+version = "0.9.1"
+description = "An Open edX plugin to add rapid response aside for problem xBlocks"
+authors = [
+  {name = "MIT Office of Digital Learning"}
+]
+license = "BSD-3-Clause"
+readme = "README.rst"
+requires-python = ">=3.11"
+keywords = ["Python", "edx"]
+dependencies = [
+  "Django>2.0",
+  "djangorestframework>=3.14.0",
+  "XBlock",
+]
+
+[project.entry-points."xblock_asides.v1"]
+rapid_response_xblock = "rapid_response_xblock.block:RapidResponseAside"
+
+[project.entry-points."lms.djangoapp"]
+rapid_response_xblock = "rapid_response_xblock.apps:RapidResponseAppConfig"
+
+[project.entry-points."cms.djangoapp"]
+rapid_response_xblock = "rapid_response_xblock.apps:RapidResponseAppConfig"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+include = [
+  "rapid_response_xblock/**/*.py",
+  "rapid_response_xblock/static/**"
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "rapid_response_xblock/**/*",
+  "README.rst",
+  "pyproject.toml",
+]

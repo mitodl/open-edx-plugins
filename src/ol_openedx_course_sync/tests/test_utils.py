@@ -6,7 +6,6 @@ from unittest import mock
 
 from ddt import data, ddt
 from openedx.core.djangolib.testing.utils import skip_unless_cms
-from tests.utils import OLOpenedXCourseSyncTestCase
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.tests.factories import BlockFactory
@@ -18,6 +17,7 @@ from ol_openedx_course_sync.utils import (
     copy_static_tabs,
     update_default_tabs,
 )
+from tests.utils import OLOpenedXCourseSyncTestCase
 
 
 @ddt

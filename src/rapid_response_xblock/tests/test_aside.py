@@ -10,10 +10,6 @@ from common.djangoapps.student.tests.factories import UserFactory
 from dateutil.parser import parse as parse_datetime
 from ddt import data, ddt, unpack
 from opaque_keys.edx.keys import UsageKey
-from tests.utils import (
-    RuntimeEnabledTestCase,
-    make_scope_ids,
-)
 
 from rapid_response_xblock.block import (
     BLOCK_PROBLEM_CATEGORY,
@@ -23,6 +19,10 @@ from rapid_response_xblock.block import (
 from rapid_response_xblock.models import (
     RapidResponseRun,
     RapidResponseSubmission,
+)
+from tests.utils import (
+    RuntimeEnabledTestCase,
+    make_scope_ids,
 )
 
 
@@ -72,11 +72,12 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         Test that the aside student view has the proper context variables
         """
         self.aside_instance.enabled = True
-        with patch(
-            "rapid_response_xblock.block.RapidResponseAside.has_open_run",
-            new_callable=PropertyMock,
-        ) as has_open_run_mock, patch(
-            "rapid_response_xblock.block.RapidResponseAside.enabled", new=True
+        with (
+            patch(
+                "rapid_response_xblock.block.RapidResponseAside.has_open_run",
+                new_callable=PropertyMock,
+            ) as has_open_run_mock,
+            patch("rapid_response_xblock.block.RapidResponseAside.enabled", new=True),
         ):
             has_open_run_mock.return_value = is_open
             fragment = self.aside_instance.student_view_aside(Mock())
@@ -142,10 +143,13 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         Test that the aside author view returns a fragment when enabled
         """
         self.aside_instance.enabled = enabled_value
-        with patch(
-            "rapid_response_xblock.block.RapidResponseAside.enabled",
-            new=enabled_value,
-        ), self.settings(ENABLE_RAPID_RESPONSE_AUTHOR_VIEW=True):
+        with (
+            patch(
+                "rapid_response_xblock.block.RapidResponseAside.enabled",
+                new=enabled_value,
+            ),
+            self.settings(ENABLE_RAPID_RESPONSE_AUTHOR_VIEW=True),
+        ):
             fragment = self.aside_instance.author_view_aside(Mock())
             assert f'data-enabled="{enabled_value}"' in fragment.content
             assert fragment.js_init_fn == "RapidResponseAsideStudioInit"
@@ -246,9 +250,10 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
         """
         Test that only staff users should access the API
         """
-        with patch.object(
-            self.aside_instance, "is_staff", return_value=is_staff
-        ), self.patch_modulestore():
+        with (
+            patch.object(self.aside_instance, "is_staff", return_value=is_staff),
+            self.patch_modulestore(),
+        ):
             resp = self.aside_instance.responses()
         assert resp.status_code == expected_status
 
@@ -313,13 +318,16 @@ class RapidResponseAsideTests(RuntimeEnabledTestCase):
             counts = {}
             expected_total_counts = {}
 
-        with patch(
-            "rapid_response_xblock.block.RapidResponseAside.get_counts_for_problem",
-            return_value=counts,
-        ) as get_counts_mock, patch(
-            "rapid_response_xblock.block.RapidResponseAside.choices",
-            new_callable=PropertyMock,
-        ) as get_choices_mock:
+        with (
+            patch(
+                "rapid_response_xblock.block.RapidResponseAside.get_counts_for_problem",
+                return_value=counts,
+            ) as get_counts_mock,
+            patch(
+                "rapid_response_xblock.block.RapidResponseAside.choices",
+                new_callable=PropertyMock,
+            ) as get_choices_mock,
+        ):
             get_choices_mock.return_value = choices
             resp = self.aside_instance.responses()
 

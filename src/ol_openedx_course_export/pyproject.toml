@@ -1,0 +1,38 @@
+[project]
+name = "ol-openedx-course-export"
+version = "0.1.2"
+description = "An Open edX plugin to add API for course export to s3"
+authors = [
+  {name = "MIT Office of Digital Learning"}
+]
+license = "BSD-3-Clause"
+readme = "README.rst"
+requires-python = ">=3.11"
+dependencies = [
+  "Django>2.0",
+  "celery>=4.4.7",
+  "djangorestframework>=3.14.0",
+  "edx-django-utils>4.0.0",
+  "edx-drf-extensions>=10.0.0",
+  "edx-opaque-keys",
+]
+
+[project.entry-points."cms.djangoapp"]
+ol_openedx_course_export = "ol_openedx_course_export.app:CourseExportConfig"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ol_openedx_course_export"]
+include = [
+  "ol_openedx_course_export/**/*.py",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "ol_openedx_course_export/**/*",
+  "README.rst",
+  "pyproject.toml",
+]

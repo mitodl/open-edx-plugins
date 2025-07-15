@@ -4,13 +4,13 @@ from unittest.mock import patch
 
 from ddt import data, ddt, unpack
 from opaque_keys.edx.locator import BlockUsageLocator, CourseLocator
-from tests.utils import OLChatTestCase
 from xmodule.modulestore.tests.factories import BlockFactory
 
 from ol_openedx_chat.utils import (
     is_aside_applicable_to_block,
     is_ol_chat_enabled_for_course,
 )
+from tests.utils import OLChatTestCase
 
 
 @ddt

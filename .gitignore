@@ -1,11 +1,13 @@
-# Pants workspace files
-/.pants.d/
+# Build artifacts
 /dist/
 /.pids
-/.pants.workdir.file_lock*
 # Python files
 /.venv/
 /.idea/
 __pycache__/
 *.egg-info/
 *.DS_Store
+# Test Runtime
+ol_test_requirements.txt
+**/.coverage
+**/test_root

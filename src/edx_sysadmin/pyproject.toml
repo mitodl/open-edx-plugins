@@ -1,0 +1,55 @@
+[project]
+name = "edx-sysadmin"
+version = "0.3.1"
+description = "An Open edX plugin to enable SysAdmin panel"
+authors = [
+  {name = "MIT Office of Digital Learning"}
+]
+license = "BSD-3-Clause"
+readme = "README.rst"
+requires-python = ">=3.11"
+keywords = ["Python", "edx"]
+dependencies = [
+  "Django>2.0",
+  "djangorestframework>=3.14.0",
+  "edx-django-utils>4.0.0",
+  "edx-drf-extensions>=10.0.0",
+  "edx-opaque-keys",
+]
+
+[project.entry-points."lms.djangoapp"]
+edx_sysadmin = "edx_sysadmin.apps:EdxSysAdminConfig"
+
+[project.entry-points."cms.djangoapp"]
+edx_sysadmin = "edx_sysadmin.apps:EdxSysAdminConfig"
+
+[tool.hatch.build.targets.wheel]
+packages = ["edx_sysadmin"]
+include = [
+  "edx_sysadmin/**/*.py",
+  "edx_sysadmin/static/**/*",
+  "edx_sysadmin/templates/**/*",
+  "edx_sysadmin/conf/**/*"
+]
+exclude = [
+  "edx_sysadmin/**/tests/",
+  "edx_sysadmin/**/test_*",
+  "edx_sysadmin/**/*_test*"
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "edx_sysadmin/**/*",
+  "README.rst",
+  "pyproject.toml",
+]
+exclude = [
+  "edx_sysadmin/**/tests/",
+  "edx_sysadmin/**/test_*",
+  "edx_sysadmin/**/*_test*"
+]
+
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

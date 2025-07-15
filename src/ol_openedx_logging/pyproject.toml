@@ -1,0 +1,36 @@
+[project]
+name = "ol-openedx-logging"
+version = "0.1.0"
+description = "An Open edX plugin to customize the logging configuration used by the edx-platform application"
+authors = [
+  {name = "MIT Office of Digital Learning"}
+]
+license = "BSD-3-Clause"
+requires-python = ">=3.11"
+dependencies = [
+  "Django>2.0",
+  "python-json-logger>=3.0.0",
+]
+
+[project.entry-points."lms.djangoapp"]
+ol_openedx_logging = "ol_openedx_logging.app:EdxLoggingLMS"
+
+[project.entry-points."cms.djangoapp"]
+ol_openedx_logging = "ol_openedx_logging.app:EdxLoggingCMS"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ol_openedx_logging"]
+include = [
+  "ol_openedx_logging/**/*.py",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "ol_openedx_logging/**/*",
+  "README.rst",
+  "pyproject.toml",
+]

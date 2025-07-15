@@ -16,23 +16,22 @@ jobs:
         edx_branch:
         - master
         - open-release/sumac.master
-        - release/teak.1
+        - release/teak
           # Add more branches as needed
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up python
-      uses: actions/setup-python@v5
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: ${{ matrix.python_version }}
+        enable-cache: true
 
-    - name: Set up Pants
-      run: |
-        # Install Pants
-        export PATH=$PATH:/root/.local/bin
-        curl --proto '=https' --tlsv1.2 -fsSL https://static.pantsbuild.org/setup/get-pants.sh | bash
-        pants package ::
+    - name: Set up Python ${{ matrix.python_version }}
+      run: uv python install ${{ matrix.python_version }}
+
+    - name: Build all packages
+      run: uv build --all-packages
 
     - name: Install tutor
       run: |
@@ -70,7 +69,7 @@ jobs:
           DIRECTORY="tutor"
           DEV="tutor_dev"
         fi
-        EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name $DEV run -v $PWD/../open-edx-plugins:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh
+        EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name $DEV run -v $PWD:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh
 
     - name: Upload coverage to CodeCov
       uses: codecov/codecov-action@v5
