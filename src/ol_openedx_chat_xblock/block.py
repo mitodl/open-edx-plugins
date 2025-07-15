@@ -51,17 +51,15 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
     """
 
     display_name = String(
-        display_name=_("Display Name"),
-        default=_("OL Chat XBlock"),
+        display_name="Display Name",
+        default="OL Chat XBlock",
         scope=Scope.settings,
-        help=_(
-            "This name appears in the horizontal navigation at the top of the page."
-        ),
+        help="This name appears in the horizontal navigation at the top of the page.",
     )
     course_id = String(
         default="",
         scope=Scope.settings,
-        help=_("Course ID of the relevant course in Canvas"),
+        help="Course ID of the relevant course in Canvas",
     )
     editable_fields = ("display_name", "course_id")
 
