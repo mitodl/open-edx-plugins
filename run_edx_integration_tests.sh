@@ -27,10 +27,7 @@ echo "Creating test_root directory and copying static files"
 mkdir -p test_root
 
 if [ ! -d "test_root/staticfiles" ]; then
-  echo "Copying staticfiles..."
   cp -r /openedx/staticfiles test_root/staticfiles
-else
-  echo "staticfiles already exists in test_root, skipping copy."
 fi
 
 
@@ -58,6 +55,14 @@ run_plugin_tests() {
     plugin_name=$(basename "$plugin_dir" | sed 's/src\///' | sed 's/_/-/g')
     tarball=$(ls dist | grep "$plugin_name" | head -n 1)
     pip install "dist/$tarball"
+    # Copying test_root only if it doesn't exist
+    DEST="/openedx/open-edx-plugins/$plugin_dir/test_root"
+    if [ ! -d "$DEST" ]; then
+        echo "Copying test_root..."
+        cp -r /openedx/edx-platform/test_root/ "$DEST"
+    else
+        echo "test_root already exists at $DEST, skipping copy."
+    fi
 
     echo "==============Running $plugin_dir tests=================="
     cd "$plugin_dir"
@@ -72,15 +77,6 @@ run_plugin_tests() {
     # Run the pytest command
     local PYTEST_SUCCESS=0
     if $pytest_command --collect-only; then
-
-        # Copying test_root only if it doesn't exist
-        DEST="/openedx/open-edx-plugins/$plugin_dir/test_root"
-        if [ ! -d "$DEST" ]; then
-            echo "Copying test_root..."
-            cp -r /openedx/edx-platform/test_root/ "$DEST"
-        else
-            echo "test_root already exists at $DEST, skipping copy."
-        fi
         $pytest_command
         PYTEST_SUCCESS=$?
     else
