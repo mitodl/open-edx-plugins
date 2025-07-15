@@ -15,7 +15,7 @@ python_distribution(
     ],
     provides=setup_py(
         name="ol-openedx-chat-xblock",
-        version="0.1.0",
+        version="0.1.1",
         description="An Open edX xBlock to add Open Learning AI chat",
         license="BSD-3-Clause",
         author="MIT Office of Digital Learning",
