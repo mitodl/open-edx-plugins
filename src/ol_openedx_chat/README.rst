@@ -1,6 +1,3 @@
-
-
-
 OL OpenedX Chat
 ###############
 
@@ -57,7 +54,7 @@ This will download the smoot-design package and copy the pre-bundled JS file to 
    cp package/dist/bundles/* public/static/smoot-design
 
 4. Create env.config.jsx in the frontend-app-learning and add the below code:
------------------------------------------------------------------------------
+
 The Unit is rendered inside an Iframe and we use postMessage to communicate between the Iframe and the parent window. The below code is used to initialize the remoteAiChatDrawer.
 
 .. code-block:: js
@@ -84,17 +81,17 @@ The Unit is rendered inside an Iframe and we use postMessage to communicate betw
 (Alternatively, you can import the drawer code from a CDN like kg.com/@mitodl/smoot-design@6.4.0/dist/bundles/remoteTutorDrawer.umd.js to skip Step 3. However, the steps outlined here are most similar to what we do in production.)
 
 5. Start learning MFE by ``npm run dev``
--------------------
+----------------------------------------
 6. In LMS, enable the ``ol_openedx_chat.ol_openedx_chat_enabled`` waffle flag at ``<LMS>/admin/waffle/flag/``
--------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
 This will enable the ol_openedx_chat plugin for all courses. You can disable it and add a ``Waffle Flag Course Override`` at ``/admin/waffle_utils/waffleflagcourseoverridemodel/`` to enable it for a single course.
 
 7. Set `FEATURES["ENABLE_OTHER_COURSE_SETTINGS"] = True` in your `cms/envs/private.py` and `lms/envs/private.py` files
-----------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
 This enables "Other Course Settings" below.
 
 8. Go to any course in CMS > Settings > Advanced Settings and add the below in "Other Course Settings"
-------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
 .. code-block::
 
    {"OL_OPENEDX_CHAT_VIDEO_BLOCK_ENABLED": true, "OL_OPENEDX_CHAT_PROBLEM_BLOCK_ENABLED": true}
@@ -118,7 +115,7 @@ LMS Chat Drawer View
 .. image:: static/images/ai_chat_aside_lms_drawer_view.png
 
 9. Disable it for a single block
---------------------------------
+----------------------------------
 If you want to disable it for a few videos/problems then you disable the ``Enable AI Chat Assistant`` checkbox against the block in CMS.
 
 Documentation

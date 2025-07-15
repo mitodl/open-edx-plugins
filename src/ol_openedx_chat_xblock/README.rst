@@ -2,7 +2,7 @@
 
 
 OL OpenedX Chat xBlock
-###############
+######################
 
 An xBlock to add MIT Open Learning chat in courses.
 

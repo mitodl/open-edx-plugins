@@ -56,7 +56,7 @@ Installation required in:
 * CMS
 
 Configuration
-------------
+-------------
 
 **1) edx-platform configuration**
 

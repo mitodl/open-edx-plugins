@@ -1,5 +1,5 @@
 Open Learning Social Auth
-=======================
+==========================
 
 An Open edX plugin implementing MIT social auth backend
 
@@ -22,7 +22,7 @@ Configurations
 This section outlines the steps for integrating your application with ol-social-auth for various deployment scenarios. Please refer to the corresponding documentation for detailed instructions.
 
 * **Devstack:** To configure ol-social-auth with an edx-platform instance provisioned using devstack, follow the instructions `here <https://mitodl.github.io/handbook/openedx/MITx-edx-integration-devstack.html>`_
-* **Tutor:** To configure ol-social-auth with an edx-platform instance provisioned using tutor, follow the instructions `here <https://mitodl.github.io/handbook/openedx/MITx-edx-integration-tutor.html>`_
+* **Tutor:** To configure ol-social-auth with an edx-platform instance provisioned using tutor, follow the instructions `here also <https://mitodl.github.io/handbook/openedx/MITx-edx-integration-tutor.html>`_
 
 
 How to use
