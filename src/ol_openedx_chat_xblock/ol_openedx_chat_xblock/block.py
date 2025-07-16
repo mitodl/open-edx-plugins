@@ -101,7 +101,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         return fragment
 
     @XBlock.handler
-    def ol_chat(self, request, suffix=""):  # noqa: ARG002, PRL911
+    def ol_chat(self, request, suffix=""):  # noqa: ARG002
         """Start the chat session via external MIT LEARN AI API."""
         try:
             request_data = request.json
