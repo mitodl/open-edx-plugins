@@ -150,12 +150,18 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
         try:
             block_id = self.usage_key.block_id
+
+            # Common tracker data
+            tracker_base_data = {
+                "block_id": block_id,
+                "canvas_course_id": self.course_id,
+            }
+
             # Sending tracker event for request
             tracker.emit(
                 "chat.xblock.request",
                 {
-                    "block_id": block_id,
-                    "canvas_course_id": self.course_id,
+                    **tracker_base_data,
                     "request_data": request_data,
                 },
             )
@@ -186,12 +192,12 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 "SyllabusBot_ai_threads_anon"
             )
             xblock_response = Response(response.content)
+
             # Sending tracker event for response
             tracker.emit(
                 "chat.xblock.response",
                 {
-                    "block_id": block_id,
-                    "canvas_course_id": self.course_id,
+                    **tracker_base_data,
                     "response_data": str(xblock_response),
                 },
             )
