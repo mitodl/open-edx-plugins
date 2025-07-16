@@ -4,6 +4,7 @@ import pkg_resources
 import requests
 from django.conf import settings
 from django.template import Context, Template
+from eventtracking import tracker
 from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.response import Response
@@ -149,6 +150,15 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
         try:
             block_id = self.usage_key.block_id
+            # Sending tracker event for request
+            tracker.emit(
+                "chat.xblock.request",
+                {
+                    "block_id": block_id,
+                    "canvas_course_id": self.course_id,
+                    "request_data": request_data,
+                },
+            )
 
             # Use the cookies from the request to maintain session state
             # This is important for the MIT Learn AI service to track user sessions
@@ -176,6 +186,15 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 "SyllabusBot_ai_threads_anon"
             )
             xblock_response = Response(response.content)
+            # Sending tracker event for response
+            tracker.emit(
+                "chat.xblock.response",
+                {
+                    "block_id": block_id,
+                    "canvas_course_id": self.course_id,
+                    "response_data": str(xblock_response),
+                },
+            )
 
             # Set SyllabusBot_ai_threads_anon cookie in the response so that it can be
             # used in subsequent requests. This will allow using the same chat thread
