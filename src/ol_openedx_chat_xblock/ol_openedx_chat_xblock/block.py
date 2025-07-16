@@ -101,7 +101,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         return fragment
 
     @XBlock.handler
-    def ol_chat(self, request, suffix=""):  # noqa: ARG002
+    def ol_chat(self, request, suffix=""):  # noqa: ARG002, PLR0911
         """Start the chat session via external MIT LEARN AI API."""
         try:
             request_data = request.json
@@ -144,18 +144,22 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_token}",
+            "canvas_token": api_token,
         }
 
         try:
+            block_id = self.usage_key.block_id
+
             # Use the cookies from the request to maintain session state
             # This is important for the MIT Learn AI service to track user sessions
-            block_id = self.usage_key.block_id
             req_syllabusbot_ai_threads_anon = request.cookies.get(
                 "SyllabusBot_ai_threads_anon", None
             )
             req_block_id = request.cookies.get("block_id", None)
 
+            # If the incoming request's block_id does not match the current block_id,
+            # reset the SyllabusBot_ai_threads_anon cookie to avoid cross-block session
+            # issues. This ensures that each xBlock maintains its own chat session.
             if req_block_id != block_id:
                 req_syllabusbot_ai_threads_anon = None
 
@@ -172,6 +176,10 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 "SyllabusBot_ai_threads_anon"
             )
             xblock_response = Response(response.content)
+
+            # Set SyllabusBot_ai_threads_anon cookie in the response so that it can be
+            # used in subsequent requests. This will allow using the same chat thread
+            # for a single xBlock.
             xblock_response.set_cookie(
                 "SyllabusBot_ai_threads_anon",
                 resp_syllabusbot_ai_threads_anon,
@@ -180,12 +188,15 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             xblock_response.set_cookie("block_id", block_id, httponly=True)
             return xblock_response  # noqa: TRY300
 
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
             log.exception("Failed to contact MIT Learn AI service.")
             return Response(
-                {
-                    "error": "Failed to connect to MIT Learn AI service.",
-                    "details": str(e),
-                },
-                status=api_status.HTTP_502_BAD_GATEWAY,
+                "Something went wrong while contacting the AI service.",
+                status=api_status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception:
+            log.exception("An unexpected error occurred.")
+            return Response(
+                "An unexpected error occurred.",
+                status=api_status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
