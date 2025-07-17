@@ -100,7 +100,15 @@ please update the path in ``run_edx_integration_tests.sh``.
 
       tutor dev exec lms/cms bash
 
-2. Run the tests:
+2. Navigate to the plugins directory:
+
+   .. code-block:: bash
+
+      cd <mount_path_to_open-edx-plugins e.g, /openedx/open-edx-plugins>
+
+    Note: If you want to run the tests from a different directory, you can specify the `--mount-dir` option in the test script.
+
+3. Run the tests:
 
    - For all plugins:
 
@@ -112,6 +120,6 @@ please update the path in ``run_edx_integration_tests.sh``.
 
      .. code-block:: bash
 
-       /openedx/open-edx-plugins/run_edx_integration_tests.sh <plugin-name>
+       /openedx/open-edx-plugins/run_edx_integration_tests.sh --plugin <plugin_name e.g, edx_sysadmin>
 
 The script generates coverage reports in XML format and exits with a non-zero status if any tests fail.

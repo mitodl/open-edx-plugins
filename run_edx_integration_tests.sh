@@ -1,6 +1,51 @@
 #!/bin/bash
 set -e
 
+# Default values
+PLUGIN_NAME=""
+MOUNT_DIR=""
+
+# Parse named arguments
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    --plugin)
+      PLUGIN_NAME="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --mount-dir)
+      MOUNT_DIR="$2"
+      shift
+      shift
+      ;;
+    *)    # unknown option
+      echo "Unknown option $1"
+      exit 1
+      ;;
+  esac
+done
+
+echo "Running edx integration tests with the following parameters:"
+
+if [ -n "$PLUGIN_NAME" ]; then
+  echo "PLUGIN_NAME: $PLUGIN_NAME"
+else
+  echo "PLUGIN_NAME: (Running tests for ALL plugins)"
+fi
+
+# Remove trailing slash if present (but not if it's just "/")
+if [ -n "$MOUNT_DIR" ] && [ "$MOUNT_DIR" != "/" ]; then
+  MOUNT_DIR="${MOUNT_DIR%/}"
+fi
+
+if [ -n "$MOUNT_DIR" ]; then
+  echo "MOUNT_DIR: $MOUNT_DIR"
+else
+  echo "MOUNT_DIR: (Using current working directory: $(pwd))"
+fi
+echo "=========================================="
+
 source /openedx/venv/bin/activate
 ls
 pwd
@@ -20,7 +65,11 @@ if [ ! -d "/openedx/edx-platform/test_root/staticfiles" ]; then
   cp -r /openedx/staticfiles /openedx/edx-platform/test_root/staticfiles
 fi
 
-cd /openedx/open-edx-plugins
+if [ -n "$MOUNT_DIR" ]; then
+  echo "Switching to mount directory: $MOUNT_DIR"
+  cd "$MOUNT_DIR" || { echo "Failed to cd into $MOUNT_DIR"; exit 1; }
+fi
+
 
 # Installing test dependencies using UV (this includes pytest-mock, responses, codecov, etc.)
 echo "===== Installing uv ====="
@@ -80,7 +129,13 @@ run_plugin_tests() {
     fi
 
     # Copying test_root only if it doesn't exist
-    DEST="/openedx/open-edx-plugins/$plugin_dir/test_root"
+
+    if [ -n "$MOUNT_DIR" ]; then
+        DEST="$MOUNT_DIR/$plugin_dir/test_root"
+    else
+        DEST="$plugin_dir/test_root"
+    fi
+
     if [ ! -d "$DEST" ]; then
         echo "Copying test_root to $DEST"
         cp -r /openedx/edx-platform/test_root/ "$DEST"
@@ -137,7 +192,7 @@ run_plugin_tests() {
 }
 
 # Check if a specific plugin name was provided
-plugin="$1"
+plugin="$PLUGIN_NAME"
 
 set +e
 if [ -n "$plugin" ]; then
