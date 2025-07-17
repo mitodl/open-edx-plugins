@@ -1,4 +1,17 @@
 .ai-chat-container {
-    min-height: 400px;
-    position: relative;
+  height: calc(100vh - 100px);
+  position: relative;
+}
+
+/*
+* This overrides an openedx default style that is problematic
+* when embedding the xblock inside a canvas LTI.
+*
+* The top-margin on this container, combined with min-height: 100%
+* on the body element cause the iframe content to be taller than the iframe.
+*
+* So, get rid of this margin.
+*/
+.content-wrapper.main-container {
+  margin-top: 0px;
 }
