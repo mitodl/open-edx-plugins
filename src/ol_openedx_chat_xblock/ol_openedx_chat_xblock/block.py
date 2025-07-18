@@ -153,16 +153,17 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
             # Common tracker data
             tracker_base_data = {
-                "block_id": block_id,
+                # Naming convention is followed to match the Chat Aside's package name
+                "blockUsageKey": str(self.usage_key),
                 "canvas_course_id": self.course_id,
             }
 
             # Sending tracker event for request
             tracker.emit(
-                "chat.xblock.request",
+                f"{__package__}.OLChat.submit",
                 {
                     **tracker_base_data,
-                    "request_data": request_data,
+                    "value": request_data.get("message", "No message provided"),
                 },
             )
 
@@ -195,10 +196,10 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
             # Sending tracker event for response
             tracker.emit(
-                "chat.xblock.response",
+                f"{__package__}.OLChat.response",
                 {
                     **tracker_base_data,
-                    "response_data": str(xblock_response),
+                    "value": str(response.content),
                 },
             )
 
