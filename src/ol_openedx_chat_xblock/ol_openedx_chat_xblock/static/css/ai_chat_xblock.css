@@ -1,4 +1,27 @@
 .ai-chat-container {
-    min-height: 400px;
-    position: relative;
+  /*
+  * Learning MFE iframe sets its height based on size of contents.
+  * If no min height, then when only block, the iframe height collapses
+  * to zero.
+  * If no max height, the iframe resizes itself over and over, endlessly increasing its height.
+  *
+  * In Canvas, Iframe is set based on parent window height, which works very well.
+  */
+  min-height: 400px;
+  max-height: 1200px;
+  height: calc(100vh - 100px);
+  position: relative;
+}
+
+/*
+* This overrides an openedx default style that is problematic
+* when embedding the xblock inside a canvas LTI.
+*
+* The top-margin on this container, combined with min-height: 100%
+* on the body element cause the iframe content to be taller than the iframe.
+*
+* So, get rid of this margin.
+*/
+.content-wrapper.main-container {
+  margin-top: 0px;
 }
