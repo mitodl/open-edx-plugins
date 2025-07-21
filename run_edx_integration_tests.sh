@@ -4,6 +4,7 @@ set -e
 # Default values
 PLUGIN_NAME=""
 MOUNT_DIR=""
+SKIP_BUILD=false
 
 # Parse named arguments
 while [[ $# -gt 0 ]]; do
@@ -18,6 +19,15 @@ while [[ $# -gt 0 ]]; do
       MOUNT_DIR="$2"
       shift
       shift
+      ;;
+    --skip-build)
+      SKIP_BUILD=true
+      shift
+      # Check if the next argument looks like a value (not a flag)
+      if [[ "$1" != "" && "$1" != --* ]]; then
+        echo "Error: --skip-build does not take a value (did you mean just --skip-build?)"
+        exit 1
+      fi
       ;;
     *)    # unknown option
       echo "Unknown option $1"
@@ -61,33 +71,34 @@ fi
 
 echo "Copying static files in edx-platform test_root if it doesn't exist"
 
-if [ ! -d "/openedx/edx-platform/test_root/staticfiles" ]; then
-  cp -r /openedx/staticfiles /openedx/edx-platform/test_root/staticfiles
-fi
+cp -r /openedx/staticfiles /openedx/edx-platform/test_root/staticfiles
 
 if [ -n "$MOUNT_DIR" ]; then
   echo "Switching to mount directory: $MOUNT_DIR"
   cd "$MOUNT_DIR" || { echo "Failed to cd into $MOUNT_DIR"; exit 1; }
 fi
 
+if [ "$SKIP_BUILD" != true ]; then
+    # Installing test dependencies using UV (this includes pytest-mock, responses, codecov, etc.)
+    echo "===== Installing uv ====="
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    source $HOME/.local/bin/env
+    echo "===== Installing Packages ====="
+    uv export --only-dev --no-hashes --no-annotate > ol_test_requirements.txt
+    pip install -r ol_test_requirements.txt
 
-# Installing test dependencies using UV (this includes pytest-mock, responses, codecov, etc.)
-echo "===== Installing uv ====="
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env
-echo "===== Installing Packages ====="
-uv export --only-dev --no-hashes --no-annotate > ol_test_requirements.txt
-pip install -r ol_test_requirements.txt
+    # output the packages which are installed for logging
+    echo "===== Installed Python Packages ====="
+    pip freeze | sort
+    echo "====================================="
+else
+  echo "Skipping build and package installation as --skip-build is enabled."
+fi
+
 # Plugins that may affect the tests of other plugins.
 # e.g. openedx-companion-auth adds a redirect to the authentication
 # that fails the authentication process for other plugins.
 isolated_plugins=("openedx-companion-auth")
-
-# output the packages which are installed for logging
-echo "===== Installed Python Packages ====="
-pip freeze | sort
-echo "====================================="
-
 export EDXAPP_TEST_MONGO_HOST=mongodb
 
 # Function to run tests for a plugin
