@@ -1,8 +1,14 @@
 .ai-chat-container {
   /*
-  * MFE Iframe doesn't have a height set, so ensure a min height.
+  * Learning MFE iframe sets its height based on size of contents.
+  * If no min height, then when only block, the iframe height collapses
+  * to zero.
+  * If no max height, the iframe resizes itself over and over, endlessly increasing its height.
+  *
+  * In Canvas, Iframe is set based on parent window height, which works very well.
   */
   min-height: 400px;
+  max-height: 1200px;
   height: calc(100vh - 100px);
   position: relative;
 }
