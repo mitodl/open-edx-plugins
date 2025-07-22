@@ -126,7 +126,7 @@ Script Flags
 The test script supports the following optional flags:
 
 - ``--plugin``: Specify the plugin directory (e.g., ``edx_sysadmin``) to run tests for a single plugin. If omitted, tests for **all plugins** will be run.
-- ``--mount-dir``: Use this if you're running the script from a different directory than the default (``/openedx/open-edx-plugins``). This sets the relative base path for resolving plugin paths.
-- ``--skip-build``: Skips the build step, which includes installing test dependencies and the UV tool. Use this flag if dependencies have already been installed and you want to rerun tests directly.
+- ``--mount-dir``: Use this if you're running the script from a different directory than the ``open-edx-plugins``. This sets the relative base path for resolving plugin paths.
+- ``--skip-build``: Skips the build step, which includes installing test dependencies and the UV tool. You can use this flag if dependencies have already been installed and you want to run tests directly.
 
 The script generates coverage reports in XML format and exits with a non-zero status if any tests fail.
