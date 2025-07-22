@@ -102,17 +102,17 @@ This enables "Other Course Settings" below.
 
 CMS View
 
-.. image:: static/images/ai_chat_aside_cms_view.png
+.. image:: ol_openedx_chat/static/images/ai_chat_aside_cms_view.png
 
 * You will also see a Chat Button titled "AskTIM about this video/problem" in the LMS. Now AI Chat/VideoGPT is enabled for all videos and problems.
 
 LMS View with AskTIM button
 
-.. image:: static/images/ai_chat_aside_lms_view.png
+.. image:: ol_openedx_chat/static/images/ai_chat_aside_lms_view.png
 
 LMS Chat Drawer View
 
-.. image:: static/images/ai_chat_aside_lms_drawer_view.png
+.. image:: ol_openedx_chat/static/images/ai_chat_aside_lms_drawer_view.png
 
 9. Disable it for a single block
 ----------------------------------
