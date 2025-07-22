@@ -1128,7 +1128,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat-xblock"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "src/ol_openedx_chat_xblock" }
 dependencies = [
     { name = "django" },
@@ -1966,7 +1966,7 @@ wheels = [
 
 [[package]]
 name = "rapid-response-xblock"
-version = "0.9.1"
+version = "0.10.0"
 source = { editable = "src/rapid_response_xblock" }
 dependencies = [
     { name = "django" },

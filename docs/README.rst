@@ -100,18 +100,33 @@ please update the path in ``run_edx_integration_tests.sh``.
 
       tutor dev exec lms/cms bash
 
-2. Run the tests:
+2. Navigate to the plugins directory:
+
+   .. code-block:: bash
+
+      cd <mount_path_to_open-edx-plugins e.g, /openedx/open-edx-plugins>
+
+3. Run the tests:
 
    - For all plugins:
 
      .. code-block:: bash
 
-       /openedx/open-edx-plugins/run_edx_integration_tests.sh
+       ./run_edx_integration_tests.sh --skip-build
 
    - For a specific plugin:
 
      .. code-block:: bash
 
-       /openedx/open-edx-plugins/run_edx_integration_tests.sh <plugin-name>
+       ./run_edx_integration_tests.sh --plugin <plugin_name e.g, edx_sysadmin> --skip-build
+
+Script Flags
+~~~~~~~~~~~~
+
+The test script supports the following optional flags:
+
+- ``--plugin``: Specify the plugin directory (e.g., ``edx_sysadmin``) to run tests for a single plugin. If omitted, tests for **all plugins** will be run.
+- ``--mount-dir``: Use this if you're running the script from a different directory than the ``open-edx-plugins``.
+- ``--skip-build``: Skips the build step, which includes installing test dependencies and the UV tool. You can use this flag if dependencies have already been installed and you want to run tests directly.
 
 The script generates coverage reports in XML format and exits with a non-zero status if any tests fail.

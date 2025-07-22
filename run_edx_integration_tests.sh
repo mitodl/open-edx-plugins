@@ -1,6 +1,61 @@
 #!/bin/bash
 set -e
 
+# Default values
+PLUGIN_NAME=""
+MOUNT_DIR=""
+SKIP_BUILD=false
+
+# Parse named arguments
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    --plugin)
+      PLUGIN_NAME="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --mount-dir)
+      MOUNT_DIR="$2"
+      shift
+      shift
+      ;;
+    --skip-build)
+      SKIP_BUILD=true
+      shift
+      # Check if the next argument looks like a value (not a flag)
+      if [[ "$1" != "" && "$1" != --* ]]; then
+        echo "Error: --skip-build does not take a value (did you mean just --skip-build?)"
+        exit 1
+      fi
+      ;;
+    *)    # unknown option
+      echo "Unknown option $1"
+      exit 1
+      ;;
+  esac
+done
+
+echo "Running edx integration tests with the following parameters:"
+
+if [ -n "$PLUGIN_NAME" ]; then
+  echo "PLUGIN_NAME: $PLUGIN_NAME"
+else
+  echo "PLUGIN_NAME: (Running tests for ALL plugins)"
+fi
+
+# Remove trailing slash if present (but not if it's just "/")
+if [ -n "$MOUNT_DIR" ] && [ "$MOUNT_DIR" != "/" ]; then
+  MOUNT_DIR="${MOUNT_DIR%/}"
+fi
+
+if [ -n "$MOUNT_DIR" ]; then
+  echo "MOUNT_DIR: $MOUNT_DIR"
+else
+  echo "MOUNT_DIR: (Using current working directory: $(pwd))"
+fi
+echo "=========================================="
+
 source /openedx/venv/bin/activate
 ls
 pwd
@@ -14,27 +69,36 @@ if [ $CI ]; then
   pip install -e .
 fi
 
-cp -r /openedx/staticfiles test_root/staticfiles
+echo "Copying static files in edx-platform test_root if it doesn't exist"
 
-cd /openedx/open-edx-plugins
+cp -r /openedx/staticfiles /openedx/edx-platform/test_root/staticfiles
 
-# Installing test dependencies using UV (this includes pytest-mock, responses, codecov, etc.)
-echo "===== Installing uv ====="
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env
-echo "===== Installing Packages ====="
-uv export --only-dev --no-hashes --no-annotate > ol_test_requirements.txt
-pip install -r ol_test_requirements.txt
+if [ -n "$MOUNT_DIR" ]; then
+  echo "Switching to mount directory: $MOUNT_DIR"
+  cd "$MOUNT_DIR" || { echo "Failed to cd into $MOUNT_DIR"; exit 1; }
+fi
+
+if [ "$SKIP_BUILD" != true ]; then
+    # Installing test dependencies using UV (this includes pytest-mock, responses, codecov, etc.)
+    echo "===== Installing uv ====="
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    source $HOME/.local/bin/env
+    echo "===== Installing Packages ====="
+    uv export --only-dev --no-hashes --no-annotate > ol_test_requirements.txt
+    pip install -r ol_test_requirements.txt
+
+    # output the packages which are installed for logging
+    echo "===== Installed Python Packages ====="
+    pip freeze | sort
+    echo "====================================="
+else
+  echo "Skipping build and package installation as --skip-build is enabled."
+fi
+
 # Plugins that may affect the tests of other plugins.
 # e.g. openedx-companion-auth adds a redirect to the authentication
 # that fails the authentication process for other plugins.
 isolated_plugins=("openedx-companion-auth")
-
-# output the packages which are installed for logging
-echo "===== Installed Python Packages ====="
-pip freeze | sort
-echo "====================================="
-
 export EDXAPP_TEST_MONGO_HOST=mongodb
 
 # Function to run tests for a plugin
@@ -75,7 +139,20 @@ run_plugin_tests() {
         pip install -e "$plugin_dir"
     fi
 
-    cp -r /openedx/edx-platform/test_root/ "/openedx/open-edx-plugins/$plugin_dir/test_root"
+    # Copying test_root only if it doesn't exist
+
+    if [ -n "$MOUNT_DIR" ]; then
+        DEST="$MOUNT_DIR/$plugin_dir/test_root"
+    else
+        DEST="$plugin_dir/test_root"
+    fi
+
+    if [ ! -d "$DEST" ]; then
+        echo "Copying test_root to $DEST"
+        cp -r /openedx/edx-platform/test_root/ "$DEST"
+    else
+        echo "test_root already exists at $DEST, skipping copy."
+    fi
     echo "==============Running $plugin_dir tests=================="
     cd "$plugin_dir"
 
@@ -126,7 +203,7 @@ run_plugin_tests() {
 }
 
 # Check if a specific plugin name was provided
-plugin="$1"
+plugin="$PLUGIN_NAME"
 
 set +e
 if [ -n "$plugin" ]; then
