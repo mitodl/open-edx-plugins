@@ -2,6 +2,7 @@ import logging
 
 import pkg_resources
 import requests
+from crum import get_current_request
 from django.conf import settings
 from django.template import Context, Template
 from eventtracking import tracker
@@ -45,6 +46,36 @@ def render_template(template_path, context=None):
     return template.render(Context(context))
 
 
+def generate_canvas_course_id():
+    """
+    Generate a Canvas course ID from the LTI parameters.
+
+    Returns:
+        str: The generated Canvas course ID or an empty string.
+    """
+    # "lms.djangoapps.courseware.views.render_xblock()"" method does not pass on the LTI
+    # params upon an LTI launch. So we use get_current_request to get the current
+    # running request to get the LTI params required to generate the Course ID.
+    lti_request = get_current_request()
+
+    if not lti_request:
+        log.error("LTI launch request is missing or could not be retrieved.")
+        return ""
+
+    lti_params = {**lti_request.GET.dict(), **lti_request.POST.dict()}
+    try:
+        course_id = lti_params["custom_course_id"]
+        context_label = lti_params["context_label"]
+    except KeyError as e:
+        missing_key = e.args[0]
+        log.error(  # noqa: TRY400
+            f"LTI launch request is missing the required parameter: '{missing_key}'."  # noqa: G004
+        )
+        return ""
+    else:
+        return f"{course_id}-{context_label}"
+
+
 class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
     """
     XBlock that enables OL AI Chat functionality in Open edX
@@ -56,15 +87,16 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         scope=Scope.settings,
         help="This name appears in the horizontal navigation at the top of the page.",
     )
-    course_id = String(
+    learn_readable_course_id = String(
         default="",
-        scope=Scope.settings,
-        help="Course ID of the relevant course in Canvas",
+        scope=Scope.user_state,
+        help="Course ID of the relevant course in Canvas (Auto generates upon xBlock initialization).",  # noqa: E501
     )
-    editable_fields = ("display_name", "course_id")
+    editable_fields = ("display_name",)
 
     def student_view(self, context=None):  # noqa: ARG002
         """Render the student view of the block."""
+        self.learn_readable_course_id = generate_canvas_course_id()
         fragment = Fragment("")
         fragment.add_content(
             render_template(
@@ -85,6 +117,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         """
         Render the author view of the block.
         """
+        self.learn_readable_course_id = generate_canvas_course_id()
         fragment = Fragment("")
         fragment.add_content(
             render_template(
@@ -122,9 +155,8 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 "Missing API configurations. Please check your settings.",
                 status=api_status.HTTP_400_BAD_REQUEST,
             )
-
-        if not self.course_id:
-            log.error("Course ID is not set for the XBlock.")
+        if not self.learn_readable_course_id:
+            log.error("Learn readable course ID is not available in the XBlock.")
             return Response(
                 "Course ID is required.",
                 status=api_status.HTTP_400_BAD_REQUEST,
@@ -140,7 +172,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         payload = {
             "collection_name": "content_files",
             "message": message,
-            "course_id": self.course_id,
+            "course_id": self.learn_readable_course_id,
         }
 
         headers = {
@@ -155,7 +187,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             tracker_base_data = {
                 # Naming convention is followed to match the Chat Aside's package name
                 "blockUsageKey": str(self.usage_key),
-                "canvas_course_id": self.course_id,
+                "canvas_course_id": self.learn_readable_course_id,
             }
 
             # Sending tracker event for request
