@@ -9,7 +9,7 @@ from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock
-from xblock.fields import Scope, String
+from xblock.fields import Scope, String, Boolean
 
 try:
     from xblock.utils.studio_editable import StudioEditableXBlockMixin
@@ -61,7 +61,23 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         scope=Scope.settings,
         help="Course ID of the relevant course in Canvas",
     )
-    editable_fields = ("display_name", "course_id")
+    is_tutor_xblock = Boolean(
+        default=False,
+        scope=Scope.settings,
+        help="Indicates if the xBlock is a tutor xBlock",
+    )
+
+    editable_fields = ("display_name", "course_id", "is_tutor_xblock",)
+
+    def get_ai_chat_js_args(self):
+        """
+        Return the initialization arguments for the smoot design AI Chat widget.
+        """
+        return {
+            "block_id": self.usage_key.block_id,
+            # Will likely change, depends on smoot design implementation
+            "is_tutor_xblock": self.is_tutor_xblock,
+        }
 
     def student_view(self, context=None):  # noqa: ARG002
         """Render the student view of the block."""
@@ -77,7 +93,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         fragment.add_javascript(get_resource_bytes("static/js/lms.js"))
         fragment.add_css(get_resource_bytes("static/css/ai_chat_xblock.css"))
         fragment.initialize_js(
-            "OLChatBlock", json_args={"block_id": self.usage_key.block_id}
+            "OLChatBlock", json_args=self.get_ai_chat_js_args()
         )
         return fragment
 
@@ -97,7 +113,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         fragment.add_javascript(get_resource_bytes("static/js/studio.js"))
         fragment.add_css(get_resource_bytes("static/css/ai_chat_xblock.css"))
         fragment.initialize_js(
-            "OLChatBlock", json_args={"block_id": self.usage_key.block_id}
+            "OLChatBlock", json_args=self.get_ai_chat_js_args()
         )
         return fragment
 
