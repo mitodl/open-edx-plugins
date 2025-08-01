@@ -1,15 +1,6 @@
 {
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    ":automergeMinor",
-    ":rebaseStalePrs",
-    ":separateMajorReleases",
-    "config:recommended"
-  ],
-  "schedule": [
-    "every weekend"
-  ],
-  "timezone": "US/Eastern",
-  "lockFileMaintenance": {
-    "enabled": true
-  }
+    "local>mitodl/.github:renovate-config"
+  ]
 }
