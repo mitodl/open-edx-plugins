@@ -9,7 +9,7 @@ from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock
-from xblock.fields import Scope, String, Boolean
+from xblock.fields import Boolean, Scope, String
 
 try:
     from xblock.utils.studio_editable import StudioEditableXBlockMixin
@@ -67,7 +67,11 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         help="Indicates if the xBlock is a tutor xBlock",
     )
 
-    editable_fields = ("display_name", "course_id", "is_tutor_xblock",)
+    editable_fields = (
+        "display_name",
+        "course_id",
+        "is_tutor_xblock",
+    )
 
     def get_ai_chat_js_args(self):
         """
@@ -92,9 +96,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         )
         fragment.add_javascript(get_resource_bytes("static/js/lms.js"))
         fragment.add_css(get_resource_bytes("static/css/ai_chat_xblock.css"))
-        fragment.initialize_js(
-            "OLChatBlock", json_args=self.get_ai_chat_js_args()
-        )
+        fragment.initialize_js("OLChatBlock", json_args=self.get_ai_chat_js_args())
         return fragment
 
     def author_view(self, context=None):  # noqa: ARG002
@@ -112,9 +114,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         )
         fragment.add_javascript(get_resource_bytes("static/js/studio.js"))
         fragment.add_css(get_resource_bytes("static/css/ai_chat_xblock.css"))
-        fragment.initialize_js(
-            "OLChatBlock", json_args=self.get_ai_chat_js_args()
-        )
+        fragment.initialize_js("OLChatBlock", json_args=self.get_ai_chat_js_args())
         return fragment
 
     @XBlock.handler
