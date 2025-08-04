@@ -174,17 +174,17 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         # If neither is available, it will return an error response.
         course_id_for_chat = self.course_id
         if not course_id_for_chat:
-            log.error(
+            log.info(
                 "Course ID is not available in the XBlock. "
                 "Falling back to auto-generated course ID from Canvas LTI."
             )
-        if not self.learn_readable_course_id:
-            log.error("Course ID is not available from Canvas LTI.")
-            return Response(
-                "Course ID is required.",
-                status=api_status.HTTP_400_BAD_REQUEST,
-            )
-        course_id_for_chat = self.learn_readable_course_id
+            if not self.learn_readable_course_id:
+                log.error("Course ID is not available from Canvas LTI.")
+                return Response(
+                    "Course ID is required.",
+                    status=api_status.HTTP_400_BAD_REQUEST,
+                )
+            course_id_for_chat = self.learn_readable_course_id
 
         message = request_data.get("message", "").strip()
         if not message:
