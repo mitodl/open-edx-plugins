@@ -87,16 +87,26 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         scope=Scope.settings,
         help="This name appears in the horizontal navigation at the top of the page.",
     )
+    course_id = String(
+        default="",
+        scope=Scope.settings,
+        help="Course ID of the relevant course in Canvas",
+    )
     learn_readable_course_id = String(
         default="",
         scope=Scope.user_state,
-        help="Course ID of the relevant course in Canvas (Auto generates upon xBlock initialization).",  # noqa: E501
+        help=(
+            "Course ID of the relevant course in Canvas "
+            "(Auto generates upon xBlock initialization)."
+        ),
     )
-    editable_fields = ("display_name",)
+    editable_fields = ("display_name", "course_id")
 
     def student_view(self, context=None):  # noqa: ARG002
         """Render the student view of the block."""
-        self.learn_readable_course_id = generate_canvas_course_id()
+        if not self.course_id:
+            self.learn_readable_course_id = generate_canvas_course_id()
+
         fragment = Fragment("")
         fragment.add_content(
             render_template(
@@ -117,7 +127,8 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         """
         Render the author view of the block.
         """
-        self.learn_readable_course_id = generate_canvas_course_id()
+        if not self.course_id:
+            self.learn_readable_course_id = generate_canvas_course_id()
         fragment = Fragment("")
         fragment.add_content(
             render_template(
@@ -155,12 +166,25 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 "Missing API configurations. Please check your settings.",
                 status=api_status.HTTP_400_BAD_REQUEST,
             )
+
+        # Course ID will be used in this order or priority:
+        # 1. The course_id field in the xBlock settings.
+        # 2. The learn_readable_course_id field, which is auto-generated upon xBlock
+        # initialization on LTI launch.
+        # If neither is available, it will return an error response.
+        course_id_for_chat = self.course_id
+        if not course_id_for_chat:
+            log.error(
+                "Course ID is not available in the XBlock. "
+                "Falling back to auto-generated course ID from Canvas LTI."
+            )
         if not self.learn_readable_course_id:
-            log.error("Learn readable course ID is not available in the XBlock.")
+            log.error("Course ID is not available from Canvas LTI.")
             return Response(
                 "Course ID is required.",
                 status=api_status.HTTP_400_BAD_REQUEST,
             )
+        course_id_for_chat = self.learn_readable_course_id
 
         message = request_data.get("message", "").strip()
         if not message:
@@ -172,7 +196,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         payload = {
             "collection_name": "content_files",
             "message": message,
-            "course_id": self.learn_readable_course_id,
+            "course_id": course_id_for_chat,
         }
 
         headers = {
@@ -182,12 +206,11 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
         try:
             block_id = self.usage_key.block_id
-
             # Common tracker data
             tracker_base_data = {
                 # Naming convention is followed to match the Chat Aside's package name
                 "blockUsageKey": str(self.usage_key),
-                "canvas_course_id": self.learn_readable_course_id,
+                "canvas_course_id": course_id_for_chat,
             }
 
             # Sending tracker event for request
