@@ -88,6 +88,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         help="This name appears in the horizontal navigation at the top of the page.",
     )
     course_id = String(
+        display_name="Course ID",
         default="",
         scope=Scope.settings,
         help="Course ID of the relevant course in Canvas",
