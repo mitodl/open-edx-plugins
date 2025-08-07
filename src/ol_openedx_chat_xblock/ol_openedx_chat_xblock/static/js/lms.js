@@ -1,10 +1,11 @@
 function OLChatBlock(runtime, element, init_args) {
-    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@6.13.0/dist/bundles/aiChat.es.js").then(aiChat => {
+    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@0.0.0-d50fa6e/dist/bundles/aiChat.es.js").then(aiChat => {
         const requestOpts = {
             apiUrl: runtime.handlerUrl(element, 'ol_chat'),
-            transformBody: (messages) => {
+            transformBody: (messages, { problem_set_title }) => {
                 return {
                     message: messages[messages.length - 1].content,
+                    problem_set_title
                 }
             },
             csrfHeaderName: "X-CSRFToken",
@@ -19,6 +20,13 @@ function OLChatBlock(runtime, element, init_args) {
                     {
                         role: "assistant",
                         content: "How can I help you today?",
+                    },
+                ],
+                problemSetListUrl: "https://api.rc.learn.mit.edu/ai/api/v0/problem_set_list/?run_readable_id=14566-kaleba%3A20211202%2Bcanvas",
+                problemSetInitialMessages: [
+                    {
+                        role: "assistant",
+                        content: "Which question are you working on?",
                     },
                 ],
             },
