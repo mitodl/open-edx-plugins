@@ -1,0 +1,1 @@
+CANVAS_TUTOR_COURSE_ID_PREFIX = "+canvas"
