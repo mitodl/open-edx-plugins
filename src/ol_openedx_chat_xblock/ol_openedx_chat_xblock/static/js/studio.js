@@ -1,11 +1,12 @@
 function OLChatBlock(runtime, element, init_args) {
-    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@6.13.0/dist/bundles/aiChat.es.js").then(aiChat => {
+    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@6.15.0/dist/bundles/aiChat.es.js").then(aiChat => {
         var studioRuntime = new window.StudioRuntime.v1();
         const requestOpts = {
             apiUrl: studioRuntime.handlerUrl(element, 'ol_chat'),
-            transformBody: (messages) => {
+            transformBody: (messages, { problem_set_title }) => {
                 return {
                     message: messages[messages.length - 1].content,
+                    problem_set_title: problem_set_title,
                 }
             },
             csrfHeaderName: "X-CSRFToken",
@@ -15,13 +16,21 @@ function OLChatBlock(runtime, element, init_args) {
             {
                 requestOpts,
                 entryScreenEnabled: false,
-                askTimTitle: "About this Course",
+                askTimTitle: init_args.ask_tim_title,
+                problemSetListUrl: init_args.problem_list_url,
                 initialMessages: [
                     {
                         role: "assistant",
-                        content: "How can I help you today?",
+                        content: init_args.bot_initial_message,
                     },
                 ],
+                problemSetInitialMessages: [
+                    {
+                        role: "assistant",
+                        content: init_args.problem_set_initial_message,
+                    },
+                ],
+
             },
             {
                 container: document.getElementById(`ai-chat-container-${init_args.block_id}`),
