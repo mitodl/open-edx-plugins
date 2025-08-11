@@ -311,7 +311,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             block_id = self.usage_key.block_id
             # Sending tracker event for request
             self.send_tracker_event(
-                event_name=f"{__package__}.OLChat.submit",
+                event_name="OLChat.submit",
                 value=request_data.get("message", ""),
                 problem_set=problem_set_title,
             )
@@ -349,7 +349,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
             # Sending tracker event for response
             self.send_tracker_event(
-                event_name=f"{__package__}.OLChat.response",
+                event_name="OLChat.response",
                 value=str(response.content),
                 problem_set=problem_set_title,
             )
