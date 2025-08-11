@@ -16,10 +16,12 @@ from xblock.fields import Boolean, Scope, String
 from ol_openedx_chat_xblock.constants import (
     ASK_TIM_TITLE_SYLLABUS,
     ASK_TIM_TITLE_TUTOR,
-    BOT_INITIAL_MESSAGE_DEFAULT,
-    BOT_INITIAL_MESSAGE_TUTOR,
-    CANVAS_TUTOR_COURSE_ID_PREFIX,
+    COURSE_ID_SUFFIX_TUTOR,
+    INITIAL_MESSAGE_SYLLABUS,
+    INITIAL_MESSAGE_TUTOR,
     PROBLEM_SET_INITIAL_MESSAGE_TUTOR,
+    XBLOCK_TYPE_SYLLABUS,
+    XBLOCK_TYPE_TUTOR,
 )
 
 try:
@@ -115,7 +117,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         display_name="Is Tutor xBlock?",
         default=False,
         scope=Scope.settings,
-        help="Indicates if the xBlock is a tutor xBlock",
+        help="Indicates if the xBlock is a tutor or syllabus xBlock",
     )
 
     editable_fields = (
@@ -138,7 +140,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         """
         Get the state of the xBlock.
         """
-        return "Tutor" if self.is_tutor_xblock else "Syllabus"
+        return XBLOCK_TYPE_TUTOR if self.is_tutor_xblock else XBLOCK_TYPE_SYLLABUS
 
     def send_tracker_event(self, event_name, value, problem_set=None):
         """
@@ -164,20 +166,14 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         """
         Generate the URL for the problem set list.
         """
-        return (
-            settings.MIT_LEARN_AI_XBLOCK_PROBLEM_SET_LIST_URL
-            + (
-                "?"
-                if settings.MIT_LEARN_AI_XBLOCK_PROBLEM_SET_LIST_URL.endswith("/")
-                else "/?"
-            )
-            + urlencode(
-                {
-                    "run_readable_id": (self.course_id or self.learn_readable_course_id)
-                    + CANVAS_TUTOR_COURSE_ID_PREFIX
-                }
-            )
-        )
+        base_url = settings.MIT_LEARN_AI_XBLOCK_PROBLEM_SET_LIST_URL.rstrip("/") + "/"
+
+        params = {
+            "run_readable_id": (self.course_id or self.learn_readable_course_id)
+            + COURSE_ID_SUFFIX_TUTOR
+        }
+
+        return f"{base_url}?{urlencode(params)}"
 
     def get_ai_chat_init_js_args(self):
         """
@@ -186,14 +182,16 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         init_payload = {
             "block_id": self.usage_key.block_id,
             "ask_tim_title": ASK_TIM_TITLE_SYLLABUS,
-            "bot_initial_message": BOT_INITIAL_MESSAGE_DEFAULT,
+            "bot_initial_message": INITIAL_MESSAGE_SYLLABUS,
         }
         if self.is_tutor_xblock:
-            init_payload["ask_tim_title"] = ASK_TIM_TITLE_TUTOR
-            init_payload["problem_list_url"] = self.get_problem_set_url()
-            init_payload["bot_initial_message"] = BOT_INITIAL_MESSAGE_TUTOR
-            init_payload["problem_set_initial_message"] = (
-                PROBLEM_SET_INITIAL_MESSAGE_TUTOR
+            init_payload.update(
+                {
+                    "ask_tim_title": ASK_TIM_TITLE_TUTOR,
+                    "problem_list_url": self.get_problem_set_url(),
+                    "bot_initial_message": INITIAL_MESSAGE_TUTOR,
+                    "problem_set_initial_message": PROBLEM_SET_INITIAL_MESSAGE_TUTOR,
+                }
             )
         return init_payload
 
@@ -292,9 +290,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         payload = {"message": message}
 
         if self.is_tutor_xblock:
-            payload["run_readable_id"] = (
-                course_id_for_chat + CANVAS_TUTOR_COURSE_ID_PREFIX
-            )
+            payload["run_readable_id"] = course_id_for_chat + COURSE_ID_SUFFIX_TUTOR
             if not problem_set_title:
                 log.error("Problem set title is required for tutor xBlock.")
                 return Response(
@@ -315,7 +311,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             block_id = self.usage_key.block_id
             # Sending tracker event for request
             self.send_tracker_event(
-                event_name="f{__package__}.OLChat.submit",
+                event_name=f"{__package__}.OLChat.submit",
                 value=request_data.get("message", ""),
                 problem_set=problem_set_title,
             )
