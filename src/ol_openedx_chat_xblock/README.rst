@@ -30,7 +30,7 @@ edx-platform configuration
 
 1. Go to the course page in Studio (CMS), open ``Advanced Settings`` and add ``ol_openedx_chat_xblock`` to the ``Advanced module list``.
 2. To add this xBlock to a course, you can now select the ``Advanced`` tile on the new unit page and select ``OL Chat xBlock`` from the list of available advanced xBlocks.
-3. Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py``. These should be added to the top level. **Ask a fellow developer for these values.**
+3. Add the following configuration values to the config files in Open edX. For any release after Juniper, these config files are ``/edx/etc/lms.yml`` and ``/edx/etc/cms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py`` and ``cms/envs/private.py``. These should be added to the top level. **Ask a fellow developer for these values.**
 
       .. code-block::
 
