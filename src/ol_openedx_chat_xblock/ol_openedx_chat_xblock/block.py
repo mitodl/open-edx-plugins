@@ -201,7 +201,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             )
         return init_payload
 
-    def get_chat_cookie_key_name(self):
+    def get_chat_thread_cookie_name(self):
         """Get the cookie key name for the chat session."""
         return (
             COOKIE_NAME_TUTOR_ANON
@@ -345,7 +345,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             # Reset the req_chat_thread_id cookie on different blocks to avoid
             # cross-block session issues.
             generated_ai_chat_cookies = {
-                self.get_chat_cookie_key_name(): req_chat_thread_id
+                self.get_chat_thread_cookie_name(): req_chat_thread_id
                 if req_block_id == block_id
                 else None
             }
@@ -361,7 +361,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             # Check if the response was successful.
             response.raise_for_status()
             resp_ai_threads_anon = response.cookies.get(
-                self.get_chat_cookie_key_name(), None
+                self.get_chat_thread_cookie_name(), None
             )
             xblock_response = Response(response.content)
 
