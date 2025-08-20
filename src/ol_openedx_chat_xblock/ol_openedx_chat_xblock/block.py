@@ -1,3 +1,4 @@
+import json
 import logging
 from urllib.parse import urlencode
 
@@ -16,6 +17,11 @@ from xblock.fields import Boolean, Scope, String
 from ol_openedx_chat_xblock.constants import (
     ASK_TIM_TITLE_SYLLABUS,
     ASK_TIM_TITLE_TUTOR,
+    CHAT_XBLOCK_BLOCK_ID,
+    CHAT_XBLOCK_THREAD_ID,
+    COOKIE_NAME_CHAT_XBLOCK,
+    COOKIE_NAME_SYLLABUS_ANON,
+    COOKIE_NAME_TUTOR_ANON,
     COURSE_ID_SUFFIX_TUTOR,
     INITIAL_MESSAGE_SYLLABUS,
     INITIAL_MESSAGE_TUTOR,
@@ -195,6 +201,36 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             )
         return init_payload
 
+    def get_chat_thread_cookie_name(self):
+        """Get the cookie key name for the chat session."""
+        return (
+            COOKIE_NAME_TUTOR_ANON
+            if self.is_tutor_xblock
+            else COOKIE_NAME_SYLLABUS_ANON
+        )
+
+    def validate_required_api_params(self, course_id, message, problem_set_title):
+        """Validate required parameters for the learn AI chat API."""
+        if not course_id:
+            log.info(
+                "Course ID is not available in the XBlock. "
+                "Falling back to auto-generated course ID from Canvas LTI."
+            )
+            if not self.learn_readable_course_id:
+                log.info("Course ID is not available from Canvas LTI.")
+                return "Course ID is required."
+            log.info(
+                "Using auto-generated course_id from LTI launch: %s",
+                self.learn_readable_course_id,
+            )
+        if not message:
+            log.error("Message field is required for chat.")
+            return "Message field is required."
+        if self.is_tutor_xblock and not problem_set_title:
+            log.error("Problem set title is required for chat.")
+            return "Problem set title is required."
+        return None
+
     def student_view(self, context=None):  # noqa: ARG002
         """Render the student view of the block."""
         if not self.course_id:
@@ -235,7 +271,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         return fragment
 
     @XBlock.handler
-    def ol_chat(self, request, suffix=""):  # noqa: ARG002, PLR0911, C901
+    def ol_chat(self, request, suffix=""):  # noqa: ARG002
         """Start the chat session via external MIT LEARN AI API."""
         try:
             request_data = request.json
@@ -260,30 +296,19 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         # 2. The learn_readable_course_id field, which is auto-generated upon xBlock
         # initialization on LTI launch.
         # 3. If neither is available, it will return an error response.
-        course_id_for_chat = self.course_id
-        if not course_id_for_chat:
-            log.info(
-                "Course ID is not available in the XBlock. "
-                "Falling back to auto-generated course ID from Canvas LTI."
-            )
-            if not self.learn_readable_course_id:
-                log.error("Course ID is not available from Canvas LTI.")
-                return Response(
-                    "Course ID is required.",
-                    status=api_status.HTTP_400_BAD_REQUEST,
-                )
-            log.info(
-                "Using auto-generated course_id: %s", self.learn_readable_course_id
-            )
-            course_id_for_chat = self.learn_readable_course_id
 
+        course_id_for_chat = self.course_id or self.learn_readable_course_id
         message = request_data.get("message", "").strip()
         problem_set_title = request_data.get("problem_set_title", "").strip()
 
-        if not message:
-            log.error("Message field is required for chat.")
+        validation_error = self.validate_required_api_params(
+            course_id=course_id_for_chat,
+            message=message,
+            problem_set_title=problem_set_title,
+        )
+        if validation_error:
             return Response(
-                "Message field is required.",
+                validation_error,
                 status=api_status.HTTP_400_BAD_REQUEST,
             )
 
@@ -291,12 +316,6 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
         if self.is_tutor_xblock:
             payload["run_readable_id"] = course_id_for_chat + COURSE_ID_SUFFIX_TUTOR
-            if not problem_set_title:
-                log.error("Problem set title is required for tutor xBlock.")
-                return Response(
-                    "Problem set title is required for tutor xBlock.",
-                    status=api_status.HTTP_400_BAD_REQUEST,
-                )
             payload["problem_set_title"] = problem_set_title
         else:
             payload["collection_name"] = "content_files"
@@ -316,53 +335,55 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 problem_set=problem_set_title,
             )
 
-            # Use the cookies from the request to maintain session state
-            # This is important for the MIT Learn AI service to track user sessions
-            req_syllabusbot_ai_threads_anon = request.cookies.get(
-                "SyllabusBot_ai_threads_anon", None
+            # Use the cookies from the request to maintain session chat state
+            req_chat_cookies = json.loads(
+                request.cookies.get(COOKIE_NAME_CHAT_XBLOCK, "{}")
             )
-            req_block_id = request.cookies.get("block_id", None)
+            req_chat_thread_id = req_chat_cookies.get(CHAT_XBLOCK_THREAD_ID, None)
+            req_block_id = req_chat_cookies.get(CHAT_XBLOCK_BLOCK_ID, None)
 
-            # If the incoming request's block_id does not match the current block_id,
-            # reset the SyllabusBot_ai_threads_anon cookie to avoid cross-block session
-            # issues. This ensures that each xBlock maintains its own chat session.
-            if req_block_id != block_id:
-                req_syllabusbot_ai_threads_anon = None
-
-            req_cookies = {
-                "SyllabusBot_ai_threads_anon": req_syllabusbot_ai_threads_anon
+            # Reset the req_chat_thread_id cookie on different blocks to avoid
+            # cross-block session issues.
+            generated_ai_chat_cookies = {
+                self.get_chat_thread_cookie_name(): req_chat_thread_id
+                if req_block_id == block_id
+                else None
             }
+
             response = requests.post(
                 self.get_xblock_chat_url(),
                 json=payload,
                 headers=headers,
                 timeout=60,
-                cookies=req_cookies,
+                cookies=generated_ai_chat_cookies,
             )
 
             # Check if the response was successful.
             response.raise_for_status()
-            resp_syllabusbot_ai_threads_anon = response.cookies.get(
-                "SyllabusBot_ai_threads_anon"
+            resp_ai_threads_anon = response.cookies.get(
+                self.get_chat_thread_cookie_name(), None
             )
             xblock_response = Response(response.content)
 
-            # Sending tracker event for response
             self.send_tracker_event(
                 event_name="OLChat.response",
                 value=str(response.content),
                 problem_set=problem_set_title,
             )
 
-            # Set SyllabusBot_ai_threads_anon cookie in the response so that it can be
-            # used in subsequent requests. This will allow using the same chat thread
-            # for a single xBlock.
+            # Set chat_xblock_thread_keys cookie for subsequent requests. This allows
+            # using the same chat thread for a single xBlock.
             xblock_response.set_cookie(
-                "SyllabusBot_ai_threads_anon",
-                resp_syllabusbot_ai_threads_anon,
+                COOKIE_NAME_CHAT_XBLOCK,
+                json.dumps(
+                    {
+                        CHAT_XBLOCK_THREAD_ID: resp_ai_threads_anon,
+                        CHAT_XBLOCK_BLOCK_ID: block_id,
+                    }
+                ),
                 httponly=True,
             )
-            xblock_response.set_cookie("block_id", block_id, httponly=True)
+
             return xblock_response  # noqa: TRY300
 
         except requests.exceptions.RequestException:
