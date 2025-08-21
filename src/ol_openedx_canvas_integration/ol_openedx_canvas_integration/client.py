@@ -117,7 +117,11 @@ class CanvasClient:
             url, params={"search_term": email, "enrollment_type[]": "student"}
         )
         student_id = next(
-            (user["id"] for user in search_results if user.get("email", "") == email),
+            (
+                user["id"]
+                for user in search_results
+                if user.get("email", "").lower() == email.lower()
+            ),
             None,
         )
         if student_id:
