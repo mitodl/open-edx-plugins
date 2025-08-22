@@ -1,5 +1,5 @@
 function OLChatBlock(runtime, element, init_args) {
-    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@6.15.0/dist/bundles/aiChat.es.js").then(aiChat => {
+    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@6.16.0/dist/bundles/aiChat.es.js").then(aiChat => {
         var studioRuntime = new window.StudioRuntime.v1();
         const requestOpts = {
             apiUrl: studioRuntime.handlerUrl(element, 'ol_chat'),
@@ -17,6 +17,7 @@ function OLChatBlock(runtime, element, init_args) {
                 requestOpts,
                 entryScreenEnabled: false,
                 askTimTitle: init_args.ask_tim_title,
+                useMathJax: true,
                 problemSetListUrl: init_args.problem_list_url,
                 initialMessages: [
                     {
