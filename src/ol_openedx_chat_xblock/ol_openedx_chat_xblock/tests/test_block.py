@@ -1,30 +1,34 @@
 import json
-from unittest.mock import Mock, patch, PropertyMock
-from ddt import ddt
-import pytest
+from unittest.mock import Mock, PropertyMock, patch
+
 import requests
-from django.test import TestCase, override_settings
+from django.test import override_settings
+from opaque_keys.edx.keys import UsageKey
 from rest_framework import status as api_status
 from web_fragments.fragment import Fragment
 from webob.request import Request
 from webob.response import Response
 from xblock.field_data import DictFieldData
 from xblock.fields import ScopeIds
-
-from ol_openedx_chat_xblock.block import OLChatXBlock, get_resource_bytes, render_template
-
-from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
-from django.test import override_settings
 from xblock.test.tools import TestRuntime
-from opaque_keys.edx.keys import UsageKey
-from ol_openedx_chat_xblock.constants import COOKIE_NAME_SYLLABUS_ANON, COOKIE_NAME_TUTOR_ANON, CHAT_XBLOCK_THREAD_ID, CHAT_XBLOCK_BLOCK_ID, COOKIE_NAME_CHAT_XBLOCK, XBLOCK_TYPE_TUTOR, XBLOCK_TYPE_SYLLABUS
+from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 
 from ol_openedx_chat_xblock.block import (
     OLChatXBlock,
+    generate_canvas_course_id,
     get_resource_bytes,
     render_template,
-    generate_canvas_course_id,
 )
+from ol_openedx_chat_xblock.constants import (
+    CHAT_XBLOCK_BLOCK_ID,
+    CHAT_XBLOCK_THREAD_ID,
+    COOKIE_NAME_CHAT_XBLOCK,
+    COOKIE_NAME_SYLLABUS_ANON,
+    COOKIE_NAME_TUTOR_ANON,
+    XBLOCK_TYPE_SYLLABUS,
+    XBLOCK_TYPE_TUTOR,
+)
+
 
 class OLChatXBlockTest(ModuleStoreTestCase):
     """Test cases for OLChatXBlock functionality."""
@@ -32,14 +36,16 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.runtime = TestRuntime(services={})
-        usage_key = UsageKey.from_string("block-v1:TestOrg+TestCourse+2024+type@yourxblock+block@test123")
+        usage_key = UsageKey.from_string(
+            "block-v1:TestOrg+TestCourse+2024+type@yourxblock+block@test123"
+        )
 
         self.scope_ids = ScopeIds(
-                user_id='student',
-                block_type=usage_key.block_type,
-                def_id=usage_key,
-                usage_id=usage_key
-            )
+            user_id="student",
+            block_type=usage_key.block_type,
+            def_id=usage_key,
+            usage_id=usage_key,
+        )
         self.field_data = DictFieldData({})
 
         self.xblock = OLChatXBlock(
@@ -71,7 +77,6 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         )
         assert xblock.is_tutor_xblock == False
 
-
     def test_learn_readable_course_id_default(self):
         """Test that learn_readable_id has correct default value."""
         xblock = OLChatXBlock(
@@ -83,10 +88,14 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     def test_editable_fields(self):
         """Test that editable_fields contains expected fields."""
-        assert self.xblock.editable_fields == ("display_name", "course_id", "is_tutor_xblock")
+        assert self.xblock.editable_fields == (
+            "display_name",
+            "course_id",
+            "is_tutor_xblock",
+        )
 
-    @patch('ol_openedx_chat_xblock.block.get_resource_bytes')
-    @patch('ol_openedx_chat_xblock.block.render_template')
+    @patch("ol_openedx_chat_xblock.block.get_resource_bytes")
+    @patch("ol_openedx_chat_xblock.block.render_template")
     def test_student_view(self, mock_render_template, mock_get_resource_bytes):
         """Test student_view method."""
         mock_render_template.return_value = "<div>Student View</div>"
@@ -96,11 +105,11 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert isinstance(fragment, Fragment)
         mock_render_template.assert_called_once_with(
             "static/html/student_view.html",
-            {"block_id": self.xblock.usage_key.block_id}
+            {"block_id": self.xblock.usage_key.block_id},
         )
 
-    @patch('ol_openedx_chat_xblock.block.get_resource_bytes')
-    @patch('ol_openedx_chat_xblock.block.render_template')
+    @patch("ol_openedx_chat_xblock.block.get_resource_bytes")
+    @patch("ol_openedx_chat_xblock.block.render_template")
     def test_author_view(self, mock_render_template, mock_get_resource_bytes):
         """Test author_view method."""
         mock_render_template.return_value = "<div>Author View</div>"
@@ -110,22 +119,21 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
         assert isinstance(fragment, Fragment)
         mock_render_template.assert_called_once_with(
-            "static/html/studio_view.html",
-            {"block_id": self.xblock.usage_key.block_id}
+            "static/html/studio_view.html", {"block_id": self.xblock.usage_key.block_id}
         )
 
     def test_ol_chat_invalid_json(self):
         """Test ol_chat with invalid JSON request."""
         # Create a real webob Request object
         environ = {
-            'REQUEST_METHOD': 'POST',
-            'wsgi.input': Mock(),
-            'CONTENT_TYPE': 'application/json',
+            "REQUEST_METHOD": "POST",
+            "wsgi.input": Mock(),
+            "CONTENT_TYPE": "application/json",
         }
         request = Request(environ)
 
         # Patch the .json property to raise an Exception
-        with patch.object(Request, 'json', new_callable=PropertyMock) as mock_json:
+        with patch.object(Request, "json", new_callable=PropertyMock) as mock_json:
             mock_json.side_effect = Exception("Invalid JSON")
             response = self.xblock.ol_chat(request)
             assert isinstance(response, Response)
@@ -133,8 +141,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
             assert b"Invalid request body. Expected JSON." in response.body
 
     @override_settings(
-        MIT_LEARN_AI_XBLOCK_CHAT_API_URL="",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN=""
+        MIT_LEARN_AI_XBLOCK_CHAT_API_URL="", MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN=""
     )
     def test_ol_chat_missing_api_config(self):
         """Test ol_chat with missing API configuration."""
@@ -149,7 +156,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token"
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
     )
     def test_ol_chat_missing_course_id(self):
         """Test ol_chat with missing course_id."""
@@ -165,7 +172,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token"
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
     )
     def test_ol_chat_empty_message(self):
         """Test ol_chat with empty message."""
@@ -180,9 +187,9 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com/api",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token"
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
     )
-    @patch('ol_openedx_chat_xblock.block.requests.post')
+    @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_successful_request(self, mock_post):
         """Test successful ol_chat request."""
         # Setup
@@ -190,7 +197,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         request_mock.json = {"message": "Hello AI"}
         test_cookies = {
             CHAT_XBLOCK_THREAD_ID: "test_thread_id",
-            CHAT_XBLOCK_BLOCK_ID: self.xblock.usage_key.block_id
+            CHAT_XBLOCK_BLOCK_ID: self.xblock.usage_key.block_id,
         }
         request_mock.cookies = Mock()
         request_mock.cookies.get.side_effect = lambda key, default=None: {
@@ -212,15 +219,15 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert isinstance(response, Response)
         mock_post.assert_called_once()
         call_args = mock_post.call_args
-        assert call_args[1]['json']['message'] == "Hello AI"
-        assert call_args[1]['json']['course_id'] == "test_course_123"
-        assert call_args[1]['cookies'][COOKIE_NAME_SYLLABUS_ANON] == "test_thread_id"
+        assert call_args[1]["json"]["message"] == "Hello AI"
+        assert call_args[1]["json"]["course_id"] == "test_course_123"
+        assert call_args[1]["cookies"][COOKIE_NAME_SYLLABUS_ANON] == "test_thread_id"
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com/api",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token"
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
     )
-    @patch('ol_openedx_chat_xblock.block.requests.post')
+    @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_different_block_id_resets_session(self, mock_post):
         """Test that different block_id resets the session."""
         # Setup
@@ -228,7 +235,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         request_mock = Mock()
         test_cookies = {
             CHAT_XBLOCK_THREAD_ID: "test_thread_id",
-            CHAT_XBLOCK_BLOCK_ID: "different_block_id"
+            CHAT_XBLOCK_BLOCK_ID: "different_block_id",
         }
 
         request_mock.json = {"message": "Hello AI"}
@@ -249,20 +256,20 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
         # Verify that session was reset (None sent instead of old_thread_id)
         call_args = mock_post.call_args
-        assert call_args[1]['cookies'][COOKIE_NAME_SYLLABUS_ANON] is None
+        assert call_args[1]["cookies"][COOKIE_NAME_SYLLABUS_ANON] is None
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com/api",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token"
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
     )
-    @patch('ol_openedx_chat_xblock.block.requests.post')
+    @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_request_exception(self, mock_post):
         """Test ol_chat with requests exception."""
         # Setup
         request_mock = Mock()
         test_cookies = {
             CHAT_XBLOCK_THREAD_ID: "test_thread_id",
-            CHAT_XBLOCK_BLOCK_ID: "different_block_id"
+            CHAT_XBLOCK_BLOCK_ID: "different_block_id",
         }
         request_mock.json = {"message": "Hello AI"}
         request_mock.cookies = Mock()
@@ -282,16 +289,16 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com/api",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token"
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
     )
-    @patch('ol_openedx_chat_xblock.block.requests.post')
+    @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_unexpected_exception(self, mock_post):
         """Test ol_chat with unexpected exception."""
         # Setup
         request_mock = Mock()
         test_cookies = {
             CHAT_XBLOCK_THREAD_ID: "test_thread_id",
-            CHAT_XBLOCK_BLOCK_ID: "different_block_id"
+            CHAT_XBLOCK_BLOCK_ID: "different_block_id",
         }
         request_mock.json = {"message": "Hello AI"}
         request_mock.cookies = Mock()
@@ -309,8 +316,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert response.status_int == api_status.HTTP_500_INTERNAL_SERVER_ERROR
         assert b"An unexpected error occurred" in response.body
 
-
-    @patch('ol_openedx_chat_xblock.block.pkg_resources.resource_string')
+    @patch("ol_openedx_chat_xblock.block.pkg_resources.resource_string")
     def test_get_resource_bytes(self, mock_resource_string):
         """Test get_resource_bytes function."""
         mock_resource_string.return_value = b"test content"
@@ -320,7 +326,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert result == "test content"
         mock_resource_string.assert_called_once()
 
-    @patch('ol_openedx_chat_xblock.block.get_resource_bytes')
+    @patch("ol_openedx_chat_xblock.block.get_resource_bytes")
     def test_render_template(self, mock_get_resource_bytes):
         """Test render_template function."""
         mock_get_resource_bytes.return_value = "Hello {{ name }}!"
@@ -329,7 +335,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
         assert result == "Hello World!"
 
-    @patch('ol_openedx_chat_xblock.block.get_resource_bytes')
+    @patch("ol_openedx_chat_xblock.block.get_resource_bytes")
     def test_render_template_no_context(self, mock_get_resource_bytes):
         """Test render_template function without context."""
         mock_get_resource_bytes.return_value = "Hello Static!"
