@@ -160,7 +160,7 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
             # If no UserTaskStatus exists yet, return a PENDING state to indicate the
             # task is still waiting to run.
             if not task_status:
-                return Response({"state": UserTaskStatus.PENDING})
+                return Response({"state": "Task not found"})
             return Response({"state": task_status.state})
         except Exception as e:
             log.exception(str(e))  # noqa: TRY401
