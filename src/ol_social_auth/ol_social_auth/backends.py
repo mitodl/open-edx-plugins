@@ -1,6 +1,6 @@
 """Open Learning social auth backend"""
-import requests
 
+import requests
 from social_core.backends.oauth import BaseOAuth2
 
 
