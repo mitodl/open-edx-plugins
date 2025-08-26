@@ -39,6 +39,8 @@ def plugin_settings(settings):
             existing_filters[filter_name]["pipeline"].extend(config.get("pipeline", []))
             # don’t override fail_silently
             if "fail_silently" in config:
-                existing_filters[filter_name].setdefault("fail_silently", config["fail_silently"])
+                existing_filters[filter_name].setdefault(
+                    "fail_silently", config["fail_silently"]
+                )
 
     settings.OPEN_EDX_FILTERS_CONFIG = existing_filters
