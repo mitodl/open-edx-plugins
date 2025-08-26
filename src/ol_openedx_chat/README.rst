@@ -48,7 +48,7 @@ This will download the smoot-design package and copy the pre-bundled JS file to 
 
 .. code-block:: sh
 
-   npm pack @mitodl/smoot-design@^6.4.0
+   npm pack @mitodl/smoot-design@^6.17.0
    tar -xvzf mitodl-smoot-design*.tgz
    mkdir -p public/static/smoot-design
    cp package/dist/bundles/* public/static/smoot-design
