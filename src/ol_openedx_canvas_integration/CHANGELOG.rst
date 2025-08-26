@@ -12,6 +12,13 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.5.1] - 2025-08-26
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fixed
+-----
+* Canvas and Open edX user matching failure due to case-sensitive email comparison.
+
+
 [0.5.0] - 2025-06-19
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Added
