@@ -14,16 +14,14 @@ class DisableMathJaxForOLChatBlock(PipelineStep):
         Disables MathJax loading in the context if any child block is of type
         'ol_openedx_chat_xblock'.
 
-        Parameters
-        ----------
-        context : dict
-            The context dictionary containing block information.
+        Args:
+            context(dict): dictionary containing the xBlock context
+            student_view_context(dict): dictionary containing the student view context
 
-        Returns
-        -------
-        dict
-            The updated context dictionary.
+        Returns:
+            updated context dictionary with load_mathjax disabled
         """
+
         for child in dict(context)["block"].children:
             if child.block_type == __package__:
                 context["load_mathjax"] = False
