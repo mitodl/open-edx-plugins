@@ -20,3 +20,9 @@ def plugin_settings(settings):
     settings.MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN = env_tokens.get(
         "MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN", ""
     )
+    settings.OPEN_EDX_FILTERS_CONFIG = {
+        "org.openedx.learning.xblock.render.started.v1": {
+            "pipeline": ["ol_openedx_chat_xblock.filters.DisableMathJaxForOLChatBlock"],
+            "fail_silently": False,
+        }
+    }
