@@ -37,7 +37,7 @@ def plugin_settings(settings):
             existing_filters[filter_name] = config
         else:
             existing_filters[filter_name]["pipeline"].extend(config.get("pipeline", []))
-            # don’t override fail_silently
+            # do not override fail_silently
             if "fail_silently" in config:
                 existing_filters[filter_name].setdefault(
                     "fail_silently", config["fail_silently"]
