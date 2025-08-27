@@ -23,6 +23,8 @@ def plugin_settings(settings):
 
     # Update the open edX filters with chat xBlock filters. We do not want to
     # override the existing ones, We just want to add ours in it.
+    # NOTE: Remove this filter when Open edX upgrades MathJax to v3
+    # (or equivalent to smoot-design)
     CHAT_XBLOCK_FILTERS = {
         "org.openedx.learning.xblock.render.started.v1": {
             "pipeline": ["ol_openedx_chat_xblock.filters.DisableMathJaxForOLChatBlock"],
