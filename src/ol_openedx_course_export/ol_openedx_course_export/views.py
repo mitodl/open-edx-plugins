@@ -157,10 +157,8 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
             task_status = UserTaskStatus.objects.filter(
                 name=name, task_id=task_id
             ).first()
-            # If no UserTaskStatus exists yet, return a "not found" state to indicate
-            # that the task has not started execution.
             if not task_status:
-                return Response({"state": "Task not found"})
+            return Response({"detail": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
             return Response({"state": task_status.state})
         except Exception as e:
             log.exception(str(e))  # noqa: TRY401
