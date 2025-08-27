@@ -158,7 +158,7 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
                 name=name, task_id=task_id
             ).first()
             if not task_status:
-            return Response({"detail": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"detail": "Task not found"}, status=status.HTTP_404_NOT_FOUND)
             return Response({"state": task_status.state})
         except Exception as e:
             log.exception(str(e))  # noqa: TRY401
