@@ -352,7 +352,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
             assert self.xblock.get_xblock_chat_url() == "syllabus_url"
 
     def test_get_xblock_state(self):
-        """Test that get_xblock_state returns the correct state based on 
+        """Test that get_xblock_state returns the correct state based on
         is_tutor_xblock.
         """
         self.xblock.is_tutor_xblock = True

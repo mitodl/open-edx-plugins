@@ -1,8 +1,10 @@
 """Tests for the DisableMathJaxForOLChatBlock filter."""
+
 import unittest
 from unittest.mock import Mock
 
 from ol_openedx_chat_xblock.filters import DisableMathJaxForOLChatBlock
+
 
 class TestDisableMathJaxForOLChatBlock(unittest.TestCase):
     """Test cases for DisableMathJaxForOLChatBlock filter."""
