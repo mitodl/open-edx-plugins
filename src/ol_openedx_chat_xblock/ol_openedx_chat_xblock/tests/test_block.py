@@ -212,10 +212,8 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         mock_response.raise_for_status.return_value = None
         mock_post.return_value = mock_response
 
-        # Execute
         response = self.xblock.ol_chat(request_mock)
 
-        # Verify
         assert isinstance(response, Response)
         mock_post.assert_called_once()
         call_args = mock_post.call_args
@@ -230,8 +228,6 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_different_block_id_resets_session(self, mock_post):
         """Test that different block_id resets the session."""
-        # Setup
-
         request_mock = Mock()
         test_cookies = {
             CHAT_XBLOCK_THREAD_ID: "test_thread_id",
@@ -265,7 +261,6 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_request_exception(self, mock_post):
         """Test ol_chat with requests exception."""
-        # Setup
         request_mock = Mock()
         test_cookies = {
             CHAT_XBLOCK_THREAD_ID: "test_thread_id",
@@ -279,10 +274,8 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
         mock_post.side_effect = requests.exceptions.RequestException("Network error")
 
-        # Execute
         response = self.xblock.ol_chat(request_mock)
 
-        # Verify
         assert isinstance(response, Response)
         assert response.status_int == api_status.HTTP_400_BAD_REQUEST
         assert b"Something went wrong while contacting the AI service" in response.body
@@ -294,7 +287,6 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_unexpected_exception(self, mock_post):
         """Test ol_chat with unexpected exception."""
-        # Setup
         request_mock = Mock()
         test_cookies = {
             CHAT_XBLOCK_THREAD_ID: "test_thread_id",
@@ -308,10 +300,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
         mock_post.side_effect = Exception("Unexpected error")
 
-        # Execute
         response = self.xblock.ol_chat(request_mock)
-
-        # Verify
         assert isinstance(response, Response)
         assert response.status_int == api_status.HTTP_500_INTERNAL_SERVER_ERROR
         assert b"An unexpected error occurred" in response.body
@@ -343,18 +332,29 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert result == "Hello Static!"
 
     def test_get_xblock_chat_url_tutor(self):
+        """
+        Test that get_xblock_chat_url returns the tutor chat API URL when
+        is_tutor_xblock is True.
+        """
         self.xblock.is_tutor_xblock = True
         with patch("ol_openedx_chat_xblock.block.settings") as settings:
             settings.MIT_LEARN_AI_XBLOCK_TUTOR_CHAT_API_URL = "tutor_url"
             assert self.xblock.get_xblock_chat_url() == "tutor_url"
 
     def test_get_xblock_chat_url_syllabus(self):
+        """
+        Test that get_xblock_chat_url returns the syllabus URL when is_tutor_xblock is
+        False.
+        """
         self.xblock.is_tutor_xblock = False
         with patch("ol_openedx_chat_xblock.block.settings") as settings:
             settings.MIT_LEARN_AI_XBLOCK_CHAT_API_URL = "syllabus_url"
             assert self.xblock.get_xblock_chat_url() == "syllabus_url"
 
     def test_get_xblock_state(self):
+        """Test that get_xblock_state returns the correct state based on 
+        is_tutor_xblock.
+        """
         self.xblock.is_tutor_xblock = True
         assert self.xblock.get_xblock_state() == XBLOCK_TYPE_TUTOR
         self.xblock.is_tutor_xblock = False
@@ -362,6 +362,8 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @patch("ol_openedx_chat_xblock.block.tracker.emit")
     def test_send_tracker_event(self, mock_emit):
+        """Test that send_tracker_event calls the tracker emit function with the
+        correct arguments."""
         self.xblock.is_tutor_xblock = False
         self.xblock.course_id = "course_id"
         self.xblock.send_tracker_event("event", "value", "pset")
@@ -372,6 +374,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert args[1]["problem_set"] == "pset"
 
     def test_get_problem_set_url(self):
+        """Test that get_problem_set_url returns the correct URL."""
         self.xblock.course_id = "course_id"
         with patch("ol_openedx_chat_xblock.block.settings") as settings:
             settings.MIT_LEARN_AI_XBLOCK_PROBLEM_SET_LIST_URL = "http://test.com/list/"
@@ -379,6 +382,9 @@ class OLChatXBlockTest(ModuleStoreTestCase):
             assert url.startswith("http://test.com/list/?run_readable_id=course_id")
 
     def test_get_ai_chat_init_js_args_syllabus(self):
+        """Test that get_ai_chat_init_js_args returns the correct arguments for
+        syllabus.
+        """
         self.xblock.is_tutor_xblock = False
         args = self.xblock.get_ai_chat_init_js_args()
         assert args["block_id"] == "test123"
@@ -386,6 +392,9 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert "bot_initial_message" in args
 
     def test_get_ai_chat_init_js_args_tutor(self):
+        """Test that get_ai_chat_init_js_args returns the correct arguments for
+        tutor.
+        """
         self.xblock.is_tutor_xblock = True
         with patch.object(self.xblock, "get_problem_set_url", return_value="pset_url"):
             args = self.xblock.get_ai_chat_init_js_args()
@@ -393,33 +402,48 @@ class OLChatXBlockTest(ModuleStoreTestCase):
             assert "problem_set_initial_message" in args
 
     def test_get_chat_thread_cookie_name(self):
+        """Test that get_chat_thread_cookie_name returns the correct cookie name based on
+        is_tutor_xblock.
+        """
         self.xblock.is_tutor_xblock = True
         assert self.xblock.get_chat_thread_cookie_name() == COOKIE_NAME_TUTOR_ANON
         self.xblock.is_tutor_xblock = False
         assert self.xblock.get_chat_thread_cookie_name() == COOKIE_NAME_SYLLABUS_ANON
 
     def test_validate_required_api_params_course_id_missing(self):
+        """Test that validate_required_api_params returns an error when course_id is
+        missing.
+        """
         self.xblock.learn_readable_course_id = ""
         err = self.xblock.validate_required_api_params("", "msg", "pset")
         assert err == "Course ID is required."
 
     def test_validate_required_api_params_message_missing(self):
+        """Test that validate_required_api_params returns an error when message is
+        missing.
+        """
         self.xblock.learn_readable_course_id = "auto_id"
         err = self.xblock.validate_required_api_params("cid", "", "pset")
         assert err == "Message field is required."
 
     def test_validate_required_api_params_problem_set_missing_tutor(self):
+        """Test that validate_required_api_params returns an error when problem_set is
+        missing for tutor.
+        """
         self.xblock.is_tutor_xblock = True
         err = self.xblock.validate_required_api_params("cid", "msg", "")
         assert err == "Problem set title is required."
 
     def test_validate_required_api_params_success(self):
+        """Test that validate_required_api_params returns None when all parameters are
+        valid."""
         self.xblock.is_tutor_xblock = False
         err = self.xblock.validate_required_api_params("cid", "msg", "pset")
         assert err is None
 
     @patch("ol_openedx_chat_xblock.block.get_current_request")
     def test_generate_canvas_course_id_success(self, mock_get_req):
+        """Test that generate_canvas_course_id returns the correct course ID."""
         mock_req = Mock()
         mock_req.GET.dict.return_value = {"custom_course_id": "cid"}
         mock_req.POST.dict.return_value = {"context_label": "label"}
@@ -429,11 +453,15 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @patch("ol_openedx_chat_xblock.block.get_current_request")
     def test_generate_canvas_course_id_missing_request(self, mock_get_req):
+        """Test that generate_canvas_course_id returns an empty string when the request
+        is missing."""
         mock_get_req.return_value = None
         assert generate_canvas_course_id() == ""
 
     @patch("ol_openedx_chat_xblock.block.get_current_request")
     def test_generate_canvas_course_id_missing_param(self, mock_get_req):
+        """Test that generate_canvas_course_id returns an empty string when the required
+        parameters are missing."""
         mock_req = Mock()
         mock_req.GET.dict.return_value = {}
         mock_req.POST.dict.return_value = {}
