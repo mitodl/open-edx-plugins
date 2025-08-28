@@ -75,7 +75,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
             field_data=DictFieldData({}),
             scope_ids=self.scope_ids,
         )
-        assert xblock.is_tutor_xblock == False
+        assert not xblock.is_tutor_xblock
 
     def test_learn_readable_course_id_default(self):
         """Test that learn_readable_id has correct default value."""
@@ -156,7 +156,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",  # noqa: S106
     )
     def test_ol_chat_missing_course_id(self):
         """Test ol_chat with missing course_id."""
@@ -172,7 +172,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",  # noqa: S106
     )
     def test_ol_chat_empty_message(self):
         """Test ol_chat with empty message."""
@@ -187,7 +187,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com/api",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",  # noqa: S106
     )
     @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_successful_request(self, mock_post):
@@ -225,7 +225,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com/api",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",  # noqa: S106
     )
     @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_different_block_id_resets_session(self, mock_post):
@@ -260,7 +260,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com/api",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",  # noqa: S106
     )
     @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_request_exception(self, mock_post):
@@ -289,7 +289,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @override_settings(
         MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://test.com/api",
-        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",  # noqa: S106
     )
     @patch("ol_openedx_chat_xblock.block.requests.post")
     def test_ol_chat_unexpected_exception(self, mock_post):
