@@ -63,9 +63,7 @@ def test_user_data(backend, strategy, mocked_responses):
 
 def test_authorization_url(backend, strategy):
     """Test authorization_url()"""
-    strategy._get_metadata.return_value = {
-        "authorization_endpoint": "abc"
-    }
+    strategy._get_metadata.return_value = {"authorization_endpoint": "abc"}
     assert backend.authorization_url() == "abc"  # noqa: S101
     strategy.setting.assert_called_once_with(
         "AUTHORIZATION_URL", default=None, backend=backend
@@ -74,9 +72,7 @@ def test_authorization_url(backend, strategy):
 
 def test_access_token_url(backend, strategy):
     """Test access_token_url()"""
-    strategy._get_metadata.return_value = {
-        "token_endpoint": "abc"
-    }
+    strategy._get_metadata.return_value = {"token_endpoint": "abc"}
     assert backend.access_token_url() == "abc"  # noqa: S101
     strategy.setting.assert_called_once_with(
         "ACCESS_TOKEN_URL", default=None, backend=backend
