@@ -1,5 +1,6 @@
 """Tests for our backend"""
 
+from unittest.mock import MagicMock, patch
 from urllib.parse import urljoin
 
 import pytest
@@ -61,19 +62,70 @@ def test_user_data(backend, strategy, mocked_responses):
     strategy.setting.assert_any_call("API_ROOT", default=None, backend=backend)
 
 
-def test_authorization_url(backend, strategy):
+def test_authorization_url(backend):
     """Test authorization_url()"""
-    strategy._get_metadata.return_value = {"authorization_endpoint": "abc"}  # noqa: SLF001
-    assert backend.authorization_url() == "abc"  # noqa: S101
-    strategy.setting.assert_called_once_with(
-        "AUTHORIZATION_URL", default=None, backend=backend
-    )
+    with patch(
+        "ol_social_auth.backends.OLOAuth2._get_metadata",
+        return_value={"authorization_endpoint": "https://example.com/auth"},
+    ):
+        assert backend.authorization_url() == "https://example.com/auth"  # noqa: S101
 
 
-def test_access_token_url(backend, strategy):
+def test_access_token_url(backend):
     """Test access_token_url()"""
-    strategy._get_metadata.return_value = {"token_endpoint": "abc"}  # noqa: SLF001
-    assert backend.access_token_url() == "abc"  # noqa: S101
-    strategy.setting.assert_called_once_with(
-        "ACCESS_TOKEN_URL", default=None, backend=backend
+    with patch(
+        "ol_social_auth.backends.OLOAuth2._get_metadata",
+        return_value={"token_endpoint": "https://example.com/token"},
+    ):
+        assert backend.access_token_url() == "https://example.com/token"  # noqa: S101
+
+
+def test_get_metadata_without_discovery_url(mocker, backend):
+    """Should return metadata dict from settings if DISCOVERY_URL is not set"""
+    mocker.patch.object(
+        backend,
+        "setting",
+        side_effect=lambda key: {
+            "AUTHORIZATION_URL": "https://example.com/auth",
+            "ACCESS_TOKEN_URL": "https://example.com/token",
+            "DISCOVERY_URL": None,
+        }.get(key),
     )
+    mocker.patch.object(
+        backend, "api_url", return_value="https://example.com/api/users/me"
+    )
+
+    metadata = backend._get_metadata()  # noqa: SLF001
+    assert metadata == {  # noqa: S101
+        "authorization_endpoint": "https://example.com/auth",
+        "token_endpoint": "https://example.com/token",
+        "userinfo_endpoint": "https://example.com/api/users/me",
+    }
+
+
+def test_get_metadata_with_discovery_url_and_cache(mocker, backend):
+    """Should fetch metadata first time, then return cached value without new request"""
+    discovery_data = {"authorization_endpoint": "https://disc/auth"}
+
+    mocker.patch.object(
+        backend,
+        "setting",
+        side_effect=lambda key: {
+            "DISCOVERY_URL": "https://example.com/.well-known/openid-configuration"
+        }.get(key),
+    )
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = discovery_data
+    mock_resp.raise_for_status = MagicMock()
+    mock_requests = mocker.patch(
+        "ol_social_auth.backends.requests.get", return_value=mock_resp
+    )
+
+    metadata1 = backend._get_metadata()  # noqa: SLF001
+    assert metadata1 == discovery_data  # noqa: S101
+    mock_requests.assert_called_once()
+
+    metadata2 = backend._get_metadata()  # noqa: SLF001
+    assert metadata2 == discovery_data  # noqa: S101
+    mock_requests.assert_called_once()
