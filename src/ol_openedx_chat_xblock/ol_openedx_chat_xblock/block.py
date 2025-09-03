@@ -86,7 +86,7 @@ def generate_canvas_course_id():
         context_label = lti_params["context_label"]
     except KeyError as e:
         missing_key = e.args[0]
-        log.info(  # noqa: TRY400
+        log.info(
             f"LTI launch request is missing the required parameter: '{missing_key}'."  # noqa: G004
         )
         return ""
