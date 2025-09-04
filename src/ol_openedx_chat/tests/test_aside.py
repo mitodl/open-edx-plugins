@@ -212,6 +212,7 @@ class OLChatAsideTests(OLChatTestCase):
 
             assert bool(fragment.content)
             assert fragment.js_init_fn == "OLChatInit"
+            assert fragment.json_init_args == {"authoring_mfe_base_url": settings.COURSE_AUTHORING_MICROFRONTEND_URL}
 
     @data(
         *[

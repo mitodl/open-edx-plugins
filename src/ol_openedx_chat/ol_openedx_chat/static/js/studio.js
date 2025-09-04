@@ -1,7 +1,7 @@
 (function($) {
     'use strict';
 
-    function OpenLearningChatView(runtime, element) {
+    function OpenLearningChatView(runtime, element, block_element, init_args) {
         var $element = $(element);
         var AIChatConfigUpdateInProgress = false;
         // we need studio runtime to get handler capable of saving xblock data
@@ -32,12 +32,17 @@
                     });
                     AIChatConfigUpdateInProgress = false;
                 });
+                window.parent.postMessage(
+                    {
+                        type: "COURSE_REFRESH_TRIGGER",
+                    }, init_args.authoring_mfe_base_url
+                );
             }
         });
     }
 
-    function initializeOLChat(runtime, element) {
-        return new OpenLearningChatView(runtime, element);
+    function initializeOLChat(runtime, element, block_element, init_args) {
+        return new OpenLearningChatView(runtime, element, block_element, init_args);
     }
 
     window.OLChatInit = initializeOLChat;
