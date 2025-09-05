@@ -65,7 +65,7 @@ Tutor
         git clone https://github.com/mitodl/open-edx-plugins/
         tutor mounts add lms,cms:/path/to/open-edx-plugins:/openedx/open-edx-plugins
         cd open-edx-plugins
-        uv build
+        uv build --all-packages
 
   2. Install the package:
 
@@ -73,6 +73,9 @@ Tutor
 
         tutor dev exec <lms or cms> bash
         pip install /openedx/open-edx-plugins/dist/[package-filename]
+        OR
+        pip install /openedx/open-edx-plugins/src/<package> # replace <package> with the specific plugin directory
+
 
   **Note:** The package filename in the dist/ directory will include the plugin name, version number, and other information (e.g., edx-sysadmin-0.3.0.tar.gz). Make sure to check the dist/ directory for the exact filename before installation.
 
