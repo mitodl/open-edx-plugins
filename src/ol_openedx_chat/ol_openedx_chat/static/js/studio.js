@@ -25,6 +25,12 @@
                     data: JSON.stringify(dataToPost),
                     dataType: 'json',
                     contentType: 'application/json; charset=utf-8'
+                }).done(function () {
+                    window.parent.postMessage(
+                        {
+                            type: "COURSE_REFRESH_TRIGGER",
+                        }, init_args.authoring_mfe_base_url
+                    );
                 }).always(function() {
                     runtime.notify('save', {
                         state: 'end',
@@ -32,11 +38,7 @@
                     });
                     AIChatConfigUpdateInProgress = false;
                 });
-                window.parent.postMessage(
-                    {
-                        type: "COURSE_REFRESH_TRIGGER",
-                    }, init_args.authoring_mfe_base_url
-                );
+
             }
         });
     }
