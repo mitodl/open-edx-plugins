@@ -193,12 +193,7 @@ class OLChatAside(XBlockAside):
         )
         fragment.add_css(get_resource_bytes("static/css/studio.css"))
         fragment.add_javascript(get_resource_bytes("static/js/studio.js"))
-        fragment.initialize_js(
-            "OLChatInit",
-            json_args={
-                "authoring_mfe_base_url": settings.COURSE_AUTHORING_MICROFRONTEND_URL
-            },
-        )
+        fragment.initialize_js("OLChatInit")
         return fragment
 
     @classmethod
