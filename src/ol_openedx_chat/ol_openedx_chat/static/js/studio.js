@@ -25,6 +25,16 @@
                     data: JSON.stringify(dataToPost),
                     dataType: 'json',
                     contentType: 'application/json; charset=utf-8'
+                }).done(function () {
+                    try {
+                        window.parent.postMessage({
+                            type: 'saveEditedXBlockData',
+                            message: 'Sends a message when the xblock data is saved',
+                            payload: {}
+                        }, document.referrer);
+                    } catch (e) {
+                        console.error(e);
+                    }
                 }).always(function() {
                     runtime.notify('save', {
                         state: 'end',
@@ -32,6 +42,7 @@
                     });
                     AIChatConfigUpdateInProgress = false;
                 });
+
             }
         });
     }
