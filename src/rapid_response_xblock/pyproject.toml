@@ -1,6 +1,6 @@
 [project]
 name = "rapid-response-xblock"
-version = "0.10.0"
+version = "0.10.1"
 description = "An Open edX plugin to add rapid response aside for problem xBlocks"
 authors = [
   {name = "MIT Office of Digital Learning"}
