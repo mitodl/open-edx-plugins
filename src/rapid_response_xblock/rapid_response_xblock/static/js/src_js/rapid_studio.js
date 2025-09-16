@@ -32,7 +32,17 @@
             function(state) {
               render(state);
             }
-          ) .always(function() {
+          ).done(function() {
+            try {
+              window.parent.postMessage({
+                type: 'saveEditedXBlockData',
+                message: 'Sends a message when the xblock data is saved',
+                payload: {}
+              }, document.referrer);
+            } catch (e) {
+              console.error(e);
+            }
+          }).always(function() {
             runtime.notify('save', {
               state: 'end',
               element: element
