@@ -8,18 +8,18 @@ from django.conf import settings
 from django.test import override_settings
 from django.test.client import Client
 from django.urls import reverse
-from opaque_keys.edx.asides import AsideUsageKeyV2
-from openedx.core.djangolib.testing.utils import skip_unless_cms, skip_unless_lms
-from xblock.core import XBlockAside
-from xmodule.modulestore import ModuleStoreEnum
-from xmodule.modulestore.xml import ImportSystem
-
 from ol_openedx_chat.block import OLChatAside
 from ol_openedx_chat.constants import (
     PROBLEM_BLOCK_CATEGORY,
     TUTOR_INITIAL_MESSAGES,
     VIDEO_BLOCK_CATEGORY,
 )
+from opaque_keys.edx.asides import AsideUsageKeyV2
+from openedx.core.djangolib.testing.utils import skip_unless_cms, skip_unless_lms
+from xblock.core import XBlockAside
+from xmodule.modulestore import ModuleStoreEnum
+from xmodule.modulestore.xml import ImportSystem
+
 from tests.utils import OLChatTestCase
 
 

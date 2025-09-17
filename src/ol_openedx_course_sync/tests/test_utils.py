@@ -5,18 +5,18 @@ Tests for ol-openedx-course-sync utils.
 from unittest import mock
 
 from ddt import data, ddt
-from openedx.core.djangolib.testing.utils import skip_unless_cms
-from xmodule.modulestore import ModuleStoreEnum
-from xmodule.modulestore.django import modulestore
-from xmodule.modulestore.tests.factories import BlockFactory
-from xmodule.tabs import StaticTab
-
 from ol_openedx_course_sync.constants import STATIC_TAB_TYPE
 from ol_openedx_course_sync.utils import (
     copy_course_content,
     copy_static_tabs,
     update_default_tabs,
 )
+from openedx.core.djangolib.testing.utils import skip_unless_cms
+from xmodule.modulestore import ModuleStoreEnum
+from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.tests.factories import BlockFactory
+from xmodule.tabs import StaticTab
+
 from tests.utils import OLOpenedXCourseSyncTestCase
 
 
