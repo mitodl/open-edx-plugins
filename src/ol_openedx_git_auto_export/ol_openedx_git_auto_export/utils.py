@@ -1,6 +1,7 @@
 """
 Utility functions for the ol_openedx_git_auto_export app.
 """
+
 from django.contrib.auth.models import User
 
 
