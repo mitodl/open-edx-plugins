@@ -2,11 +2,11 @@ import logging
 import os
 
 from django.conf import settings
-from django.contrib.auth.models import User
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import ENABLE_GIT_AUTO_EXPORT
 from ol_openedx_git_auto_export.tasks import async_export_to_git
+from ol_openedx_git_auto_export.utils import get_publisher_username
 
 log = logging.getLogger(__name__)
 
@@ -45,16 +45,6 @@ def listen_for_course_publish(
             course_key,
         )
 
-        user = None
-        if course_module and getattr(course_module, "published_by", None):
-            user = User.objects.filter(id=course_module.published_by).first()
-            if not user:
-                log.info(
-                    "User with id %s not found. Proceeding with export without user context.",  # noqa: E501
-                    course_module.published_by,
-                )
-            else:
-                user = user.username
-
+        user = get_publisher_username(course_module)
         # If the Git auto-export is enabled, push the course changes to Git
         async_export_to_git.delay(str(course_key), user)
