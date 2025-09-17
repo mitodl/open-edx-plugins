@@ -45,8 +45,8 @@ Studio/CMS UI settings
 - Open studio then course and go to advanced settings.
 - Choose field GIT URL and add you OLX git repo. For example ``git@github.com:<GITHUB_USERNAME>/edx4edxlite.git``.
 - Make a change to the course content and publish.
-  - When using Tutor, attach with the CMS container using ``tutor dev/local start cms`` and enter `yes` to the prompt to add the GitHub to known hosts.
-  - You should see a new commit in your OLX repo.
-  - Commit user should be the one that published the change.
-  - If user is not available, it should be the default one set in ``GIT_EXPORT_DEFAULT_IDENT``.
+   - When using Tutor, attach with the CMS container using ``tutor dev/local start cms`` and enter ``yes`` to the prompt to add the GitHub to known hosts.
+   - You should see a new commit in your OLX repo.
+   - Commit user should be the one that published the change.
+   - If user is not available, it should be the default one set in ``GIT_EXPORT_DEFAULT_IDENT``.
 - Test commit count increase on your OLX repo.
