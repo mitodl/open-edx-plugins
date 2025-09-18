@@ -101,7 +101,7 @@ def sync_user_grade_with_canvas(grade_id):
     )
 
     client = CanvasClient(canvas_course_id=canvas_course_id)
-    existing_assignments_map = client.get_assignments_by_int_id()
+    existing_assignments_map = client.get_canvas_assignments()
 
     if str(grade_instance.full_usage_key) not in existing_assignments_map:
         TASK_LOG.warning(
@@ -110,7 +110,7 @@ def sync_user_grade_with_canvas(grade_id):
         )
         return
 
-    canvas_assignment_id = existing_assignments_map[str(grade_instance.usage_key)]
+    canvas_assignment_id = existing_assignments_map[str(grade_instance.usage_key)]["id"]
     openedx_user = USER_MODEL.objects.get(id=grade_instance.user_id)
     canvas_user_id = client.get_student_id_by_email(openedx_user.email)
     if not canvas_user_id:

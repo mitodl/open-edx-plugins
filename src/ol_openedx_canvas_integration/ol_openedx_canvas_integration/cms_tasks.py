@@ -42,14 +42,17 @@ def diff_assignments(openedx_assignments, canvas_assignments_map):
             }
     """
     assignment_diff = {"add": [], "update": {}, "delete": []}
-
     for subsection in openedx_assignments:
-        payload = create_assignment_payload(subsection)
         integration_id = str(subsection.location)
-
-        # remove from the map to indicate it's synced
-        if canvas_id := canvas_assignments_map.pop(integration_id, None):
-            assignment_diff["update"][canvas_id] = payload
+        payload = create_assignment_payload(subsection)
+        canvas_assignment = canvas_assignments_map.pop(integration_id, None)
+        if canvas_assignment:
+            # if the assignment exists in Canvas, remove from the map to indicate
+            # it's synced.
+            payload["assignment"]["published"] = canvas_assignment.get(
+                "is_published", False
+            )
+            assignment_diff["update"][canvas_assignment["id"]] = payload
         else:
             assignment_diff["add"].append(payload)
 
@@ -94,7 +97,6 @@ def update_assignments(canvas, assignment_map: dict[int, dict]):
         canvas: Canvas client instance used to interact with the Canvas API
         assignment_map (dict[int, dict]): Map of Canvas assignment IDs to payload dicts
     """
-
     succeeded = 0
     for canvas_id, payload in assignment_map.items():
         res = canvas.update_canvas_assignment(canvas_id, payload)
@@ -161,7 +163,7 @@ def sync_course_assignments_with_canvas(course_id):
         item["subsection_block"] for _, item, _ in course_graded_items(course)
     ]
     canvas = CanvasClient(canvas_course_id=canvas_course_id)
-    canvas_assignments = canvas.get_assignments_by_int_id()
+    canvas_assignments = canvas.get_canvas_assignments()
 
     operations_map = diff_assignments(openedx_assignments, canvas_assignments)
     logger.info(
