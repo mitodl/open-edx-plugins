@@ -129,6 +129,14 @@ class CanvasClient:
         return student_id
 
     def get_canvas_assignments(self):
+        """
+        Get Canvas assignments organized by integration_id.
+
+        Returns:
+            dict: A dictionary mapping integration_id to assignment data containing
+                  'id' and 'is_published' fields. Only includes assignments with
+                  integration_id set.
+        """
         assignments = self.list_canvas_assignments()
         assignments_dict = {
             assignment.get("integration_id"): {
