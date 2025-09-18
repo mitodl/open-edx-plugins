@@ -1211,7 +1211,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat-xblock"
-version = "0.3.4"
+version = "0.3.5"
 source = { editable = "src/ol_openedx_chat_xblock" }
 dependencies = [
     { name = "django" },
@@ -1318,7 +1318,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-git-auto-export"
-version = "0.4.1"
+version = "0.5.0"
 source = { editable = "src/ol_openedx_git_auto_export" }
 dependencies = [
     { name = "celery" },
@@ -2058,7 +2058,7 @@ wheels = [
 
 [[package]]
 name = "rapid-response-xblock"
-version = "0.10.0"
+version = "0.10.1"
 source = { editable = "src/rapid_response_xblock" }
 dependencies = [
     { name = "django" },
