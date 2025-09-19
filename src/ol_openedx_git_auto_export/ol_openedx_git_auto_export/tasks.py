@@ -4,6 +4,8 @@ from cms.djangoapps.contentstore.git_export_utils import GitExportError, export_
 from opaque_keys.edx.keys import CourseKey
 from xmodule.modulestore.django import modulestore
 
+from ol_openedx_git_auto_export.models import CourseGitRepo
+
 LOGGER = get_task_logger(__name__)
 
 
@@ -20,11 +22,17 @@ def async_export_to_git(course_key_string, user=None):
             "Starting async course content export to git (course id: %s)",
             course_module.id,
         )
-        export_to_git(course_module.id, course_module.giturl, user=user)
+        course_repo = CourseGitRepo.objects.get(course_id=course_key_string)
+        export_to_git(course_module.id, course_repo.git_url, user=user)
     except GitExportError:
         LOGGER.exception(
             "Failed async course content export to git (course id: %s)",
             course_module.id,
+        )
+    except CourseGitRepo.DoesNotExist:
+        LOGGER.debug(
+            "CourseGitRepo does not exist for course %s. Skipping export.",
+            course_key_string,
         )
     except Exception:
         LOGGER.exception(
