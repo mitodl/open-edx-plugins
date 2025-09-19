@@ -1,10 +1,9 @@
 from django.core.management.base import BaseCommand
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
-from openedx_events.content_authoring.data import CourseData
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.models import CourseGitRepo
-from ol_openedx_git_auto_export.signals import listen_for_course_created
+from ol_openedx_git_auto_export.utils import create_github_repo
 
 
 class Command(BaseCommand):
@@ -39,10 +38,11 @@ class Command(BaseCommand):
             elif giturl and giturl in seen_giturls:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"Course {course.id} has a duplicate giturl: {giturl}"
+                        f"Course {course.id} has a duplicate giturl: {giturl}\n"
+                        f"Creating a new GitHub repository for {course.id}"
                     )
                 )
-                ssh_url = listen_for_course_created(CourseData(course_key=course.id))
+                ssh_url = create_github_repo(course.id)
                 if ssh_url:
                     seen_giturls.add(ssh_url)
             else:
