@@ -229,7 +229,7 @@ def push_edx_grades_to_canvas(course):
         raise Exception(msg)  # noqa: TRY002
 
     client = CanvasClient(canvas_course_id=canvas_course_id)
-    existing_assignment_dict = client.get_assignments_by_int_id()
+    existing_assignment_dict = client.get_canvas_assignments()
     subsection_block_user_grades = get_subsection_block_user_grades(course)
 
     # Populate missing assignments
@@ -263,7 +263,7 @@ def push_edx_grades_to_canvas(course):
         subsection_block: client.update_assignment_grades(
             canvas_assignment_id=existing_assignment_dict[
                 str(subsection_block.location)
-            ],
+            ]["id"],
             payload=grade_request_payload,
         )
         for subsection_block, grade_request_payload in grade_update_payloads.items()
