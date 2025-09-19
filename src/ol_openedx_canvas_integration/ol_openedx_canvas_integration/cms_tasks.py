@@ -57,7 +57,7 @@ def diff_assignments(openedx_assignments, canvas_assignments_map):
             assignment_diff["add"].append(payload)
 
     # any left over assignments in the map is considered as deleted in Open edX
-    assignment_diff["delete"] = list(canvas_assignments_map.values())
+    assignment_diff["delete"] = [c["id"] for c in canvas_assignments_map.values()]
 
     return assignment_diff
 

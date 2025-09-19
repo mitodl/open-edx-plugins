@@ -117,7 +117,9 @@ Whenever the course is **Published** from the Studio, the **graded subsections**
 * removing any assignment that might exist, when subsections are removed
 
 .. IMPORTANT::
-   The assignments that are updated in Canvas are set to "Unpublished" state by default. Instructors will have to manually publish them in Canvas to make it available to students.
+
+  * The assignments that are added in Canvas are always set to "Unpublished" state by default. Instructors will have to manually publish them in Canvas to make it available to students.
+  * The assignments that are updated in Canvas will retain their published/unpublished state.
 
 2. Automatic Syncing of Grades
 """"""""""""""""""""""""""""""
