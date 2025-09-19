@@ -19,7 +19,12 @@ Configuration
 
     "FEATURES": {
         "ENABLE_EXPORT_GIT": true,
+        "ENABLE_AUTO_GITHUB_REPO_CREATION": true  # Optional, to auto create github repo for new courses
     }
+    # Set when ENABLE_AUTO_GITHUB_REPO_CREATION is true
+    GITHUB_ORG_API_URL = "https://api.github.com/orgs/<GITHUB_ORG_NAME>"  # For GitHub Enterprise, change the URL accordingly
+    GITHUB_ACCESS_TOKEN = "<GITHUB_PERSONAL_ACCESS_TOKEN>"  # Token must have repo creation permissions
+
 
 - Set your commit user in ``cms/envs/common.py``, if you don't want to use the default one
 
@@ -42,8 +47,8 @@ https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account)
 
 Studio/CMS UI settings
 ----------------------
-- Open studio then course and go to advanced settings.
-- Choose field GIT URL and add you OLX git repo. For example ``git@github.com:<GITHUB_USERNAME>/edx4edxlite.git``.
+- Open studio `admin <http://studio.local.openedx.io:8001/admin/ol_openedx_git_auto_export/coursegitrepo/>`_
+- Add your course_id and in GIT URL add you OLX git repo. For example ``git@github.com:<GITHUB_USERNAME>/edx4edxlite.git``.
 - Make a change to the course content and publish.
    - When using Tutor, attach with the CMS container using ``tutor dev/local start cms`` and enter ``yes`` to the prompt to add the GitHub to known hosts.
    - You should see a new commit in your OLX repo.
