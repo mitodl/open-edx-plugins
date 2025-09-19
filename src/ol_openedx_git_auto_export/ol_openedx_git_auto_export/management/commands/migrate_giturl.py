@@ -23,7 +23,6 @@ class Command(BaseCommand):
         courses = CourseOverview.objects.all()
         if course_ids:
             courses = courses.filter(id__in=course_ids)
-        return
         seen_giturls = set()
         for course in courses:
             course_module = modulestore().get_course(course.id, depth=1)
