@@ -9,6 +9,9 @@ from common.djangoapps.course_action_state.models import CourseRerunState
 from common.djangoapps.student.tests.factories import UserFactory
 from django.core.exceptions import ValidationError
 from django.test import override_settings
+from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
+from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
+from ol_openedx_course_sync.signals import listen_for_course_publish
 from opaque_keys.edx.locator import CourseLocator
 from openedx.core.djangoapps.content.course_overviews.tests.factories import (
     CourseOverviewFactory,
@@ -17,10 +20,6 @@ from openedx.core.djangolib.testing.utils import skip_unless_cms
 from xmodule.modulestore.django import SignalHandler
 from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory
-
-from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
-from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
-from ol_openedx_course_sync.signals import listen_for_course_publish
 
 
 @skip_unless_cms

@@ -1,17 +1,16 @@
 from datetime import datetime
 from unittest.mock import Mock
 
+from ol_openedx_chat.constants import (
+    PROBLEM_BLOCK_CATEGORY,
+    VIDEO_BLOCK_CATEGORY,
+)
 from pytz import UTC
 from xblock.runtime import DictKeyValueStore, KvsFieldData
 from xblock.test.tools import TestRuntime
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.modulestore.tests.factories import BlockFactory, CourseFactory
-
-from ol_openedx_chat.constants import (
-    PROBLEM_BLOCK_CATEGORY,
-    VIDEO_BLOCK_CATEGORY,
-)
 
 
 class OLChatTestCase(ModuleStoreTestCase):

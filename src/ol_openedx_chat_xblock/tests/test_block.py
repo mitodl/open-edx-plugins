@@ -6,16 +6,6 @@ from unittest.mock import Mock, PropertyMock, patch
 import requests
 from ddt import data, ddt, unpack
 from django.test import override_settings
-from opaque_keys.edx.keys import UsageKey
-from rest_framework import status as api_status
-from web_fragments.fragment import Fragment
-from webob.request import Request
-from webob.response import Response
-from xblock.field_data import DictFieldData
-from xblock.fields import ScopeIds
-from xblock.test.tools import TestRuntime
-from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
-
 from ol_openedx_chat_xblock.block import (
     OLChatXBlock,
     generate_canvas_course_id,
@@ -31,6 +21,15 @@ from ol_openedx_chat_xblock.constants import (
     XBLOCK_TYPE_SYLLABUS,
     XBLOCK_TYPE_TUTOR,
 )
+from opaque_keys.edx.keys import UsageKey
+from rest_framework import status as api_status
+from web_fragments.fragment import Fragment
+from webob.request import Request
+from webob.response import Response
+from xblock.field_data import DictFieldData
+from xblock.fields import ScopeIds
+from xblock.test.tools import TestRuntime
+from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 
 
 @override_settings(
