@@ -13,9 +13,11 @@ from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import (
     ENABLE_AUTO_GITHUB_REPO_CREATION,
+    ENABLE_GIT_AUTO_EXPORT,
     REPOSITORY_NAME_MAX_LENGTH,
 )
 from ol_openedx_git_auto_export.models import CourseGitRepo
+from ol_openedx_git_auto_export.tasks import async_export_to_git
 
 log = logging.getLogger(__name__)
 
@@ -152,3 +154,24 @@ def create_github_repo(course_key):
         )
 
     return ssh_url
+
+
+def export_course_to_git(course_key):
+    """
+    Export the course to a Git repository.
+
+    Args:
+        course_key (CourseKey): The course key to export.
+    """
+    if settings.FEATURES.get("ENABLE_EXPORT_GIT") and settings.FEATURES.get(
+        ENABLE_GIT_AUTO_EXPORT
+    ):
+        get_or_create_git_export_repo_dir()
+        course_module = modulestore().get_course(course_key)
+        log.info(
+            "Course published with auto-export enabled. Starting export... (course id: %s)",  # noqa: E501
+            course_key,
+        )
+
+        user = get_publisher_username(course_module)
+        async_export_to_git.delay(str(course_key), user)
