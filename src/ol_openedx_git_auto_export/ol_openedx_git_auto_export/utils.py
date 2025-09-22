@@ -77,7 +77,7 @@ def github_repo_name_format(course_id_str):
     if len(repo_name) > REPOSITORY_NAME_MAX_LENGTH:
         repo_name = repo_name[:REPOSITORY_NAME_MAX_LENGTH].rstrip("-")
 
-    return repo_name
+    return repo_name.replace("course-v1-", "")
 
 
 def create_github_repo(course_key):
