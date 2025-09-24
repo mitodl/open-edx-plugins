@@ -1,3 +1,11 @@
+"""
+Signal handlers for the git auto-export plugin.
+
+This module contains Django signal handlers that respond to course publishing,
+creation, and rerun events to automatically export course content to Git repositories
+and create GitHub repositories as needed.
+"""
+
 import logging
 
 from common.djangoapps.course_action_state.models import CourseRerunState
@@ -7,8 +15,10 @@ from django.dispatch import receiver
 from ol_openedx_git_auto_export.constants import (
     COURSE_RERUN_STATE_SUCCEEDED,
 )
+from ol_openedx_git_auto_export.tasks import (
+    async_create_github_repo,
+)
 from ol_openedx_git_auto_export.utils import (
-    create_github_repo,
     export_course_to_git,
 )
 
@@ -32,17 +42,16 @@ def listen_for_course_created(**kwargs):
     """
     course_key = kwargs.get("course").course_key
 
-    create_github_repo(course_key)
+    async_create_github_repo.delay(str(course_key))
 
 
 @receiver(post_save, sender=CourseRerunState)
 def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa: ARG001
     """
     Listen for `CourseRerunState` post_save and
-    create target courses in `CourseSyncMapping`
+    create GitHub repository and export course content for successfully rerun courses
     """
     if instance.state != COURSE_RERUN_STATE_SUCCEEDED:
         return
 
-    create_github_repo(instance.course_key)
-    export_course_to_git(instance.course_key)
+    async_create_github_repo.delay(str(instance.course_key), export_course=True)
