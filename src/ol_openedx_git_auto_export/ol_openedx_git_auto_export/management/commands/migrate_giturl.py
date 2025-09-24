@@ -32,7 +32,7 @@ from openedx.core.djangoapps.content.course_overviews.models import CourseOvervi
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.models import CourseGithubRepository
-from ol_openedx_git_auto_export.utils import create_github_repo
+from ol_openedx_git_auto_export.tasks import async_create_github_repo
 
 
 class Command(BaseCommand):
@@ -73,12 +73,18 @@ class Command(BaseCommand):
                         f"Creating a new GitHub repository for {course.id}"
                     )
                 )
-                ssh_url = create_github_repo(course.id)
+                ssh_url = async_create_github_repo(course.id, export_course=True)
                 if ssh_url:
                     seen_giturls.add(ssh_url)
             else:
                 self.stdout.write(
-                    self.style.WARNING(f"Course {course.id} does not have a giturl.")
+                    self.style.WARNING(
+                        f"Course {course.id} does not have a giturl.\n"
+                        "Creating a new GitHub repository..."
+                    )
                 )
+                ssh_url = async_create_github_repo(str(course.id), export_course=True)
+                if ssh_url:
+                    seen_giturls.add(ssh_url)
 
         self.stdout.write(self.style.SUCCESS("Git URLs migrated successfully."))
