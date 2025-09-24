@@ -1,13 +1,44 @@
+"""
+Django management command for migrating git URLs
+from course advance settings to CourseGithubRepository model.
+
+This command scans existing courses in the modulestore for git URLs and migrates them
+to the CourseGithubRepository model. It handles duplicate git URLs by creating new
+GitHub repositories for courses that would otherwise share the same repository.
+
+Usage:
+    python manage.py migrate_giturl [course_id1] [course_id2] ...
+
+Examples:
+    # Migrate all courses
+    python manage.py migrate_giturl
+
+    # Migrate specific courses
+    python manage.py migrate_giturl course-v1:MITx+6.00x+2T2024
+
+The command will:
+1. Query all courses (or specified courses) from CourseOverview
+2. Extract git URLs from the course modulestore data
+3. Create CourseGithubRepository records for courses with git URLs
+4. Handle duplicate git URLs by creating new GitHub repositories
+5. Report on courses without git URLs
+
+This is typically run as a one-time migration when setting up the git auto-export plugin
+or when consolidating existing course git configurations.
+"""
+
 from django.core.management.base import BaseCommand
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from xmodule.modulestore.django import modulestore
 
-from ol_openedx_git_auto_export.models import CourseGitRepo
+from ol_openedx_git_auto_export.models import CourseGithubRepository
 from ol_openedx_git_auto_export.utils import create_github_repo
 
 
 class Command(BaseCommand):
-    help = "Migrate git URLs from courses to CourseGitRepo model"
+    help = """
+    Migrate git URLs from courses advanced settings to CourseGithubRepository model
+    """
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -19,7 +50,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):  # noqa: ARG002
         course_ids = options.get("course_ids")
-        courses = CourseOverview.objects.all()
+        courses = CourseOverview.objects.all().order_by("-created")
         if course_ids:
             courses = courses.filter(id__in=course_ids)
         seen_giturls = set()
@@ -31,7 +62,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS(f"Course {course.id} has giturl: {giturl}")
                 )
-                CourseGitRepo.objects.get_or_create(
+                CourseGithubRepository.objects.get_or_create(
                     course_id=course.id,
                     defaults={"git_url": giturl},
                 )
