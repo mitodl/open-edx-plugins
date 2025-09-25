@@ -1,9 +1,9 @@
 """
 Django management command for migrating git URLs
-from course advance settings to CourseGithubRepository model.
+from course advance settings to CourseGitHubRepository model.
 
 This command scans existing courses in the modulestore for git URLs and migrates them
-to the CourseGithubRepository model. It handles duplicate git URLs by creating new
+to the CourseGitHubRepository model. It handles duplicate git URLs by creating new
 GitHub repositories for courses that would otherwise share the same repository.
 
 Usage:
@@ -19,7 +19,7 @@ Examples:
 The command will:
 1. Query all courses (or specified courses) from CourseOverview
 2. Extract git URLs from the course modulestore data
-3. Create CourseGithubRepository records for courses with git URLs
+3. Create CourseGitHubRepository records for courses with git URLs
 4. Handle duplicate git URLs by creating new GitHub repositories
 5. Report on courses without git URLs
 
@@ -31,28 +31,28 @@ from django.core.management.base import BaseCommand
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from xmodule.modulestore.django import modulestore
 
-from ol_openedx_git_auto_export.models import CourseGithubRepository
+from ol_openedx_git_auto_export.models import CourseGitHubRepository
 from ol_openedx_git_auto_export.tasks import async_create_github_repo
 
 
 class Command(BaseCommand):
     help = """
-    Migrate git URLs from courses advanced settings to CourseGithubRepository model
+    Migrate git URL from course(s) advanced settings to CourseGitHubRepository model
     """
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "course_ids",
+            "course_keys",
             nargs="*",
             type=str,
-            help="List of course IDs to migrate their giturl",
+            help="List of course keys to migrate their giturl",
         )
 
     def handle(self, *args, **options):  # noqa: ARG002
-        course_ids = options.get("course_ids")
-        courses = CourseOverview.objects.all().order_by("-created")
-        if course_ids:
-            courses = courses.filter(id__in=course_ids)
+        course_keys = options.get("course_keys", [])
+        courses = CourseOverview.objects.all().order_by("created")
+        if course_keys:
+            courses = courses.filter(id__in=course_keys)
         seen_giturls = set()
         for course in courses:
             course_module = modulestore().get_course(course.id, depth=1)
@@ -62,20 +62,19 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.SUCCESS(f"Course {course.id} has giturl: {giturl}")
                 )
-                CourseGithubRepository.objects.get_or_create(
-                    course_id=course.id,
+                CourseGitHubRepository.objects.get_or_create(
+                    course_key=course.id,
                     defaults={"git_url": giturl},
                 )
-            elif giturl and giturl in seen_giturls:
+                continue
+
+            if giturl and giturl in seen_giturls:
                 self.stdout.write(
                     self.style.WARNING(
                         f"Course {course.id} has a duplicate giturl: {giturl}\n"
                         f"Creating a new GitHub repository for {course.id}"
                     )
                 )
-                ssh_url = async_create_github_repo(course.id, export_course=True)
-                if ssh_url:
-                    seen_giturls.add(ssh_url)
             else:
                 self.stdout.write(
                     self.style.WARNING(
@@ -83,8 +82,12 @@ class Command(BaseCommand):
                         "Creating a new GitHub repository..."
                     )
                 )
-                ssh_url = async_create_github_repo(str(course.id), export_course=True)
-                if ssh_url:
-                    seen_giturls.add(ssh_url)
+
+            async_create_github_repo.delay(str(course.id), export_course=True)
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Triggered async GitHub repository creation for course {course.id}"
+                )
+            )
 
         self.stdout.write(self.style.SUCCESS("Git URLs migrated successfully."))

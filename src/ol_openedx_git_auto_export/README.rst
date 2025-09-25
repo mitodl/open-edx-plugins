@@ -40,14 +40,14 @@ Configuration
 
 Setup github authentication for plugin
 ---------------------------------------
-If you're testing from a docker machine running devstack setup github authentictaion for plugin, you'll need to generate SSH keys in that
+If you're testing from a docker machine running devstack setup github authentication for plugin, you'll need to generate SSH keys in that
 machine and add them to your Github account
 (https://help.github.com/articles/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent/ -
 https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account)
 
 Studio/CMS UI settings
 ----------------------
--  Open studio admin  at `/ol_openedx_git_auto_export/coursegitrepo/`
+- Open studio admin  at `/admin/ol_openedx_git_auto_export/coursegithubrepository/`
 - Add your course_id and in the GIT URL, add your OLX git repo. For example ``git@github.com:<GITHUB_USERNAME>/edx4edxlite.git``.
 - Make a change to the course content and publish.
    - When using Tutor, attach with the CMS container using ``tutor dev/local start cms`` and enter ``yes`` to the prompt to add the GitHub to known hosts.

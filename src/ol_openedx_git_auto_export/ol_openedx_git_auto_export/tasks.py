@@ -16,7 +16,7 @@ from rest_framework import status
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import ENABLE_AUTO_GITHUB_REPO_CREATION
-from ol_openedx_git_auto_export.models import CourseGithubRepository
+from ol_openedx_git_auto_export.models import CourseGitHubRepository
 from ol_openedx_git_auto_export.utils import (
     export_course_to_git,
     github_repo_name_format,
@@ -34,22 +34,30 @@ def async_export_to_git(course_key_string, user=None):
     course_module = modulestore().get_course(course_key)
 
     try:
-        LOGGER.debug(
-            "Starting async course content export to git (course id: %s)",
-            course_module.id,
-        )
-        course_repo = CourseGithubRepository.objects.get(course_id=course_key_string)
-        export_to_git(course_module.id, course_repo.git_url, user=user)
+        course_repo = CourseGitHubRepository.objects.get(course_key=course_key)
+        if course_repo.is_export_enabled:
+            LOGGER.debug(
+                "Starting async course content export to git (course id: %s)",
+                course_module.id,
+            )
+            export_to_git(course_module.id, course_repo.git_url, user=user)
+        else:
+            LOGGER.info(
+                "Git export is disabled for course %s. Skipping export.",
+                course_key_string,
+            )
     except GitExportError:
         LOGGER.exception(
             "Failed async course content export to git (course id: %s)",
             course_module.id,
         )
-    except CourseGithubRepository.DoesNotExist:
-        LOGGER.debug(
-            "CourseGithubRepository does not exist for course %s. Skipping export.",
+    except CourseGitHubRepository.DoesNotExist:
+        LOGGER.exception(
+            "CourseGitHubRepository does not exist for course %s."
+            "Creating repository and exporting course content.",
             course_key_string,
         )
+        async_create_github_repo.delay(str(course_key), export_course=True)
     except Exception:
         LOGGER.exception(
             "Unknown error occured during async course content export to git (course id: %s)",  # noqa: E501
@@ -80,7 +88,7 @@ def async_create_github_repo(course_key_str, export_course=False):  # noqa: FBT0
         )
         return None
 
-    if CourseGithubRepository.objects.filter(course_id=str(course_key)).exists():
+    if CourseGitHubRepository.objects.filter(course_key=course_key).exists():
         LOGGER.info(
             "GitHub repository already exists for course %s. Skipping creation.",
             course_key,
@@ -99,7 +107,7 @@ def async_create_github_repo(course_key_str, export_course=False):  # noqa: FBT0
         "Authorization": f"Bearer {gh_access_token}",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    repo_desc = f"{course_module.display_name}, exported from {settings.CMS_BASE}"
+    repo_desc = f"{course_module.display_name}, exported from https://{settings.CMS_BASE}/course/{course_key_str}"
     payload = {
         "name": course_id_slugified,
         "description": repo_desc,
@@ -121,8 +129,8 @@ def async_create_github_repo(course_key_str, export_course=False):  # noqa: FBT0
     repo_data = response.json()
     ssh_url = repo_data.get("ssh_url")
     if ssh_url:
-        CourseGithubRepository.objects.create(
-            course_id=course_key,
+        CourseGitHubRepository.objects.create(
+            course_key=course_key,
             git_url=ssh_url,
         )
         LOGGER.info(
@@ -132,11 +140,14 @@ def async_create_github_repo(course_key_str, export_course=False):  # noqa: FBT0
         )
     else:
         LOGGER.error(
-            "Failed to retrieve SSH URL for GitHub repository for course %s",
+            "Failed to retrieve SSH URL for GitHub repository for course %s. "
+            "Response status: %s, Response data: %s",
             course_key,
+            response.status_code,
+            repo_data,
         )
 
-    if export_course:
+    if ssh_url and export_course:
         export_course_to_git(course_key)
 
     return ssh_url
