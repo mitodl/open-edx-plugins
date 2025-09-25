@@ -4,6 +4,7 @@ Utility functions for the ol_openedx_git_auto_export app.
 
 import logging
 import os
+import re
 
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -50,7 +51,7 @@ def get_or_create_git_export_repo_dir():
     return git_repo_export_dir
 
 
-def github_repo_name_format(course_id_str):
+def github_repo_name_format(course_key_str):
     """
     Format course ID to comply with GitHub repository naming conventions using slugify.
 
@@ -61,19 +62,18 @@ def github_repo_name_format(course_id_str):
     - Maximum length is 100 characters
 
     Args:
-        course_id_str (str): The course ID string to format
+        course_key_str (str): The course key string to format
 
     Returns:
         str: GitHub-compliant repository name
     """
     # Replace all characters with - hyphen except alphanumeric, hyphen, underscore, and period  # noqa: E501
-    repo_name = "".join(
-        char if char.isalnum() or char in "-_." else "-" for char in course_id_str
-    ).strip("-")
+    repo_name = re.sub(r"[^A-Za-z0-9_.-]", "-", course_key_str).strip("-")
 
     # Truncate to 100 characters if needed
+    # Take the last characters to preserve course run identifier
     if len(repo_name) > REPOSITORY_NAME_MAX_LENGTH:
-        repo_name = repo_name[:REPOSITORY_NAME_MAX_LENGTH].rstrip("-")
+        repo_name = repo_name[-REPOSITORY_NAME_MAX_LENGTH:].lstrip("-")
 
     return repo_name.replace("course-v1-", "")
 

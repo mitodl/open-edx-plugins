@@ -2,8 +2,8 @@
 Signal handlers for the git auto-export plugin.
 
 This module contains Django signal handlers that respond to course publishing,
-creation, and rerun events to automatically export course content to Git repositories
-and create GitHub repositories as needed.
+creation, and rerun events to automatically create GitHub repositories and
+export course content to them.
 """
 
 import logging
