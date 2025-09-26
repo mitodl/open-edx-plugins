@@ -47,7 +47,7 @@ https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account)
 
 Studio/CMS UI settings
 ----------------------
-- Open studio admin  at `/admin/ol_openedx_git_auto_export/coursegithubrepository/`
+- Open studio admin  at `/admin/ol_openedx_git_auto_export/coursegitrepository/`
 - Add your course_id and in the GIT URL, add your OLX git repo. For example ``git@github.com:<GITHUB_USERNAME>/edx4edxlite.git``.
 - Make a change to the course content and publish.
    - When using Tutor, attach with the CMS container using ``tutor dev/local start cms`` and enter ``yes`` to the prompt to add the GitHub to known hosts.
