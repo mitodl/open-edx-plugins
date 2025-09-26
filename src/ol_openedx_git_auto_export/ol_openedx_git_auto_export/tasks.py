@@ -36,7 +36,7 @@ def async_export_to_git(course_key_string, user=None):
     try:
         course_repo = CourseGitRepository.objects.get(course_key=course_key)
         if course_repo.is_export_enabled:
-            LOGGER.debug(
+            LOGGER.info(
                 "Starting async course content export to git (course id: %s)",
                 course_module.id,
             )
