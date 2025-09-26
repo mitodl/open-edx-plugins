@@ -401,7 +401,7 @@ def add_repo(repo, rdir_in=None, branch=None):  # noqa: PLR0912, PLR0915, C901
         if not os.path.exists(cdir):  # noqa: PTH110
             log.debug("   -> creating symlink between %s and %s", rdirp, cdir)
             try:
-                os.symlink(
+                os.symlink(  # noqa: PTH211
                     os.path.abspath(rdirp),  # noqa: PTH100
                     os.path.abspath(cdir),  # noqa: PTH100
                 )

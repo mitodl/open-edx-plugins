@@ -316,7 +316,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         self.xblock.course_id = "course_id"
         self.xblock.send_tracker_event("event", "value", "pset")
         mock_emit.assert_called_once()
-        args, kwargs = mock_emit.call_args
+        args, kwargs = mock_emit.call_args  # noqa: RUF059
         assert "event" in args[0]
         assert args[1]["canvas_course_id"] == "course_id"
         assert args[1]["problem_set"] == "pset"

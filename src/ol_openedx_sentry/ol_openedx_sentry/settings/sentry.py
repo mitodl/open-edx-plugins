@@ -73,7 +73,7 @@ def sentry_event_filter(
     exception_value = ""
     exception_traceback = ""
     if exception_info:
-        exception_class, exception_value, exception_traceback = exception_info
+        exception_class, exception_value, exception_traceback = exception_info  # noqa: RUF059
         for ignored_type in ignored_types or []:
             ignored_exception_class = _load_exception_class(ignored_type)
             if isinstance(exception_class, type(ignored_exception_class)):
