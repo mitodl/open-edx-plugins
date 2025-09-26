@@ -5,6 +5,7 @@ import subprocess
 from django.conf import settings
 from django.utils.translation import gettext as _
 from path import Path as get_path  # noqa: N813
+from path import Path as path  # noqa: N813
 from rest_framework import permissions, status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.response import Response
@@ -149,8 +150,7 @@ class GitCourseDetailsAPIView(APIView):
         """
         Pull out some git info like the last commit
         """
-
-        git_dir = settings.DATA_DIR / course_dir
+        git_dir = path(settings.DATA_DIR) / course_dir
 
         # Try the data dir, then try to find it in the git import dir
         if not git_dir.exists():
