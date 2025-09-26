@@ -16,7 +16,7 @@ from rest_framework import status
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import ENABLE_AUTO_GITHUB_REPO_CREATION
-from ol_openedx_git_auto_export.models import CourseGitHubRepository
+from ol_openedx_git_auto_export.models import CourseGitRepository
 from ol_openedx_git_auto_export.utils import (
     export_course_to_git,
     github_repo_name_format,
@@ -34,7 +34,7 @@ def async_export_to_git(course_key_string, user=None):
     course_module = modulestore().get_course(course_key)
 
     try:
-        course_repo = CourseGitHubRepository.objects.get(course_key=course_key)
+        course_repo = CourseGitRepository.objects.get(course_key=course_key)
         if course_repo.is_export_enabled:
             LOGGER.debug(
                 "Starting async course content export to git (course id: %s)",
@@ -51,9 +51,9 @@ def async_export_to_git(course_key_string, user=None):
             "Failed async course content export to git (course id: %s)",
             course_module.id,
         )
-    except CourseGitHubRepository.DoesNotExist:
+    except CourseGitRepository.DoesNotExist:
         LOGGER.exception(
-            "CourseGitHubRepository does not exist for course %s."
+            "CourseGitRepository does not exist for course %s."
             "Creating repository and exporting course content.",
             course_key_string,
         )
@@ -65,8 +65,12 @@ def async_export_to_git(course_key_string, user=None):
         )
 
 
-@shared_task
-def async_create_github_repo(course_key_str, export_course=False):  # noqa: FBT002
+@shared_task(
+    bind=True,
+    autoretry_for=(requests.exceptions.RequestException,),
+    retry_kwargs={"max_retries": 3, "countdown": 10},
+)
+def async_create_github_repo(self, course_key_str, export_course=False):  # noqa: FBT002
     """
     Create a GitHub repository for the given course key.
 
@@ -88,7 +92,7 @@ def async_create_github_repo(course_key_str, export_course=False):  # noqa: FBT0
         )
         return None
 
-    if CourseGitHubRepository.objects.filter(course_key=course_key).exists():
+    if CourseGitRepository.objects.filter(course_key=course_key).exists():
         LOGGER.info(
             "GitHub repository already exists for course %s. Skipping creation.",
             course_key,
@@ -119,17 +123,27 @@ def async_create_github_repo(course_key_str, export_course=False):  # noqa: FBT0
     }
     response = requests.post(url, headers=headers, json=payload, timeout=30)
     if response.status_code != status.HTTP_201_CREATED:
-        LOGGER.error(
-            "Failed to create GitHub repository for course %s: %s",
-            course_key,
-            response.json(),
-        )
+        error_msg = f"Failed to create GitHub repository for course {course_key}: {response.json()}"  # noqa: E501
+        LOGGER.error(error_msg)
+
+        # Retry the task if we haven't exceeded max retries
+        max_retries = self.retry_kwargs.get("max_retries", 3)
+        if self.request.retries < max_retries:
+            LOGGER.info(
+                "Retrying GitHub repository creation for course %s (attempt %d/%d)",
+                course_key,
+                self.request.retries + 1,
+                max_retries,
+            )
+            countdown = self.retry_kwargs.get("countdown", 10)
+            raise self.retry(countdown=countdown, exc=Exception(error_msg))
+
         return None
 
     repo_data = response.json()
     ssh_url = repo_data.get("ssh_url")
     if ssh_url:
-        CourseGitHubRepository.objects.create(
+        CourseGitRepository.objects.create(
             course_key=course_key,
             git_url=ssh_url,
         )

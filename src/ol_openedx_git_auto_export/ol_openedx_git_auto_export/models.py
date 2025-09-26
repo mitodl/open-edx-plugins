@@ -1,8 +1,5 @@
 """
 Django models for the git auto-export plugin.
-
-This module defines the CourseGitHubRepository model which stores the mapping between
-OpenedX courses and their GitHub repositories for automated export functionality.
 """
 
 from django.db import models
@@ -10,7 +7,7 @@ from model_utils.models import TimeStampedModel
 from opaque_keys.edx.django.models import CourseKeyField
 
 
-class CourseGitHubRepository(TimeStampedModel):
+class CourseGitRepository(TimeStampedModel):
     """
     Model to store Git repository information for courses.
     """
@@ -20,9 +17,9 @@ class CourseGitHubRepository(TimeStampedModel):
     is_export_enabled = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name = "Course GitHub Repository"
-        verbose_name_plural = "Course GitHub Repositories"
+        verbose_name = "Course Git Repository"
+        verbose_name_plural = "Course Git Repositories"
         ordering = ["-created"]
 
     def __str__(self):
-        return f"CourseGitHubRepository (course_key={self.course_key})"
+        return f"CourseGitRepository (course_key={self.course_key})"
