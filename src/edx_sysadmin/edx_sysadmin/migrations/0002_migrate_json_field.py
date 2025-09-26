@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('edx_sysadmin', '0001_course_git_log'),
+        ("edx_sysadmin", "0001_course_git_log"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='coursegitlog',
-            name='course_import_log',
+            model_name="coursegitlog",
+            name="course_import_log",
             field=models.JSONField(blank=True, null=True),
         ),
     ]

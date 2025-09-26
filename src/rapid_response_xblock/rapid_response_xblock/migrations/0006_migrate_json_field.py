@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('rapid_response_xblock', '0005_remove_run_name'),
+        ("rapid_response_xblock", "0005_remove_run_name"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='rapidresponsesubmission',
-            name='event',
+            model_name="rapidresponsesubmission",
+            name="event",
             field=models.JSONField(),
         ),
     ]
