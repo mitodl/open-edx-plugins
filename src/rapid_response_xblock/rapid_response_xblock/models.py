@@ -4,6 +4,7 @@ Rapid Response block models
 
 from django.conf import settings
 from django.db import models
+from jsonfield import JSONField
 from model_utils.models import TimeStampedModel
 from opaque_keys.edx.django.models import (
     CourseKeyField,
@@ -50,7 +51,7 @@ class RapidResponseSubmission(TimeStampedModel):
     )
     answer_id = models.CharField(null=True, max_length=255)  # noqa: DJ001
     answer_text = models.CharField(null=True, max_length=4096)  # noqa: DJ001
-    event = models.JSONField()
+    event = JSONField()
 
     def __str__(self):
         return f"user={self.user} run={self.run} answer_id={self.answer_id}"
