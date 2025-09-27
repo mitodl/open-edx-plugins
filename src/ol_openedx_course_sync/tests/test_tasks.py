@@ -6,10 +6,10 @@ from unittest import mock
 
 from common.djangoapps.student.tests.factories import UserFactory
 from django.test import override_settings
+from ol_openedx_course_sync.tasks import async_course_sync
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from xmodule.modulestore import ModuleStoreEnum
 
-from ol_openedx_course_sync.tasks import async_course_sync
 from tests.utils import OLOpenedXCourseSyncTestCase
 
 

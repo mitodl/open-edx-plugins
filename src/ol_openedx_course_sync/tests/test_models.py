@@ -4,13 +4,12 @@ Tests for models
 
 import pytest
 from django.core.exceptions import ValidationError
+from ol_openedx_course_sync.models import CourseSyncMapping
 from opaque_keys.edx.locator import CourseLocator
 from openedx.core.djangoapps.content.course_overviews.tests.factories import (
     CourseOverviewFactory,
 )
 from openedx.core.djangolib.testing.utils import skip_unless_cms
-
-from ol_openedx_course_sync.models import CourseSyncMapping
 
 
 @skip_unless_cms
