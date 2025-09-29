@@ -9,7 +9,7 @@ authors = [
 license = "BSD-3-Clause"
 requires-python = ">=3.11"
 dependencies = [
-  "Django>2.0",
+  "Django>=4.0",
   "python-json-logger>=3.0.0",
 ]
 
