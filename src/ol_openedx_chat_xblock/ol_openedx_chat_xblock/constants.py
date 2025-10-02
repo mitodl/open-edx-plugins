@@ -3,7 +3,7 @@ XBLOCK_TYPE_TUTOR = "Tutor"
 XBLOCK_TYPE_SYLLABUS = "Syllabus"
 ASK_TIM_TITLE_SYLLABUS = "About this Course"
 ASK_TIM_TITLE_TUTOR = "about course assignments"
-INITIAL_MESSAGE_SYLLABUS = "How can I help you today?"
+INITIAL_MESSAGE_SYLLABUS = "**Hi! I'm here to help you better understand the course content.**\n\nFeel free to ask about concepts or topics from class materials."
 INITIAL_MESSAGE_TUTOR = (
     "Hi! Please select an assignment from the dropdown menu to begin."
 )
