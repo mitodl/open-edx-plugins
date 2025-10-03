@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-logging"
-version = "0.1.0"
+version = "0.2.0"
 description = "An Open edX plugin to customize the logging configuration used by the edx-platform application"
 readme = "README.rst"
 authors = [
