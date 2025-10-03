@@ -10,12 +10,10 @@ from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
 from cms.djangoapps.contentstore.git_export_utils import GitExportError, export_to_git
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 from opaque_keys.edx.keys import CourseKey
 from rest_framework import status
 from xmodule.modulestore.django import modulestore
 
-from ol_openedx_git_auto_export.constants import ENABLE_AUTO_GITHUB_REPO_CREATION
 from ol_openedx_git_auto_export.models import CourseGitRepository
 from ol_openedx_git_auto_export.utils import (
     export_course_to_git,
@@ -80,35 +78,24 @@ def async_create_github_repo(self, course_key_str, export_course=False):  # noqa
             after creating the repo.
 
     Returns:
-        str or None: The SSH URL of the created repository, or None if creation failed.
+        tuple(bool, str): A tuple containing a boolean indicating success,
+            and the SSH URL of the created repository or an error message.
     """
 
     course_key = CourseKey.from_string(course_key_str)
     course_id_slugified = github_repo_name_format(str(course_key))
-    if not settings.FEATURES.get(ENABLE_AUTO_GITHUB_REPO_CREATION):
-        LOGGER.info(
-            "GitHub repo creation is disabled. Skipping GitHub repo creation for course %s",  # noqa: E501
-            course_key,
-        )
-        return None
 
+    response_msg = ""
     if CourseGitRepository.objects.filter(course_key=course_key).exists():
-        LOGGER.info(
-            "GitHub repository already exists for course %s. Skipping creation.",
-            course_key,
-        )
-        return None
-
-    gh_access_token = settings.GITHUB_ACCESS_TOKEN
-    if not settings.GITHUB_ORG_API_URL or not gh_access_token:
-        error_msg = "GITHUB_ORG_API_URL or GITHUB_ACCESS_TOKEN is not set in settings. Skipping GitHub repo creation."  # noqa: E501
-        raise ImproperlyConfigured(error_msg)
+        response_msg = f"GitHub repository already exists for course {course_key}. Skipping creation."  # noqa: E501
+        LOGGER.info(response_msg)
+        return False, response_msg
 
     course_module = modulestore().get_course(course_key)
     url = f"{settings.GITHUB_ORG_API_URL}/repos"
     headers = {
         "Accept": "application/vnd.github+json",
-        "Authorization": f"Bearer {gh_access_token}",
+        "Authorization": f"Bearer {settings.GITHUB_ACCESS_TOKEN}",
         "X-GitHub-Api-Version": "2022-11-28",
     }
     repo_desc = f"{course_module.display_name}, exported from https://{settings.CMS_BASE}/course/{course_key_str}"
@@ -123,8 +110,8 @@ def async_create_github_repo(self, course_key_str, export_course=False):  # noqa
     }
     response = requests.post(url, headers=headers, json=payload, timeout=30)
     if response.status_code != status.HTTP_201_CREATED:
-        error_msg = f"Failed to create GitHub repository for course {course_key}: {response.json()}"  # noqa: E501
-        LOGGER.error(error_msg)
+        response_msg = f"Failed to create GitHub repository for course {course_key}: {response.json()}"  # noqa: E501
+        LOGGER.error(response_msg)
 
         # Retry the task if we haven't exceeded max retries
         max_retries = self.retry_kwargs.get("max_retries", 3)
@@ -136,9 +123,9 @@ def async_create_github_repo(self, course_key_str, export_course=False):  # noqa
                 max_retries,
             )
             countdown = self.retry_kwargs.get("countdown", 10)
-            raise self.retry(countdown=countdown, exc=Exception(error_msg))
+            raise self.retry(countdown=countdown, exc=Exception(response_msg))
 
-        return None
+        return False, response_msg
 
     repo_data = response.json()
     ssh_url = repo_data.get("ssh_url")
@@ -153,15 +140,13 @@ def async_create_github_repo(self, course_key_str, export_course=False):  # noqa
             ssh_url,
         )
     else:
-        LOGGER.error(
-            "Failed to retrieve SSH URL for GitHub repository for course %s. "
-            "Response status: %s, Response data: %s",
-            course_key,
-            response.status_code,
-            repo_data,
-        )
+        response_msg = f"""
+            Failed to retrieve SSH URL from GitHub response for course {course_key}.
+            Response data: {repo_data}
+        """
+        LOGGER.error(response_msg)
 
     if ssh_url and export_course:
         export_course_to_git(course_key)
 
-    return ssh_url
+    return True, response_msg or ssh_url

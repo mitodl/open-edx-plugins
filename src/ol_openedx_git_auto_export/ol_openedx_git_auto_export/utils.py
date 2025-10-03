@@ -8,9 +8,11 @@ import re
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.exceptions import ImproperlyConfigured
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import (
+    ENABLE_AUTO_GITHUB_REPO_CREATION,
     ENABLE_GIT_AUTO_EXPORT,
     REPOSITORY_NAME_MAX_LENGTH,
 )
@@ -99,3 +101,29 @@ def export_course_to_git(course_key):
 
         user = get_publisher_username(course_module)
         async_export_to_git.delay(str(course_key), user)
+
+
+def is_auto_repo_creation_enabled():
+    """
+    Check if automatic GitHub repository creation is enabled.
+
+    Args:
+        course_key (CourseKey): The course key of the course to check.
+
+    Returns:
+        bool: True if automatic GitHub repository creation is enabled, False otherwise.
+
+    Raises:
+        ImproperlyConfigured: If GITHUB_ORG_API_URL or GITHUB_ACCESS_TOKEN is not set.
+    """
+    if not settings.FEATURES.get(ENABLE_AUTO_GITHUB_REPO_CREATION):
+        log.info(
+            "GitHub repo creation is disabled. Skipping GitHub repo creation ...",
+        )
+        return False
+
+    if not (settings.GITHUB_ORG_API_URL and settings.GITHUB_ACCESS_TOKEN):
+        error_msg = "GITHUB_ORG_API_URL or GITHUB_ACCESS_TOKEN is not set in settings. Skipping GitHub repo creation."  # noqa: E501
+        raise ImproperlyConfigured(error_msg)
+
+    return True
