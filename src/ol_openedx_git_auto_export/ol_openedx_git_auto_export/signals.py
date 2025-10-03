@@ -20,6 +20,7 @@ from ol_openedx_git_auto_export.tasks import (
 )
 from ol_openedx_git_auto_export.utils import (
     export_course_to_git,
+    is_auto_repo_creation_enabled,
 )
 
 log = logging.getLogger(__name__)
@@ -42,7 +43,8 @@ def listen_for_course_created(**kwargs):
     """
     course_key = kwargs.get("course").course_key
 
-    async_create_github_repo.delay(str(course_key))
+    if is_auto_repo_creation_enabled():
+        async_create_github_repo.delay(str(course_key))
 
 
 @receiver(post_save, sender=CourseRerunState)
@@ -54,4 +56,5 @@ def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa
     if instance.state != COURSE_RERUN_STATE_SUCCEEDED:
         return
 
-    async_create_github_repo.delay(str(instance.course_key), export_course=True)
+    if is_auto_repo_creation_enabled():
+        async_create_github_repo.delay(str(instance.course_key), export_course=True)
