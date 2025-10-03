@@ -29,14 +29,13 @@ or when consolidating existing course git configurations.
 """
 
 from django.core.management.base import BaseCommand
-from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
-from xmodule.modulestore.django import modulestore
-
 from ol_openedx_git_auto_export.models import CourseGitRepository
 from ol_openedx_git_auto_export.tasks import (
     async_create_github_repo,
 )
 from ol_openedx_git_auto_export.utils import is_auto_repo_creation_enabled
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
+from xmodule.modulestore.django import modulestore
 
 
 class Command(BaseCommand):
