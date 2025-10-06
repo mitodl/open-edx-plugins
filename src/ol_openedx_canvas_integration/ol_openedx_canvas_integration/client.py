@@ -116,11 +116,12 @@ class CanvasClient:
         search_results = self._paginate(
             url, params={"search_term": email, "enrollment_type[]": "student"}
         )
+        log.debug("Canvas search results for %s: %s", email, search_results)
         student_id = next(
             (
                 user["id"]
                 for user in search_results
-                if user.get("email", "").lower() == email.lower()
+                if user.get("login_id", "").lower() == email.lower()
             ),
             None,
         )
