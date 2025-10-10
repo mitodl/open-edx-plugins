@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-sentry"
-version = "0.2.1"
+version = "0.3.0"
 description = "An Open edX plugin to enable error tracking with Sentry"
 readme = "README.rst"
 authors = [
@@ -9,7 +9,7 @@ authors = [
 license = "BSD-3-Clause"
 requires-python = ">=3.11"
 dependencies = [
-  "Django>2.0",
+  "Django>=4.0",
   "sentry-sdk>=2.0.0",
 ]
 

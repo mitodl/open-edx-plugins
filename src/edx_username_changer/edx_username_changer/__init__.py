@@ -1,3 +1,1 @@
-# pylint: disable=missing-module-docstring
-
-default_app_config = "edx_username_changer.apps.EdxUsernameChangerConfig"
+"""This is a plugin to enable usernames change in Django Admin"""

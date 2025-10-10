@@ -9,7 +9,7 @@ license = "BSD-3-Clause"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "Django>4.0",
+    "Django>=4.0",
     "celery>=4.4.7",
     "djangorestframework>=3.14.0",
     "edx-django-utils",

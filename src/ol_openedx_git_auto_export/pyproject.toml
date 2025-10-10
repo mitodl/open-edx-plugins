@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-git-auto-export"
-version = "0.5.0"
+version = "0.6.0"
 description = "A plugin that auto saves the course OLX to git when an author publishes it"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -9,7 +9,7 @@ license = "BSD-3-Clause"
 readme = "README.rst"
 requires-python = ">=3.11"
 dependencies = [
-  "Django>2.0",
+  "Django>=4.0",
   "celery>=4.4.7",
   "edx-django-utils>4.0.0",
   "edx-opaque-keys",
