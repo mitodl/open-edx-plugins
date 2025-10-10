@@ -12,16 +12,16 @@ except ImportError:
     from urlparse import parse_qsl, urlsplit, urlunsplit  # type: ignore[no-redef]
 
 try:
-    from django.utils.http import urlquote
+    from urllib.parse import quote
 except ImportError:
-    from urllib.parse import quote as urlquote  # pylint: disable=ungrouped-imports
+    from django.utils.http import urlquote as quote  # type: ignore[no-redef]
 
 
 def redirect_to_login(request):
     """Return a response redirecting to the login URL."""
     scheme, netloc, path, query, fragment = urlsplit(settings.MITX_REDIRECT_LOGIN_URL)
     query = parse_qsl(query)
-    query.append(("next", urlquote(request.build_absolute_uri())))
+    query.append(("next", quote(request.build_absolute_uri())))
     query = "&".join(
         [
             f"{key}={value}"  # pylint: disable=consider-using-f-string
