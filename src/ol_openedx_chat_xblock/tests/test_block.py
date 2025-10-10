@@ -28,7 +28,6 @@ from webob.request import Request
 from webob.response import Response
 from xblock.field_data import DictFieldData
 from xblock.fields import ScopeIds
-from xblock.test.tools import TestRuntime
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 
 
@@ -44,7 +43,8 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.runtime = TestRuntime(services={})
+        self.runtime = Mock()
+        self.runtime.service.return_value = None
         usage_key = UsageKey.from_string(
             "block-v1:TestOrg+TestCourse+2024+type@yourxblock+block@test123"
         )
@@ -142,7 +142,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
         assert isinstance(response, Response)
         assert response.status_int == api_status.HTTP_400_BAD_REQUEST
-        assert b"Missing API configurations" in response.body
+        assert b"Missing AI Chat API configuration" in response.body
 
     def test_ol_chat_missing_course_id(self):
         """Test ol_chat with missing course_id."""
@@ -168,19 +168,18 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert b"Message field is required" in response.body
 
     @patch("ol_openedx_chat_xblock.block.requests.post")
-    def test_ol_chat_successful_request(self, mock_post):
+    @patch.object(OLChatXBlock, "get_thread_id_block_id_from_cookies")
+    def test_ol_chat_successful_request(self, mock_get_cookies, mock_post):
         """Test successful ol_chat request."""
         # Setup
         request_mock = Mock()
         request_mock.json = {"message": "Hello AI"}
-        test_cookies = {
-            CHAT_XBLOCK_THREAD_ID: "test_thread_id",
-            CHAT_XBLOCK_BLOCK_ID: self.xblock.usage_key.block_id,
-        }
-        request_mock.cookies = Mock()
-        request_mock.cookies.get.side_effect = lambda key, default=None: {
-            COOKIE_NAME_CHAT_XBLOCK: json.dumps(test_cookies),
-        }.get(key, default)
+
+        # Mock the cookie parsing method directly to return the test values
+        mock_get_cookies.return_value = (
+            "test_thread_id",
+            self.xblock.usage_key.block_id,
+        )
 
         # Mock response
         mock_response = Mock()
@@ -200,19 +199,16 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert call_args[1]["cookies"][COOKIE_NAME_SYLLABUS_ANON] == "test_thread_id"
 
     @patch("ol_openedx_chat_xblock.block.requests.post")
-    def test_ol_chat_different_block_id_resets_session(self, mock_post):
+    @patch.object(OLChatXBlock, "get_thread_id_block_id_from_cookies")
+    def test_ol_chat_different_block_id_resets_session(
+        self, mock_get_cookies, mock_post
+    ):
         """Test that different block_id resets the session."""
         request_mock = Mock()
-        test_cookies = {
-            CHAT_XBLOCK_THREAD_ID: "test_thread_id",
-            CHAT_XBLOCK_BLOCK_ID: "different_block_id",
-        }
-
         request_mock.json = {"message": "Hello AI"}
-        request_mock.cookies = Mock()
-        request_mock.cookies.get.side_effect = lambda key, default=None: {
-            COOKIE_NAME_CHAT_XBLOCK: json.dumps(test_cookies),
-        }.get(key, default)
+
+        # Mock the cookie parsing method to return different block_id to trigger reset
+        mock_get_cookies.return_value = ("old_thread_id", "different_block_id")
 
         # Mock response
         mock_response = Mock()
@@ -398,7 +394,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         self.xblock.learn_readable_course_id = params["learn_readable_course_id"]
         self.xblock.is_tutor_xblock = params["is_tutor"]
 
-        error = self.xblock.validate_required_api_params(
+        error = self.xblock.validate_required_chat_api_params(
             params["course_id"], params["message"], params["problem_set"]
         )
 
@@ -469,3 +465,327 @@ class OLChatXBlockTest(ModuleStoreTestCase):
             mock_settings.MIT_LEARN_AI_XBLOCK_PROBLEM_SET_LIST_URL = base_url
             url = self.xblock.get_problem_set_url()
             assert url == expected
+
+    def test_get_xblock_rating_url(self):
+        """Test that get_xblock_rating_url returns the correct URL format."""
+        mock_rating_url = "http://local.openedx.io:8000/handler/test_handler"
+        self.runtime.handler_url.return_value = mock_rating_url
+
+        result = self.xblock.get_xblock_rating_url()
+
+        expected_url = f"{mock_rating_url}/thread/:threadId/checkpoint/:checkpointPk/"
+        assert result == expected_url
+        self.runtime.handler_url.assert_called_once_with(self.xblock, "ol_chat_rate")
+
+    @data(
+        (
+            {"message": "test message"},
+            {"message": "test message"},
+            None,
+            None,
+        ),
+        (
+            {},
+            {},
+            None,
+            None,
+        ),
+        (
+            {
+                "message": "test message",
+                "metadata": {"user": "test_user", "timestamp": 123456},
+                "options": ["option1", "option2"],
+            },
+            {
+                "message": "test message",
+                "metadata": {"user": "test_user", "timestamp": 123456},
+                "options": ["option1", "option2"],
+            },
+            None,
+            None,
+        ),
+        (
+            None,
+            None,
+            ValueError("Invalid JSON"),
+            api_status.HTTP_400_BAD_REQUEST,
+        ),
+        (
+            None,
+            None,
+            Exception("Some error"),
+            api_status.HTTP_400_BAD_REQUEST,
+        ),
+    )
+    @unpack
+    def test_validate_request(
+        self, json_data, expected_result, exception, expected_status
+    ):
+        """Test validate_request with various inputs and exceptions."""
+        request_mock = Mock()
+
+        if exception:
+            type(request_mock).json = PropertyMock(side_effect=exception)
+        else:
+            request_mock.json = json_data
+
+        result = self.xblock.validate_request(request_mock)
+
+        if exception:
+            assert isinstance(result, Response)
+            assert result.status_int == expected_status
+            assert b"Invalid request body. Expected JSON." in result.body
+        else:
+            assert result == expected_result
+
+    @data(
+        (
+            "http://test.com/rating",
+            "123",
+            "456",
+            "http://test.com/rating/123/messages/456/rate/",
+        ),
+        (
+            "http://test.com/rating/",
+            "123",
+            "456",
+            "http://test.com/rating/123/messages/456/rate/",
+        ),
+    )
+    @unpack
+    @patch("ol_openedx_chat_xblock.block.settings")
+    def test_get_learn_ai_rating_url(
+        self, base_url, thread_id, checkpoint_id, expected_url, mock_settings
+    ):
+        """Test that get_learn_ai_rating_url returns the correct URL format."""
+        mock_settings.MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL = base_url
+
+        result = self.xblock.get_learn_ai_rating_url(thread_id, checkpoint_id)
+
+        assert result == expected_url
+
+    @data(
+        (
+            {"rating": "5"},
+            "thread/123/checkpoint/456/",
+            None,
+            api_status.HTTP_200_OK,
+            b'{"status": "success"}',
+        ),
+        (
+            {"rating": "5"},
+            "invalid/suffix/",
+            None,
+            api_status.HTTP_400_BAD_REQUEST,
+            b"Invalid URL. Expected /thread/<threadId>/checkpoint/<checkpointPk>",
+        ),
+        (
+            None,
+            "thread/123/checkpoint/456/",
+            ValueError("Invalid JSON"),
+            api_status.HTTP_400_BAD_REQUEST,
+            b"Invalid request body. Expected JSON.",
+        ),
+    )
+    @unpack
+    @patch("ol_openedx_chat_xblock.block.requests.post")
+    def test_ol_chat_rate_scenarios(  # noqa: PLR0913
+        self,
+        request_json,
+        suffix,
+        json_exception,
+        expected_status,
+        expected_content,
+        mock_post,
+    ):
+        """Test ol_chat_rate with various scenarios."""
+        request_mock = Mock()
+
+        if json_exception:
+            type(request_mock).json = PropertyMock(side_effect=json_exception)
+        else:
+            request_mock.json = request_json
+
+        # Add proper cookie mocking for all scenarios
+        test_cookies = {
+            CHAT_XBLOCK_THREAD_ID: "test_thread_id",
+            CHAT_XBLOCK_BLOCK_ID: self.xblock.usage_key.block_id,
+        }
+        request_mock.cookies = Mock()
+        request_mock.cookies.get.side_effect = lambda key, default=None: {
+            COOKIE_NAME_CHAT_XBLOCK: json.dumps(test_cookies),
+        }.get(key, default)
+
+        if expected_status == api_status.HTTP_200_OK:
+            mock_response = Mock()
+            mock_response.content = expected_content
+            mock_response.raise_for_status.return_value = None
+            mock_post.return_value = mock_response
+
+        response = self.xblock.ol_chat_rate(request_mock, suffix)
+
+        assert isinstance(response, Response)
+        assert response.status_int == expected_status
+
+        if expected_status == api_status.HTTP_200_OK:
+            mock_post.assert_called_once()
+            call_args = mock_post.call_args
+            assert call_args[1]["json"]["rating"] == "5"
+            assert expected_content in response.body
+        else:
+            assert expected_content in response.body
+
+    @override_settings(
+        MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL=None,
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",  # noqa: S106
+    )
+    def test_ol_chat_rate_missing_rating_url(self):
+        """Test ol_chat_rate with missing rating URL."""
+        request_mock = Mock()
+        request_mock.json = {"rating": "5"}
+
+        response = self.xblock.ol_chat_rate(request_mock, "thread/123/checkpoint/456/")
+        assert isinstance(response, Response)
+        assert response.status_int == api_status.HTTP_400_BAD_REQUEST
+        assert b"Missing Chat rating API configurations" in response.body
+
+    @override_settings(
+        MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL="http://test.com/rating",
+        MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="",
+    )
+    def test_ol_chat_rate_missing_token(self):
+        """Test ol_chat_rate with missing API token."""
+        request_mock = Mock()
+        request_mock.json = {"rating": "5"}
+
+        response = self.xblock.ol_chat_rate(request_mock, "thread/123/checkpoint/456/")
+        assert isinstance(response, Response)
+        assert response.status_int == api_status.HTTP_400_BAD_REQUEST
+        assert b"Missing Chat rating API configurations" in response.body
+
+    @data(
+        (
+            requests.exceptions.RequestException("Network error"),
+            api_status.HTTP_400_BAD_REQUEST,
+            b"Something went wrong while contacting the AI service",
+        ),
+        (
+            Exception("Unexpected error"),
+            api_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            b"An unexpected error occurred",
+        ),
+    )
+    @unpack
+    @patch("ol_openedx_chat_xblock.block.requests.post")
+    def test_ol_chat_rate_exceptions(
+        self, exception, expected_status, expected_message, mock_post
+    ):
+        """Test ol_chat_rate with various exceptions."""
+        request_mock = Mock()
+        request_mock.json = {"rating": "5"}
+
+        # Add proper cookie mocking
+        test_cookies = {
+            CHAT_XBLOCK_THREAD_ID: "test_thread_id",
+            CHAT_XBLOCK_BLOCK_ID: self.xblock.usage_key.block_id,
+        }
+        request_mock.cookies = Mock()
+        request_mock.cookies.get.side_effect = lambda key, default=None: {
+            COOKIE_NAME_CHAT_XBLOCK: json.dumps(test_cookies),
+        }.get(key, default)
+
+        mock_post.side_effect = exception
+
+        response = self.xblock.ol_chat_rate(request_mock, "thread/123/checkpoint/456/")
+        assert isinstance(response, Response)
+        assert response.status_int == expected_status
+        assert expected_message in response.body
+
+    @data(
+        ("thread/123/checkpoint/456/", "123", "456"),
+        ("/thread/789/checkpoint/101/", "789", "101"),
+        ("thread/999/checkpoint/888", None, None),  # Missing trailing slash
+        ("invalid/format/", None, None),
+        ("thread/abc/checkpoint/def/", None, None),  # Non-numeric IDs
+    )
+    @unpack
+    def test_ol_chat_rate_suffix_parsing(
+        self, suffix, expected_thread, expected_checkpoint
+    ):
+        """Test ol_chat_rate suffix parsing with various formats."""
+        request_mock = Mock()
+        request_mock.json = {"rating": "5"}
+
+        # Mock the cookies properly with a valid JSON string
+        test_cookies = {
+            CHAT_XBLOCK_THREAD_ID: "test_thread_id",
+            CHAT_XBLOCK_BLOCK_ID: self.xblock.usage_key.block_id,
+        }
+        request_mock.cookies = Mock()
+        request_mock.cookies.get.side_effect = lambda key, default=None: {
+            COOKIE_NAME_CHAT_XBLOCK: json.dumps(test_cookies),
+        }.get(key, default)
+
+        with patch("ol_openedx_chat_xblock.block.requests.post") as mock_post:
+            if expected_thread is None:
+                # Should return error for invalid format
+                response = self.xblock.ol_chat_rate(request_mock, suffix)
+                assert isinstance(response, Response)
+                assert response.status_int == api_status.HTTP_400_BAD_REQUEST
+                mock_post.assert_not_called()
+            else:
+                # Should process successfully
+                mock_response = Mock()
+                mock_response.content = b'{"status": "success"}'
+                mock_response.raise_for_status.return_value = None
+                mock_post.return_value = mock_response
+
+                with patch.object(self.xblock, "get_learn_ai_rating_url") as mock_url:
+                    mock_url.return_value = "http://test.com/rating/url"
+                    response = self.xblock.ol_chat_rate(request_mock, suffix)
+
+                    assert isinstance(response, Response)
+                    if response.status_int == api_status.HTTP_200_OK:
+                        mock_url.assert_called_once_with(
+                            expected_thread, expected_checkpoint
+                        )
+
+    @patch("ol_openedx_chat_xblock.block.tracker.emit")
+    @patch("ol_openedx_chat_xblock.block.requests.post")
+    def test_ol_chat_rate_tracking_events(self, mock_post, mock_emit):
+        """Test that ol_chat_rate sends proper tracking events."""
+        request_mock = Mock()
+        request_mock.json = {"rating": "4"}
+
+        # Add proper cookie mocking
+        test_cookies = {
+            CHAT_XBLOCK_THREAD_ID: "test_thread_id",
+            CHAT_XBLOCK_BLOCK_ID: self.xblock.usage_key.block_id,
+        }
+        request_mock.cookies = Mock()
+        request_mock.cookies.get.side_effect = lambda key, default=None: {
+            COOKIE_NAME_CHAT_XBLOCK: json.dumps(test_cookies),
+        }.get(key, default)
+
+        mock_response = Mock()
+        mock_response.content = b'{"status": "success"}'
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        self.xblock.ol_chat_rate(request_mock, "thread/123/checkpoint/456/")
+
+        # Should emit both request and response events
+        assert mock_emit.call_count == 2  # noqa: PLR2004
+
+        # Check request event
+        first_call = mock_emit.call_args_list[0]
+        assert "OLChat.rating.request" in first_call[0][0]
+        assert first_call[0][1]["value"] == "4"
+        assert first_call[0][1]["thread_id"] == "123"
+        assert first_call[0][1]["checkpoint"] == "456"
+
+        # Check response event
+        second_call = mock_emit.call_args_list[1]
+        assert "OLChat.rating.response" in second_call[0][0]
+        assert second_call[0][1]["thread_id"] == "123"
+        assert second_call[0][1]["checkpoint"] == "456"

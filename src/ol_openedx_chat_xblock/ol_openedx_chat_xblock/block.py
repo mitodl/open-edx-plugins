@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from urllib.parse import urlencode
 
 import pkg_resources
@@ -142,13 +143,22 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             else settings.MIT_LEARN_AI_XBLOCK_CHAT_API_URL
         )
 
+    def get_xblock_rating_url(self):
+        """
+        Generate the URL for the AI chat.
+        """
+        rating_url = self.runtime.handler_url(self, "ol_chat_rate")
+        return f"{rating_url}/thread/:threadId/checkpoint/:checkpointPk/"
+
     def get_xblock_state(self):
         """
         Get the state of the xBlock.
         """
         return XBLOCK_TYPE_TUTOR if self.is_tutor_xblock else XBLOCK_TYPE_SYLLABUS
 
-    def send_tracker_event(self, event_name, value, problem_set=None):
+    def send_tracker_event(
+        self, event_name, value, problem_set=None, thread_id=None, checkpoint=None
+    ):
         """
         Send a tracker event.
 
@@ -157,16 +167,18 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             value (str): The value to track.
             problem_set (str): The problem set title, if applicable.
         """
-        tracker.emit(
-            f"{__package__}.{event_name}",
-            {
-                "blockUsageKey": str(self.usage_key),
-                "canvas_course_id": self.course_id,
-                "xblock_state": self.get_xblock_state(),
-                "value": value,
-                "problem_set": problem_set,
-            },
-        )
+        tracker_payload = {
+            "blockUsageKey": str(self.usage_key),
+            "canvas_course_id": self.course_id,
+            "xblock_state": self.get_xblock_state(),
+            "value": value,
+            "problem_set": problem_set,
+        }
+        if thread_id:
+            tracker_payload["thread_id"] = thread_id
+        if checkpoint:
+            tracker_payload["checkpoint"] = checkpoint
+        tracker.emit(f"{__package__}.{event_name}", tracker_payload)
 
     def get_problem_set_url(self):
         """
@@ -181,6 +193,13 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
         return f"{base_url}?{urlencode(params)}"
 
+    def get_learn_ai_rating_url(self, thread_id, checkpoint_id):
+        """
+        Generate the URL for the AI chat.
+        """
+        base_url = settings.MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL.rstrip("/")
+        return f"{base_url}/{thread_id}/messages/{checkpoint_id}/rate/"
+
     def get_ai_chat_init_js_args(self):
         """
         Generate the initialization arguments for the Smoot design AI Chat window.
@@ -189,6 +208,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             "block_id": self.usage_key.block_id,
             "ask_tim_title": ASK_TIM_TITLE_SYLLABUS,
             "bot_initial_message": INITIAL_MESSAGE_SYLLABUS,
+            "chat_rating_url": self.get_xblock_rating_url(),
         }
         if self.is_tutor_xblock:
             init_payload.update(
@@ -209,11 +229,11 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             else COOKIE_NAME_SYLLABUS_ANON
         )
 
-    def validate_required_api_params(self, course_id, message, problem_set_title):
+    def validate_required_chat_api_params(self, course_id, message, problem_set_title):
         """Validate required parameters for the learn AI chat API."""
         if not course_id:
             log.info(
-                "Course ID is not available in the XBlock. "
+                "Course ID is not available in the xBlock. "
                 "Falling back to auto-generated course ID from Canvas LTI."
             )
             if not self.learn_readable_course_id:
@@ -270,9 +290,16 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         fragment.initialize_js("OLChatBlock", json_args=self.get_ai_chat_init_js_args())
         return fragment
 
-    @XBlock.handler
-    def ol_chat(self, request, suffix=""):  # noqa: ARG002
-        """Start the chat session via external MIT LEARN AI API."""
+    def validate_request(self, request):
+        """
+        Validate the incoming request.
+
+        Args:
+            request (Request): The incoming request object.
+
+        Returns:
+            bool: True if the request is valid, False otherwise.
+        """
         try:
             request_data = request.json
         except Exception:  # noqa: BLE001
@@ -281,13 +308,37 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 "Invalid request body. Expected JSON.",
                 status=api_status.HTTP_400_BAD_REQUEST,
             )
+        return request_data
+
+    def get_thread_id_block_id_from_cookies(self, request):
+        """
+        Extract the thread ID and block ID from the cookies.
+
+        Args:
+            request (Request): The incoming request object.
+        """
+        req_chat_cookies = json.loads(
+            request.cookies.get(COOKIE_NAME_CHAT_XBLOCK, "{}")
+        )
+        return (
+            req_chat_cookies.get(CHAT_XBLOCK_THREAD_ID, None),
+            req_chat_cookies.get(CHAT_XBLOCK_BLOCK_ID, None),
+        )
+
+    @XBlock.handler
+    def ol_chat(self, request, suffix=""):  # noqa: ARG002
+        """Start the chat session via external MIT LEARN AI API."""
+
+        request_data = self.validate_request(request)
+        if isinstance(request_data, Response):
+            return request_data
 
         api_token = settings.MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN
 
         if not self.get_xblock_chat_url() or not api_token:
-            log.error("Missing AI API configuration (URL or token).")
+            log.error("Missing AI Chat API configuration (URL or token).")
             return Response(
-                "Missing API configurations. Please check your settings.",
+                "Missing AI Chat API configurations. Please check your settings.",
                 status=api_status.HTTP_400_BAD_REQUEST,
             )
 
@@ -301,7 +352,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         message = request_data.get("message", "").strip()
         problem_set_title = request_data.get("problem_set_title", "").strip()
 
-        validation_error = self.validate_required_api_params(
+        validation_error = self.validate_required_chat_api_params(
             course_id=course_id_for_chat,
             message=message,
             problem_set_title=problem_set_title,
@@ -336,12 +387,9 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             )
 
             # Use the cookies from the request to maintain session chat state
-            req_chat_cookies = json.loads(
-                request.cookies.get(COOKIE_NAME_CHAT_XBLOCK, "{}")
+            req_chat_thread_id, req_block_id = self.get_thread_id_block_id_from_cookies(
+                request
             )
-            req_chat_thread_id = req_chat_cookies.get(CHAT_XBLOCK_THREAD_ID, None)
-            req_block_id = req_chat_cookies.get(CHAT_XBLOCK_BLOCK_ID, None)
-
             # Reset the req_chat_thread_id cookie on different blocks to avoid
             # cross-block session issues.
             generated_ai_chat_cookies = {
@@ -373,6 +421,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
             # Set chat_xblock_thread_keys cookie for subsequent requests. This allows
             # using the same chat thread for a single xBlock.
+
             xblock_response.set_cookie(
                 COOKIE_NAME_CHAT_XBLOCK,
                 json.dumps(
@@ -388,6 +437,86 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
         except requests.exceptions.RequestException:
             log.exception("Failed to contact MIT Learn AI service.")
+            return Response(
+                "Something went wrong while contacting the AI service.",
+                status=api_status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception:
+            log.exception("An unexpected error occurred.")
+            return Response(
+                "An unexpected error occurred.",
+                status=api_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @XBlock.handler
+    def ol_chat_rate(self, request, suffix=""):
+        """Submit feedback for chat to MIT LEARN AI API."""
+        request_data = self.validate_request(request)
+        if isinstance(request_data, Response):
+            return request_data
+
+        pattern = r"^/?thread/([^/]+)/checkpoint/(\d+)/$"
+        # Match the suffix against the pattern
+        match = re.match(pattern, suffix.strip())
+        if not match:
+            log.error(
+                "Invalid URL. Expected /thread/<threadId>/checkpoint/<checkpointPk>"
+            )
+            return Response(
+                "Invalid URL. Expected /thread/<threadId>/checkpoint/<checkpointPk>",
+                status=api_status.HTTP_400_BAD_REQUEST,
+            )
+
+        thread_id, checkpoint_id = match.groups()
+
+        api_token = settings.MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN
+
+        if settings.MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL is None or not api_token:
+            log.error(
+                "Missing Chat rating API configuration (Chat Rating URL or token)."
+            )
+            return Response(
+                "Missing Chat rating API configurations. Please check your settings.",
+                status=api_status.HTTP_400_BAD_REQUEST,
+            )
+
+        headers = {"Content-Type": "application/json"}
+
+        try:
+            self.send_tracker_event(
+                event_name="OLChat.rating.request",
+                value=request_data.get("rating", ""),
+                checkpoint=checkpoint_id,
+                thread_id=thread_id,
+            )
+            req_chat_thread_id, _ = self.get_thread_id_block_id_from_cookies(request)
+
+            generated_ai_chat_cookies = {
+                self.get_chat_thread_cookie_name(): req_chat_thread_id
+            }
+
+            response = requests.post(
+                self.get_learn_ai_rating_url(thread_id, checkpoint_id),
+                json=request_data,
+                headers=headers,
+                timeout=60,
+                cookies=generated_ai_chat_cookies,
+            )
+
+            # Check if the response was successful.
+            response.raise_for_status()
+            xblock_rating_response = Response(response.content)
+
+            self.send_tracker_event(
+                event_name="OLChat.rating.response",
+                value=str(response.content),
+                checkpoint=checkpoint_id,
+                thread_id=thread_id,
+            )
+            return xblock_rating_response  # noqa: TRY300
+
+        except requests.exceptions.RequestException:
+            log.exception("Failed to contact MIT Learn AI rating service.")
             return Response(
                 "Something went wrong while contacting the AI service.",
                 status=api_status.HTTP_400_BAD_REQUEST,

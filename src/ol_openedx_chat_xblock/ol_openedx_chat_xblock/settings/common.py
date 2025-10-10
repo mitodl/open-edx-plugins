@@ -17,6 +17,9 @@ def plugin_settings(settings):
     settings.MIT_LEARN_AI_XBLOCK_PROBLEM_SET_LIST_URL = env_tokens.get(
         "MIT_LEARN_AI_XBLOCK_PROBLEM_LIST_URL", ""
     )
+    settings.MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL = env_tokens.get(
+        "MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL", ""
+    )
     settings.MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN = env_tokens.get(
         "MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN", ""
     )
