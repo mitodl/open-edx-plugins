@@ -1,8 +1,9 @@
 function OLChatBlock(runtime, element, init_args) {
-    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@6.17.3/dist/bundles/aiChat.es.js").then(aiChat => {
+    import("https://cdn.jsdelivr.net/npm/@mitodl/smoot-design@6.18.2/dist/bundles/aiChat.es.js").then(aiChat => {
         var studioRuntime = new window.StudioRuntime.v1();
         const requestOpts = {
             apiUrl: studioRuntime.handlerUrl(element, 'ol_chat'),
+            feedbackApiUrl: init_args.chat_rating_url,
             transformBody: (messages, { problem_set_title }) => {
                 return {
                     message: messages[messages.length - 1].content,
