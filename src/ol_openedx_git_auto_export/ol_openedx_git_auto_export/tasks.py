@@ -93,6 +93,7 @@ def async_create_github_repo(self, course_key_str, export_course=False):  # noqa
 
     course_module = modulestore().get_course(course_key)
     url = f"{settings.GITHUB_ORG_API_URL}/repos"
+    # https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api?apiVersion=2022-11-28
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {settings.GITHUB_ACCESS_TOKEN}",
