@@ -3,9 +3,9 @@
 import pytest
 
 try:
-    from django.utils.http import urlquote
+    from urllib.parse import quote
 except ImportError:
-    from urllib.parse import quote as urlquote
+    from django.utils.http import urlquote as quote  # type: ignore[no-redef]
 
 
 @pytest.mark.parametrize("is_enabled", [True, False])
@@ -62,7 +62,7 @@ def test_redirect_middleware(  # noqa: PLR0913
             response.url
             == "{}&next={}".format(  # pylint: disable=consider-using-f-string  # noqa: UP032
                 settings.MITX_REDIRECT_LOGIN_URL,
-                urlquote(request.build_absolute_uri()),
+                quote(request.build_absolute_uri()),
             )
         )
     else:

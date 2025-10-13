@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-otel-monitoring"
-version = "0.1.1"
+version = "0.2.0"
 description = "OTel Monitoring"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -9,7 +9,7 @@ license = "BSD-3-Clause"
 readme = "README.rst"
 requires-python = ">=3.11"
 dependencies = [
-  "Django>2.0",
+  "Django>=4.0",
   "opentelemetry-distro",
   "opentelemetry-instrumentation-django",
   "opentelemetry-exporter-richconsole",

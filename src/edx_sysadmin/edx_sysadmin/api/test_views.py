@@ -101,8 +101,10 @@ class GitReloadAPIViewTestCase(TestCase):
             reverse("sysadmin:api:git-reload"),
             payload,
             format="json",
-            HTTP_X_Hub_Signature_256=f"sha256={signature}",
-            HTTP_X_Github_Event=event,
+            headers={
+                "x-hub-signature-256": f"sha256={signature}",
+                "x-github-event": event,
+            },
         )
 
         assert response.status_code == status
@@ -163,8 +165,10 @@ class GitReloadAPIViewTestCase(TestCase):
             reverse("sysadmin:api:git-reload"),
             payload,
             format="json",
-            HTTP_X_Hub_Signature_256=f"sha256={signature}",
-            HTTP_X_Github_Event=event,
+            headers={
+                "x-hub-signature-256": f"sha256={signature}",
+                "x-github-event": event,
+            },
         )
         assert response.status_code == status
         assert mocked_get_local_course_repo.called_with("repo_name")  # noqa: PGH005
@@ -208,7 +212,9 @@ class GitReloadAPIViewTestCase(TestCase):
             reverse("sysadmin:api:git-reload"),
             payload,
             format="json",
-            HTTP_X_Hub_Signature_256=f"sha256={signature}",
-            HTTP_X_Github_Event=event,
+            headers={
+                "x-hub-signature-256": f"sha256={signature}",
+                "x-github-event": event,
+            },
         )
         assert response.status_code == status

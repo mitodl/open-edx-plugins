@@ -31,6 +31,7 @@ class CourseSyncOrganizationForm(forms.ModelForm):
         self.fields["organization"] = forms.ChoiceField(choices=org_choices)
 
 
+@admin.register(CourseSyncOrganization)
 class CourseSyncOrganizationAdmin(admin.ModelAdmin):
     """
     Admin for CourseSyncOrganization model
@@ -48,6 +49,7 @@ class CourseSyncOrganizationAdmin(admin.ModelAdmin):
         return super().has_delete_permission(request, obj)
 
 
+@admin.register(CourseSyncMapping)
 class CourseSyncMappingAdmin(admin.ModelAdmin):
     """
     Admin for CourseSyncMapping model
@@ -85,7 +87,3 @@ class CourseSyncMappingAdmin(admin.ModelAdmin):
                 request,
                 "Course sync started",
             )
-
-
-admin.site.register(CourseSyncOrganization, CourseSyncOrganizationAdmin)
-admin.site.register(CourseSyncMapping, CourseSyncMappingAdmin)
