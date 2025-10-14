@@ -298,7 +298,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             request (Request): The incoming request object.
 
         Returns:
-            bool: True if the request is valid, False otherwise.
+            Response: request_data if the request is valid otherwise error Response
         """
         try:
             request_data = request.json
@@ -310,7 +310,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             )
         return request_data
 
-    def get_thread_id_block_id_from_cookies(self, request):
+    def get_thread_and_block_ids_from_cookies(self, request):
         """
         Extract the thread ID and block ID from the cookies.
 
@@ -387,8 +387,8 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             )
 
             # Use the cookies from the request to maintain session chat state
-            req_chat_thread_id, req_block_id = self.get_thread_id_block_id_from_cookies(
-                request
+            req_chat_thread_id, req_block_id = (
+                self.get_thread_and_block_ids_from_cookies(request)
             )
             # Reset the req_chat_thread_id cookie on different blocks to avoid
             # cross-block session issues.
@@ -468,12 +468,11 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             )
 
         thread_id, checkpoint_id = match.groups()
-
         api_token = settings.MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN
 
-        if settings.MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL is None or not api_token:
+        if not settings.MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL or not api_token:
             log.error(
-                "Missing Chat rating API configuration (Chat Rating URL or token)."
+                "Missing Chat rating API configuration (Chat Rating URL or API Token)."
             )
             return Response(
                 "Missing Chat rating API configurations. Please check your settings.",
@@ -489,7 +488,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 checkpoint=checkpoint_id,
                 thread_id=thread_id,
             )
-            req_chat_thread_id, _ = self.get_thread_id_block_id_from_cookies(request)
+            req_chat_thread_id, _ = self.get_thread_and_block_ids_from_cookies(request)
 
             generated_ai_chat_cookies = {
                 self.get_chat_thread_cookie_name(): req_chat_thread_id
