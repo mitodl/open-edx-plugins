@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-chat-xblock"
-version = "0.4.0"
+version = "0.4.1"
 description = "An Open edX xBlock to add Open Learning AI chat"
 readme = "README.rst"
 license = {text = "BSD-3-Clause"}
