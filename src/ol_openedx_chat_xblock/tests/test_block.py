@@ -34,6 +34,7 @@ from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 @override_settings(
     MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://mittestchat.com/api",
     MIT_LEARN_AI_XBLOCK_TUTOR_API_URL="http://mittesttutor.com/api",
+    MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL="http://mittestchat.com/rating",
     MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",  # noqa: S106
     MIT_LEARN_AI_XBLOCK_PROBLEM_SET_LIST_URL="http://test.com/list/",
 )
@@ -168,7 +169,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert b"Message field is required" in response.body
 
     @patch("ol_openedx_chat_xblock.block.requests.post")
-    @patch.object(OLChatXBlock, "get_thread_id_block_id_from_cookies")
+    @patch.object(OLChatXBlock, "get_thread_and_block_ids_from_cookies")
     def test_ol_chat_successful_request(self, mock_get_cookies, mock_post):
         """Test successful ol_chat request."""
         # Setup
@@ -199,7 +200,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert call_args[1]["cookies"][COOKIE_NAME_SYLLABUS_ANON] == "test_thread_id"
 
     @patch("ol_openedx_chat_xblock.block.requests.post")
-    @patch.object(OLChatXBlock, "get_thread_id_block_id_from_cookies")
+    @patch.object(OLChatXBlock, "get_thread_and_block_ids_from_cookies")
     def test_ol_chat_different_block_id_resets_session(
         self, mock_get_cookies, mock_post
     ):
@@ -650,7 +651,6 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert b"Missing Chat rating API configurations" in response.body
 
     @override_settings(
-        MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL="http://test.com/rating",
         MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="",
     )
     def test_ol_chat_rate_missing_token(self):
