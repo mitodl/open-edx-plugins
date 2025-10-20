@@ -156,8 +156,14 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         """
         return XBLOCK_TYPE_TUTOR if self.is_tutor_xblock else XBLOCK_TYPE_SYLLABUS
 
-    def send_tracker_event(
-        self, event_name, value, problem_set=None, thread_id=None, checkpoint=None
+    def send_tracker_event(  # noqa: PLR0913
+        self,
+        event_name,
+        value,
+        canvas_course_id,
+        problem_set=None,
+        thread_id=None,
+        checkpoint=None,
     ):
         """
         Send a tracker event.
@@ -169,7 +175,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         """
         tracker_payload = {
             "blockUsageKey": str(self.usage_key),
-            "canvas_course_id": self.course_id,
+            "canvas_course_id": canvas_course_id,
             "xblock_state": self.get_xblock_state(),
             "value": value,
             "problem_set": problem_set,
@@ -349,6 +355,8 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         # 3. If neither is available, it will return an error response.
 
         course_id_for_chat = self.course_id or self.learn_readable_course_id
+        if self.is_tutor_xblock:
+            course_id_for_chat += COURSE_ID_SUFFIX_TUTOR
         message = request_data.get("message", "").strip()
         problem_set_title = request_data.get("problem_set_title", "").strip()
 
@@ -366,7 +374,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         payload = {"message": message}
 
         if self.is_tutor_xblock:
-            payload["run_readable_id"] = course_id_for_chat + COURSE_ID_SUFFIX_TUTOR
+            payload["run_readable_id"] = course_id_for_chat
             payload["problem_set_title"] = problem_set_title
         else:
             payload["collection_name"] = "content_files"
@@ -383,6 +391,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             self.send_tracker_event(
                 event_name="OLChat.submit",
                 value=request_data.get("message", ""),
+                canvas_course_id=course_id_for_chat,
                 problem_set=problem_set_title,
             )
 
@@ -416,6 +425,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             self.send_tracker_event(
                 event_name="OLChat.response",
                 value=str(response.content),
+                canvas_course_id=course_id_for_chat,
                 problem_set=problem_set_title,
             )
 
@@ -452,6 +462,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
     def ol_chat_rate(self, request, suffix=""):
         """Submit feedback for chat to MIT LEARN AI API."""
         request_data = self.validate_request(request)
+        course_id_for_chat = self.course_id or self.learn_readable_course_id
         if isinstance(request_data, Response):
             return request_data
 
@@ -485,6 +496,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             self.send_tracker_event(
                 event_name="OLChat.rating.request",
                 value=request_data.get("rating", ""),
+                canvas_course_id=course_id_for_chat,
                 checkpoint=checkpoint_id,
                 thread_id=thread_id,
             )
@@ -509,6 +521,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             self.send_tracker_event(
                 event_name="OLChat.rating.response",
                 value=str(response.content),
+                canvas_course_id=course_id_for_chat,
                 checkpoint=checkpoint_id,
                 thread_id=thread_id,
             )

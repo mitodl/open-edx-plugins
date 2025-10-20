@@ -33,7 +33,7 @@ from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 
 @override_settings(
     MIT_LEARN_AI_XBLOCK_CHAT_API_URL="http://mittestchat.com/api",
-    MIT_LEARN_AI_XBLOCK_TUTOR_API_URL="http://mittesttutor.com/api",
+    MIT_LEARN_AI_XBLOCK_TUTOR_CHAT_API_URL="http://mittesttutor.com/api",
     MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL="http://mittestchat.com/rating",
     MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",  # noqa: S106
     MIT_LEARN_AI_XBLOCK_PROBLEM_SET_LIST_URL="http://test.com/list/",
@@ -168,13 +168,37 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert response.status_int == api_status.HTTP_400_BAD_REQUEST
         assert b"Message field is required" in response.body
 
+    @data(
+        (
+            False,  # is_tutor_xblock
+            {"message": "Hello AI"},  # request_json
+            COOKIE_NAME_SYLLABUS_ANON,  # expected_cookie_name
+        ),
+        (
+            True,  # is_tutor_xblock
+            {
+                "message": "Hello AI tutor",
+                "problem_set_title": "Problem Set 1",
+            },  # request_json
+            COOKIE_NAME_TUTOR_ANON,  # expected_cookie_name
+        ),
+    )
+    @unpack
     @patch("ol_openedx_chat_xblock.block.requests.post")
     @patch.object(OLChatXBlock, "get_thread_and_block_ids_from_cookies")
-    def test_ol_chat_successful_request(self, mock_get_cookies, mock_post):
-        """Test successful ol_chat request."""
+    def test_ol_chat_successful_request(
+        self,
+        is_tutor_xblock,
+        request_json,
+        expected_cookie_name,
+        mock_get_cookies,
+        mock_post,
+    ):
+        """Test successful ol_chat request for both syllabus and tutor xblocks."""
         # Setup
+        self.xblock.is_tutor_xblock = is_tutor_xblock
         request_mock = Mock()
-        request_mock.json = {"message": "Hello AI"}
+        request_mock.json = request_json
 
         # Mock the cookie parsing method directly to return the test values
         mock_get_cookies.return_value = (
@@ -195,9 +219,17 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert isinstance(response, Response)
         mock_post.assert_called_once()
         call_args = mock_post.call_args
-        assert call_args[1]["json"]["message"] == "Hello AI"
-        assert call_args[1]["json"]["course_id"] == "test_course_123"
-        assert call_args[1]["cookies"][COOKIE_NAME_SYLLABUS_ANON] == "test_thread_id"
+        assert call_args[1]["json"]["message"] == request_json["message"]
+        if self.xblock.is_tutor_xblock:
+            assert call_args[1]["json"]["run_readable_id"] == "test_course_123+canvas"
+            assert call_args[1]["json"]["problem_set_title"] == "Problem Set 1"
+        else:
+            assert call_args[1]["json"]["course_id"] == "test_course_123"
+            assert call_args[1]["json"]["collection_name"] == "content_files"
+        assert call_args[1]["cookies"][expected_cookie_name] == "test_thread_id"
+
+        if is_tutor_xblock:
+            assert call_args[1]["json"]["problem_set_title"] == "Problem Set 1"
 
     @patch("ol_openedx_chat_xblock.block.requests.post")
     @patch.object(OLChatXBlock, "get_thread_and_block_ids_from_cookies")
@@ -305,18 +337,163 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         self.xblock.is_tutor_xblock = False
         assert self.xblock.get_xblock_state() == XBLOCK_TYPE_SYLLABUS
 
+    @data(
+        (
+            False,
+            "canvas_course_id",
+            "pset",
+            "thread_123",
+            "checkpoint_456",
+        ),
+        (
+            True,
+            "canvas_course_id",
+            "tutor_pset",
+            "tutor_thread_789",
+            "tutor_checkpoint_101",
+        ),
+    )
+    @unpack
     @patch("ol_openedx_chat_xblock.block.tracker.emit")
-    def test_send_tracker_event(self, mock_emit):
+    def test_send_tracker_event_method(  # noqa: PLR0913
+        self,
+        is_tutor_xblock,
+        canvas_course_id,
+        problem_set,
+        thread_id,
+        checkpoint_id,
+        mock_emit,
+    ):
         """Test that send_tracker_event calls the tracker emit function with the
-        correct arguments."""
-        self.xblock.is_tutor_xblock = False
-        self.xblock.course_id = "course_id"
-        self.xblock.send_tracker_event("event", "value", "pset")
+        correct arguments for both tutor and syllabus xblocks."""
+        self.xblock.is_tutor_xblock = is_tutor_xblock
+        self.xblock.course_id = canvas_course_id
+        self.xblock.send_tracker_event(
+            "event", "value", canvas_course_id, problem_set, thread_id, checkpoint_id
+        )
         mock_emit.assert_called_once()
         args, kwargs = mock_emit.call_args  # noqa: RUF059
         assert "event" in args[0]
-        assert args[1]["canvas_course_id"] == "course_id"
-        assert args[1]["problem_set"] == "pset"
+        assert args[1]["canvas_course_id"] == canvas_course_id
+        assert args[1]["problem_set"] == problem_set
+        assert args[1]["thread_id"] == thread_id
+        assert args[1]["checkpoint"] == checkpoint_id
+
+    @data(
+        (
+            "test_course_123",
+            "",
+            False,
+            "Hello AI",
+            "",
+            "test_course_123",
+        ),
+        (
+            "",
+            "canvas_course_456",
+            False,
+            "Hello AI syllabus",
+            "",
+            "canvas_course_456",
+        ),
+        (
+            "priority_course_789",
+            "fallback_course_101",
+            True,
+            "Hello AI tutor",
+            "Problem Set 1",
+            "priority_course_789+canvas",
+        ),
+        (
+            "",
+            "auto_generated_course_112",
+            True,
+            "Tutor help please",
+            "Advanced Calculus",
+            "auto_generated_course_112+canvas",
+        ),
+    )
+    @unpack
+    @patch("ol_openedx_chat_xblock.block.tracker.emit")
+    @patch("ol_openedx_chat_xblock.block.requests.post")
+    @patch.object(OLChatXBlock, "get_thread_and_block_ids_from_cookies")
+    def test_ol_chat_tracker_events_submit_and_response(  # noqa: PLR0913
+        self,
+        course_id,
+        learn_readable_course_id,
+        is_tutor_xblock,
+        message,
+        problem_set_title,
+        expected_canvas_course_id,
+        mock_get_cookies,
+        mock_post,
+        mock_emit,
+    ):
+        """Test that ol_chat sends both submit and response tracker events for different
+        course ID configurations."""
+        # Setup xblock
+        self.xblock.course_id = course_id
+        self.xblock.learn_readable_course_id = learn_readable_course_id
+        self.xblock.is_tutor_xblock = is_tutor_xblock
+
+        # Setup request
+        request_mock = Mock()
+        request_data = {"message": message}
+        if is_tutor_xblock:
+            request_data["problem_set_title"] = problem_set_title
+        request_mock.json = request_data
+
+        # Mock cookie parsing
+        mock_get_cookies.return_value = (
+            "test_thread_id",
+            self.xblock.usage_key.block_id,
+        )
+
+        # Mock successful API response
+        mock_response = Mock()
+        mock_response.content = b'{"response": "AI response"}'
+        mock_response.cookies = Mock()
+        mock_response.cookies.get.return_value = "new_thread_id"
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        # Execute the chat
+        response = self.xblock.ol_chat(request_mock)
+
+        # Verify successful response
+        assert isinstance(response, Response)
+
+        # Verify tracker events were emitted exactly twice
+        assert mock_emit.call_count == 2  # noqa: PLR2004
+        # Verify submit event (first call)
+        submit_call = mock_emit.call_args_list[0]
+        assert "OLChat.submit" in submit_call[0][0]
+        submit_payload = submit_call[0][1]
+        assert submit_payload["blockUsageKey"] == str(self.xblock.usage_key)
+        assert submit_payload["canvas_course_id"] == expected_canvas_course_id
+        assert submit_payload["xblock_state"] == (
+            XBLOCK_TYPE_TUTOR if is_tutor_xblock else XBLOCK_TYPE_SYLLABUS
+        )
+        assert submit_payload["value"] == message
+        if is_tutor_xblock:
+            assert submit_payload["problem_set"] == problem_set_title
+        else:
+            assert submit_payload["problem_set"] == ""
+
+        # Verify response event (second call)
+        response_call = mock_emit.call_args_list[1]
+        assert "OLChat.response" in response_call[0][0]
+        response_payload = response_call[0][1]
+        assert response_payload["blockUsageKey"] == str(self.xblock.usage_key)
+        assert response_payload["canvas_course_id"] == expected_canvas_course_id
+        assert response_payload["xblock_state"] == (
+            XBLOCK_TYPE_TUTOR if is_tutor_xblock else XBLOCK_TYPE_SYLLABUS
+        )
+        assert response_payload["value"] == str(mock_response.content)
+        if is_tutor_xblock:
+            assert response_payload["problem_set"] == problem_set_title
+        else:
+            assert response_payload["problem_set"] == ""
 
     def test_get_ai_chat_init_js_args_syllabus(self):
         """Test that get_ai_chat_init_js_args returns the correct arguments for
