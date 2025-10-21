@@ -39,7 +39,7 @@ repos:
     - --exclude-files '(uv.lock)'
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: 'v0.13.3'
+  rev: 'v0.14.1'
   hooks:
   - id: ruff-format
   - id: ruff
@@ -54,7 +54,7 @@ repos:
     - types-python-dateutil
     - types-setuptools
 - repo: https://github.com/rhysd/actionlint
-  rev: v1.7.7
+  rev: v1.7.8
   hooks:
   - id: actionlint
     name: actionlint
