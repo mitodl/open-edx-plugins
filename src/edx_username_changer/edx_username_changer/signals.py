@@ -6,9 +6,7 @@ from common.djangoapps.util.model_utils import (  # pylint: disable=import-error
     get_changed_fields_dict,
 )
 from django.conf import settings
-from django.db import transaction
 
-from edx_username_changer.tasks import task_update_username_in_forum
 from edx_username_changer.utils import update_user_social_auth_uid
 
 
@@ -36,8 +34,8 @@ def user_post_save_callback(sender, **kwargs):  # noqa: ARG001
             and {"username", "new_username"}.issubset(user._updated_fields)  # noqa: SLF001
         ):
             new_username = user._updated_fields["new_username"]  # noqa: SLF001
-            transaction.on_commit(
-                lambda: task_update_username_in_forum.delay(new_username)
-            )
+            # Forum username updates are no longer needed with Forum v2.
+            # Forum v2 stores data in Django models and usernames are updated
+            # automatically through Django's ORM when the User model changes.
             update_user_social_auth_uid(user._updated_fields["username"], new_username)  # noqa: SLF001
             delattr(user, "_updated_fields")
