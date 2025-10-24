@@ -18,7 +18,7 @@ User = get_user_model()
 def task_update_username_in_forum(user_id, new_username):
     """
     Update username in Discussion-Forum service using Forum v2 API.
-    
+
     This works with both MongoDB and MySQL backends through Forum v2's
     backend abstraction layer.
     """
@@ -28,11 +28,13 @@ def task_update_username_in_forum(user_id, new_username):
         forum_api.update_username(
             user_id=str(user_id),
             new_username=new_username,
-            course_id=None  # None means update across all courses
+            course_id=None,  # None means update across all courses
         )
         log.info(f"Successfully updated forum username for user_id={user_id}")
     except ForumV2RequestError as e:
         # Log but don't raise - user may not exist in forum yet
         log.warning(f"Could not update forum username for user_id={user_id}: {e}")
     except Exception as e:  # noqa: BLE001
-        log.error(f"Unexpected error updating forum username for user_id={user_id}: {e}")
+        log.error(
+            f"Unexpected error updating forum username for user_id={user_id}: {e}"
+        )
