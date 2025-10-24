@@ -30,11 +30,9 @@ def task_update_username_in_forum(user_id, new_username):
             new_username=new_username,
             course_id=None,  # None means update across all courses
         )
-        log.info(f"Successfully updated forum username for user_id={user_id}")
+        log.info("Successfully updated forum username for user_id=%", user_id)
     except ForumV2RequestError as e:
         # Log but don't raise - user may not exist in forum yet
-        log.warning(f"Could not update forum username for user_id={user_id}: {e}")
-    except Exception as e:  # noqa: BLE001
-        log.error(
-            f"Unexpected error updating forum username for user_id={user_id}: {e}"
-        )
+        log.warning("Could not update forum username for user_id=%: %", (user_id, e))
+    except Exception:
+        log.exception("Unexpected error updating forum username for user_id=%", user_id)

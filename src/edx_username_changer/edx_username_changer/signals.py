@@ -36,7 +36,8 @@ def user_post_save_callback(sender, **kwargs):  # noqa: ARG001
             and {"username", "new_username"}.issubset(user._updated_fields)  # noqa: SLF001
         ):
             new_username = user._updated_fields["new_username"]  # noqa: SLF001
-            # Update forum username using Forum v2 API (works with MongoDB/MySQL backends)
+            # Update forum username using Forum v2 API
+            # (works with MongoDB/MySQL backends)
             transaction.on_commit(
                 lambda: task_update_username_in_forum.delay(str(user.id), new_username)
             )
