@@ -37,7 +37,7 @@ def user_post_save_callback(sender, **kwargs):  # noqa: ARG001
         ):
             new_username = user._updated_fields["new_username"]  # noqa: SLF001
             # Update forum username using Forum v2 API
-            # (works with MongoDB/MySQL backends)
+            # NOTE: Only works with MySQL backend, not MongoDB
             transaction.on_commit(
                 lambda: task_update_username_in_forum.delay(str(user.id), new_username)
             )

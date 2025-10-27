@@ -8,6 +8,16 @@ Version Compatibility
 
 It only supports koa and latest releases of Open edX.
 
+Forum Backend Support
+~~~~~~~~~~~~~~~~~~~~~
+
+**Important:** This plugin only supports the MySQL-based Forum v2 backend.
+The MongoDB forum backend is NOT supported and will result in incorrect user
+records being created when usernames are changed.
+
+Before using this plugin, verify that your Open edX installation is configured
+to use the MySQL backend for discussions/forums.
+
 Installing The Plugin
 ---------------------
 

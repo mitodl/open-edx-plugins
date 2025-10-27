@@ -19,8 +19,10 @@ def task_update_username_in_forum(user_id, new_username):
     """
     Update username in Discussion-Forum service using Forum v2 API.
 
-    This works with both MongoDB and MySQL backends through Forum v2's
-    backend abstraction layer.
+    NOTE: This only works with the MySQL backend for Forum v2.
+    The MongoDB backend is not supported and will create incorrect user records.
+    Only use this plugin if your Open edX installation uses the MySQL-based
+    forum backend.
     """
     try:
         # The forum API update_username method updates the user record
