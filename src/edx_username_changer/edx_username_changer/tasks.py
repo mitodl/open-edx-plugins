@@ -2,42 +2,39 @@
 This file contains celery tasks related to edx_username_changer plugin.
 """
 
+import logging
+
 from celery import shared_task
 from django.contrib.auth import get_user_model
-from openedx.core.djangoapps.django_comment_common.comment_client.user import (
-    User as CommentUser,
-)
+from forum import api as forum_api
+from forum.utils import ForumV2RequestError
 
-from edx_username_changer.utils import (
-    get_authored_threads_and_comments,
-    get_enrolled_course_ids,
-    update_comment_user_username,
-    update_comment_username,
-    update_thread_username,
-)
+log = logging.getLogger(__name__)
 
-COMMENT_TYPE = "comment"
-THREAD_TYPE = "thread"
 User = get_user_model()
 
 
 @shared_task()
-def task_update_username_in_forum(username):
+def task_update_username_in_forum(user_id, new_username):
     """
-    Change username in Discussion-Forum service
-    """
-    user = User.objects.get(username=username)
-    comment_user = CommentUser.from_django_user(user)
-    update_comment_user_username(comment_user, user.username)
-    enrolled_course_ids = get_enrolled_course_ids(user)
-    authored_items = get_authored_threads_and_comments(
-        comment_user, enrolled_course_ids
-    )
+    Update username in Discussion-Forum service using Forum v2 API.
 
-    for authored_item in authored_items:
-        item_id = authored_item["id"]
-        item_type = str(authored_item.get("type"))
-        if item_type == THREAD_TYPE:
-            update_thread_username(item_id, user.username)
-        elif item_type == COMMENT_TYPE:
-            update_comment_username(item_id, user.username)
+    NOTE: This only works with the MySQL backend for Forum v2.
+    The MongoDB backend is not supported and will create incorrect user records.
+    Only use this plugin if your Open edX installation uses the MySQL-based
+    forum backend.
+    """
+    try:
+        # The forum API update_username method updates the user record
+        # and replaces the username in all forum content (threads/comments)
+        forum_api.update_username(
+            user_id=str(user_id),
+            new_username=new_username,
+            course_id=None,  # None means update across all courses
+        )
+        log.info("Successfully updated forum username for user_id=%", user_id)
+    except ForumV2RequestError as e:
+        # Log but don't raise - user may not exist in forum yet
+        log.warning("Could not update forum username for user_id=%: %", (user_id, e))
+    except Exception:
+        log.exception("Unexpected error updating forum username for user_id=%", user_id)
