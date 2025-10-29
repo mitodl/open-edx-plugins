@@ -180,25 +180,26 @@ def sync_discussions_configuration(source_course_key, target_course_key, user):
             has_changes = True
             setattr(target_config, field, getattr(source_config, field))
 
-    if has_changes:
-        target_config.save()
+    if not has_changes:
+        return
 
-        # update discussion settings in modulestore
-        source_course = modulestore().get_course(source_course_key)
-        target_course = modulestore().get_course(target_course_key)
+    target_config.save()
+    # update discussion settings in modulestore
+    source_course = modulestore().get_course(source_course_key)
+    target_course = modulestore().get_course(target_course_key)
 
-        target_course.discussions_settings["enable_in_context"] = (
-            target_config.enable_in_context
-        )
-        target_course.discussions_settings["enable_graded_units"] = (
-            target_config.enable_graded_units
-        )
-        target_course.discussions_settings["unit_level_visibility"] = (
-            target_config.unit_level_visibility
-        )
-        target_course.discussion_blackouts = source_course.discussion_blackouts
-        target_course.discussion_topics = source_course.discussion_topics
-        modulestore().update_item(target_course, user.id)
+    target_course.discussions_settings["enable_in_context"] = (
+        target_config.enable_in_context
+    )
+    target_course.discussions_settings["enable_graded_units"] = (
+        target_config.enable_graded_units
+    )
+    target_course.discussions_settings["unit_level_visibility"] = (
+        target_config.unit_level_visibility
+    )
+    target_course.discussion_blackouts = source_course.discussion_blackouts
+    target_course.discussion_topics = source_course.discussion_topics
+    modulestore().update_item(target_course, user.id)
 
 
 def get_course_sync_service_user():
