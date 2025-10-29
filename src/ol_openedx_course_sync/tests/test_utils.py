@@ -183,6 +183,9 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
     def test_sync_discussions_configuration_parametrized(
         self, source_fields, target_fields, expected_fields
     ):
+        """
+        Test the sync_discussions_configuration function with parametrized inputs.
+        """
         user = UserFactory.create(username="service_worker")
         source_key = self.source_course.usage_key.course_key
         target_key = self.target_course.usage_key.course_key
