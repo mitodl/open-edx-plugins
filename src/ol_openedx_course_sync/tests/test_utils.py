@@ -4,13 +4,17 @@ Tests for ol-openedx-course-sync utils.
 
 from unittest import mock
 
+import pytest
 from ddt import data, ddt
 from ol_openedx_course_sync.constants import STATIC_TAB_TYPE
 from ol_openedx_course_sync.utils import (
     copy_course_content,
     copy_static_tabs,
+    sync_discussions_configuration,
     update_default_tabs,
 )
+from opaque_keys.edx.locator import CourseLocator
+from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
@@ -104,3 +108,94 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             if tab.type != "progress":
                 continue
             assert tab.is_hidden is True
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("source_fields", "target_fields", "expected_fields"),
+    [
+        (
+            # Test: updates fields
+            {
+                "enabled": True,
+                "posting_restrictions": "disabled",
+                "lti_configuration": None,
+                "enable_in_context": True,
+                "enable_graded_units": True,
+                "unit_level_visibility": True,
+                "plugin_configuration": {"plugin": "value"},
+                "provider_type": "test_provider",
+            },
+            {
+                "enabled": False,
+                "posting_restrictions": "enabled",
+                "lti_configuration": None,
+                "enable_in_context": False,
+                "enable_graded_units": False,
+                "unit_level_visibility": False,
+                "plugin_configuration": {},
+                "provider_type": "old_provider",
+            },
+            {
+                "enabled": True,
+                "posting_restrictions": "disabled",
+                "lti_configuration": None,
+                "enable_in_context": True,
+                "enable_graded_units": True,
+                "unit_level_visibility": True,
+                "plugin_configuration": {"plugin": "value"},
+                "provider_type": "test_provider",
+            },
+        ),
+        (
+            # Test: no changes
+            {
+                "enabled": True,
+                "posting_restrictions": "disabled",
+                "lti_configuration": None,
+                "enable_in_context": True,
+                "enable_graded_units": True,
+                "unit_level_visibility": True,
+                "plugin_configuration": {"plugin": "value"},
+                "provider_type": "test_provider",
+            },
+            {
+                "enabled": True,
+                "posting_restrictions": "disabled",
+                "lti_configuration": None,
+                "enable_in_context": True,
+                "enable_graded_units": True,
+                "unit_level_visibility": True,
+                "plugin_configuration": {"plugin": "value"},
+                "provider_type": "test_provider",
+            },
+            {
+                "enabled": True,
+                "posting_restrictions": "disabled",
+                "lti_configuration": None,
+                "enable_in_context": True,
+                "enable_graded_units": True,
+                "unit_level_visibility": True,
+                "plugin_configuration": {"plugin": "value"},
+                "provider_type": "test_provider",
+            },
+        ),
+    ],
+)
+@skip_unless_cms
+def test_sync_discussions_configuration_parametrized(
+    source_fields, target_fields, expected_fields
+):
+    source_key = CourseLocator(org="test_org", course="test_course", run="2024A")
+    target_key = CourseLocator(org="test_org", course="test_course_copy", run="2024A")
+
+    DiscussionsConfiguration.objects.create(context_key=source_key, **source_fields)
+    target_config = DiscussionsConfiguration.objects.create(
+        context_key=target_key, **target_fields
+    )
+
+    sync_discussions_configuration(source_key, target_key)
+    target_config.refresh_from_db()
+
+    for field, expected_value in expected_fields.items():
+        assert getattr(target_config, field) == expected_value
