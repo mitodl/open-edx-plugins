@@ -4,8 +4,9 @@ Tests for ol-openedx-course-sync utils.
 
 from unittest import mock
 
-import pytest
-from ddt import data, ddt
+from common.djangoapps.student.tests.factories import UserFactory
+from ddt import data, ddt, unpack
+from django.test import override_settings
 from ol_openedx_course_sync.constants import STATIC_TAB_TYPE
 from ol_openedx_course_sync.utils import (
     copy_course_content,
@@ -13,7 +14,6 @@ from ol_openedx_course_sync.utils import (
     sync_discussions_configuration,
     update_default_tabs,
 )
-from opaque_keys.edx.locator import CourseLocator
 from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from xmodule.modulestore import ModuleStoreEnum
@@ -109,12 +109,8 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
                 continue
             assert tab.is_hidden is True
 
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    ("source_fields", "target_fields", "expected_fields"),
-    [
-        (
+    @data(
+        [
             # Test: updates fields
             {
                 "enabled": True,
@@ -146,8 +142,8 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
                 "plugin_configuration": {"plugin": "value"},
                 "provider_type": "test_provider",
             },
-        ),
-        (
+        ],
+        [
             # Test: no changes
             {
                 "enabled": True,
@@ -179,23 +175,25 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
                 "plugin_configuration": {"plugin": "value"},
                 "provider_type": "test_provider",
             },
-        ),
-    ],
-)
-@skip_unless_cms
-def test_sync_discussions_configuration_parametrized(
-    source_fields, target_fields, expected_fields
-):
-    source_key = CourseLocator(org="test_org", course="test_course", run="2024A")
-    target_key = CourseLocator(org="test_org", course="test_course_copy", run="2024A")
-
-    DiscussionsConfiguration.objects.create(context_key=source_key, **source_fields)
-    target_config = DiscussionsConfiguration.objects.create(
-        context_key=target_key, **target_fields
+        ],
     )
+    @unpack
+    @skip_unless_cms
+    @override_settings(OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker")
+    def test_sync_discussions_configuration_parametrized(
+        self, source_fields, target_fields, expected_fields
+    ):
+        user = UserFactory.create(username="service_worker")
+        source_key = self.source_course.usage_key.course_key
+        target_key = self.target_course.usage_key.course_key
 
-    sync_discussions_configuration(source_key, target_key)
-    target_config.refresh_from_db()
+        DiscussionsConfiguration.objects.create(context_key=source_key, **source_fields)
+        target_config = DiscussionsConfiguration.objects.create(
+            context_key=target_key, **target_fields
+        )
 
-    for field, expected_value in expected_fields.items():
-        assert getattr(target_config, field) == expected_value
+        sync_discussions_configuration(source_key, target_key, user)
+        target_config.refresh_from_db()
+
+        for field, expected_value in expected_fields.items():
+            assert getattr(target_config, field) == expected_value
