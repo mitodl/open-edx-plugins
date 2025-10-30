@@ -11,7 +11,7 @@ from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope
-from xmodule.modulestore.xml import ImportSystem
+from xmodule.modulestore.xml import XMLImportingModuleStoreRuntime
 from xmodule.video_block.transcripts_utils import (
     Transcript,
     get_available_transcript_languages,
@@ -211,7 +211,7 @@ class OLChatAside(XBlockAside):
         # In that case, we cannot check for the course settings and waffle flag.
         # We only check for the block type. For normal CMS and LMS flows, it will
         # check for the course settings and waffle flag.
-        if isinstance(block.runtime, ImportSystem):
+        if isinstance(block.runtime, XMLImportingModuleStoreRuntime):
             return is_aside_applicable_to_block(block=block)
 
         return (
