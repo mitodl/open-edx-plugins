@@ -7,6 +7,7 @@ from unittest import mock
 import pytest
 from common.djangoapps.course_action_state.models import CourseRerunState
 from common.djangoapps.student.tests.factories import UserFactory
+from ddt import ddt
 from django.core.exceptions import ValidationError
 from django.test import override_settings
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
@@ -16,10 +17,15 @@ from opaque_keys.edx.locator import CourseLocator
 from openedx.core.djangoapps.content.course_overviews.tests.factories import (
     CourseOverviewFactory,
 )
+from openedx.core.djangoapps.discussions.models import (
+    DiscussionsConfiguration,
+)
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from xmodule.modulestore.django import SignalHandler
 from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory
+
+from tests.utils import OLOpenedXCourseSyncTestCase
 
 
 @skip_unless_cms
@@ -85,6 +91,55 @@ def test_signal_logs_validation_error_on_create(mock_log):
             "Failed to create CourseSyncMapping for %s",
             instance.source_course_key,
         )
+
+
+@ddt
+class TestDiscussionsConfigurationPostSave(OLOpenedXCourseSyncTestCase):
+    """
+    Test the DiscussionsConfiguration post_save signal handler.
+    """
+
+    @skip_unless_cms
+    @pytest.mark.django_db
+    @override_settings(OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker")
+    def test_listen_for_discussions_configuration_post_save(self):
+        """
+        Test that the discussions configuration sync task is triggered
+        on DiscussionsConfiguration post_save.
+        """
+        UserFactory.create(username="service_worker")
+        with mock.patch(
+            "ol_openedx_course_sync.signals.async_discussions_configuration_sync"
+        ) as mock_task:
+            source_key = self.source_course.usage_key.course_key
+            target_key = self.target_course.usage_key.course_key
+
+            CourseOverviewFactory.create(id=source_key)
+            CourseOverviewFactory.create(id=target_key)
+
+            CourseSyncOrganization.objects.create(
+                organization=source_key.org, is_active=True
+            )
+            CourseSyncMapping.objects.create(
+                source_course=source_key,
+                target_course=target_key,
+                is_active=True,
+            )
+
+            config = DiscussionsConfiguration.objects.create(
+                context_key=source_key,
+                unit_level_visibility=True,
+            )
+            config.unit_level_visibility = False
+            config.save()
+
+            calls = [
+                mock.call.delay(
+                    str(source_key),
+                    str(target_key),
+                )
+            ]
+            mock_task.assert_has_calls(calls, any_order=True)
 
 
 @skip_unless_cms
