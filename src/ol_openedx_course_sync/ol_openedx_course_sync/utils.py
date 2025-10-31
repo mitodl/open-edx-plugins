@@ -153,14 +153,12 @@ def update_default_tabs(source_course_key, target_course_key, user):
 
 def sync_discussions_configuration(source_course_key, target_course_key, user):
     """
-    Sync DiscussionsConfiguration settings from source to target course.
+    Sync DiscussionsConfiguration and CourseDiscussionSettings
+    from source to target course.
 
     Args:
         source_course_key (CourseKey): The key for the source course.
         target_course_key (CourseKey): The key for the target course.
-
-    Returns:
-        DiscussionsConfiguration: The updated target configuration.
     """
 
     def sync_model_objects(source_object, target_object, fields_to_sync):
