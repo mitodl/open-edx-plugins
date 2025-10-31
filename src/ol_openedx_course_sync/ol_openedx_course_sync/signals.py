@@ -9,6 +9,9 @@ from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
+from openedx.core.djangoapps.django_comment_common.models import (
+    CourseDiscussionSettings,
+)
 
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
@@ -79,16 +82,22 @@ def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa
 
 
 @receiver(post_save, sender=DiscussionsConfiguration)
+@receiver(post_save, sender=CourseDiscussionSettings)
 def listen_for_discussions_configuration_post_save(
     sender,  # noqa: ARG001
     instance,
     **kwargs,  # noqa: ARG001
 ):
     """
-    Listen for `DiscussionsConfiguration` post_save and
+    Listen for `DiscussionsConfiguration` and `CourseDiscussionSettings` post_save and
     sync discussions configuration to target courses in `CourseSyncMapping`
     """
-    should_sync, course_sync_mappings = should_perform_sync(instance.context_key)
+    course_key = (
+        instance.context_key
+        if isinstance(instance, DiscussionsConfiguration)
+        else instance.course_id
+    )
+    should_sync, course_sync_mappings = should_perform_sync(course_key)
     if not should_sync:
         return
 
