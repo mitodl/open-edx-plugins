@@ -171,8 +171,8 @@ def sync_discussions_configuration(source_course_key, target_course_key, user):
             target_object.save()
         return has_changes
 
-    # List of fields to sync (excluding context_key and history)
     fields_to_sync = {
+        # List of fields to sync (excluding context_key and history)
         DiscussionsConfiguration: [
             "enabled",
             "posting_restrictions",
