@@ -11,6 +11,9 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from edx_django_utils.cache import TieredCache, get_cache_key
 from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
+from openedx.core.djangoapps.django_comment_common.models import (
+    CourseDiscussionSettings,
+)
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.tabs import CourseTabList, StaticTab
@@ -159,43 +162,68 @@ def sync_discussions_configuration(source_course_key, target_course_key, user):
     Returns:
         DiscussionsConfiguration: The updated target configuration.
     """
-    source_config = DiscussionsConfiguration.get(source_course_key)
-    target_config = DiscussionsConfiguration.get(target_course_key)
+
+    def sync_model_objects(source_object, target_object, fields_to_sync):
+        has_changes = False
+        for field in fields_to_sync:
+            if getattr(source_object, field) != getattr(target_object, field):
+                has_changes = True
+                setattr(target_object, field, getattr(source_object, field))
+        if has_changes:
+            target_object.save()
+        return has_changes
 
     # List of fields to sync (excluding context_key and history)
-    fields_to_sync = [
-        "enabled",
-        "posting_restrictions",
-        "lti_configuration",
-        "enable_in_context",
-        "enable_graded_units",
-        "unit_level_visibility",
-        "plugin_configuration",
-        "provider_type",
-    ]
+    fields_to_sync = {
+        DiscussionsConfiguration: [
+            "enabled",
+            "posting_restrictions",
+            "lti_configuration",
+            "enable_in_context",
+            "enable_graded_units",
+            "unit_level_visibility",
+            "plugin_configuration",
+            "provider_type",
+        ],
+        CourseDiscussionSettings: [
+            "always_divide_inline_discussions",
+            "reported_content_email_notifications",
+            "division_scheme",
+            "_divided_discussions",
+        ],
+    }
 
-    has_changes = False
-    for field in fields_to_sync:
-        if getattr(source_config, field) != getattr(target_config, field):
-            has_changes = True
-            setattr(target_config, field, getattr(source_config, field))
+    source_discussions_config = DiscussionsConfiguration.get(source_course_key)
+    target_discussions_config = DiscussionsConfiguration.get(target_course_key)
+    has_configuration_changes = sync_model_objects(
+        source_discussions_config,
+        target_discussions_config,
+        fields_to_sync[DiscussionsConfiguration],
+    )
 
-    if not has_changes:
+    source_discussions_settings = CourseDiscussionSettings.get(source_course_key)
+    target_discussions_settings = CourseDiscussionSettings.get(target_course_key)
+    _ = sync_model_objects(
+        source_discussions_settings,
+        target_discussions_settings,
+        fields_to_sync[CourseDiscussionSettings],
+    )
+
+    if not has_configuration_changes:
         return
 
-    target_config.save()
     # update discussion settings in modulestore
     source_course = modulestore().get_course(source_course_key)
     target_course = modulestore().get_course(target_course_key)
 
     target_course.discussions_settings["enable_in_context"] = (
-        target_config.enable_in_context
+        target_discussions_config.enable_in_context
     )
     target_course.discussions_settings["enable_graded_units"] = (
-        target_config.enable_graded_units
+        target_discussions_config.enable_graded_units
     )
     target_course.discussions_settings["unit_level_visibility"] = (
-        target_config.unit_level_visibility
+        target_discussions_config.unit_level_visibility
     )
     target_course.discussion_blackouts = source_course.discussion_blackouts
     target_course.discussion_topics = source_course.discussion_topics
