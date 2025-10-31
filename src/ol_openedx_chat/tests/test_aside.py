@@ -18,8 +18,11 @@ from opaque_keys.edx.asides import AsideUsageKeyV2
 from openedx.core.djangolib.testing.utils import skip_unless_cms, skip_unless_lms
 from xblock.core import XBlockAside
 from xmodule.modulestore import ModuleStoreEnum
+
 try:
-    from xmodule.modulestore.xml import XMLImportingModuleStoreRuntime as XMLImportingModuleStoreRuntime
+    from xmodule.modulestore.xml import (
+        XMLImportingModuleStoreRuntime as XMLImportingModuleStoreRuntime,  # noqa: PLC0414
+    )
 except ImportError:
     from xmodule.modulestore.xml import ImportSystem as XMLImportingModuleStoreRuntime
 
