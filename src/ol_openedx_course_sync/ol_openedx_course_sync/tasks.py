@@ -103,7 +103,8 @@ def async_course_sync(source_course_id, dest_course_id):
 )
 def async_discussions_configuration_sync(source_course_id, dest_course_id):
     """
-    Sync discussions configuration from source course to destination course.
+    Sync discussions configuration and settings
+    from source course to destination course.
     """
     logger.info(
         "Starting discussions configuration sync from %s to %s",
