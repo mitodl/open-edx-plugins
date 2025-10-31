@@ -42,6 +42,9 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
             mock.patch(
                 "ol_openedx_course_sync.tasks.update_default_tabs"
             ) as mock_update_default_tabs,
+            mock.patch(
+                "ol_openedx_course_sync.tasks.sync_discussions_configuration",
+            ) as mock_sync_discussions_configuration,
         ):
             mock_copy_all_course_assets = mock.Mock()
             mock_delete_all_course_assets = mock.Mock()
@@ -84,3 +87,19 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
             mock_delete_all_course_assets.assert_called_once()
             mock_copy_static_tabs.assert_called_once()
             mock_update_default_tabs.assert_called_once()
+            mock_sync_discussions_configuration.assert_called_once()
+
+    @skip_unless_cms
+    def test_async_discussions_configuration_sync(self):
+        """
+        Test the async_discussions_configuration_sync task works as expected.
+        """
+        UserFactory.create(username="service_worker")
+        with mock.patch(
+            "ol_openedx_course_sync.tasks.sync_discussions_configuration"
+        ) as mock_sync_discussions_configuration:
+            async_course_sync(
+                str(self.source_course.usage_key.course_key),
+                str(self.target_course.usage_key.course_key),
+            )
+            mock_sync_discussions_configuration.assert_called_once()

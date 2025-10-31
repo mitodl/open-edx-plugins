@@ -2,14 +2,27 @@
 Utilities for the ol-openedx-course-sync plugin
 """
 
+import logging
 from uuid import uuid4
 
 from cms.djangoapps.contentstore.utils import duplicate_block
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ImproperlyConfigured
+from edx_django_utils.cache import TieredCache, get_cache_key
+from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
+from openedx.core.djangoapps.django_comment_common.models import (
+    CourseDiscussionSettings,
+)
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.tabs import CourseTabList, StaticTab
 
 from ol_openedx_course_sync.constants import STATIC_TAB_TYPE
+from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
+
+User = get_user_model()
+log = logging.getLogger(__name__)
 
 
 def copy_course_content(source_course_key, target_course_key, branch, user_id=None):
@@ -136,3 +149,134 @@ def update_default_tabs(source_course_key, target_course_key, user):
 
     if is_updated:
         store.update_item(target_course, user.id)
+
+
+def sync_discussions_configuration(source_course_key, target_course_key, user):
+    """
+    Sync DiscussionsConfiguration and CourseDiscussionSettings
+    from source to target course.
+
+    Args:
+        source_course_key (CourseKey): The key for the source course.
+        target_course_key (CourseKey): The key for the target course.
+    """
+
+    def sync_model_objects(source_object, target_object, fields_to_sync):
+        has_changes = False
+        for field in fields_to_sync:
+            if getattr(source_object, field) != getattr(target_object, field):
+                has_changes = True
+                setattr(target_object, field, getattr(source_object, field))
+        if has_changes:
+            target_object.save()
+        return has_changes
+
+    fields_to_sync = {
+        # List of fields to sync (excluding context_key and history)
+        DiscussionsConfiguration: [
+            "enabled",
+            "posting_restrictions",
+            "lti_configuration",
+            "enable_in_context",
+            "enable_graded_units",
+            "unit_level_visibility",
+            "plugin_configuration",
+            "provider_type",
+        ],
+        CourseDiscussionSettings: [
+            "always_divide_inline_discussions",
+            "reported_content_email_notifications",
+            "division_scheme",
+            "_divided_discussions",
+        ],
+    }
+
+    source_discussions_config = DiscussionsConfiguration.get(source_course_key)
+    target_discussions_config = DiscussionsConfiguration.get(target_course_key)
+    has_configuration_changes = sync_model_objects(
+        source_discussions_config,
+        target_discussions_config,
+        fields_to_sync[DiscussionsConfiguration],
+    )
+
+    source_discussions_settings = CourseDiscussionSettings.get(source_course_key)
+    target_discussions_settings = CourseDiscussionSettings.get(target_course_key)
+    _ = sync_model_objects(
+        source_discussions_settings,
+        target_discussions_settings,
+        fields_to_sync[CourseDiscussionSettings],
+    )
+
+    if not has_configuration_changes:
+        return
+
+    # update discussion settings in modulestore
+    source_course = modulestore().get_course(source_course_key)
+    target_course = modulestore().get_course(target_course_key)
+
+    target_course.discussions_settings["enable_in_context"] = (
+        target_discussions_config.enable_in_context
+    )
+    target_course.discussions_settings["enable_graded_units"] = (
+        target_discussions_config.enable_graded_units
+    )
+    target_course.discussions_settings["unit_level_visibility"] = (
+        target_discussions_config.unit_level_visibility
+    )
+    target_course.discussion_blackouts = source_course.discussion_blackouts
+    target_course.discussion_topics = source_course.discussion_topics
+    modulestore().update_item(target_course, user.id)
+
+
+def get_course_sync_service_user():
+    """
+    Retrieve the service user for course sync operations.
+
+    Returns:
+        User: The service user object.
+    """
+    cache_key = get_cache_key(
+        course_sync_service_worker=settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME
+    )
+    cache_value = TieredCache.get_cached_response(cache_key)
+    if not cache_value.is_found:
+        user = User.objects.filter(
+            username=settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME
+        ).first()
+        TieredCache.set_all_tiers(cache_key, user)
+    else:
+        user = cache_value.value
+
+    return user
+
+
+def should_perform_sync(course_key):
+    """
+    Check if course sync should be performed for the given course key.
+
+    Returns:
+        tuple: (should_sync: bool, course_sync_mappings: QuerySet or None)
+    """
+    # Check if organization is active for sync
+    if not CourseSyncOrganization.objects.filter(
+        organization=course_key.org, is_active=True
+    ).exists():
+        return False, None
+
+    # Check if service worker username is configured
+    if not getattr(settings, "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME", None):
+        error_msg = (
+            "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set. "
+            "Course sync will not be performed."
+        )
+        raise ImproperlyConfigured(error_msg)
+
+    # Get active course sync mappings
+    course_sync_mappings = CourseSyncMapping.objects.filter(
+        source_course=course_key, is_active=True
+    )
+    if not course_sync_mappings:
+        log.info("No mapping found for course %s. Skipping sync.", str(course_key))
+        return False, None
+
+    return True, course_sync_mappings
