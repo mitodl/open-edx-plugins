@@ -11,7 +11,10 @@ from web_fragments.fragment import Fragment
 from webob.response import Response
 from xblock.core import XBlock, XBlockAside
 from xblock.fields import Boolean, Scope
-from xmodule.modulestore.xml import XMLImportingModuleStoreRuntime
+try:
+    from xmodule.modulestore.xml import XMLImportingModuleStoreRuntime as XMLImportingModuleStoreRuntime
+except ImportError:
+    from xmodule.modulestore.xml import ImportSystem as XMLImportingModuleStoreRuntime
 from xmodule.video_block.transcripts_utils import (
     Transcript,
     get_available_transcript_languages,
