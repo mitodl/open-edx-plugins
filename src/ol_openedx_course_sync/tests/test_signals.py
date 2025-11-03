@@ -7,7 +7,7 @@ from unittest import mock
 import pytest
 from common.djangoapps.course_action_state.models import CourseRerunState
 from common.djangoapps.student.tests.factories import UserFactory
-from ddt import ddt
+from ddt import data, ddt, unpack
 from django.core.exceptions import ValidationError
 from django.test import override_settings
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
@@ -19,6 +19,9 @@ from openedx.core.djangoapps.content.course_overviews.tests.factories import (
 )
 from openedx.core.djangoapps.discussions.models import (
     DiscussionsConfiguration,
+)
+from openedx.core.djangoapps.django_comment_common.models import (
+    CourseDiscussionSettings,
 )
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from xmodule.modulestore.django import SignalHandler
@@ -102,10 +105,15 @@ class TestDiscussionsConfigurationPostSave(OLOpenedXCourseSyncTestCase):
     @skip_unless_cms
     @pytest.mark.django_db
     @override_settings(OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker")
-    def test_listen_for_discussions_configuration_post_save(self):
+    @data(
+        [DiscussionsConfiguration],
+        [CourseDiscussionSettings],
+    )
+    @unpack
+    def test_listen_for_discussions_configuration_post_save(self, model_class):
         """
         Test that the discussions configuration sync task is triggered
-        on DiscussionsConfiguration post_save.
+        on `DiscussionsConfiguration` post_save.
         """
         UserFactory.create(username="service_worker")
         with mock.patch(
@@ -126,12 +134,20 @@ class TestDiscussionsConfigurationPostSave(OLOpenedXCourseSyncTestCase):
                 is_active=True,
             )
 
-            config = DiscussionsConfiguration.objects.create(
-                context_key=source_key,
-                unit_level_visibility=True,
-            )
-            config.unit_level_visibility = False
-            config.save()
+            if model_class == CourseDiscussionSettings:
+                # Create initial CourseDiscussionSettings if testing that model
+                discussion_settings = CourseDiscussionSettings.objects.create(
+                    course_id=source_key,
+                )
+                discussion_settings.reported_content_email_notifications = True
+                discussion_settings.save()
+            else:
+                config = DiscussionsConfiguration.objects.create(
+                    context_key=source_key,
+                    unit_level_visibility=True,
+                )
+                config.unit_level_visibility = False
+                config.save()
 
             calls = [
                 mock.call.delay(
