@@ -331,6 +331,9 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
 @pytest.mark.django_db
 @skip_unless_cms
 def test_get_course_sync_service_user_cache_hit(settings):
+    """
+    Test get_course_sync_service_user function cache hit.
+    """
     settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME = "service_worker"
     mock_user = mock.Mock()
     with (
@@ -350,6 +353,9 @@ def test_get_course_sync_service_user_cache_hit(settings):
 @pytest.mark.django_db
 @skip_unless_cms
 def test_get_course_sync_service_user_cache_miss(settings):
+    """
+    Test get_course_sync_service_user function cache miss.
+    """
     settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME = "service_worker"
     mock_user = mock.Mock()
     with (
