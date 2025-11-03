@@ -18,7 +18,13 @@ from opaque_keys.edx.asides import AsideUsageKeyV2
 from openedx.core.djangolib.testing.utils import skip_unless_cms, skip_unless_lms
 from xblock.core import XBlockAside
 from xmodule.modulestore import ModuleStoreEnum
-from xmodule.modulestore.xml import ImportSystem
+
+try:
+    from xmodule.modulestore.xml import (
+        XMLImportingModuleStoreRuntime as XMLImportingModuleStoreRuntime,  # noqa: PLC0414
+    )
+except ImportError:
+    from xmodule.modulestore.xml import ImportSystem as XMLImportingModuleStoreRuntime
 
 from tests.utils import OLChatTestCase
 
@@ -262,7 +268,7 @@ class OLChatAsideTests(OLChatTestCase):
             )
 
             if is_import_runtime:
-                block.runtime = Mock(spec=ImportSystem)
+                block.runtime = Mock(spec=XMLImportingModuleStoreRuntime)
 
             aside_instance = (
                 self.problem_aside_instance
