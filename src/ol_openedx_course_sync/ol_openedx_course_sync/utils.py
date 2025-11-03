@@ -172,7 +172,7 @@ def sync_discussions_configuration(source_course_key, target_course_key, user):
         return has_changes
 
     fields_to_sync = {
-        # List of fields to sync (excluding context_key and history)
+        # `DiscussionsConfiguration` fields excluding context_key and history.
         DiscussionsConfiguration: [
             "enabled",
             "posting_restrictions",
@@ -183,6 +183,7 @@ def sync_discussions_configuration(source_course_key, target_course_key, user):
             "plugin_configuration",
             "provider_type",
         ],
+        # `CourseDiscussionSettings` fields excluding course_id and discussions_id_map.
         CourseDiscussionSettings: [
             "always_divide_inline_discussions",
             "reported_content_email_notifications",
@@ -191,20 +192,20 @@ def sync_discussions_configuration(source_course_key, target_course_key, user):
         ],
     }
 
-    source_discussions_config = DiscussionsConfiguration.get(source_course_key)
-    target_discussions_config = DiscussionsConfiguration.get(target_course_key)
-    has_configuration_changes = sync_model_objects(
-        source_discussions_config,
-        target_discussions_config,
-        fields_to_sync[DiscussionsConfiguration],
-    )
-
     source_discussions_settings = CourseDiscussionSettings.get(source_course_key)
     target_discussions_settings = CourseDiscussionSettings.get(target_course_key)
     _ = sync_model_objects(
         source_discussions_settings,
         target_discussions_settings,
         fields_to_sync[CourseDiscussionSettings],
+    )
+
+    source_discussions_config = DiscussionsConfiguration.get(source_course_key)
+    target_discussions_config = DiscussionsConfiguration.get(target_course_key)
+    has_configuration_changes = sync_model_objects(
+        source_discussions_config,
+        target_discussions_config,
+        fields_to_sync[DiscussionsConfiguration],
     )
 
     if not has_configuration_changes:
