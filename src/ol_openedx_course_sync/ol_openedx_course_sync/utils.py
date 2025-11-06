@@ -161,15 +161,19 @@ def sync_discussions_configuration(source_course_key, target_course_key, user):
         target_course_key (CourseKey): The key for the target course.
     """
 
-    def sync_model_objects(source_object, target_object, fields_to_sync):
+    def sync_model_objects(source_object, target_object):
+        """
+        Sync fields from source_object to target_object
+        """
+        fields = fields_to_sync[type(source_object)]
         has_changes = False
-        for field in fields_to_sync:
+        for field in fields:
             if getattr(source_object, field) != getattr(target_object, field):
                 has_changes = True
                 setattr(target_object, field, getattr(source_object, field))
+
         if has_changes:
             target_object.save()
-        return has_changes
 
     fields_to_sync = {
         # `DiscussionsConfiguration` fields excluding context_key and history.
@@ -194,39 +198,21 @@ def sync_discussions_configuration(source_course_key, target_course_key, user):
 
     source_discussions_settings = CourseDiscussionSettings.get(source_course_key)
     target_discussions_settings = CourseDiscussionSettings.get(target_course_key)
-    _ = sync_model_objects(
-        source_discussions_settings,
-        target_discussions_settings,
-        fields_to_sync[CourseDiscussionSettings],
-    )
+    sync_model_objects(source_discussions_settings, target_discussions_settings)
 
     source_discussions_config = DiscussionsConfiguration.get(source_course_key)
     target_discussions_config = DiscussionsConfiguration.get(target_course_key)
-    has_configuration_changes = sync_model_objects(
-        source_discussions_config,
-        target_discussions_config,
-        fields_to_sync[DiscussionsConfiguration],
-    )
-
-    if not has_configuration_changes:
-        return
+    sync_model_objects(source_discussions_config, target_discussions_config)
 
     # update discussion settings in modulestore
-    source_course = modulestore().get_course(source_course_key)
-    target_course = modulestore().get_course(target_course_key)
+    module_store = modulestore()
+    source_course = module_store.get_course(source_course_key)
+    target_course = module_store.get_course(target_course_key)
 
-    target_course.discussions_settings["enable_in_context"] = (
-        target_discussions_config.enable_in_context
-    )
-    target_course.discussions_settings["enable_graded_units"] = (
-        target_discussions_config.enable_graded_units
-    )
-    target_course.discussions_settings["unit_level_visibility"] = (
-        target_discussions_config.unit_level_visibility
-    )
+    target_course.discussions_settings = source_course.discussions_settings
     target_course.discussion_blackouts = source_course.discussion_blackouts
     target_course.discussion_topics = source_course.discussion_topics
-    modulestore().update_item(target_course, user.id)
+    module_store.update_item(target_course, user.id)
 
 
 def get_course_sync_service_user():
@@ -251,7 +237,7 @@ def get_course_sync_service_user():
     return user
 
 
-def should_perform_sync(course_key):
+def get_syncable_course_mappings(course_key):
     """
     Check if course sync should be performed for the given course key.
 

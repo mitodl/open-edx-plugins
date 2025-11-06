@@ -19,7 +19,7 @@ from ol_openedx_course_sync.tasks import (
     async_course_sync,
     async_discussions_configuration_sync,
 )
-from ol_openedx_course_sync.utils import should_perform_sync
+from ol_openedx_course_sync.utils import get_syncable_course_mappings
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ def listen_for_course_publish(
     """
     Listen for course publish signal and trigger course sync task
     """
-    should_sync, course_sync_mappings = should_perform_sync(course_key)
+    should_sync, course_sync_mappings = get_syncable_course_mappings(course_key)
     if not should_sync:
         return
 
@@ -97,7 +97,7 @@ def listen_for_discussions_configuration_post_save(
         if isinstance(instance, DiscussionsConfiguration)
         else instance.course_id
     )
-    should_sync, course_sync_mappings = should_perform_sync(course_key)
+    should_sync, course_sync_mappings = get_syncable_course_mappings(course_key)
     if not should_sync:
         return
 
