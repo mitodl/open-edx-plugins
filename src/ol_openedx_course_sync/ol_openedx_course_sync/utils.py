@@ -242,13 +242,13 @@ def get_syncable_course_mappings(course_key):
     Check if course sync should be performed for the given course key.
 
     Returns:
-        tuple: (should_sync: bool, course_sync_mappings: QuerySet or None)
+        Queryset: QuerySet of CourseSyncMapping or None
     """
     # Check if organization is active for sync
     if not CourseSyncOrganization.objects.filter(
         organization=course_key.org, is_active=True
     ).exists():
-        return False, None
+        return None
 
     # Check if service worker username is configured
     if not getattr(settings, "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME", None):
@@ -264,6 +264,6 @@ def get_syncable_course_mappings(course_key):
     )
     if not course_sync_mappings:
         log.info("No mapping found for course %s. Skipping sync.", str(course_key))
-        return False, None
+        return None
 
-    return True, course_sync_mappings
+    return course_sync_mappings

@@ -32,8 +32,8 @@ def listen_for_course_publish(
     """
     Listen for course publish signal and trigger course sync task
     """
-    should_sync, course_sync_mappings = get_syncable_course_mappings(course_key)
-    if not should_sync:
+    course_sync_mappings = get_syncable_course_mappings(course_key)
+    if not course_sync_mappings:
         return
 
     for course_sync_mapping in course_sync_mappings:
@@ -97,8 +97,8 @@ def listen_for_discussions_configuration_post_save(
         if isinstance(instance, DiscussionsConfiguration)
         else instance.course_id
     )
-    should_sync, course_sync_mappings = get_syncable_course_mappings(course_key)
-    if not should_sync:
+    course_sync_mappings = get_syncable_course_mappings(course_key)
+    if not course_sync_mappings:
         return
 
     for course_sync_mapping in course_sync_mappings:

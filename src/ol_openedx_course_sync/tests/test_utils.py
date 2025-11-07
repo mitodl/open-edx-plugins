@@ -220,7 +220,6 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             False,
             False,
             False,
-            False,
             None,
         ],
         [
@@ -230,7 +229,6 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             False,
             False,
             False,
-            False,
             None,
         ],
         [
@@ -240,21 +238,9 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             False,
             False,
             True,
-            False,
             None,
         ],
         [
-            True,
-            True,
-            True,
-            False,
-            False,
-            False,
-            False,
-            None,
-        ],
-        [
-            True,
             True,
             True,
             True,
@@ -268,9 +254,17 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             True,
             True,
             True,
+            False,
+            False,
+            None,
+        ],
+        [
+            True,
+            True,
+            True,
+            True,
             True,
             False,
-            True,
             1,
         ],
     )
@@ -284,7 +278,6 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
         mapping_exists,
         mapping_active,
         raise_exception,
-        expected_should_sync,
         expected_sync_mappings_count,
     ):
         """
@@ -318,10 +311,7 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             with override_settings(
                 OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker"
             ):
-                actual_should_sync, actual_sync_mappings = get_syncable_course_mappings(
-                    source_key
-                )
-            assert actual_should_sync == expected_should_sync
+                actual_sync_mappings = get_syncable_course_mappings(source_key)
             if expected_sync_mappings_count is None:
                 assert actual_sync_mappings is None
             else:
