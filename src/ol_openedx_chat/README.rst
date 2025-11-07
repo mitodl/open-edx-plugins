@@ -48,7 +48,7 @@ This will download the smoot-design package and copy the pre-bundled JS file to 
 
 .. code-block:: sh
 
-   npm pack @mitodl/smoot-design@^6.17.0
+   npm pack @mitodl/smoot-design@^6.19.0
    tar -xvzf mitodl-smoot-design*.tgz
    mkdir -p public/static/smoot-design
    cp package/dist/bundles/* public/static/smoot-design
@@ -78,7 +78,7 @@ The Unit is rendered inside an Iframe and we use postMessage to communicate betw
 
    export default config;
 
-(Alternatively, you can import the drawer code from a CDN like kg.com/@mitodl/smoot-design@6.4.0/dist/bundles/remoteTutorDrawer.umd.js to skip Step 3. However, the steps outlined here are most similar to what we do in production.)
+(Alternatively, you can import the drawer code from a CDN like kg.com/@mitodl/smoot-design@6.19.0/dist/bundles/remoteTutorDrawer.umd.js to skip Step 3. However, the steps outlined here are most similar to what we do in production.)
 
 5. Start learning MFE by ``npm run dev``
 ----------------------------------------
