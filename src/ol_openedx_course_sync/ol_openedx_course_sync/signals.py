@@ -5,14 +5,21 @@ Signal handlers for ol-openedx-course-sync plugin
 import logging
 
 from common.djangoapps.course_action_state.models import CourseRerunState
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured, ValidationError
+from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
+from openedx.core.djangoapps.django_comment_common.models import (
+    CourseDiscussionSettings,
+)
 
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
-from ol_openedx_course_sync.tasks import async_course_sync
+from ol_openedx_course_sync.tasks import (
+    async_course_sync,
+    async_discussions_configuration_sync,
+)
+from ol_openedx_course_sync.utils import get_syncable_course_mappings
 
 log = logging.getLogger(__name__)
 
@@ -25,23 +32,8 @@ def listen_for_course_publish(
     """
     Listen for course publish signal and trigger course sync task
     """
-    if not CourseSyncOrganization.objects.filter(
-        organization=course_key.org, is_active=True
-    ).exists():
-        return
-
-    if not getattr(settings, "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME", None):
-        error_msg = (
-            "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set. "
-            "Course sync will not be performed."
-        )
-        raise ImproperlyConfigured(error_msg)
-
-    course_sync_mappings = CourseSyncMapping.objects.filter(
-        source_course=course_key, is_active=True
-    )
+    course_sync_mappings = get_syncable_course_mappings(course_key)
     if not course_sync_mappings:
-        log.info("No mapping found for course %s. Skipping sync.", str(course_key))
         return
 
     for course_sync_mapping in course_sync_mappings:
@@ -87,3 +79,43 @@ def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa
             str(course_sync_mapping.source_course),
             str(course_sync_mapping.target_course),
         )
+
+
+@receiver(post_save, sender=DiscussionsConfiguration)
+@receiver(post_save, sender=CourseDiscussionSettings)
+def listen_for_discussions_configuration_post_save(
+    sender,  # noqa: ARG001
+    instance,
+    **kwargs,  # noqa: ARG001
+):
+    """
+    Listen for `DiscussionsConfiguration` and `CourseDiscussionSettings` post_save and
+    sync discussions configuration to target courses in `CourseSyncMapping`
+    """
+    course_key = (
+        instance.context_key
+        if isinstance(instance, DiscussionsConfiguration)
+        else instance.course_id
+    )
+    course_sync_mappings = get_syncable_course_mappings(course_key)
+    if not course_sync_mappings:
+        return
+
+    for course_sync_mapping in course_sync_mappings:
+        log.info(
+            "Syncing discussions configuration from %s to %s",
+            course_sync_mapping.source_course,
+            course_sync_mapping.target_course,
+        )
+
+        try:
+            async_discussions_configuration_sync.delay(
+                str(course_sync_mapping.source_course),
+                str(course_sync_mapping.target_course),
+            )
+        except Exception:
+            log.exception(
+                "Failed to sync discussions configuration from %s to %s",
+                course_sync_mapping.source_course,
+                course_sync_mapping.target_course,
+            )
