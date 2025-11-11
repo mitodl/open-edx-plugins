@@ -163,7 +163,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         canvas_course_id,
         problem_set=None,
         thread_id=None,
-        checkpoint=None,
+        checkpoint_pk=None,
     ):
         """
         Send a tracker event.
@@ -179,11 +179,9 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             "xblock_state": self.get_xblock_state(),
             "value": value,
             "problem_set": problem_set,
+            "thread_id": thread_id,
+            "checkpoint_pk": checkpoint_pk,
         }
-        if thread_id:
-            tracker_payload["thread_id"] = thread_id
-        if checkpoint:
-            tracker_payload["checkpoint"] = checkpoint
         tracker.emit(f"{__package__}.{event_name}", tracker_payload)
 
     def get_problem_set_url(self):
@@ -199,12 +197,12 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
 
         return f"{base_url}?{urlencode(params)}"
 
-    def get_learn_ai_rating_url(self, thread_id, checkpoint_id):
+    def get_learn_ai_rating_url(self, thread_id, checkpoint_pk):
         """
         Generate the URL for the AI chat.
         """
         base_url = settings.MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL.rstrip("/")
-        return f"{base_url}/{thread_id}/messages/{checkpoint_id}/rate/"
+        return f"{base_url}/{thread_id}/messages/{checkpoint_pk}/rate/"
 
     def get_ai_chat_init_js_args(self):
         """
@@ -331,6 +329,43 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             req_chat_cookies.get(CHAT_XBLOCK_BLOCK_ID, None),
         )
 
+    def get_checkpoint_and_thread_id(self, content=None, suffix=None):
+        """
+        Extract the checkpoint ID and thread ID from chat response content.
+
+        Args:
+            content (str): The content from the chat response.
+            suffix (str): The URL suffix from the request e.g from chat rating API.
+        """
+        match = None
+        try:
+            if suffix:
+                pattern = r"^/?thread/([^/]+)/checkpoint/(\d+)/$"
+                # Match the suffix against the pattern
+                match = re.match(pattern, suffix.strip())
+                return match.groups()[0], match.groups()[1]
+            else:
+                # Decode bytes to string
+                content_str = (
+                    content.decode("utf-8") if isinstance(content, bytes) else content
+                )
+                # The content from the chat response contains values with JSON data.
+                # e.g. It looks like '_content': b'Hello! How can I help you?\n\n
+                # <!-- {"checkpoint_pk": 123, "thread_id": "abc123"} -->\n\n'
+                match = re.search(r"<!-- ({.*}) -->", content_str)
+                dict_values = json.loads(match.group(1))
+                return dict_values.get("thread_id"), str(
+                    dict_values.get("checkpoint_pk")
+                )
+        except Exception:  # noqa: BLE001
+            log.info(
+                "Couldn't parse content/suffix to get Thread_id and Checkpoint_pk."
+                " content: %s, suffix: %s",
+                content,
+                suffix,
+            )
+        return None, None
+
     @XBlock.handler
     def ol_chat(self, request, suffix=""):  # noqa: ARG002
         """Start the chat session via external MIT LEARN AI API."""
@@ -422,11 +457,16 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             )
             xblock_response = Response(response.content)
 
+            thread_id, checkpoint_pk = self.get_checkpoint_and_thread_id(
+                content=response.content
+            )
             self.send_tracker_event(
                 event_name="OLChat.response",
                 value=str(response.content),
                 canvas_course_id=course_id_for_chat,
                 problem_set=problem_set_title,
+                thread_id=thread_id,
+                checkpoint_pk=checkpoint_pk,
             )
 
             # Set chat_xblock_thread_keys cookie for subsequent requests. This allows
@@ -463,22 +503,21 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         """Submit feedback for chat to MIT LEARN AI API."""
         request_data = self.validate_request(request)
         course_id_for_chat = self.course_id or self.learn_readable_course_id
+
         if isinstance(request_data, Response):
             return request_data
 
-        pattern = r"^/?thread/([^/]+)/checkpoint/(\d+)/$"
-        # Match the suffix against the pattern
-        match = re.match(pattern, suffix.strip())
-        if not match:
+        thread_id, checkpoint_pk = self.get_checkpoint_and_thread_id(suffix=suffix)
+        if not thread_id or not checkpoint_pk:
             log.error(
-                "Invalid URL. Expected /thread/<threadId>/checkpoint/<checkpointPk>"
+                "Invalid URL. Couldn't extract Thread ID and Checkpoint ID from %s",
+                suffix,
             )
             return Response(
-                "Invalid URL. Expected /thread/<threadId>/checkpoint/<checkpointPk>",
+                "Invalid URL. Couldn't extract Thread ID and Checkpoint ID.",
                 status=api_status.HTTP_400_BAD_REQUEST,
             )
 
-        thread_id, checkpoint_id = match.groups()
         api_token = settings.MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN
 
         if not settings.MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL or not api_token:
@@ -497,8 +536,8 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 event_name="OLChat.rating.request",
                 value=request_data.get("rating", ""),
                 canvas_course_id=course_id_for_chat,
-                checkpoint=checkpoint_id,
                 thread_id=thread_id,
+                checkpoint_pk=checkpoint_pk,
             )
             req_chat_thread_id, _ = self.get_thread_and_block_ids_from_cookies(request)
 
@@ -507,7 +546,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             }
 
             response = requests.post(
-                self.get_learn_ai_rating_url(thread_id, checkpoint_id),
+                self.get_learn_ai_rating_url(thread_id, checkpoint_pk),
                 json=request_data,
                 headers=headers,
                 timeout=60,
@@ -522,8 +561,8 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 event_name="OLChat.rating.response",
                 value=str(response.content),
                 canvas_course_id=course_id_for_chat,
-                checkpoint=checkpoint_id,
                 thread_id=thread_id,
+                checkpoint_pk=checkpoint_pk,
             )
             return xblock_rating_response  # noqa: TRY300
 

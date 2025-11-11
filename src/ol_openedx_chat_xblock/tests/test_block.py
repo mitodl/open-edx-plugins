@@ -36,7 +36,7 @@ from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
     MIT_LEARN_AI_XBLOCK_TUTOR_CHAT_API_URL="http://mittesttutor.com/api",
     MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL="http://mittestchat.com/rating",
     MIT_LEARN_AI_XBLOCK_CHAT_API_TOKEN="test_token",  # noqa: S106
-    MIT_LEARN_AI_XBLOCK_PROBLEM_SET_LIST_URL="http://test.com/list/",
+    MIT_LEARN_AI_XBLOCK_PROBLEM_SET_LIST_URL="http://mittestchat.com/list/",
 )
 @ddt
 class OLChatXBlockTest(ModuleStoreTestCase):
@@ -361,7 +361,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         canvas_course_id,
         problem_set,
         thread_id,
-        checkpoint_id,
+        checkpoint_pk,
         mock_emit,
     ):
         """Test that send_tracker_event calls the tracker emit function with the
@@ -369,7 +369,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         self.xblock.is_tutor_xblock = is_tutor_xblock
         self.xblock.course_id = canvas_course_id
         self.xblock.send_tracker_event(
-            "event", "value", canvas_course_id, problem_set, thread_id, checkpoint_id
+            "event", "value", canvas_course_id, problem_set, thread_id, checkpoint_pk
         )
         mock_emit.assert_called_once()
         args, kwargs = mock_emit.call_args  # noqa: RUF059
@@ -377,7 +377,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert args[1]["canvas_course_id"] == canvas_course_id
         assert args[1]["problem_set"] == problem_set
         assert args[1]["thread_id"] == thread_id
-        assert args[1]["checkpoint"] == checkpoint_id
+        assert args[1]["checkpoint_pk"] == checkpoint_pk
 
     @data(
         (
@@ -609,26 +609,26 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         (
             "test_course_123",
             "",
-            "http://test.com/list/",
-            "http://test.com/list/?run_readable_id=test_course_123%2Bcanvas",
+            "http://mittestchat.com/list/",
+            "http://mittestchat.com/list/?run_readable_id=test_course_123%2Bcanvas",
         ),
         (
             "test_course_123",
             "",
-            "http://test.com/list",
-            "http://test.com/list/?run_readable_id=test_course_123%2Bcanvas",
+            "http://mittestchat.com/list",
+            "http://mittestchat.com/list/?run_readable_id=test_course_123%2Bcanvas",
         ),
         (
             "",
             "canvas_course_123",
-            "http://test.com/list/",
-            "http://test.com/list/?run_readable_id=canvas_course_123%2Bcanvas",
+            "http://mittestchat.com/list/",
+            "http://mittestchat.com/list/?run_readable_id=canvas_course_123%2Bcanvas",
         ),
         (
             "priority_course_123",
             "fallback_course_456",
-            "http://test.com/list/",
-            "http://test.com/list/?run_readable_id=priority_course_123%2Bcanvas",
+            "http://mittestchat.com/list/",
+            "http://mittestchat.com/list/?run_readable_id=priority_course_123%2Bcanvas",
         ),
     )
     @unpack
@@ -718,44 +718,51 @@ class OLChatXBlockTest(ModuleStoreTestCase):
 
     @data(
         (
-            "http://test.com/rating",
+            "http://mittestchat.com/rating",
             "123",
             "456",
-            "http://test.com/rating/123/messages/456/rate/",
+            "http://mittestchat.com/rating/123/messages/456/rate/",
         ),
         (
-            "http://test.com/rating/",
+            "http://mittestchat.com/rating/",
             "123",
             "456",
-            "http://test.com/rating/123/messages/456/rate/",
+            "http://mittestchat.com/rating/123/messages/456/rate/",
         ),
     )
     @unpack
     @patch("ol_openedx_chat_xblock.block.settings")
     def test_get_learn_ai_rating_url(
-        self, base_url, thread_id, checkpoint_id, expected_url, mock_settings
+        self, base_url, thread_id, checkpoint_pk, expected_url, mock_settings
     ):
         """Test that get_learn_ai_rating_url returns the correct URL format."""
         mock_settings.MIT_LEARN_AI_XBLOCK_CHAT_RATING_URL = base_url
 
-        result = self.xblock.get_learn_ai_rating_url(thread_id, checkpoint_id)
+        result = self.xblock.get_learn_ai_rating_url(thread_id, checkpoint_pk)
 
         assert result == expected_url
 
     @data(
         (
-            {"rating": "5"},
+            {"rating": "like"},
             "thread/123/checkpoint/456/",
             None,
             api_status.HTTP_200_OK,
             b'{"status": "success"}',
         ),
         (
-            {"rating": "5"},
+            {"rating": "dislike"},
+            "thread/123/checkpoint/456/",
+            None,
+            api_status.HTTP_200_OK,
+            b'{"status": "success"}',
+        ),
+        (
+            {"rating": "like"},
             "invalid/suffix/",
             None,
             api_status.HTTP_400_BAD_REQUEST,
-            b"Invalid URL. Expected /thread/<threadId>/checkpoint/<checkpointPk>",
+            b"Invalid URL. Couldn't extract Thread ID and Checkpoint ID.",
         ),
         (
             None,
@@ -808,7 +815,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         if expected_status == api_status.HTTP_200_OK:
             mock_post.assert_called_once()
             call_args = mock_post.call_args
-            assert call_args[1]["json"]["rating"] == "5"
+            assert call_args[1]["json"]["rating"] == request_json["rating"]
             assert expected_content in response.body
         else:
             assert expected_content in response.body
@@ -820,7 +827,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     def test_ol_chat_rate_missing_rating_url(self):
         """Test ol_chat_rate with missing rating URL."""
         request_mock = Mock()
-        request_mock.json = {"rating": "5"}
+        request_mock.json = {"rating": "like"}
 
         response = self.xblock.ol_chat_rate(request_mock, "thread/123/checkpoint/456/")
         assert isinstance(response, Response)
@@ -833,7 +840,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     def test_ol_chat_rate_missing_token(self):
         """Test ol_chat_rate with missing API token."""
         request_mock = Mock()
-        request_mock.json = {"rating": "5"}
+        request_mock.json = {"rating": "like"}
 
         response = self.xblock.ol_chat_rate(request_mock, "thread/123/checkpoint/456/")
         assert isinstance(response, Response)
@@ -859,7 +866,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     ):
         """Test ol_chat_rate with various exceptions."""
         request_mock = Mock()
-        request_mock.json = {"rating": "5"}
+        request_mock.json = {"rating": "like"}
 
         # Add proper cookie mocking
         test_cookies = {
@@ -918,7 +925,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
                 mock_post.return_value = mock_response
 
                 with patch.object(self.xblock, "get_learn_ai_rating_url") as mock_url:
-                    mock_url.return_value = "http://test.com/rating/url"
+                    mock_url.return_value = "http://mittestchat.com/rating/url"
                     response = self.xblock.ol_chat_rate(request_mock, suffix)
 
                     assert isinstance(response, Response)
@@ -932,7 +939,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     def test_ol_chat_rate_tracking_events(self, mock_post, mock_emit):
         """Test that ol_chat_rate sends proper tracking events."""
         request_mock = Mock()
-        request_mock.json = {"rating": "4"}
+        request_mock.json = {"rating": "like"}
 
         # Add proper cookie mocking
         test_cookies = {
@@ -957,12 +964,123 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         # Check request event
         first_call = mock_emit.call_args_list[0]
         assert "OLChat.rating.request" in first_call[0][0]
-        assert first_call[0][1]["value"] == "4"
+        assert first_call[0][1]["value"] == "like"
         assert first_call[0][1]["thread_id"] == "123"
-        assert first_call[0][1]["checkpoint"] == "456"
+        assert first_call[0][1]["checkpoint_pk"] == "456"
 
         # Check response event
         second_call = mock_emit.call_args_list[1]
         assert "OLChat.rating.response" in second_call[0][0]
         assert second_call[0][1]["thread_id"] == "123"
-        assert second_call[0][1]["checkpoint"] == "456"
+        assert second_call[0][1]["checkpoint_pk"] == "456"
+
+    @data(
+        (
+            # Test with valid suffix format
+            None,
+            "thread/123/checkpoint/456/",
+            ("123", "456"),
+        ),
+        (
+            # Test with suffix that has leading slash
+            None,
+            "/thread/789/checkpoint/101/",
+            ("789", "101"),
+        ),
+        (
+            # Test with invalid suffix format - missing trailing slash
+            None,
+            "thread/123/checkpoint/456",
+            (None, None),
+        ),
+        (
+            # Test with invalid suffix format - wrong pattern
+            None,
+            "invalid/format/here/",
+            (None, None),
+        ),
+        (
+            # Test with suffix containing non-numeric checkpoint
+            None,
+            "thread/123/checkpoint/abc/",
+            (None, None),
+        ),
+        (
+            # Test with content containing JSON comment
+            (
+                b"Hello! How can I help you?\n\n"
+                b'<!-- {"checkpoint_pk": 789, "thread_id": "abc123"} -->\n\n'
+            ),
+            None,
+            ("abc123", "789"),
+        ),
+        (
+            # Test with content as string (already decoded)
+            'Hello\n\n<!-- {"checkpoint_pk": 555, "thread_id": "xyz789"} -->\n\n',
+            None,
+            ("xyz789", "555"),
+        ),
+        (
+            # Test with content missing JSON comment
+            b"Hello! How can I help you?",
+            None,
+            (None, None),
+        ),
+        (
+            # Test with content having malformed JSON
+            b'Response\n\n<!-- {"checkpoint_pk": 123, "invalid_json"} -->\n\n',
+            None,
+            (None, None),
+        ),
+        (
+            # Test with empty suffix
+            None,
+            "",
+            (None, None),
+        ),
+        (
+            # Test with None values for both content and suffix
+            None,
+            None,
+            (None, None),
+        ),
+        (
+            # Test with content containing multiple JSON comments (should match first)
+            b'Message\n\n<!-- {"checkpoint_pk": 111, "thread_id": "first"} -->\n\n'
+            b'<!-- {"checkpoint_pk": 222, "thread_id": "second"} -->\n\n',
+            None,
+            ("first", "111"),
+        ),
+        (
+            # Test with unicode content
+            (
+                'Response with unicode: café\n\n<!-- {"checkpoint_pk": 999, '
+                '"thread_id": "unicode_test"} -->\n\n'
+            ).encode(),
+            None,
+            ("unicode_test", "999"),
+        ),
+    )
+    @unpack
+    def test_get_checkpoint_and_thread_id(self, content, suffix, expected):
+        """Test get_checkpoint_and_thread_id method with various inputs."""
+        result = self.xblock.get_checkpoint_and_thread_id(
+            content=content, suffix=suffix
+        )
+
+        # Convert result to tuple for easier comparison
+        result_tuple = (result[0], result[1]) if isinstance(result, tuple) else result
+        assert result_tuple == expected
+
+    @patch("ol_openedx_chat_xblock.block.log")
+    def test_get_checkpoint_and_thread_id_logs_error_on_exception(self, mock_log):
+        """Test that get_checkpoint_and_thread_id logs appropriate message on parsing
+        errors."""
+        # Test with content that will cause JSON parsing error
+        malformed_content = b'Response\n\n<!-- {"checkpoint_pk": 123, invalid} -->\n\n'
+
+        result = self.xblock.get_checkpoint_and_thread_id(content=malformed_content)
+
+        assert result == (None, None)
+        mock_log.info.assert_called_once()
+        assert "Couldn't parse content/suffix" in mock_log.info.call_args[0][0]
