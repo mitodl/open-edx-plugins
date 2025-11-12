@@ -1,14 +1,16 @@
 """
 Management command to translate course content to a specified language.
 """
-import logging
-import deepl
-import os
-import tarfile
-import shutil
-import xml.etree.ElementTree as ET
-import json
 
+import json
+import logging
+import os
+import shutil
+import tarfile
+import xml.etree.ElementTree as ET
+
+import deepl
+from django.conf import settings
 from django.core.management.base import BaseCommand
 
 log = logging.getLogger(__name__)
@@ -18,52 +20,65 @@ class Command(BaseCommand):
     """
     Translate given course content to the specified language.
     """
-    help = (
-        "Translate course content to the specified language."
-    )
+
+    help = "Translate course content to the specified language."
 
     def add_arguments(self, parser):
         """
         Entry point for subclassed commands to add custom arguments.
         """
         parser.add_argument(
-            '--source-language',
-            dest='source_language',
-            default='EN',
-            help='Specify the source language of the course content.'
+            "--source-language",
+            dest="source_language",
+            default="EN",
+            help="Specify the source language of the course content.",
         )
         parser.add_argument(
-            '--translation-language',
-            dest='translation_language',
-            help='Specify the language to translate the course content into.'
+            "--translation-language",
+            dest="translation_language",
+            help="Specify the language to translate the course content into.",
         )
         parser.add_argument(
-            '--course-dir',
-            dest='course_directory',
-            help='Specify the course directory.'
+            "--course-dir",
+            dest="course_directory",
+            help="Specify the course directory.",
         )
 
     def handle(self, *args, **options):
-        course_dir = options.get('course_directory')
-        source_language = options.get('source_language')
-        translation_language = options.get('translation_language')
-        extract_dir = '/openedx/course_translations'
-        target_dirs = ['about', 'course', 'chapter', 'html', 'info', 'problem', 'sequential', 'vertical', 'video']
+        course_dir = options.get("course_directory")
+        source_language = options.get("source_language")
+        translation_language = options.get("translation_language")
+        extract_dir = "/openedx/course_translations"
+        target_dirs = [
+            "about",
+            "course",
+            "chapter",
+            "html",
+            "info",
+            "problem",
+            "sequential",
+            "vertical",
+            "video",
+        ]
 
         # Only support tar files
-        if not (course_dir.endswith('.tar.gz') or course_dir.endswith('.tgz') or course_dir.endswith('.tar')):
+        if not (
+            course_dir.endswith(".tar.gz")
+            or course_dir.endswith(".tgz")
+            or course_dir.endswith(".tar")
+        ):
             raise ValueError("course-dir must be a tar file (.tar.gz, .tgz, .tar)")
 
         if not os.path.exists(extract_dir):
             os.makedirs(extract_dir)
         tarball_base = os.path.basename(course_dir)
-        for ext in ['.tar.gz', '.tgz', '.tar']:
+        for ext in [".tar.gz", ".tgz", ".tar"]:
             if tarball_base.endswith(ext):
-                tarball_base = tarball_base[:-len(ext)]
+                tarball_base = tarball_base[: -len(ext)]
                 break
         extracted_course_dir = os.path.join(extract_dir, tarball_base)
         if not os.path.exists(extracted_course_dir):
-            with tarfile.open(course_dir, 'r:*') as tar:
+            with tarfile.open(course_dir, "r:*") as tar:
                 tar.extractall(path=extracted_course_dir)
         source_dir = extracted_course_dir
 
@@ -74,7 +89,7 @@ class Command(BaseCommand):
         if os.path.exists(new_dir_path):
             shutil.rmtree(new_dir_path)
         shutil.copytree(source_dir, new_dir_path)
-        print(f"Copied {source_dir} to {new_dir_path}")
+        log.info(f"Copied {source_dir} to {new_dir_path}")
 
         # Step 3: Traverse copied directory (including its parent) and print html/xml files
         billed_char_count = 0
@@ -82,10 +97,12 @@ class Command(BaseCommand):
         for search_dir in [new_dir_path, parent_dir]:
             for file in os.listdir(search_dir):
                 file_path = os.path.join(search_dir, file)
-                if os.path.isfile(file_path) and (file.endswith('.html') or file.endswith('.xml')):
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                if os.path.isfile(file_path) and (
+                    file.endswith(".html") or file.endswith(".xml")
+                ):
+                    with open(file_path, encoding="utf-8") as f:
                         content = f.read()
-                        print(f"--- Contents of {file_path} ---")
+                        log.info(f"--- Contents of {file_path} ---")
                         translated_content, billed_chars = self._translate_text(
                             content,
                             source_language,
@@ -95,15 +112,15 @@ class Command(BaseCommand):
                         billed_char_count = billed_char_count + billed_chars
 
                         # If XML, translate display_name attribute
-                        if file.endswith('.xml'):
+                        if file.endswith(".xml"):
                             translated_content = translate_display_name(
                                 translated_content,
                                 source_language,
                                 translation_language,
-                                self._translate_text
+                                self._translate_text,
                             )
 
-                    with open(file_path, 'w', encoding='utf-8') as f:
+                    with open(file_path, "w", encoding="utf-8") as f:
                         f.write(translated_content)
 
             for dir_name in target_dirs:
@@ -111,29 +128,31 @@ class Command(BaseCommand):
                 if os.path.exists(dir_path) and os.path.isdir(dir_path):
                     for root, _, files in os.walk(dir_path):
                         for file in files:
-                            if file.endswith('.html') or file.endswith('.xml'):
+                            if file.endswith(".html") or file.endswith(".xml"):
                                 file_path = os.path.join(root, file)
-                                with open(file_path, 'r', encoding='utf-8') as f:
+                                with open(file_path, encoding="utf-8") as f:
                                     content = f.read()
-                                    print(f"--- Contents of {file_path} ---")
-                                    translated_content, billed_chars = self._translate_text(
-                                        content,
-                                        source_language,
-                                        translation_language,
-                                        file,
+                                    log.info(f"--- Contents of {file_path} ---")
+                                    translated_content, billed_chars = (
+                                        self._translate_text(
+                                            content,
+                                            source_language,
+                                            translation_language,
+                                            file,
+                                        )
                                     )
                                     billed_char_count = billed_char_count + billed_chars
 
                                     # If XML, translate display_name attribute
-                                    if file.endswith('.xml'):
+                                    if file.endswith(".xml"):
                                         translated_content = translate_display_name(
                                             translated_content,
                                             source_language,
                                             translation_language,
-                                            self._translate_text
+                                            self._translate_text,
                                         )
 
-                                with open(file_path, 'w', encoding='utf-8') as f:
+                                with open(file_path, "w", encoding="utf-8") as f:
                                     f.write(translated_content)
 
         # Step 3.1: Translate grading_policy.json short_label fields
@@ -143,7 +162,7 @@ class Command(BaseCommand):
                 child_dir = os.path.join(policies_dir, child)
                 grading_policy_path = os.path.join(child_dir, "grading_policy.json")
                 if os.path.isfile(grading_policy_path):
-                    with open(grading_policy_path, "r", encoding="utf-8") as f:
+                    with open(grading_policy_path, encoding="utf-8") as f:
                         grading_policy = json.load(f)
                     updated = False
                     for item in grading_policy.get("GRADER", []):
@@ -166,7 +185,7 @@ class Command(BaseCommand):
                 child_dir = os.path.join(policies_dir, child)
                 policy_json_path = os.path.join(child_dir, "policy.json")
                 if os.path.isfile(policy_json_path):
-                    with open(policy_json_path, "r", encoding="utf-8") as f:
+                    with open(policy_json_path, encoding="utf-8") as f:
                         policy_data = json.load(f)
                     updated = False
                     for course_key, course_obj in policy_data.items():
@@ -211,14 +230,20 @@ class Command(BaseCommand):
                             course_obj["display_organization"] = translated
                             updated = True
                         # 5. learning_info (list)
-                        if "learning_info" in course_obj and isinstance(course_obj["learning_info"], list):
+                        if "learning_info" in course_obj and isinstance(
+                            course_obj["learning_info"], list
+                        ):
                             course_obj["learning_info"] = [
-                                self._translate_text(item, source_language, translation_language)[0]
+                                self._translate_text(
+                                    item, source_language, translation_language
+                                )[0]
                                 for item in course_obj["learning_info"]
                             ]
                             updated = True
                         # 6. tabs: translate name of each tab
-                        if "tabs" in course_obj and isinstance(course_obj["tabs"], list):
+                        if "tabs" in course_obj and isinstance(
+                            course_obj["tabs"], list
+                        ):
                             for tab in course_obj["tabs"]:
                                 if "name" in tab:
                                     translated, _ = self._translate_text(
@@ -229,7 +254,9 @@ class Command(BaseCommand):
                                     tab["name"] = translated
                                     updated = True
                         # 7. xml_attributes: diplay_name and info_sidebar_name
-                        if "xml_attributes" in course_obj and isinstance(course_obj["xml_attributes"], dict):
+                        if "xml_attributes" in course_obj and isinstance(
+                            course_obj["xml_attributes"], dict
+                        ):
                             xml_attrs = course_obj["xml_attributes"]
                             if "diplay_name" in xml_attrs:
                                 translated, _ = self._translate_text(
@@ -261,13 +288,15 @@ class Command(BaseCommand):
 
         # Create .zip archive containing only the 'course' directory
         shutil.make_archive(
-            base_name=os.path.join(extract_dir, f"{translation_language}_{tarball_base}"),
-            format='zip',
+            base_name=os.path.join(
+                extract_dir, f"{translation_language}_{tarball_base}"
+            ),
+            format="zip",
             root_dir=new_dir_path,
-            base_dir="course"
+            base_dir="course",
         )
-        print(f"Created zip archive: {zip_path}")
-        print(billed_char_count)
+        log.info(f"Created zip archive: {zip_path}")  # noqa: G004
+        log.info(billed_char_count)
 
     def _translate_text(self, text, source_language, target_language, file=None):
         """
@@ -279,29 +308,33 @@ class Command(BaseCommand):
             text,
             source_lang=source_language,
             target_lang=target_language,
-            tag_handling=file.split('.')[-1] if file else None,
-            # tag_handling_version='v2',
+            tag_handling=file.split(".")[-1] if file else None,
+            # tag_handling_version='v2',  # noqa: ERA001
         )
         return result.text, result.billed_characters
 
-def translate_display_name(xml_content, source_language, target_language, translate_func):
+
+def translate_display_name(
+    xml_content, source_language, target_language, translate_func
+):
     """
-    Extracts and translates the display_name attribute of the root element in the XML content.
+    Extract and translate the display_name attribute
+    of the root element in the XML content.
+
     Returns the updated XML string.
     """
     try:
-        root = ET.fromstring(xml_content)
+        # TODO: Using `xml` to parse untrusted data is  # noqa: FIX002, TD003, TD002
+        #  known to be vulnerable to XML attacks; use `defusedxml` equivalents
+        root = ET.fromstring(xml_content)  # noqa: S314
         display_name = root.attrib.get("display_name")
         if display_name:
             translated_name, _ = translate_func(
-                display_name,
-                source_language,
-                target_language
+                display_name, source_language, target_language
             )
             root.set("display_name", translated_name)
             # Return the updated XML as string
             return ET.tostring(root, encoding="unicode")
-    except Exception as e:
-        log.warning(f"Could not translate display_name: {e}")
+    except Exception as e:  # noqa: BLE001
+        log.warning(f"Could not translate display_name: {e}")  # noqa: G004
     return xml_content
-
