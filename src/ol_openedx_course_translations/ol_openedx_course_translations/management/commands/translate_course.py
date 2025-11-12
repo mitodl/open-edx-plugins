@@ -44,7 +44,7 @@ class Command(BaseCommand):
             help="Specify the course directory.",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args, **options):  # noqa: C901, PLR0912, PLR0915, ARG002
         course_dir = options.get("course_directory")
         source_language = options.get("source_language")
         translation_language = options.get("translation_language")
@@ -63,46 +63,46 @@ class Command(BaseCommand):
 
         # Only support tar files
         if not (
-            course_dir.endswith(".tar.gz")
-            or course_dir.endswith(".tgz")
-            or course_dir.endswith(".tar")
+            course_dir.endswith(".tar.gz")  # noqa: PIE810
+            or course_dir.endswith(".tgz")  # noqa: PIE810
+            or course_dir.endswith(".tar")  # noqa: PIE810
         ):
-            raise ValueError("course-dir must be a tar file (.tar.gz, .tgz, .tar)")
+            raise ValueError("course-dir must be a tar file (.tar.gz, .tgz, .tar)")  # noqa: TRY003, EM101
 
-        if not os.path.exists(extract_dir):
-            os.makedirs(extract_dir)
-        tarball_base = os.path.basename(course_dir)
+        if not os.path.exists(extract_dir):  # noqa: PTH110
+            os.makedirs(extract_dir)  # noqa: PTH103
+        tarball_base = os.path.basename(course_dir)  # noqa: PTH119
         for ext in [".tar.gz", ".tgz", ".tar"]:
             if tarball_base.endswith(ext):
                 tarball_base = tarball_base[: -len(ext)]
                 break
-        extracted_course_dir = os.path.join(extract_dir, tarball_base)
-        if not os.path.exists(extracted_course_dir):
+        extracted_course_dir = os.path.join(extract_dir, tarball_base)  # noqa: PTH118
+        if not os.path.exists(extracted_course_dir):  # noqa: PTH110
             with tarfile.open(course_dir, "r:*") as tar:
-                tar.extractall(path=extracted_course_dir)
+                tar.extractall(path=extracted_course_dir)  # noqa: S202
         source_dir = extracted_course_dir
 
         # Step 2: Always copy to /openedx/course_translations/{translation_language}_{base_name}
-        base_name = os.path.basename(source_dir)
+        base_name = os.path.basename(source_dir)  # noqa: PTH119
         new_dir_name = f"{translation_language}_{base_name}"
-        new_dir_path = os.path.join(extract_dir, new_dir_name)
-        if os.path.exists(new_dir_path):
+        new_dir_path = os.path.join(extract_dir, new_dir_name)  # noqa: PTH118
+        if os.path.exists(new_dir_path):  # noqa: PTH110
             shutil.rmtree(new_dir_path)
         shutil.copytree(source_dir, new_dir_path)
-        log.info(f"Copied {source_dir} to {new_dir_path}")
+        log.info(f"Copied {source_dir} to {new_dir_path}")  # noqa: G004
 
         # Step 3: Traverse copied directory (including its parent) and print html/xml files
         billed_char_count = 0
-        parent_dir = os.path.dirname(new_dir_path)
+        parent_dir = os.path.dirname(new_dir_path)  # noqa: PTH120
         for search_dir in [new_dir_path, parent_dir]:
-            for file in os.listdir(search_dir):
-                file_path = os.path.join(search_dir, file)
-                if os.path.isfile(file_path) and (
-                    file.endswith(".html") or file.endswith(".xml")
+            for file in os.listdir(search_dir):  # noqa: PTH208
+                file_path = os.path.join(search_dir, file)  # noqa: PTH118
+                if os.path.isfile(file_path) and (  # noqa: PTH113
+                    file.endswith(".html") or file.endswith(".xml")  # noqa: PIE810
                 ):
-                    with open(file_path, encoding="utf-8") as f:
+                    with open(file_path, encoding="utf-8") as f:  # noqa: PTH123
                         content = f.read()
-                        log.info(f"--- Contents of {file_path} ---")
+                        log.info(f"--- Contents of {file_path} ---")  # noqa: G004
                         translated_content, billed_chars = self._translate_text(
                             content,
                             source_language,
@@ -120,19 +120,19 @@ class Command(BaseCommand):
                                 self._translate_text,
                             )
 
-                    with open(file_path, "w", encoding="utf-8") as f:
+                    with open(file_path, "w", encoding="utf-8") as f:  # noqa: PTH123
                         f.write(translated_content)
 
             for dir_name in target_dirs:
-                dir_path = os.path.join(search_dir, dir_name)
-                if os.path.exists(dir_path) and os.path.isdir(dir_path):
+                dir_path = os.path.join(search_dir, dir_name)  # noqa: PTH118
+                if os.path.exists(dir_path) and os.path.isdir(dir_path):  # noqa: PTH110, PTH112
                     for root, _, files in os.walk(dir_path):
                         for file in files:
-                            if file.endswith(".html") or file.endswith(".xml"):
-                                file_path = os.path.join(root, file)
-                                with open(file_path, encoding="utf-8") as f:
+                            if file.endswith(".html") or file.endswith(".xml"):  # noqa: PIE810
+                                file_path = os.path.join(root, file)  # noqa: PTH118
+                                with open(file_path, encoding="utf-8") as f:  # noqa: PTH123
                                     content = f.read()
-                                    log.info(f"--- Contents of {file_path} ---")
+                                    log.info(f"--- Contents of {file_path} ---")  # noqa: G004
                                     translated_content, billed_chars = (
                                         self._translate_text(
                                             content,
@@ -152,17 +152,17 @@ class Command(BaseCommand):
                                             self._translate_text,
                                         )
 
-                                with open(file_path, "w", encoding="utf-8") as f:
+                                with open(file_path, "w", encoding="utf-8") as f:  # noqa: PTH123
                                     f.write(translated_content)
 
         # Step 3.1: Translate grading_policy.json short_label fields
-        policies_dir = os.path.join(new_dir_path, "course", "policies")
-        if os.path.exists(policies_dir):
-            for child in os.listdir(policies_dir):
-                child_dir = os.path.join(policies_dir, child)
-                grading_policy_path = os.path.join(child_dir, "grading_policy.json")
-                if os.path.isfile(grading_policy_path):
-                    with open(grading_policy_path, encoding="utf-8") as f:
+        policies_dir = os.path.join(new_dir_path, "course", "policies")  # noqa: PTH118
+        if os.path.exists(policies_dir):  # noqa: PTH110
+            for child in os.listdir(policies_dir):  # noqa: PTH208
+                child_dir = os.path.join(policies_dir, child)  # noqa: PTH118
+                grading_policy_path = os.path.join(child_dir, "grading_policy.json")  # noqa: PTH118
+                if os.path.isfile(grading_policy_path):  # noqa: PTH113
+                    with open(grading_policy_path, encoding="utf-8") as f:  # noqa: PTH123
                         grading_policy = json.load(f)
                     updated = False
                     for item in grading_policy.get("GRADER", []):
@@ -175,20 +175,20 @@ class Command(BaseCommand):
                             item["short_label"] = translated_label
                             updated = True
                     if updated:
-                        with open(grading_policy_path, "w", encoding="utf-8") as f:
+                        with open(grading_policy_path, "w", encoding="utf-8") as f:  # noqa: PTH123
                             json.dump(grading_policy, f, ensure_ascii=False, indent=4)
 
         # Step 3.2: Translate specified fields in policy.json
-        policies_dir = os.path.join(new_dir_path, "course", "policies")
-        if os.path.exists(policies_dir):
-            for child in os.listdir(policies_dir):
-                child_dir = os.path.join(policies_dir, child)
-                policy_json_path = os.path.join(child_dir, "policy.json")
-                if os.path.isfile(policy_json_path):
-                    with open(policy_json_path, encoding="utf-8") as f:
+        policies_dir = os.path.join(new_dir_path, "course", "policies")  # noqa: PTH118
+        if os.path.exists(policies_dir):  # noqa: PTH110
+            for child in os.listdir(policies_dir):  # noqa: PTH208
+                child_dir = os.path.join(policies_dir, child)  # noqa: PTH118
+                policy_json_path = os.path.join(child_dir, "policy.json")  # noqa: PTH118
+                if os.path.isfile(policy_json_path):  # noqa: PTH113
+                    with open(policy_json_path, encoding="utf-8") as f:  # noqa: PTH123
                         policy_data = json.load(f)
                     updated = False
-                    for course_key, course_obj in policy_data.items():
+                    for course_key, course_obj in policy_data.items():  # noqa: B007
                         # 1. advertised_start
                         if "advertised_start" in course_obj:
                             translated, _ = self._translate_text(
@@ -275,21 +275,21 @@ class Command(BaseCommand):
                                 xml_attrs["info_sidebar_name"] = translated
                                 updated = True
                     if updated:
-                        with open(policy_json_path, "w", encoding="utf-8") as f:
+                        with open(policy_json_path, "w", encoding="utf-8") as f:  # noqa: PTH123
                             json.dump(policy_data, f, ensure_ascii=False, indent=4)
 
         # Step 4: Create .zip archive of the translated 'course' directory only
         zip_name = f"{translation_language}_{tarball_base}.zip"
-        zip_path = os.path.join(extract_dir, zip_name)
+        zip_path = os.path.join(extract_dir, zip_name)  # noqa: PTH118
 
         # Remove existing archive if it exists
-        if os.path.exists(zip_path):
-            os.remove(zip_path)
+        if os.path.exists(zip_path):  # noqa: PTH110
+            os.remove(zip_path)  # noqa: PTH107
 
         # Create .zip archive containing only the 'course' directory
         shutil.make_archive(
             base_name=os.path.join(
-                extract_dir, f"{translation_language}_{tarball_base}"
+                extract_dir, f"{translation_language}_{tarball_base}"  # noqa: PTH118
             ),
             format="zip",
             root_dir=new_dir_path,
