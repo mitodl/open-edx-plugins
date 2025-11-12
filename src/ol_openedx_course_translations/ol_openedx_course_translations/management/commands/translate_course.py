@@ -64,8 +64,8 @@ class Command(BaseCommand):
         # Only support tar files
         if not (
             course_dir.endswith(".tar.gz")  # noqa: PIE810
-            or course_dir.endswith(".tgz")  # noqa: PIE810
-            or course_dir.endswith(".tar")  # noqa: PIE810
+            or course_dir.endswith(".tgz")
+            or course_dir.endswith(".tar")
         ):
             raise ValueError("course-dir must be a tar file (.tar.gz, .tgz, .tar)")  # noqa: TRY003, EM101
 
@@ -82,7 +82,7 @@ class Command(BaseCommand):
                 tar.extractall(path=extracted_course_dir)  # noqa: S202
         source_dir = extracted_course_dir
 
-        # Step 2: Always copy to /openedx/course_translations/{translation_language}_{base_name}
+        # Step 2: Always copy to /openedx/course_translations/{translation_language}_{base_name}  # noqa: E501
         base_name = os.path.basename(source_dir)  # noqa: PTH119
         new_dir_name = f"{translation_language}_{base_name}"
         new_dir_path = os.path.join(extract_dir, new_dir_name)  # noqa: PTH118
@@ -91,7 +91,7 @@ class Command(BaseCommand):
         shutil.copytree(source_dir, new_dir_path)
         log.info(f"Copied {source_dir} to {new_dir_path}")  # noqa: G004
 
-        # Step 3: Traverse copied directory (including its parent) and print html/xml files
+        # Step 3: Traverse copied directory (including its parent)
         billed_char_count = 0
         parent_dir = os.path.dirname(new_dir_path)  # noqa: PTH120
         for search_dir in [new_dir_path, parent_dir]:
@@ -188,7 +188,7 @@ class Command(BaseCommand):
                     with open(policy_json_path, encoding="utf-8") as f:  # noqa: PTH123
                         policy_data = json.load(f)
                     updated = False
-                    for course_key, course_obj in policy_data.items():  # noqa: B007
+                    for course_key, course_obj in policy_data.items():  # noqa: B007, PERF102
                         # 1. advertised_start
                         if "advertised_start" in course_obj:
                             translated, _ = self._translate_text(
@@ -288,8 +288,9 @@ class Command(BaseCommand):
 
         # Create .zip archive containing only the 'course' directory
         shutil.make_archive(
-            base_name=os.path.join(
-                extract_dir, f"{translation_language}_{tarball_base}"  # noqa: PTH118
+            base_name=os.path.join(  # noqa: PTH118
+                extract_dir,
+                f"{translation_language}_{tarball_base}",
             ),
             format="zip",
             root_dir=new_dir_path,
