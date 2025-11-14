@@ -1082,5 +1082,5 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         result = self.xblock.get_checkpoint_and_thread_id(content=malformed_content)
 
         assert result == (None, None)
-        mock_log.info.assert_called_once()
-        assert "Couldn't parse content/suffix" in mock_log.info.call_args[0][0]
+        mock_log.exception.assert_called_once()
+        assert "Couldn't parse content/suffix" in mock_log.exception.call_args[0][0]
