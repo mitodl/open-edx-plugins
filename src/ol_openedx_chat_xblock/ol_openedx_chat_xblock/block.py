@@ -357,8 +357,8 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
                 return dict_values.get("thread_id"), str(
                     dict_values.get("checkpoint_pk")
                 )
-        except Exception:  # noqa: BLE001
-            log.info(
+        except Exception:
+            log.exception(
                 "Couldn't parse content/suffix to get Thread_id and Checkpoint_pk."
                 " content: %s, suffix: %s",
                 content,
