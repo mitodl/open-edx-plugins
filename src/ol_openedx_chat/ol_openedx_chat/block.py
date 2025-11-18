@@ -18,10 +18,16 @@ try:
     )
 except ImportError:
     from xmodule.modulestore.xml import ImportSystem as XMLImportingModuleStoreRuntime
-from xmodule.video_block.transcripts_utils import (
-    Transcript,
-    get_available_transcript_languages,
-)
+
+try:
+    from xmodule.video_block.transcripts_utils import (
+        Transcript,
+        get_available_transcript_languages,
+    )
+except ImportError:
+    from openedx.core.djangoapps.video_config.transcripts_utils import (
+        get_available_transcript_languages,
+    )
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
