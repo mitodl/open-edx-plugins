@@ -26,6 +26,7 @@ try:
     )
 except ImportError:
     from openedx.core.djangoapps.video_config.transcripts_utils import (
+        Transcript,
         get_available_transcript_languages,
     )
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
