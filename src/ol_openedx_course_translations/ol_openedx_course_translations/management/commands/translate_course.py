@@ -7,10 +7,10 @@ import logging
 import shutil
 import tarfile
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Optional, Tuple, Union
 
 import deepl
-import defusedxml.ElementTree as ET
+import defusedxml.ElementTree as ElementTree
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
@@ -59,8 +59,8 @@ class Command(BaseCommand):
             help="Specify the course directory (tar archive).",
         )
 
-    def handle(self, *args, **options) -> None:
-        """Main handler for the translate_course command."""
+    def handle(self, **options) -> None:
+        """Handle the translate_course command."""
         try:
             self._validate_inputs(options)
 
@@ -91,28 +91,31 @@ class Command(BaseCommand):
                     f"Translation completed. Archive created: {archive_path}"
                 )
             )
-            logger.info(f"Total billed characters: {billed_chars}")
+            logger.info("Total billed characters: %s", billed_chars)
 
         except Exception as e:
             logger.exception("Translation failed")
-            raise CommandError(f"Translation failed: {e}") from e
+            error_msg = f"Translation failed: {e}"
+            raise CommandError(error_msg) from e
 
     def _validate_inputs(self, options: dict[str, Any]) -> None:
         """Validate command inputs."""
         course_dir = Path(options["course_directory"])
 
         if not course_dir.exists():
-            raise CommandError(f"Course directory not found: {course_dir}")
+            error_msg = f"Course directory not found: {course_dir}"
+            raise CommandError(error_msg)
 
         if not any(
             course_dir.name.endswith(ext) for ext in SUPPORTED_ARCHIVE_EXTENSIONS
         ):
-            raise CommandError(
-                f"Course directory must be a tar file: {', '.join(SUPPORTED_ARCHIVE_EXTENSIONS)}"
-            )
+            supported_exts = ", ".join(SUPPORTED_ARCHIVE_EXTENSIONS)
+            error_msg = f"Course directory must be a tar file: {supported_exts}"
+            raise CommandError(error_msg)
 
         if not hasattr(settings, "DEEPL_API_KEY") or not settings.DEEPL_API_KEY:
-            raise CommandError("DEEPL_API_KEY setting is required")
+            error_msg = "DEEPL_API_KEY setting is required"
+            raise CommandError(error_msg)
 
     def _extract_course_archive(self, course_dir: Path) -> Path:
         """Extract course archive to working directory."""
@@ -134,9 +137,10 @@ class Command(BaseCommand):
                     self._validate_tar_file(tar)
                     tar.extractall(path=extracted_dir, filter="data")
             except (tarfile.TarError, OSError) as e:
-                raise CommandError(f"Failed to extract archive: {e}") from e
+                error_msg = f"Failed to extract archive: {e}"
+                raise CommandError(error_msg) from e
 
-        logger.info(f"Extracted course to: {extracted_dir}")
+        logger.info("Extracted course to: %s", extracted_dir)
         return extracted_dir
 
     def _validate_tar_file(self, tar: tarfile.TarFile) -> None:
@@ -144,10 +148,12 @@ class Command(BaseCommand):
         for member in tar.getmembers():
             # Check for directory traversal attacks
             if member.name.startswith("/") or ".." in member.name:
-                raise CommandError(f"Unsafe tar member: {member.name}")
+                error_msg = f"Unsafe tar member: {member.name}"
+                raise CommandError(error_msg)
             # Check for excessively large files
             if member.size > 100 * 1024 * 1024:  # 100MB limit
-                raise CommandError(f"File too large: {member.name}")
+                error_msg = f"File too large: {member.name}"
+                raise CommandError(error_msg)
 
     def _create_translated_copy(
         self, source_dir: Path, translation_language: str
@@ -161,7 +167,7 @@ class Command(BaseCommand):
             shutil.rmtree(new_dir_path)
 
         shutil.copytree(source_dir, new_dir_path)
-        logger.info(f"Created translation copy: {new_dir_path}")
+        logger.info("Created translation copy: %s", new_dir_path)
         return new_dir_path
 
     def _translate_course_content(
@@ -202,13 +208,14 @@ class Command(BaseCommand):
         directory: Path,
         source_language: str,
         translation_language: str,
+        *,
         recursive: bool = False,
     ) -> int:
         """Translate files in a directory."""
         total_billed_chars = 0
 
         if recursive:
-            file_paths = []
+            file_paths: List[Path] = []
             for ext in TRANSLATABLE_EXTENSIONS:
                 file_paths.extend(directory.rglob(f"*{ext}"))
         else:
@@ -224,8 +231,8 @@ class Command(BaseCommand):
                 total_billed_chars += self._translate_file(
                     file_path, source_language, translation_language
                 )
-            except Exception as e:
-                logger.warning(f"Failed to translate {file_path}: {e}")
+            except (OSError, UnicodeDecodeError) as e:
+                logger.warning("Failed to translate %s: %s", file_path, e)
 
         return total_billed_chars
 
@@ -235,7 +242,7 @@ class Command(BaseCommand):
         """Translate a single file and return billed characters."""
         try:
             content = file_path.read_text(encoding="utf-8")
-            logger.debug(f"Translating: {file_path}")
+            logger.debug("Translating: %s", file_path)
 
             translated_content, billed_chars = self._translate_text(
                 content, source_language, translation_language, file_path.name
@@ -249,9 +256,8 @@ class Command(BaseCommand):
 
             file_path.write_text(translated_content, encoding="utf-8")
             return billed_chars
-
-        except Exception as e:
-            logger.warning(f"Failed to translate {file_path}: {e}")
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning("Failed to translate %s: %s", file_path, e)
             return 0
 
     def _translate_grading_policy(
@@ -292,9 +298,9 @@ class Command(BaseCommand):
                         json.dumps(grading_policy, ensure_ascii=False, indent=4),
                         encoding="utf-8",
                     )
-            except Exception as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.warning(
-                    f"Failed to translate grading policy in {child_dir}: {e}"
+                    "Failed to translate grading policy in %s: %s", child_dir, e
                 )
 
         return total_billed_chars
@@ -337,8 +343,8 @@ class Command(BaseCommand):
                         json.dumps(policy_data, ensure_ascii=False, indent=4),
                         encoding="utf-8",
                     )
-            except Exception as e:
-                logger.warning(f"Failed to translate policy in {child_dir}: {e}")
+            except (OSError, json.JSONDecodeError) as e:
+                logger.warning("Failed to translate policy in %s: %s", child_dir, e)
 
         return total_billed_chars
 
@@ -347,12 +353,51 @@ class Command(BaseCommand):
         course_obj: dict[str, Any],
         source_language: str,
         translation_language: str,
-    ) -> tuple[int, bool]:
+    ) -> Tuple[int, bool]:
         """Translate specific fields in policy object."""
         total_billed_chars = 0
         updated = False
 
-        # Simple string fields
+        # Translate simple string fields
+        billed_chars, field_updated = self._translate_string_fields(
+            course_obj, source_language, translation_language
+        )
+        total_billed_chars += billed_chars
+        updated = updated or field_updated
+
+        # Translate discussion topics
+        billed_chars, field_updated = self._translate_discussion_topics(
+            course_obj, source_language, translation_language
+        )
+        total_billed_chars += billed_chars
+        updated = updated or field_updated
+
+        # Translate learning info and tabs
+        billed_chars, field_updated = self._translate_learning_info_and_tabs(
+            course_obj, source_language, translation_language
+        )
+        total_billed_chars += billed_chars
+        updated = updated or field_updated
+
+        # Translate XML attributes
+        billed_chars, field_updated = self._translate_xml_attributes(
+            course_obj, source_language, translation_language
+        )
+        total_billed_chars += billed_chars
+        updated = updated or field_updated
+
+        return total_billed_chars, updated
+
+    def _translate_string_fields(
+        self,
+        course_obj: dict[str, Any],
+        source_language: str,
+        translation_language: str,
+    ) -> Tuple[int, bool]:
+        """Translate simple string fields."""
+        total_billed_chars = 0
+        updated = False
+
         string_fields = ["advertised_start", "display_name", "display_organization"]
         for field in string_fields:
             if field in course_obj:
@@ -363,7 +408,18 @@ class Command(BaseCommand):
                 total_billed_chars += billed_chars
                 updated = True
 
-        # Discussion topics (translate keys)
+        return total_billed_chars, updated
+
+    def _translate_discussion_topics(
+        self,
+        course_obj: dict[str, Any],
+        source_language: str,
+        translation_language: str,
+    ) -> Tuple[int, bool]:
+        """Translate discussion topics."""
+        total_billed_chars = 0
+        updated = False
+
         if "discussion_topics" in course_obj:
             topics = course_obj["discussion_topics"]
             if isinstance(topics, dict):
@@ -377,7 +433,19 @@ class Command(BaseCommand):
                 course_obj["discussion_topics"] = new_topics
                 updated = True
 
-        # Learning info (list of strings)
+        return total_billed_chars, updated
+
+    def _translate_learning_info_and_tabs(
+        self,
+        course_obj: dict[str, Any],
+        source_language: str,
+        translation_language: str,
+    ) -> Tuple[int, bool]:
+        """Translate learning info and tabs."""
+        total_billed_chars = 0
+        updated = False
+
+        # Learning info
         if "learning_info" in course_obj and isinstance(
             course_obj["learning_info"], list
         ):
@@ -391,7 +459,7 @@ class Command(BaseCommand):
             course_obj["learning_info"] = translated_info
             updated = True
 
-        # Tabs (translate name field)
+        # Tabs
         if "tabs" in course_obj and isinstance(course_obj["tabs"], list):
             for tab in course_obj["tabs"]:
                 if isinstance(tab, dict) and "name" in tab:
@@ -402,7 +470,18 @@ class Command(BaseCommand):
                     total_billed_chars += billed_chars
                     updated = True
 
-        # XML attributes
+        return total_billed_chars, updated
+
+    def _translate_xml_attributes(
+        self,
+        course_obj: dict[str, Any],
+        source_language: str,
+        translation_language: str,
+    ) -> Tuple[int, bool]:
+        """Translate XML attributes."""
+        total_billed_chars = 0
+        updated = False
+
         if "xml_attributes" in course_obj and isinstance(
             course_obj["xml_attributes"], dict
         ):
@@ -448,7 +527,7 @@ class Command(BaseCommand):
             base_dir="course",
         )
 
-        logger.info(f"Created zip archive: {zip_path}")
+        logger.info("Created zip archive: %s", zip_path)
         return zip_path
 
     def _translate_text(
@@ -456,8 +535,8 @@ class Command(BaseCommand):
         text: str,
         source_language: str,
         target_language: str,
-        filename: str | None = None,
-    ) -> tuple[str, int]:
+        filename: Optional[str] = None,
+    ) -> Tuple[str, int]:
         """Translate text using DeepL API."""
         if not text or not text.strip():
             return text, 0
@@ -479,9 +558,8 @@ class Command(BaseCommand):
             )
 
             return result.text, result.billed_characters
-
-        except Exception as e:
-            logger.warning(f"Translation failed for text: {text[:50]}... Error: {e}")
+        except (deepl.exceptions.DeepLException, OSError) as e:
+            logger.warning("Translation failed for text: %s... Error: %s", text[:50], e)
             return text, 0
 
     def _translate_display_name(
@@ -489,7 +567,7 @@ class Command(BaseCommand):
     ) -> str:
         """Extract and translate the display_name attribute of the root element."""
         try:
-            root = ET.fromstring(xml_content)
+            root = ElementTree.fromstring(xml_content)
             display_name = root.attrib.get("display_name")
 
             if display_name:
@@ -497,9 +575,8 @@ class Command(BaseCommand):
                     display_name, source_language, target_language
                 )
                 root.set("display_name", translated_name)
-                return ET.tostring(root, encoding="unicode")
-
-        except Exception as e:
-            logger.warning(f"Could not translate display_name: {e}")
+                return ElementTree.tostring(root, encoding="unicode")
+        except ElementTree.ParseError as e:
+            logger.warning("Could not translate display_name: %s", e)
 
         return xml_content
