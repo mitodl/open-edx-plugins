@@ -396,7 +396,14 @@ class Command(BaseCommand):
         self, translated_dir: Path, translation_language: str, original_name: str
     ) -> Path:
         """Create zip archive of translated course."""
-        zip_name = f"{translation_language}_{original_name}.zip"
+        # Remove all archive extensions from the original name
+        clean_name = original_name
+        for ext in SUPPORTED_ARCHIVE_EXTENSIONS:
+            if clean_name.endswith(ext):
+                clean_name = clean_name[: -len(ext)]
+                break
+
+        zip_name = f"{translation_language}_{clean_name}.zip"
         zip_path = EXTRACT_BASE_DIR / zip_name
 
         # Remove existing archive
