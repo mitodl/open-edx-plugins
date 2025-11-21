@@ -1,0 +1,37 @@
+[project]
+name = "ol-openedx-lti-utilities"
+version = "0.1.0"
+description = "An Open edX plugin to add utilities for LTI operations"
+authors = [
+  {name = "MIT Office of Digital Learning"}
+]
+license = "BSD-3-Clause"
+readme = "README.rst"
+requires-python = ">=3.11"
+dependencies = [
+  "Django>=4.0",
+  "djangorestframework>=3.14.0",
+  "edx-django-utils>4.0.0",
+  "edx-drf-extensions>=10.0.0",
+  "edx-opaque-keys",
+]
+
+[project.entry-points."lms.djangoapp"]
+ol_openedx_lti_utilities = "ol_openedx_lti_utilities.app:LTIUtilitiesConfig"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ol_openedx_lti_utilities"]
+include = [
+  "ol_openedx_lti_utilities/**/*.py",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "ol_openedx_lti_utilities/**/*",
+  "README.rst",
+  "pyproject.toml",
+]
