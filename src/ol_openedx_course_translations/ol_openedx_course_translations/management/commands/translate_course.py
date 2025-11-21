@@ -7,10 +7,10 @@ import logging
 import shutil
 import tarfile
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union, Dict
+from typing import Any
 
 import deepl
-import defusedxml.ElementTree as ElementTree
+from defusedxml import ElementTree
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
@@ -98,7 +98,7 @@ class Command(BaseCommand):
             error_msg = f"Translation failed: {e}"
             raise CommandError(error_msg) from e
 
-    def _validate_inputs(self, options: Dict[str, Any]) -> None:
+    def _validate_inputs(self, options: dict[str, Any]) -> None:
         """Validate command inputs."""
         course_dir = Path(options["course_directory"])
 
@@ -215,7 +215,7 @@ class Command(BaseCommand):
         total_billed_chars = 0
 
         if recursive:
-            file_paths: List[Path] = []
+            file_paths: list[Path] = []
             for ext in TRANSLATABLE_EXTENSIONS:
                 file_paths.extend(directory.rglob(f"*{ext}"))
         else:
@@ -351,10 +351,10 @@ class Command(BaseCommand):
 
     def _translate_policy_fields(
         self,
-        course_obj: Dict[str, Any],
+        course_obj: dict[str, Any],
         source_language: str,
         translation_language: str,
-    ) -> Tuple[int, bool]:
+    ) -> tuple[int, bool]:
         """Translate specific fields in policy object."""
         total_billed_chars = 0
         updated = False
@@ -391,10 +391,10 @@ class Command(BaseCommand):
 
     def _translate_string_fields(
         self,
-        course_obj: Dict[str, Any],
+        course_obj: dict[str, Any],
         source_language: str,
         translation_language: str,
-    ) -> Tuple[int, bool]:
+    ) -> tuple[int, bool]:
         """Translate simple string fields."""
         total_billed_chars = 0
         updated = False
@@ -413,10 +413,10 @@ class Command(BaseCommand):
 
     def _translate_discussion_topics(
         self,
-        course_obj: Dict[str, Any],
+        course_obj: dict[str, Any],
         source_language: str,
         translation_language: str,
-    ) -> Tuple[int, bool]:
+    ) -> tuple[int, bool]:
         """Translate discussion topics."""
         total_billed_chars = 0
         updated = False
@@ -438,10 +438,10 @@ class Command(BaseCommand):
 
     def _translate_learning_info_and_tabs(
         self,
-        course_obj: Dict[str, Any],
+        course_obj: dict[str, Any],
         source_language: str,
         translation_language: str,
-    ) -> Tuple[int, bool]:
+    ) -> tuple[int, bool]:
         """Translate learning info and tabs."""
         total_billed_chars = 0
         updated = False
@@ -475,10 +475,10 @@ class Command(BaseCommand):
 
     def _translate_xml_attributes(
         self,
-        course_obj: Dict[str, Any],
+        course_obj: dict[str, Any],
         source_language: str,
         translation_language: str,
-    ) -> Tuple[int, bool]:
+    ) -> tuple[int, bool]:
         """Translate XML attributes."""
         total_billed_chars = 0
         updated = False
@@ -536,8 +536,8 @@ class Command(BaseCommand):
         text: str,
         source_language: str,
         target_language: str,
-        filename: Optional[str] = None,
-    ) -> Tuple[str, int]:
+        filename: str | None = None,
+    ) -> tuple[str, int]:
         """Translate text using DeepL API."""
         if not text or not text.strip():
             return text, 0
