@@ -17,7 +17,6 @@ from django.core.management.base import BaseCommand, CommandError
 logger = logging.getLogger(__name__)
 
 # Constants
-EXTRACT_BASE_DIR = Path("/openedx/course_translations")
 TARGET_DIRECTORIES = [
     "about",
     "course",
@@ -123,7 +122,8 @@ class Command(BaseCommand):
 
     def _extract_course_archive(self, course_dir: Path) -> Path:
         """Extract course archive to working directory."""
-        EXTRACT_BASE_DIR.mkdir(parents=True, exist_ok=True)
+        # Use the parent directory of the source file as the base extraction directory
+        extract_base_dir = course_dir.parent
 
         # Get base name without extension
         tarball_base = course_dir.name
@@ -132,7 +132,7 @@ class Command(BaseCommand):
                 tarball_base = tarball_base[: -len(ext)]
                 break
 
-        extracted_dir = EXTRACT_BASE_DIR / tarball_base
+        extracted_dir = extract_base_dir / tarball_base
 
         if not extracted_dir.exists():
             try:
@@ -165,7 +165,7 @@ class Command(BaseCommand):
         """Create a copy of the course for translation."""
         base_name = source_dir.name
         new_dir_name = f"{translation_language}_{base_name}"
-        new_dir_path = EXTRACT_BASE_DIR / new_dir_name
+        new_dir_path = source_dir.parent / new_dir_name
 
         if new_dir_path.exists():
             shutil.rmtree(new_dir_path)
@@ -518,7 +518,7 @@ class Command(BaseCommand):
                 break
 
         tar_gz_name = f"{translation_language}_{clean_name}.tar.gz"
-        tar_gz_path = EXTRACT_BASE_DIR / tar_gz_name
+        tar_gz_path = translated_dir.parent / tar_gz_name
 
         # Remove existing archive
         if tar_gz_path.exists():
@@ -586,4 +586,3 @@ class Command(BaseCommand):
             logger.warning("Could not translate display_name: %s", e)
 
         return xml_content
-
