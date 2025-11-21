@@ -76,6 +76,10 @@ class Command(BaseCommand):
                 extracted_dir, translation_language
             )
 
+            # Delete extracted directory after copying
+            if extracted_dir.exists():
+                shutil.rmtree(extracted_dir)
+
             # Translate content
             billed_chars = self._translate_course_content(
                 translated_dir, source_language, translation_language
@@ -505,7 +509,7 @@ class Command(BaseCommand):
     def _create_translated_archive(
         self, translated_dir: Path, translation_language: str, original_name: str
     ) -> Path:
-        """Create zip archive of translated course."""
+        """Create tar.gz archive of translated course."""
         # Remove all archive extensions from the original name
         clean_name = original_name
         for ext in SUPPORTED_ARCHIVE_EXTENSIONS:
@@ -513,23 +517,24 @@ class Command(BaseCommand):
                 clean_name = clean_name[: -len(ext)]
                 break
 
-        zip_name = f"{translation_language}_{clean_name}.zip"
-        zip_path = EXTRACT_BASE_DIR / zip_name
+        tar_gz_name = f"{translation_language}_{clean_name}.tar.gz"
+        tar_gz_path = EXTRACT_BASE_DIR / tar_gz_name
 
         # Remove existing archive
-        if zip_path.exists():
-            zip_path.unlink()
+        if tar_gz_path.exists():
+            tar_gz_path.unlink()
 
-        # Create archive containing only the 'course' directory
-        shutil.make_archive(
-            str(zip_path.with_suffix("")),
-            "zip",
-            root_dir=str(translated_dir),
-            base_dir="course",
-        )
+        # Create tar.gz archive containing only the 'course' directory
+        course_dir_path = translated_dir / "course"
+        with tarfile.open(tar_gz_path, "w:gz") as tar:
+            tar.add(course_dir_path, arcname="course")
 
-        logger.info("Created zip archive: %s", zip_path)
-        return zip_path
+        # Delete extracted directory after copying
+        if translated_dir.exists():
+            shutil.rmtree(translated_dir)
+
+        logger.info("Created tar.gz archive: %s", tar_gz_path)
+        return tar_gz_path
 
     def _translate_text(
         self,
@@ -581,3 +586,4 @@ class Command(BaseCommand):
             logger.warning("Could not translate display_name: %s", e)
 
         return xml_content
+
