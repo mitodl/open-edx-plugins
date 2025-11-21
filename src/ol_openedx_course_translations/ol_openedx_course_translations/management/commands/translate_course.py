@@ -558,7 +558,7 @@ class Command(BaseCommand):
                 tag_handling=tag_handling,
             )
 
-            return result.text, result.billed_characters
+            return result.text, result.billed_characters  # noqa: TRY300
         except (deepl.exceptions.DeepLException, OSError) as e:
             logger.warning("Translation failed for text: %s... Error: %s", text[:50], e)
             return text, 0
