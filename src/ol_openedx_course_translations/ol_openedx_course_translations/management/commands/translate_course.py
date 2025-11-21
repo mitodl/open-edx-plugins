@@ -7,7 +7,7 @@ import logging
 import shutil
 import tarfile
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union, Dict
 
 import deepl
 import defusedxml.ElementTree as ElementTree
@@ -98,7 +98,7 @@ class Command(BaseCommand):
             error_msg = f"Translation failed: {e}"
             raise CommandError(error_msg) from e
 
-    def _validate_inputs(self, options: dict[str, Any]) -> None:
+    def _validate_inputs(self, options: Dict[str, Any]) -> None:
         """Validate command inputs."""
         course_dir = Path(options["course_directory"])
 
@@ -255,10 +255,11 @@ class Command(BaseCommand):
                 )
 
             file_path.write_text(translated_content, encoding="utf-8")
-            return billed_chars
         except (OSError, UnicodeDecodeError) as e:
             logger.warning("Failed to translate %s: %s", file_path, e)
             return 0
+        else:
+            return billed_chars
 
     def _translate_grading_policy(
         self, course_dir: Path, source_language: str, translation_language: str
@@ -350,7 +351,7 @@ class Command(BaseCommand):
 
     def _translate_policy_fields(
         self,
-        course_obj: dict[str, Any],
+        course_obj: Dict[str, Any],
         source_language: str,
         translation_language: str,
     ) -> Tuple[int, bool]:
@@ -390,7 +391,7 @@ class Command(BaseCommand):
 
     def _translate_string_fields(
         self,
-        course_obj: dict[str, Any],
+        course_obj: Dict[str, Any],
         source_language: str,
         translation_language: str,
     ) -> Tuple[int, bool]:
@@ -412,7 +413,7 @@ class Command(BaseCommand):
 
     def _translate_discussion_topics(
         self,
-        course_obj: dict[str, Any],
+        course_obj: Dict[str, Any],
         source_language: str,
         translation_language: str,
     ) -> Tuple[int, bool]:
@@ -437,7 +438,7 @@ class Command(BaseCommand):
 
     def _translate_learning_info_and_tabs(
         self,
-        course_obj: dict[str, Any],
+        course_obj: Dict[str, Any],
         source_language: str,
         translation_language: str,
     ) -> Tuple[int, bool]:
@@ -474,7 +475,7 @@ class Command(BaseCommand):
 
     def _translate_xml_attributes(
         self,
-        course_obj: dict[str, Any],
+        course_obj: Dict[str, Any],
         source_language: str,
         translation_language: str,
     ) -> Tuple[int, bool]:
