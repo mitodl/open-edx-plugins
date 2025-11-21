@@ -7,7 +7,7 @@ import logging
 import shutil
 import tarfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import deepl
 import defusedxml.ElementTree as ET
@@ -19,8 +19,15 @@ logger = logging.getLogger(__name__)
 # Constants
 EXTRACT_BASE_DIR = Path("/openedx/course_translations")
 TARGET_DIRECTORIES = [
-    "about", "course", "chapter", "html", "info",
-    "problem", "sequential", "vertical", "video"
+    "about",
+    "course",
+    "chapter",
+    "html",
+    "info",
+    "problem",
+    "sequential",
+    "vertical",
+    "video",
 ]
 SUPPORTED_ARCHIVE_EXTENSIONS = [".tar.gz", ".tgz", ".tar"]
 TRANSLATABLE_EXTENSIONS = [".html", ".xml"]
@@ -90,14 +97,16 @@ class Command(BaseCommand):
             logger.exception("Translation failed")
             raise CommandError(f"Translation failed: {e}") from e
 
-    def _validate_inputs(self, options: Dict[str, Any]) -> None:
+    def _validate_inputs(self, options: dict[str, Any]) -> None:
         """Validate command inputs."""
         course_dir = Path(options["course_directory"])
 
         if not course_dir.exists():
             raise CommandError(f"Course directory not found: {course_dir}")
 
-        if not any(course_dir.name.endswith(ext) for ext in SUPPORTED_ARCHIVE_EXTENSIONS):
+        if not any(
+            course_dir.name.endswith(ext) for ext in SUPPORTED_ARCHIVE_EXTENSIONS
+        ):
             raise CommandError(
                 f"Course directory must be a tar file: {', '.join(SUPPORTED_ARCHIVE_EXTENSIONS)}"
             )
@@ -140,7 +149,9 @@ class Command(BaseCommand):
             if member.size > 100 * 1024 * 1024:  # 100MB limit
                 raise CommandError(f"File too large: {member.name}")
 
-    def _create_translated_copy(self, source_dir: Path, translation_language: str) -> Path:
+    def _create_translated_copy(
+        self, source_dir: Path, translation_language: str
+    ) -> Path:
         """Create a copy of the course for translation."""
         base_name = source_dir.name
         new_dir_name = f"{translation_language}_{base_name}"
@@ -170,7 +181,10 @@ class Command(BaseCommand):
                 target_dir = search_dir / dir_name
                 if target_dir.exists() and target_dir.is_dir():
                     total_billed_chars += self._translate_files_in_directory(
-                        target_dir, source_language, translation_language, recursive=True
+                        target_dir,
+                        source_language,
+                        translation_language,
+                        recursive=True,
                     )
 
         # Translate special JSON files
@@ -188,7 +202,7 @@ class Command(BaseCommand):
         directory: Path,
         source_language: str,
         translation_language: str,
-        recursive: bool = False
+        recursive: bool = False,
     ) -> int:
         """Translate files in a directory."""
         total_billed_chars = 0
@@ -199,8 +213,10 @@ class Command(BaseCommand):
                 file_paths.extend(directory.rglob(f"*{ext}"))
         else:
             file_paths = [
-                f for f in directory.iterdir()
-                if f.is_file() and any(f.name.endswith(ext) for ext in TRANSLATABLE_EXTENSIONS)
+                f
+                for f in directory.iterdir()
+                if f.is_file()
+                and any(f.name.endswith(ext) for ext in TRANSLATABLE_EXTENSIONS)
             ]
 
         for file_path in file_paths:
@@ -257,7 +273,9 @@ class Command(BaseCommand):
                 continue
 
             try:
-                grading_policy = json.loads(grading_policy_path.read_text(encoding="utf-8"))
+                grading_policy = json.loads(
+                    grading_policy_path.read_text(encoding="utf-8")
+                )
                 updated = False
 
                 for item in grading_policy.get("GRADER", []):
@@ -272,10 +290,12 @@ class Command(BaseCommand):
                 if updated:
                     grading_policy_path.write_text(
                         json.dumps(grading_policy, ensure_ascii=False, indent=4),
-                        encoding="utf-8"
+                        encoding="utf-8",
                     )
             except Exception as e:
-                logger.warning(f"Failed to translate grading policy in {child_dir}: {e}")
+                logger.warning(
+                    f"Failed to translate grading policy in {child_dir}: {e}"
+                )
 
         return total_billed_chars
 
@@ -315,7 +335,7 @@ class Command(BaseCommand):
                 if updated:
                     policy_path.write_text(
                         json.dumps(policy_data, ensure_ascii=False, indent=4),
-                        encoding="utf-8"
+                        encoding="utf-8",
                     )
             except Exception as e:
                 logger.warning(f"Failed to translate policy in {child_dir}: {e}")
@@ -323,8 +343,11 @@ class Command(BaseCommand):
         return total_billed_chars
 
     def _translate_policy_fields(
-        self, course_obj: Dict[str, Any], source_language: str, translation_language: str
-    ) -> Tuple[int, bool]:
+        self,
+        course_obj: dict[str, Any],
+        source_language: str,
+        translation_language: str,
+    ) -> tuple[int, bool]:
         """Translate specific fields in policy object."""
         total_billed_chars = 0
         updated = False
@@ -355,7 +378,9 @@ class Command(BaseCommand):
                 updated = True
 
         # Learning info (list of strings)
-        if "learning_info" in course_obj and isinstance(course_obj["learning_info"], list):
+        if "learning_info" in course_obj and isinstance(
+            course_obj["learning_info"], list
+        ):
             translated_info = []
             for item in course_obj["learning_info"]:
                 translated, billed_chars = self._translate_text(
@@ -378,9 +403,14 @@ class Command(BaseCommand):
                     updated = True
 
         # XML attributes
-        if "xml_attributes" in course_obj and isinstance(course_obj["xml_attributes"], dict):
+        if "xml_attributes" in course_obj and isinstance(
+            course_obj["xml_attributes"], dict
+        ):
             xml_attrs = course_obj["xml_attributes"]
-            xml_fields = ["diplay_name", "info_sidebar_name"]  # Note: keeping typo as in original
+            xml_fields = [
+                "diplay_name",
+                "info_sidebar_name",
+            ]  # Note: keeping typo as in original
             for field in xml_fields:
                 if field in xml_attrs:
                     translated, billed_chars = self._translate_text(
@@ -426,8 +456,8 @@ class Command(BaseCommand):
         text: str,
         source_language: str,
         target_language: str,
-        filename: Optional[str] = None
-    ) -> Tuple[str, int]:
+        filename: str | None = None,
+    ) -> tuple[str, int]:
         """Translate text using DeepL API."""
         if not text or not text.strip():
             return text, 0
