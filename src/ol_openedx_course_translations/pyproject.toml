@@ -12,6 +12,7 @@ keywords = ["Python", "edx"]
 dependencies = [
   "Django>=4.0",
   "djangorestframework>=3.14.0",
+  "deepl>=1.25.0",
 ]
 
 [project.entry-points."cms.djangoapp"]

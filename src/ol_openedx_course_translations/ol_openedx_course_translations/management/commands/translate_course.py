@@ -16,21 +16,6 @@ from django.core.management.base import BaseCommand, CommandError
 
 logger = logging.getLogger(__name__)
 
-# Constants
-TARGET_DIRECTORIES = [
-    "about",
-    "course",
-    "chapter",
-    "html",
-    "info",
-    "problem",
-    "sequential",
-    "vertical",
-    "video",
-]
-SUPPORTED_ARCHIVE_EXTENSIONS = [".tar.gz", ".tgz", ".tar"]
-TRANSLATABLE_EXTENSIONS = [".html", ".xml"]
-
 
 class Command(BaseCommand):
     """Translate given course content to the specified language."""
@@ -101,6 +86,13 @@ class Command(BaseCommand):
             error_msg = f"Translation failed: {e}"
             raise CommandError(error_msg) from e
 
+    def get_supported_archive_extension(self, filename: str) -> str | None:
+        """Return the supported archive extension if filename ends with one, else None."""
+        for ext in settings.OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS:
+            if filename.endswith(ext):
+                return ext
+        return None
+
     def _validate_inputs(self, options: dict[str, Any]) -> None:
         """Validate command inputs."""
         course_dir = Path(options["course_directory"])
@@ -109,10 +101,8 @@ class Command(BaseCommand):
             error_msg = f"Course directory not found: {course_dir}"
             raise CommandError(error_msg)
 
-        if not any(
-            course_dir.name.endswith(ext) for ext in SUPPORTED_ARCHIVE_EXTENSIONS
-        ):
-            supported_exts = ", ".join(SUPPORTED_ARCHIVE_EXTENSIONS)
+        if self.get_supported_archive_extension(course_dir.name) is None:
+            supported_exts = ", ".join(settings.OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS)
             error_msg = f"Course directory must be a tar file: {supported_exts}"
             raise CommandError(error_msg)
 
@@ -126,11 +116,10 @@ class Command(BaseCommand):
         extract_base_dir = course_dir.parent
 
         # Get base name without extension
-        tarball_base = course_dir.name
-        for ext in SUPPORTED_ARCHIVE_EXTENSIONS:
-            if tarball_base.endswith(ext):
-                tarball_base = tarball_base[: -len(ext)]
-                break
+        ext = self.get_supported_archive_extension(course_dir.name)
+        tarball_base = (
+            course_dir.name[: -len(ext)] if ext else course_dir.name
+        )
 
         extracted_dir = extract_base_dir / tarball_base
 
@@ -155,7 +144,7 @@ class Command(BaseCommand):
                 error_msg = f"Unsafe tar member: {member.name}"
                 raise CommandError(error_msg)
             # Check for excessively large files
-            if member.size > 100 * 1024 * 1024:  # 100MB limit
+            if member.size > 512 * 1024 * 1024:  # 0.5GB limit because courses on Production are big
                 error_msg = f"File too large: {member.name}"
                 raise CommandError(error_msg)
 
@@ -168,7 +157,8 @@ class Command(BaseCommand):
         new_dir_path = source_dir.parent / new_dir_name
 
         if new_dir_path.exists():
-            shutil.rmtree(new_dir_path)
+            error_msg = f"Translation directory already exists: {new_dir_path}"
+            raise CommandError(error_msg)
 
         shutil.copytree(source_dir, new_dir_path)
         logger.info("Created translation copy: %s", new_dir_path)
@@ -187,7 +177,7 @@ class Command(BaseCommand):
             )
 
             # Translate files in target subdirectories
-            for dir_name in TARGET_DIRECTORIES:
+            for dir_name in settings.OL_OPENEDX_COURSE_TRANSLATIONS_TARGET_DIRECTORIES:
                 target_dir = search_dir / dir_name
                 if target_dir.exists() and target_dir.is_dir():
                     total_billed_chars += self._translate_files_in_directory(
@@ -220,14 +210,14 @@ class Command(BaseCommand):
 
         if recursive:
             file_paths: list[Path] = []
-            for ext in TRANSLATABLE_EXTENSIONS:
+            for ext in settings.OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS:
                 file_paths.extend(directory.rglob(f"*{ext}"))
         else:
             file_paths = [
                 f
                 for f in directory.iterdir()
                 if f.is_file()
-                and any(f.name.endswith(ext) for ext in TRANSLATABLE_EXTENSIONS)
+                and any(f.name.endswith(ext) for ext in settings.OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS)
             ]
 
         for file_path in file_paths:
@@ -511,11 +501,8 @@ class Command(BaseCommand):
     ) -> Path:
         """Create tar.gz archive of translated course."""
         # Remove all archive extensions from the original name
-        clean_name = original_name
-        for ext in SUPPORTED_ARCHIVE_EXTENSIONS:
-            if clean_name.endswith(ext):
-                clean_name = clean_name[: -len(ext)]
-                break
+        ext = self.get_supported_archive_extension(original_name)
+        clean_name = original_name[: -len(ext)] if ext else original_name
 
         tar_gz_name = f"{translation_language}_{clean_name}.tar.gz"
         tar_gz_path = translated_dir.parent / tar_gz_name
