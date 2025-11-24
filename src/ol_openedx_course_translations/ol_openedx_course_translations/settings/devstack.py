@@ -21,10 +21,13 @@ def plugin_settings(settings):
             "sequential",
             "vertical",
             "video",
-        ]
+        ],
     )
-    settings.OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS = env_tokens.get(
-        "OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS", [".tar.gz", ".tgz", ".tar"]
+    settings.OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS = (
+        env_tokens.get(
+            "OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS",
+            [".tar.gz", ".tgz", ".tar"],
+        )
     )
     settings.OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS = env_tokens.get(
         "OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS", [".html", ".xml"]

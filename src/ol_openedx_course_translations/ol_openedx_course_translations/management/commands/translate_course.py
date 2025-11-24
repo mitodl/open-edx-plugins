@@ -87,7 +87,9 @@ class Command(BaseCommand):
             raise CommandError(error_msg) from e
 
     def get_supported_archive_extension(self, filename: str) -> str | None:
-        """Return the supported archive extension if filename ends with one, else None."""
+        """
+        Return the supported archive extension if filename ends with one, else None.
+        """
         for ext in settings.OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS:
             if filename.endswith(ext):
                 return ext
@@ -102,7 +104,9 @@ class Command(BaseCommand):
             raise CommandError(error_msg)
 
         if self.get_supported_archive_extension(course_dir.name) is None:
-            supported_exts = ", ".join(settings.OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS)
+            supported_exts = ", ".join(
+                settings.OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS
+            )
             error_msg = f"Course directory must be a tar file: {supported_exts}"
             raise CommandError(error_msg)
 
@@ -117,9 +121,7 @@ class Command(BaseCommand):
 
         # Get base name without extension
         ext = self.get_supported_archive_extension(course_dir.name)
-        tarball_base = (
-            course_dir.name[: -len(ext)] if ext else course_dir.name
-        )
+        tarball_base = course_dir.name[: -len(ext)] if ext else course_dir.name
 
         extracted_dir = extract_base_dir / tarball_base
 
@@ -144,7 +146,9 @@ class Command(BaseCommand):
                 error_msg = f"Unsafe tar member: {member.name}"
                 raise CommandError(error_msg)
             # Check for excessively large files
-            if member.size > 512 * 1024 * 1024:  # 0.5GB limit because courses on Production are big
+            if (
+                member.size > 512 * 1024 * 1024
+            ):  # 0.5GB limit because courses on Production are big
                 error_msg = f"File too large: {member.name}"
                 raise CommandError(error_msg)
 
@@ -217,7 +221,10 @@ class Command(BaseCommand):
                 f
                 for f in directory.iterdir()
                 if f.is_file()
-                and any(f.name.endswith(ext) for ext in settings.OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS)
+                and any(
+                    f.name.endswith(ext)
+                    for ext in settings.OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS  # noqa: E501
+                )
             ]
 
         for file_path in file_paths:

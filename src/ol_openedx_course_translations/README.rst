@@ -27,7 +27,7 @@ Configuration
 
   .. code-block:: python
 
-       DEEPL_API_KEY: "your_deepl_api_key_here"
+       DEEPL_API_KEY: <YOUR_DEEPL_API_KEY_HERE>
 
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
