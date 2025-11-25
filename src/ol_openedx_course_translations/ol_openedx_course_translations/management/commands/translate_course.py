@@ -28,13 +28,19 @@ class Command(BaseCommand):
             "--source-language",
             dest="source_language",
             default="EN",
-            help="Specify the source language of the course content.",
+            help=(
+                "Specify the source language of the course content "
+                "in ISO format, e.g. `EN` for English."
+            ),
         )
         parser.add_argument(
             "--translation-language",
             dest="translation_language",
             required=True,
-            help="Specify the language to translate the course content into.",
+            help=(
+                "Specify the language code in ISO format "
+                "to translate the course content into. e.g `AR` for Arabic"
+            ),
         )
         parser.add_argument(
             "--course-dir",

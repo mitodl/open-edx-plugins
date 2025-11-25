@@ -31,7 +31,7 @@ Configuration
 
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
-Translating a Course
+Usage
 ====================
 1. Open the course in Studio.
 2. Go to Tools -> Export Course.
@@ -42,9 +42,6 @@ Translating a Course
    .. code-block:: bash
 
         ./manage.py cms translate_course --source-language <SOURCE_LANGUAGE_CODE, defaults to `EN`> --translation-language <TRANSLATION_LANGUAGE_CODE i.e. AR> --course-dir <PATH_TO_EXPORTED_COURSE_TAR_GZ>
-
-Documentation
-=============
 
 License
 *******
