@@ -18,9 +18,6 @@ class OLOpenedXCourseTranslationsConfig(AppConfig):
         PluginSettings.CONFIG: {
             ProjectType.CMS: {
                 SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
-                SettingsType.DEVSTACK: {
-                    PluginSettings.RELATIVE_PATH: "settings.devstack"
-                },
             },
         },
     }
