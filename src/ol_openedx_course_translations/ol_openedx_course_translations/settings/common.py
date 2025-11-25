@@ -32,5 +32,6 @@ def plugin_settings(settings):
         )
     )
     settings.OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS = env_tokens.get(
-        "OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS", [".html", ".xml", ".srt", ".txt", ".pdf"]
+        "OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS",
+        [".html", ".xml", ".srt", ".txt", ".pdf"],
     )
