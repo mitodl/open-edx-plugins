@@ -4,6 +4,7 @@ Management command to translate course content to a specified language.
 
 import json
 import logging
+import re
 import shutil
 import tarfile
 from pathlib import Path
@@ -243,10 +244,61 @@ class Command(BaseCommand):
 
         return total_billed_chars
 
+    def _update_video_xml(self, xml_content: str, translation_language: str) -> str:
+        """Update video XML transcripts and transcript tags for the target language."""
+        try:
+            root = ElementTree.fromstring(xml_content)
+            lang_code = translation_language.lower()
+
+            # Update transcripts attribute in <video>
+            if root.tag == "video" and "transcripts" in root.attrib:
+                transcripts_json = root.attrib["transcripts"].replace("&quot;", '"')
+                transcripts_dict = json.loads(transcripts_json)
+                for k in list(transcripts_dict.keys()):
+                    value = transcripts_dict[k]
+                    new_key = lang_code
+                    new_value = re.sub(r"-[a-zA-Z]{2}\.srt$", f"-{new_key}.srt", value)
+                    transcripts_dict[new_key] = new_value
+                    del transcripts_dict[k]
+                new_transcripts = json.dumps(transcripts_dict, ensure_ascii=False)
+                root.set("transcripts", new_transcripts)
+
+            # Update <transcript> inside <transcripts> tag
+            for video_asset in root.findall("video_asset"):
+                for transcripts in video_asset.findall("transcripts"):
+                    for transcript in transcripts.findall("transcript"):
+                        transcript.set("language_code", lang_code)
+
+            # Update <transcript> child of <video>
+            for transcript in root.findall("transcript"):
+                transcript.set("language", lang_code)
+                src = transcript.get("src")
+                if src:
+                    new_src = re.sub(r"-[a-zA-Z]{2}\.srt$", f"-{lang_code}.srt", src)
+                    transcript.set("src", new_src)
+
+            xml_content = ElementTree.tostring(root, encoding="unicode")
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Failed to update transcripts in video XML: %s", e)
+
+        return xml_content
+
     def _translate_file(
         self, file_path: Path, source_language: str, translation_language: str
     ) -> int:
         """Translate a single file and return billed characters."""
+        # Handle SRT files with DeepL document translation
+        if file_path.suffix == ".srt":
+            try:
+                billed_chars = self.translate_srt_file(
+                    file_path, source_language, translation_language
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Failed to translate SRT %s: %s", file_path, e)
+                return 0
+            else:
+                return billed_chars
+
         try:
             content = file_path.read_text(encoding="utf-8")
             logger.debug("Translating: %s", file_path)
@@ -260,6 +312,12 @@ class Command(BaseCommand):
                 translated_content = self._translate_display_name(
                     translated_content, source_language, translation_language
                 )
+
+                # If parent directory is 'video', update transcripts attribute
+                if file_path.parent.name == "video":
+                    translated_content = self._update_video_xml(
+                        translated_content, translation_language
+                    )
 
             file_path.write_text(translated_content, encoding="utf-8")
         except (OSError, UnicodeDecodeError) as e:
@@ -535,6 +593,32 @@ class Command(BaseCommand):
 
         logger.info("Created tar.gz archive: %s", tar_gz_path)
         return tar_gz_path
+
+    def translate_srt_file(
+        self, input_file_path: Path, source_language: str, target_language: str
+    ) -> int:
+        """
+        Translate an SRT file using DeepL document translation.
+        Creates a new output file with the target language prefix, then renames
+        it to the original file. Returns the number of billed characters.
+        """
+        input_name = input_file_path.name
+        output_name = input_name
+        if "-" in input_name and input_name.endswith(".srt"):
+            parts = input_name.rsplit("-", 1)
+            output_name = f"{parts[0]}-{target_language.lower()}.srt"
+        output_file_path = input_file_path.parent / output_name
+
+        deepl_client = deepl.Translator(settings.DEEPL_API_KEY)
+        result = deepl_client.translate_document_from_filepath(
+            input_file_path,
+            output_file_path,
+            source_lang=source_language,
+            target_lang=target_language,
+        )
+        input_file_path.unlink()  # Delete the original file
+        # Keep the translated file as output_file_path
+        return result.billed_characters
 
     def _translate_text(
         self,
