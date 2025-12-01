@@ -1,5 +1,5 @@
 OL Open edX Course Translations
-###############
+===============================
 
 An Open edX plugin to manage course translations.
 
