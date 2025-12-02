@@ -245,7 +245,7 @@ class Command(BaseCommand):
 
         return total_billed_chars
 
-    def _update_video_xml(self, xml_content: str, translation_language: str) -> str:
+    def _update_video_xml(self, xml_content: str, translation_language: str) -> str:  # noqa: C901
         """Update video XML transcripts and transcript tags for the target language."""
         try:
             root = ElementTree.fromstring(xml_content)
@@ -272,7 +272,12 @@ class Command(BaseCommand):
                     if existing_transcript is not None:
                         new_transcript.attrib = existing_transcript.attrib.copy()
                     new_transcript.set("language_code", lang_code)
-                    transcripts.append(new_transcript)
+                    # Avoid duplicates
+                    if not any(
+                        t.attrib == new_transcript.attrib
+                        for t in transcripts.findall("transcript")
+                    ):
+                        transcripts.append(new_transcript)
 
             # Add a new <transcript> tag for the target language
             for transcript in root.findall("transcript"):
@@ -282,7 +287,12 @@ class Command(BaseCommand):
                     new_transcript = Element("transcript")
                     new_transcript.set("language", lang_code)
                     new_transcript.set("src", new_src)
-                    root.append(new_transcript)
+                    # Avoid duplicates
+                    if not any(
+                        t.get("language") == lang_code and t.get("src") == new_src
+                        for t in root.findall("transcript")
+                    ):
+                        root.append(new_transcript)
 
             xml_content = ElementTree.tostring(root, encoding="unicode")
         except Exception as e:  # noqa: BLE001
