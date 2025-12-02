@@ -9,6 +9,7 @@ import shutil
 import tarfile
 from pathlib import Path
 from typing import Any
+from xml.etree.ElementTree import Element
 
 import deepl
 from defusedxml import ElementTree
@@ -259,23 +260,29 @@ class Command(BaseCommand):
                     new_key = lang_code
                     new_value = re.sub(r"-[a-zA-Z]{2}\.srt$", f"-{new_key}.srt", value)
                     transcripts_dict[new_key] = new_value
-                    del transcripts_dict[k]
                 new_transcripts = json.dumps(transcripts_dict, ensure_ascii=False)
                 root.set("transcripts", new_transcripts)
 
-            # Update <transcript> inside <transcripts> tag
+            # Add a new <transcript> tag inside <transcripts> for the
+            # target language, inheriting attributes
             for video_asset in root.findall("video_asset"):
                 for transcripts in video_asset.findall("transcripts"):
-                    for transcript in transcripts.findall("transcript"):
-                        transcript.set("language_code", lang_code)
+                    existing_transcript = transcripts.find("transcript")
+                    new_transcript = Element("transcript")
+                    if existing_transcript is not None:
+                        new_transcript.attrib = existing_transcript.attrib.copy()
+                    new_transcript.set("language_code", lang_code)
+                    transcripts.append(new_transcript)
 
-            # Update <transcript> child of <video>
+            # Add a new <transcript> tag for the target language
             for transcript in root.findall("transcript"):
-                transcript.set("language", lang_code)
                 src = transcript.get("src")
                 if src:
                     new_src = re.sub(r"-[a-zA-Z]{2}\.srt$", f"-{lang_code}.srt", src)
-                    transcript.set("src", new_src)
+                    new_transcript = Element("transcript")
+                    new_transcript.set("language", lang_code)
+                    new_transcript.set("src", new_src)
+                    root.append(new_transcript)
 
             xml_content = ElementTree.tostring(root, encoding="unicode")
         except Exception as e:  # noqa: BLE001
@@ -616,7 +623,6 @@ class Command(BaseCommand):
             source_lang=source_language,
             target_lang=target_language,
         )
-        input_file_path.unlink()  # Delete the original file
         # Keep the translated file as output_file_path
         return result.billed_characters
 
