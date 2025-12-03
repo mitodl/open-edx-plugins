@@ -40,6 +40,7 @@ from ol_openedx_chat.constants import (
     VIDEO_BLOCK_CATEGORY,
 )
 from ol_openedx_chat.utils import (
+    get_checkpoint_and_thread_id,
     is_aside_applicable_to_block,
     is_ol_chat_enabled_for_course,
 )
@@ -254,7 +255,11 @@ class OLChatAside(XBlockAside):
         Track user events by emitting them to the event tracker.
         """
         request_data = request.json
-        tracker.emit(
-            request_data.get("event_type", ""), request_data.get("event_data", {})
+        event_data = request_data.get("event_data", {})
+        thread_id, checkpoint_pk = get_checkpoint_and_thread_id(
+            content=event_data.get("value", "")
         )
+        event_data.update({"thread_id": thread_id, "checkpoint_pk": checkpoint_pk})
+
+        tracker.emit(request_data.get("event_type", ""), event_data)
         return Response()

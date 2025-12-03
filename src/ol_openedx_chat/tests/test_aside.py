@@ -321,13 +321,27 @@ class OLChatAsideTests(OLChatTestCase):
             ol_chat_aside = block.runtime.get_aside_of_type(block, self.aside_name)
             assert ol_chat_aside.ol_chat_enabled == ol_chat_enabled
 
-    @XBlockAside.register_temp_plugin(OLChatAside, "ol_chat_aside")
-    @patch("ol_openedx_chat.block.tracker")
     @skip_unless_cms
-    def test_track_user_events(self, mock_tracker):
+    @ddt
+    @data(
+        *[
+            ["thread123", "cpk123"],
+            ["thread456", "cpk456"],
+            ["thread_abc", "cpk_xyz"],
+        ]
+    )
+    @unpack
+    @patch("ol_openedx_chat.block.get_checkpoint_and_thread_id")
+    @patch("ol_openedx_chat.block.tracker")
+    @XBlockAside.register_temp_plugin(OLChatAside, "ol_chat_aside")
+    def test_track_user_events(
+        self, mock_tracker, mock_get_checkpoint_and_thread_id, thread_id, checkpoint_pk
+    ):
         """
-        Tests the track_user_events handler
+        Tests the track_user_events handler with different thread_id and
+        checkpoint_pk values
         """
+        mock_get_checkpoint_and_thread_id.return_value = (thread_id, checkpoint_pk)
         block = self.problem_block
         aside_usage_key = str(AsideUsageKeyV2(block.location, self.aside_name))
         handler_url = f"/xblock/{aside_usage_key}/handler/track_user_events"
@@ -341,6 +355,10 @@ class OLChatAsideTests(OLChatTestCase):
                     "event_type": "chat_opened",
                     "event_data": {
                         "blockUsageKey": str(block.usage_key),
+                        "value": (
+                            f"<!-- {{'thread_id': '{thread_id}', "
+                            f"'checkpoint_pk': '{checkpoint_pk}'}} -->"
+                        ),
                     },
                 }
             ),
@@ -349,3 +367,20 @@ class OLChatAsideTests(OLChatTestCase):
 
         assert response.status_code == 200  # noqa: PLR2004
         assert mock_tracker.emit.call_count == 1
+        content_value = (
+            f"<!-- {{'thread_id': '{thread_id}', "
+            f"'checkpoint_pk': '{checkpoint_pk}'}} -->"
+        )
+        mock_get_checkpoint_and_thread_id.assert_called_once_with(content=content_value)
+        mock_tracker.emit.assert_called_once_with(
+            "chat_opened",
+            {
+                "blockUsageKey": str(block.usage_key),
+                "value": (
+                    f"<!-- {{'thread_id': '{thread_id}', "
+                    f"'checkpoint_pk': '{checkpoint_pk}'}} -->"
+                ),
+                "thread_id": thread_id,
+                "checkpoint_pk": checkpoint_pk,
+            },
+        )

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from ddt import data, ddt, unpack
 from ol_openedx_chat.utils import (
+    get_checkpoint_and_thread_id,
     is_aside_applicable_to_block,
     is_ol_chat_enabled_for_course,
 )
@@ -103,3 +104,34 @@ class OLChatUtilTests(OLChatTestCase):
         elif block_category == "html":
             block = self.html_block
         assert is_aside_applicable_to_block(block) == is_aside_applicable
+
+    @data(
+        (None, None, None),
+        ("Hello! How can I help you?\n\nNo JSON here\n\n", None, None),
+        (
+            (
+                "Hello! How can I help you?\n\n"
+                '<!-- {"checkpoint_pk": 123, "thread_id": "abc123"} -->\n\n'
+            ),
+            "abc123",
+            "123",
+        ),
+        (
+            (
+                b"Hello! How can I help you?\n\n"
+                b'<!-- {"checkpoint_pk": 456, "thread_id": "xyz789"} -->\n\n'
+            ),
+            "xyz789",
+            "456",
+        ),
+        ("Some text <!-- {invalid json} -->", None, None),
+        ('<!-- {"foo": "bar"} -->', None, "None"),
+    )
+    @unpack
+    def test_get_checkpoint_and_thread_id(
+        self, content, expected_thread_id, expected_checkpoint_pk
+    ):
+        """Tests that `get_checkpoint_and_thread_id` extracts the correct values"""
+        thread_id, checkpoint_pk = get_checkpoint_and_thread_id(content)
+        assert thread_id == expected_thread_id
+        assert checkpoint_pk == expected_checkpoint_pk
