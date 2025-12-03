@@ -22,6 +22,7 @@ edx-extensions/
 │   ├── ol_openedx_course_sync/  # Course synchronization
 │   ├── ol_openedx_course_translations/  # Course translations
 │   ├── ol_openedx_git_auto_export/ # Git export automation
+│   ├── ol_openedx_lti_utilities/ # LTI Utilities
 │   ├── ol_openedx_logging/      # Logging enhancements
 │   ├── ol_openedx_otel_monitoring/ # OpenTelemetry monitoring
 │   ├── ol_openedx_sentry/       # Sentry integration
