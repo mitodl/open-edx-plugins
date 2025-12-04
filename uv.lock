@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -17,6 +17,7 @@ members = [
     "ol-openedx-course-export",
     "ol-openedx-course-structure-api",
     "ol-openedx-course-sync",
+    "ol-openedx-course-translations",
     "ol-openedx-git-auto-export",
     "ol-openedx-logging",
     "ol-openedx-otel-monitoring",
@@ -525,6 +526,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/51/d4/bdea45c5c1f1f0ae55844d841101b00905c9863ee1004da37d911253abb2/ddt-1.7.2.tar.gz", hash = "sha256:d215d6b083963013c4a19b1e4dcd6a96e80e43ab77519597a6acfcf2e9a3e04b", size = 13673, upload-time = "2024-02-26T01:36:33.737Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/61/7c/38d1aec205833096eddefcbb3492fbb2c886e74174c72bc160da9522b2f0/ddt-1.7.2-py2.py3-none-any.whl", hash = "sha256:6adcfaf9785f0a36f9e73a89b91e412de9ef8649e289b750e3683bc79d5e2354", size = 7065, upload-time = "2024-02-26T01:36:32.45Z" },
+]
+
+[[package]]
+name = "deepl"
+version = "1.25.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e8/9d/4cb65e741ef552c45687a25db2e4e1f619b9c2fb3d3458252a4a2016fcdc/deepl-1.25.0.tar.gz", hash = "sha256:9c5be635056e83a7334840a8adecfd962c5cb85579f21b15c10643e9d77c238a", size = 50554, upload-time = "2025-11-12T19:08:30.372Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/8c/136035269930d365fbb47ccf92cb6bc9be60edb5b4fa84d591ba9c212030/deepl-1.25.0-py3-none-any.whl", hash = "sha256:071f929a1b80252f16922e84748f7635db110746cada00b2cf2de7d2080cbbcf", size = 45772, upload-time = "2025-11-12T19:08:28.187Z" },
 ]
 
 [[package]]
@@ -1420,6 +1433,23 @@ requires-dist = [
     { name = "edx-django-utils", specifier = ">4.0.0" },
     { name = "edx-opaque-keys" },
     { name = "openedx-events" },
+]
+
+[[package]]
+name = "ol-openedx-course-translations"
+version = "0.1.0"
+source = { editable = "src/ol_openedx_course_translations" }
+dependencies = [
+    { name = "deepl" },
+    { name = "django" },
+    { name = "djangorestframework" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "deepl", specifier = ">=1.25.0" },
+    { name = "django", specifier = ">=4.0" },
+    { name = "djangorestframework", specifier = ">=3.14.0" },
 ]
 
 [[package]]
