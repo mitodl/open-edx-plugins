@@ -8,20 +8,41 @@ from openedx.core.djangoapps.content.course_overviews.models import CourseOvervi
 from openedx.core.djangoapps.lang_pref import LANGUAGE_KEY
 from openedx.core.djangoapps.user_api.preferences.api import set_user_preference
 
+from django.conf import settings
+
 
 class CourseLanguageCookieMiddleware(MiddlewareMixin):
     """
     Sets language preference cookie and user preference based on course language.
+    Also ensures that for admin URLs, the language is always set to 'en'.
     """
 
     COURSE_URL_REGEX = re.compile(
-        r"^/courses/(?P<course_key>course-v1:[A-Za-z0-9._-]+(?:\+[A-Za-z0-9._-]+)+)(?:/|$)",
+        rf"^/courses/(?P<course_key>{settings.COURSE_KEY_REGEX})(?:/|$)",
         re.IGNORECASE,
     )
     COOKIE_NAME = "openedx-language-preference"
 
     def process_response(self, request, response):
         path = getattr(request, "path_info", request.path)
+
+        # Force 'en' language for admin, sysadmin, and instructor dashboard URLs
+        if path.startswith("/admin") or path.startswith("/sysadmin") or "instructor" in path:
+            cookie_val = request.COOKIES.get(self.COOKIE_NAME)
+            needs_reload = cookie_val and cookie_val != "en"
+            if needs_reload:
+                response.set_cookie(
+                    self.COOKIE_NAME,
+                    "en",
+                    max_age=60 * 60 * 24 * 180,
+                    httponly=False,
+                    samesite="Lax",
+                )
+                if hasattr(request, "user") and request.user.is_authenticated:
+                    set_user_preference(request.user, LANGUAGE_KEY, "en")
+                return HttpResponseRedirect(request.get_full_path())
+            return response
+
         match = self.COURSE_URL_REGEX.match(path)
         if not match:
             return response
