@@ -1,6 +1,7 @@
 # python
 import re
 
+from django.http import HttpResponseRedirect
 from django.utils.deprecation import MiddlewareMixin
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
@@ -44,5 +45,12 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
         # Set user preference if authenticated
         if language and hasattr(request, "user") and request.user.is_authenticated:
             set_user_preference(request.user, LANGUAGE_KEY, language)
+
+        # Redirect if cookie is not present or is different from the desired language
+        cookie_val = request.COOKIES.get(self.COOKIE_NAME)
+        needs_reload = language and (cookie_val != language)
+        if needs_reload:
+            url = request.get_full_path()
+            return HttpResponseRedirect(url)
 
         return response
