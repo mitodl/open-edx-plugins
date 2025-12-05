@@ -4,12 +4,12 @@ API Views for ol_openedx_course_translations App
 
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
 from openedx.core.djangoapps.lang_pref import LANGUAGE_KEY
 from openedx.core.djangoapps.user_api.preferences.api import set_user_preference
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 
 class CourseLanguageView(APIView):
@@ -38,6 +38,7 @@ class ResetUserLanguageView(APIView):
     """
     API endpoint to reset user's language preference and cookie to English.
     """
+
     permission_classes = [IsAuthenticated]
     COOKIE_NAME = "openedx-language-preference"
 
@@ -47,8 +48,7 @@ class ResetUserLanguageView(APIView):
 
         # Prepare response
         response = Response(
-            {"detail": "Language reset to English."},
-            status=status.HTTP_200_OK
+            {"detail": "Language reset to English."}, status=status.HTTP_200_OK
         )
 
         # Set cookie like middleware

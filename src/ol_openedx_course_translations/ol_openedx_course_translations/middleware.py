@@ -1,14 +1,13 @@
 # python
 import re
 
+from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.utils.deprecation import MiddlewareMixin
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.lang_pref import LANGUAGE_KEY
 from openedx.core.djangoapps.user_api.preferences.api import set_user_preference
-
-from django.conf import settings
 
 
 class CourseLanguageCookieMiddleware(MiddlewareMixin):
@@ -27,7 +26,11 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
         path = getattr(request, "path_info", request.path)
 
         # Force 'en' language for admin, sysadmin, and instructor dashboard URLs
-        if path.startswith("/admin") or path.startswith("/sysadmin") or "instructor" in path:
+        if (
+            path.startswith("/admin")
+            or path.startswith("/sysadmin")
+            or "instructor" in path
+        ):
             cookie_val = request.COOKIES.get(self.COOKIE_NAME)
             needs_reload = cookie_val and cookie_val != "en"
             if needs_reload:
