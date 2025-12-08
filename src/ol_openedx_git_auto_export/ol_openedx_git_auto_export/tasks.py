@@ -18,6 +18,7 @@ from ol_openedx_git_auto_export.models import CourseGitRepository
 from ol_openedx_git_auto_export.utils import (
     export_course_to_git,
     github_repo_name_format,
+    is_auto_repo_creation_enabled,
 )
 
 LOGGER = get_task_logger(__name__)
@@ -55,7 +56,8 @@ def async_export_to_git(course_key_string, user=None):
             "Creating repository and exporting course content.",
             course_key_string,
         )
-        async_create_github_repo.delay(str(course_key), export_course=True)
+        if is_auto_repo_creation_enabled():
+            async_create_github_repo.delay(str(course_key), export_course=True)
     except Exception:
         LOGGER.exception(
             "Unknown error occured during async course content export to git (course id: %s)",  # noqa: E501
