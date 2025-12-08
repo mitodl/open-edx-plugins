@@ -92,7 +92,7 @@ def generate_canvas_course_id():
         )
         return ""
     else:
-        return f"{course_id}-{context_label}"
+        return f"canvas-{course_id}"
 
 
 class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
@@ -431,9 +431,10 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
             )
 
             # Use the cookies from the request to maintain session chat state
-            req_chat_thread_id, req_block_id = (
-                self.get_thread_and_block_ids_from_cookies(request)
-            )
+            (
+                req_chat_thread_id,
+                req_block_id,
+            ) = self.get_thread_and_block_ids_from_cookies(request)
             # Reset the req_chat_thread_id cookie on different blocks to avoid
             # cross-block session issues.
             generated_ai_chat_cookies = {
