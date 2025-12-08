@@ -633,7 +633,6 @@ class Command(BaseCommand):
             source_lang=source_language,
             target_lang=target_language,
         )
-        # Keep the translated file as output_file_path
         return result.billed_characters
 
     def _translate_text(
