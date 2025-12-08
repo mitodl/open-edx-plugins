@@ -3,8 +3,11 @@
 
 def plugin_settings(settings):
     """Configure settings for the course sync plugin."""
+    env_tokens = getattr(settings, "ENV_TOKENS", {})
     # .. setting_name: OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME
     # .. setting_default: ""
     # .. setting_description: The username of the service worker that
     # will be used to sync courses.
-    settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME = ""
+    settings.OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME = env_tokens.get(
+        "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME", ""
+    )
