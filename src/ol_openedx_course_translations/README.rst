@@ -52,7 +52,7 @@ To enable auto language selection:
 
    .. code-block:: python
 
-       # In cms/envs/production.py or cms/envs/private.py
+       # In cms/envs/private.py
        MIDDLEWARE += [
            'ol_openedx_course_translations.middleware.CourseLanguageCookieResetMiddleware',
        ]
@@ -70,7 +70,7 @@ To make auto language selection work with Micro-Frontends (MFEs), you need to us
 
 **Setup:**
 
-1. Use the Footer component from `src/bridge/settings/openedx/mfe/slot_config/Footer.jsx <https://github.com/mitodl/ol-infrastructure/blob/main/src/bridge/settings/openedx/mfe/slot_config/Footer.jsx>` in the `ol-infrastructure <https://github.com/mitodl/ol-infrastructure>`_ repository.
+1. Use the Footer component from `src/bridge/settings/openedx/mfe/slot_config/Footer.jsx <https://github.com/mitodl/ol-infrastructure/blob/main/src/bridge/settings/openedx/mfe/slot_config/Footer.jsx>`_ in the `ol-infrastructure <https://github.com/mitodl/ol-infrastructure>`_ repository.
 
 2. Enable auto language selection in each MFE by adding the following to their ``.env.development`` file:
 
