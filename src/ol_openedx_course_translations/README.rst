@@ -39,7 +39,9 @@ To enable auto language selection:
 
 1. Set ``OL_OPENEDX_COURSE_TRANSLATIONS_ENABLE_AUTO_LANGUAGE_SELECTION`` to ``true`` in your settings.
 
-2. Add the following middleware to your LMS configuration:
+2. Set ``SHARED_COOKIE_DOMAIN`` to your domain (e.g., ``.local.openedx.io`` for local tutor setup) to allow cookies to be shared between LMS and CMS.
+
+3. Add the following middleware to your LMS configuration:
 
    .. code-block:: python
 
@@ -48,7 +50,7 @@ To enable auto language selection:
            'ol_openedx_course_translations.middleware.CourseLanguageCookieMiddleware',
        ]
 
-3. Add the following middleware to your CMS configuration:
+4. Add the following middleware to your CMS configuration:
 
    .. code-block:: python
 
