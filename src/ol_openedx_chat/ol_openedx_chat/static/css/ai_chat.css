@@ -29,6 +29,8 @@
     border-radius: 4px;
     border: 1px solid #B8C2CC;
     background: #FFF;
+    box-shadow: none;
+    outline: none;
 
     p {
         color: #212326;
@@ -66,10 +68,22 @@
         box-shadow: none !important;
     }
 
+    &:active,
+    &:focus,
+    &:focus-visible {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
     &:active {
         border: 1px solid #212326;
         background: #FFF !important;
-        box-shadow: none !important;
+    }
+}
+
+@media screen and (max-width: 1440px) {
+    .ai-chat-button {
+        left: 69%;
     }
 }
 
