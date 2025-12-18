@@ -26,7 +26,7 @@ Configuration
   .. code-block:: python
 
        DEEPL_API_KEY: <YOUR_DEEPL_API_KEY_HERE>
-       OL_OPENEDX_COURSE_TRANSLATIONS_ENABLE_AUTO_LANGUAGE_SELECTION: true  # Enable auto language selection based on course language
+       ENABLE_AUTO_LANGUAGE_SELECTION: true  # Enable auto language selection based on course language
 
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
@@ -39,7 +39,7 @@ To enable auto language selection:
 
 1. Add ``Dark Lang Config`` at ``/admin/dark_lang/darklangconfig/`` with the languages you want to support. For example, to support English and Arabic, add ``en,ar`` in released languages and enable the config.
 
-2. Set ``OL_OPENEDX_COURSE_TRANSLATIONS_ENABLE_AUTO_LANGUAGE_SELECTION`` to ``true`` in your settings.
+2. Set ``ENABLE_AUTO_LANGUAGE_SELECTION`` to ``true`` in your settings.
 
 3. Set ``SHARED_COOKIE_DOMAIN`` to your domain (e.g., ``.local.openedx.io`` for local tutor setup) to allow cookies to be shared between LMS and CMS.
 
@@ -48,7 +48,7 @@ To enable auto language selection:
    .. code-block:: python
 
        # In lms/envs/private.py
-       MIDDLEWARE += [
+       EXTRA_MIDDLEWARE_CLASSES = [
            'ol_openedx_course_translations.middleware.CourseLanguageCookieMiddleware',
        ]
 
@@ -57,7 +57,7 @@ To enable auto language selection:
    .. code-block:: python
 
        # In cms/envs/private.py
-       MIDDLEWARE += [
+       EXTRA_MIDDLEWARE_CLASSES = [
            'ol_openedx_course_translations.middleware.CourseLanguageCookieResetMiddleware',
        ]
 
@@ -65,7 +65,7 @@ To enable auto language selection:
 
 - **LMS**: The ``CourseLanguageCookieMiddleware`` automatically detects course URLs and sets the language preference based on the course's configured language.
 - **CMS**: The ``CourseLanguageCookieResetMiddleware`` ensures Studio always uses English for the authoring interface.
-- **Admin areas**: Admin URLs (``/admin``, ``/sysadmin``, instructor dashboards) are forced to use English regardless of course language.
+- **Admin areas**: Admin URLs (``/admin``, ``/sysadmin``, instructor dashboards) and any other non-course URLs are forced to use English regardless of course language.
 
 MFE Integration
 ===============
@@ -80,7 +80,7 @@ To make auto language selection work with Micro-Frontends (MFEs), you need to us
 
    .. code-block:: bash
 
-       OL_OPENEDX_COURSE_TRANSLATIONS_ENABLE_AUTO_LANGUAGE_SELECTION=true
+       ENABLE_AUTO_LANGUAGE_SELECTION=true
 
 3. This custom Footer component:
    - Detects the current course context in MFEs

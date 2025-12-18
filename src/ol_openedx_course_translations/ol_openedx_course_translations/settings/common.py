@@ -8,11 +8,13 @@ def plugin_settings(settings):
     Populate common settings
     """
     env_tokens = getattr(settings, "ENV_TOKENS", {})
-    settings.OL_OPENEDX_COURSE_TRANSLATIONS_ENABLE_AUTO_LANGUAGE_SELECTION = (
-        env_tokens.get(
-            "OL_OPENEDX_COURSE_TRANSLATIONS_ENABLE_AUTO_LANGUAGE_SELECTION",
-            False,
-        )
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = env_tokens.get(
+        "ENABLE_AUTO_LANGUAGE_SELECTION",
+        False,
+    )
+    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = env_tokens.get(
+        "AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS",
+        ["admin", "sysadmin", "instructor"],
     )
     settings.DEEPL_API_KEY = env_tokens.get("DEEPL_API_KEY", "")
     settings.OL_OPENEDX_COURSE_TRANSLATIONS_TARGET_DIRECTORIES = env_tokens.get(

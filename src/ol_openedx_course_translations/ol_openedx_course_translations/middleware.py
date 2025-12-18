@@ -32,19 +32,25 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
         """
         Set language preference cookie and user preference based on course language.
         """
-        if not settings.OL_OPENEDX_COURSE_TRANSLATIONS_ENABLE_AUTO_LANGUAGE_SELECTION:
+        if (
+            not hasattr(request, "user")
+            or not request.user.is_authenticated
+            or not settings.ENABLE_AUTO_LANGUAGE_SELECTION
+        ):
             return response
 
         path = getattr(request, "path_info", request.path)
+        match = self.COURSE_URL_REGEX.match(path)
 
-        # Force 'en' language for admin, sysadmin, instructor dashboard URLs,
-        # and if the request origin is the course authoring MFE
+        # Force language to English for exempt paths and certain origins
         if (
-            request.META.get("HTTP_ORIGIN")  # noqa: PIE810
+            not match
+            or request.META.get("HTTP_ORIGIN")
             == settings.COURSE_AUTHORING_MICROFRONTEND_URL
-            or path.startswith("/admin")
-            or path.startswith("/sysadmin")
-            or "instructor" in path
+            or any(
+                exempt_path in path
+                for exempt_path in settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS
+            )
         ):
             cookie_val = lang_pref_helpers.get_language_cookie(request)
             needs_lang_reset = not cookie_val or cookie_val != ENGLISH_LANGUAGE_CODE
@@ -59,10 +65,6 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
                 return HttpResponseRedirect(request.get_full_path())
             return response
 
-        match = self.COURSE_URL_REGEX.match(path)
-        if not match:
-            return response
-
         course_key_str = match.group("course_key")
         try:
             course_key = CourseKey.from_string(course_key_str)
@@ -71,16 +73,15 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
             return response
 
         language = getattr(overview, "language", None)
-        lang_pref_helpers.set_language_cookie(request, response, language or "")
+        if not language:
+            return response
 
-        # Set user preference if authenticated
-        if language and hasattr(request, "user") and request.user.is_authenticated:
-            set_user_preference(request.user, LANGUAGE_KEY, language)
+        lang_pref_helpers.set_language_cookie(request, response, language)
+        set_user_preference(request.user, LANGUAGE_KEY, language)
 
         # Redirect if cookie is not present or is different from the desired language
         cookie_val = lang_pref_helpers.get_language_cookie(request)
-        needs_reload = language and (cookie_val != language)
-        if needs_reload:
+        if cookie_val != language:
             url = request.get_full_path()
             return HttpResponseRedirect(url)
 
@@ -98,15 +99,17 @@ class CourseLanguageCookieResetMiddleware(MiddlewareMixin):
         Reset language preference cookie and user preference to
         English for Studio/CMS URLs.
         """
-        if not settings.OL_OPENEDX_COURSE_TRANSLATIONS_ENABLE_AUTO_LANGUAGE_SELECTION:
+        if (
+            not hasattr(request, "user")
+            or not request.user.is_authenticated
+            or not settings.ENABLE_AUTO_LANGUAGE_SELECTION
+        ):
             return response
 
         cookie_val = lang_pref_helpers.get_language_cookie(request)
-        needs_reload = not cookie_val or cookie_val != ENGLISH_LANGUAGE_CODE
-        if needs_reload:
+        if cookie_val and cookie_val != ENGLISH_LANGUAGE_CODE:
             lang_pref_helpers.set_language_cookie(
                 request, response, ENGLISH_LANGUAGE_CODE
             )
-            if hasattr(request, "user") and request.user.is_authenticated:
-                set_user_preference(request.user, LANGUAGE_KEY, ENGLISH_LANGUAGE_CODE)
+            set_user_preference(request.user, LANGUAGE_KEY, ENGLISH_LANGUAGE_CODE)
         return response
