@@ -59,7 +59,7 @@ To enable auto language selection:
 
        # In cms/envs/private.py
        from .common import MIDDLEWARE
-       MIDDLEWARE = [
+       MIDDLEWARE += [
            'ol_openedx_course_translations.middleware.CourseLanguageCookieResetMiddleware',
        ]
 
