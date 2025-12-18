@@ -80,7 +80,7 @@ To make auto language selection work with Micro-Frontends (MFEs), you need to us
 
    .. code-block:: bash
 
-       ENABLE_AUTO_LANGUAGE_SELECTION=true
+       ENABLE_AUTO_LANGUAGE_SELECTION="true"
 
 3. This custom Footer component:
    - Detects the current course context in MFEs
