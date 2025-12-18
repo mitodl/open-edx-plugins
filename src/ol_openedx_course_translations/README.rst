@@ -48,7 +48,8 @@ To enable auto language selection:
    .. code-block:: python
 
        # In lms/envs/private.py
-       EXTRA_MIDDLEWARE_CLASSES = [
+       from .common import MIDDLEWARE
+       MIDDLEWARE += [
            'ol_openedx_course_translations.middleware.CourseLanguageCookieMiddleware',
        ]
 
@@ -57,7 +58,8 @@ To enable auto language selection:
    .. code-block:: python
 
        # In cms/envs/private.py
-       EXTRA_MIDDLEWARE_CLASSES = [
+       from .common import MIDDLEWARE
+       MIDDLEWARE = [
            'ol_openedx_course_translations.middleware.CourseLanguageCookieResetMiddleware',
        ]
 
@@ -65,7 +67,7 @@ To enable auto language selection:
 
 - **LMS**: The ``CourseLanguageCookieMiddleware`` automatically detects course URLs and sets the language preference based on the course's configured language.
 - **CMS**: The ``CourseLanguageCookieResetMiddleware`` ensures Studio always uses English for the authoring interface.
-- **Admin areas**: Admin URLs (``/admin``, ``/sysadmin``, instructor dashboards) and any other non-course URLs are forced to use English regardless of course language.
+- **Admin areas**: Admin URLs (``/admin``, ``/sysadmin``, instructor dashboards) are forced to use English regardless of course language.
 
 MFE Integration
 ===============
