@@ -61,7 +61,10 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
                 return HttpResponseRedirect(request.get_full_path())
             return response
 
+        # Extract course key from URL
         match = self.COURSE_URL_REGEX.match(path)
+        # If no course key found, return response as is because
+        # language cannot be determined
         if not match:
             return response
 
