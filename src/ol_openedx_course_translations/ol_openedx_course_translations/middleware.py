@@ -40,17 +40,13 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
             return response
 
         path = getattr(request, "path_info", request.path)
-        match = self.COURSE_URL_REGEX.match(path)
 
         # Force language to English for exempt paths and certain origins
-        if (
-            not match
-            or request.META.get("HTTP_ORIGIN")
-            == settings.COURSE_AUTHORING_MICROFRONTEND_URL
-            or any(
-                exempt_path in path
-                for exempt_path in settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS
-            )
+        if request.META.get(
+            "HTTP_ORIGIN"
+        ) == settings.COURSE_AUTHORING_MICROFRONTEND_URL or any(
+            exempt_path in path
+            for exempt_path in settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS
         ):
             cookie_val = lang_pref_helpers.get_language_cookie(request)
             needs_lang_reset = not cookie_val or cookie_val != ENGLISH_LANGUAGE_CODE
@@ -63,6 +59,10 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
                         request.user, LANGUAGE_KEY, ENGLISH_LANGUAGE_CODE
                     )
                 return HttpResponseRedirect(request.get_full_path())
+            return response
+
+        match = self.COURSE_URL_REGEX.match(path)
+        if not match:
             return response
 
         course_key_str = match.group("course_key")
