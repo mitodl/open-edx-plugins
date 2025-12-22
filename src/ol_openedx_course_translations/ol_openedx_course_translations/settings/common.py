@@ -16,6 +16,18 @@ def plugin_settings(settings):
         "AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS",
         ["admin", "sysadmin", "instructor"],
     )
+    if settings.ROOT_URLCONF == "lms.urls":
+        settings.MIDDLEWARE.extend(
+            [
+                "ol_openedx_course_translations.middleware.CourseLanguageCookieMiddleware",
+            ]
+        )
+    elif settings.ROOT_URLCONF == "cms.urls":
+        settings.MIDDLEWARE.extend(
+            [
+                "ol_openedx_course_translations.middleware.CourseLanguageCookieResetMiddleware",
+            ]
+        )
     settings.DEEPL_API_KEY = env_tokens.get("DEEPL_API_KEY", "")
     settings.OL_OPENEDX_COURSE_TRANSLATIONS_TARGET_DIRECTORIES = env_tokens.get(
         "OL_OPENEDX_COURSE_TRANSLATIONS_TARGET_DIRECTORIES",
