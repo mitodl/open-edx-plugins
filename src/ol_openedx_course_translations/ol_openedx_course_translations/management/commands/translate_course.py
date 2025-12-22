@@ -11,12 +11,32 @@ from pathlib import Path
 from typing import Any
 from xml.etree.ElementTree import Element
 
-import deepl
 from defusedxml import ElementTree
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
+from ol_openedx_course_translations.providers.llm_provider import (
+    GeminiProvider,
+    MistralProvider,
+    OpenAIProvider,
+)
+
 logger = logging.getLogger(__name__)
+
+# Error messages as constants
+DEEPL_API_KEY_MISSING = (
+    "DEEPL_API_KEY setting is required for DeepL"  # pragma: allowlist secret
+)
+OPENAI_API_KEY_MISSING = (
+    "OPENAI_API_KEY setting is required for OpenAI"  # pragma: allowlist secret
+)
+GEMINI_API_KEY_MISSING = (
+    "GEMINI_API_KEY setting is required for Gemini"  # pragma: allowlist secret
+)
+MISTRAL_API_KEY_MISSING = (
+    "MISTRAL_API_KEY setting is required for Mistral"  # pragma: allowlist secret
+)
 
 
 class Command(BaseCommand):
@@ -37,7 +57,7 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--translation-language",
-            dest="translation_language",
+            dest="target_language",
             required=True,
             help=(
                 "Specify the language code in ISO format "
@@ -46,9 +66,32 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--course-dir",
-            dest="course_directory",
+            dest="course_archive_path",
             required=True,
             help="Specify the course directory (tar archive).",
+        )
+        parser.add_argument(
+            "--xmltranslation",
+            dest="xml_translation_provider",
+            required=True,
+            choices=["deepl", "gemini", "mistral", "openai"],
+            help="AI model to use for XML/HTML and text translation.",
+        )
+        parser.add_argument(
+            "--srttranslations",
+            dest="srt_translation_provider",
+            required=True,
+            choices=["deepl", "gemini", "mistral", "openai"],
+            help="AI model to use for SRT subtitle translation.",
+        )
+        parser.add_argument(
+            "--glossaryfile",
+            dest="glossary_directory",
+            required=False,
+            help=(
+                "Path to glossary directory containing "
+                "language-specific glossary files."
+            ),
         )
 
     def handle(self, **options) -> None:
@@ -56,43 +99,81 @@ class Command(BaseCommand):
         try:
             self._validate_inputs(options)
 
-            course_dir = Path(options["course_directory"])
+            course_archive_path = Path(options["course_archive_path"])
             source_language = options["source_language"]
-            translation_language = options["translation_language"]
+            target_language = options["target_language"]
+            xml_provider_name = options["xml_translation_provider"]
+            srt_provider_name = options["srt_translation_provider"]
+            glossary_directory = options.get("glossary_directory")
+
+            # Initialize providers
+            self.xml_provider = self._get_provider(xml_provider_name)
+            self.srt_provider = self._get_provider(srt_provider_name)
+            self.glossary_directory = glossary_directory
 
             # Extract course archive
-            extracted_dir = self._extract_course_archive(course_dir)
+            extracted_course_dir = self._extract_course_archive(course_archive_path)
 
             # Create translated copy
-            translated_dir = self._create_translated_copy(
-                extracted_dir, translation_language
+            translated_course_dir = self._create_translated_copy(
+                extracted_course_dir, target_language
             )
 
             # Delete extracted directory after copying
-            if extracted_dir.exists():
-                shutil.rmtree(extracted_dir)
+            if extracted_course_dir.exists():
+                shutil.rmtree(extracted_course_dir)
 
             # Translate content
-            billed_chars = self._translate_course_content(
-                translated_dir, source_language, translation_language
+            self._translate_course_content(
+                translated_course_dir, source_language, target_language
             )
 
             # Create final archive
-            archive_path = self._create_translated_archive(
-                translated_dir, translation_language, course_dir.stem
+            translated_archive_path = self._create_translated_archive(
+                translated_course_dir, target_language, course_archive_path.stem
             )
 
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"Translation completed. Archive created: {archive_path}"
+                    f"Translation completed. Archive created: {translated_archive_path}"
                 )
             )
-            logger.info("Total billed characters: %s", billed_chars)
 
         except Exception as e:
             logger.exception("Translation failed")
             error_msg = f"Translation failed: {e}"
             raise CommandError(error_msg) from e
+
+    def _get_provider(self, provider_name: str):
+        """Get translation provider based on provider name."""
+        openai_api_key = getattr(settings, "OPENAI_API_KEY", "")
+
+        if provider_name == "deepl":
+            deepl_api_key = getattr(settings, "DEEPL_API_KEY", "")
+            if not deepl_api_key:
+                raise CommandError(DEEPL_API_KEY_MISSING)
+            return DeepLProvider(deepl_api_key, openai_api_key)
+
+        elif provider_name == "openai":
+            if not openai_api_key:
+                raise CommandError(OPENAI_API_KEY_MISSING)
+            return OpenAIProvider(openai_api_key, openai_api_key)
+
+        elif provider_name == "gemini":
+            gemini_api_key = getattr(settings, "GEMINI_API_KEY", "")
+            if not gemini_api_key:
+                raise CommandError(GEMINI_API_KEY_MISSING)
+            return GeminiProvider(gemini_api_key, openai_api_key)
+
+        elif provider_name == "mistral":
+            mistral_api_key = getattr(settings, "MISTRAL_API_KEY", "")
+            if not mistral_api_key:
+                raise CommandError(MISTRAL_API_KEY_MISSING)
+            return MistralProvider(mistral_api_key, openai_api_key)
+
+        else:
+            error_msg = f"Unknown provider: {provider_name}"
+            raise CommandError(error_msg)
 
     def get_supported_archive_extension(self, filename: str) -> str | None:
         """
@@ -105,582 +186,582 @@ class Command(BaseCommand):
 
     def _validate_inputs(self, options: dict[str, Any]) -> None:
         """Validate command inputs."""
-        course_dir = Path(options["course_directory"])
+        course_archive_path = Path(options["course_archive_path"])
 
-        if not course_dir.exists():
-            error_msg = f"Course directory not found: {course_dir}"
+        if not course_archive_path.exists():
+            error_msg = f"Course archive not found: {course_archive_path}"
             raise CommandError(error_msg)
 
-        if self.get_supported_archive_extension(course_dir.name) is None:
-            supported_exts = ", ".join(
+        if self.get_supported_archive_extension(course_archive_path.name) is None:
+            supported_extensions = ", ".join(
                 settings.COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS
             )
-            error_msg = f"Course directory must be a tar file: {supported_exts}"
+            error_msg = f"Course archive must be a tar file: {supported_extensions}"
             raise CommandError(error_msg)
 
-        if not hasattr(settings, "DEEPL_API_KEY") or not settings.DEEPL_API_KEY:
-            error_msg = "DEEPL_API_KEY setting is required"
-            raise CommandError(error_msg)
-
-    def _extract_course_archive(self, course_dir: Path) -> Path:
+    def _extract_course_archive(self, course_archive_path: Path) -> Path:
         """Extract course archive to working directory."""
         # Use the parent directory of the source file as the base extraction directory
-        extract_base_dir = course_dir.parent
+        extraction_base_dir = course_archive_path.parent
 
         # Get base name without extension
-        ext = self.get_supported_archive_extension(course_dir.name)
-        tarball_base = course_dir.name[: -len(ext)] if ext else course_dir.name
+        archive_extension = self.get_supported_archive_extension(
+            course_archive_path.name
+        )
+        archive_base_name = (
+            course_archive_path.name[: -len(archive_extension)]
+            if archive_extension
+            else course_archive_path.name
+        )
 
-        extracted_dir = extract_base_dir / tarball_base
+        extracted_course_dir = extraction_base_dir / archive_base_name
 
-        if not extracted_dir.exists():
+        if not extracted_course_dir.exists():
             try:
-                with tarfile.open(course_dir, "r:*") as tar:
+                with tarfile.open(course_archive_path, "r:*") as tar_file:
                     # Validate tar file before extraction
-                    self._validate_tar_file(tar)
-                    tar.extractall(path=extracted_dir, filter="data")
+                    self._validate_tar_file(tar_file)
+                    tar_file.extractall(path=extracted_course_dir, filter="data")
             except (tarfile.TarError, OSError) as e:
                 error_msg = f"Failed to extract archive: {e}"
                 raise CommandError(error_msg) from e
 
-        logger.info("Extracted course to: %s", extracted_dir)
-        return extracted_dir
+        logger.info("Extracted course to: %s", extracted_course_dir)
+        return extracted_course_dir
 
-    def _validate_tar_file(self, tar: tarfile.TarFile) -> None:
+    def _validate_tar_file(self, tar_file: tarfile.TarFile) -> None:
         """Validate tar file contents for security."""
-        for member in tar.getmembers():
+        for tar_member in tar_file.getmembers():
             # Check for directory traversal attacks
-            if member.name.startswith("/") or ".." in member.name:
-                error_msg = f"Unsafe tar member: {member.name}"
+            if tar_member.name.startswith("/") or ".." in tar_member.name:
+                error_msg = f"Unsafe tar member: {tar_member.name}"
                 raise CommandError(error_msg)
             # Check for excessively large files
-            if (
-                member.size > 512 * 1024 * 1024
-            ):  # 0.5GB limit because courses on Production are big
-                error_msg = f"File too large: {member.name}"
+            if tar_member.size > 512 * 1024 * 1024:  # 0.5GB limit
+                error_msg = f"File too large: {tar_member.name}"
                 raise CommandError(error_msg)
 
     def _create_translated_copy(
-        self, source_dir: Path, translation_language: str
+        self, source_course_dir: Path, target_language: str
     ) -> Path:
         """Create a copy of the course for translation."""
-        base_name = source_dir.name
-        new_dir_name = f"{translation_language}_{base_name}"
-        new_dir_path = source_dir.parent / new_dir_name
+        source_base_name = source_course_dir.name
+        translated_dir_name = f"{target_language}_{source_base_name}"
+        translated_course_dir = source_course_dir.parent / translated_dir_name
 
-        if new_dir_path.exists():
-            error_msg = f"Translation directory already exists: {new_dir_path}"
+        if translated_course_dir.exists():
+            error_msg = f"Translation directory already exists: {translated_course_dir}"
             raise CommandError(error_msg)
 
-        shutil.copytree(source_dir, new_dir_path)
-        logger.info("Created translation copy: %s", new_dir_path)
-        return new_dir_path
+        shutil.copytree(source_course_dir, translated_course_dir)
+        logger.info("Created translation copy: %s", translated_course_dir)
+        return translated_course_dir
 
     def _translate_course_content(
-        self, course_dir: Path, source_language: str, translation_language: str
-    ) -> int:
-        """Translate all course content and return total billed characters."""
-        total_billed_chars = 0
-
+        self, course_dir: Path, source_language: str, target_language: str
+    ) -> None:
+        """Translate all course content."""
         # Translate files in main directories
-        for search_dir in [course_dir, course_dir.parent]:
-            total_billed_chars += self._translate_files_in_directory(
-                search_dir, source_language, translation_language, recursive=False
+        for search_directory in [course_dir, course_dir.parent]:
+            self._translate_files_in_directory(
+                search_directory, source_language, target_language, recursive=False
             )
 
             # Translate files in target subdirectories
-            for dir_name in settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES:
-                target_dir = search_dir / dir_name
-                if target_dir.exists() and target_dir.is_dir():
-                    total_billed_chars += self._translate_files_in_directory(
-                        target_dir,
+            for (
+                target_dir_name
+            ) in settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES:
+                target_directory = search_directory / target_dir_name
+                if target_directory.exists() and target_directory.is_dir():
+                    self._translate_files_in_directory(
+                        target_directory,
                         source_language,
-                        translation_language,
+                        target_language,
                         recursive=True,
                     )
 
         # Translate special JSON files
-        total_billed_chars += self._translate_grading_policy(
-            course_dir, source_language, translation_language
-        )
-        total_billed_chars += self._translate_policy_json(
-            course_dir, source_language, translation_language
-        )
-
-        return total_billed_chars
+        self._translate_grading_policy(course_dir, target_language)
+        self._translate_policy_json(course_dir, target_language)
 
     def _translate_files_in_directory(
         self,
-        directory: Path,
+        directory_path: Path,
         source_language: str,
-        translation_language: str,
+        target_language: str,
         *,
         recursive: bool = False,
-    ) -> int:
+    ) -> None:
         """Translate files in a directory."""
-        total_billed_chars = 0
-
         if recursive:
-            file_paths: list[Path] = []
-            for ext in settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS:
-                file_paths.extend(directory.rglob(f"*{ext}"))
+            translatable_file_paths: list[Path] = []
+            for (
+                file_extension
+            ) in settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS:
+                translatable_file_paths.extend(
+                    directory_path.rglob(f"*{file_extension}")
+                )
         else:
-            file_paths = [
-                f
-                for f in directory.iterdir()
-                if f.is_file()
+            translatable_file_paths = [
+                file_path
+                for file_path in directory_path.iterdir()
+                if file_path.is_file()
                 and any(
-                    f.name.endswith(ext)
-                    for ext in settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS
+                    file_path.name.endswith(extension)
+                    for extension in (
+                        settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS
+                    )
                 )
             ]
 
-        for file_path in file_paths:
+        for translatable_file_path in translatable_file_paths:
             try:
-                total_billed_chars += self._translate_file(
-                    file_path, source_language, translation_language
+                self._translate_file(
+                    translatable_file_path, source_language, target_language
                 )
             except (OSError, UnicodeDecodeError) as e:
-                logger.warning("Failed to translate %s: %s", file_path, e)
+                logger.warning("Failed to translate %s: %s", translatable_file_path, e)
 
-        return total_billed_chars
-
-    def _update_video_xml(self, xml_content: str, translation_language: str) -> str:  # noqa: C901
+    def _update_video_xml(self, xml_content: str, target_language: str) -> str:  # noqa: C901
         """Update video XML transcripts and transcript tags for the target language."""
         try:
-            root = ElementTree.fromstring(xml_content)
-            lang_code = translation_language.lower()
+            xml_root = ElementTree.fromstring(xml_content)
+            target_lang_code = target_language.lower()
 
             # Update transcripts attribute in <video>
-            if root.tag == "video" and "transcripts" in root.attrib:
-                transcripts_json = root.attrib["transcripts"].replace("&quot;", '"')
-                transcripts_dict = json.loads(transcripts_json)
-                for k in list(transcripts_dict.keys()):
-                    value = transcripts_dict[k]
-                    new_key = lang_code
-                    new_value = re.sub(r"-[a-zA-Z]{2}\.srt$", f"-{new_key}.srt", value)
-                    transcripts_dict[new_key] = new_value
-                new_transcripts = json.dumps(transcripts_dict, ensure_ascii=False)
-                root.set("transcripts", new_transcripts)
+            if xml_root.tag == "video" and "transcripts" in xml_root.attrib:
+                transcripts_json_str = xml_root.attrib["transcripts"].replace(
+                    "&quot;", '"'
+                )
+                transcripts_dict = json.loads(transcripts_json_str)
+                for transcript_key in list(transcripts_dict.keys()):
+                    transcript_value = transcripts_dict[transcript_key]
+                    new_transcript_key = target_lang_code
+                    new_transcript_value = re.sub(
+                        r"-[a-zA-Z]{2}\.srt$",
+                        f"-{new_transcript_key}.srt",
+                        transcript_value,
+                    )
+                    transcripts_dict[new_transcript_key] = new_transcript_value
+                updated_transcripts_json = json.dumps(
+                    transcripts_dict, ensure_ascii=False
+                )
+                xml_root.set("transcripts", updated_transcripts_json)
 
-            # Add a new <transcript> tag inside <transcripts> for the
-            # target language, inheriting attributes
-            for video_asset in root.findall("video_asset"):
-                for transcripts in video_asset.findall("transcripts"):
-                    existing_transcript = transcripts.find("transcript")
-                    new_transcript = Element("transcript")
-                    if existing_transcript is not None:
-                        new_transcript.attrib = existing_transcript.attrib.copy()
-                    new_transcript.set("language_code", lang_code)
+            # Add a new <transcript> tag inside <transcripts> for the target language
+            for video_asset_element in xml_root.findall("video_asset"):
+                for transcripts_element in video_asset_element.findall("transcripts"):
+                    existing_transcript_element = transcripts_element.find("transcript")
+                    new_transcript_element = Element("transcript")
+                    if existing_transcript_element is not None:
+                        new_transcript_element.attrib = (
+                            existing_transcript_element.attrib.copy()
+                        )
+                    new_transcript_element.set("language_code", target_lang_code)
                     # Avoid duplicates
                     if not any(
-                        t.attrib == new_transcript.attrib
-                        for t in transcripts.findall("transcript")
+                        transcript_elem.attrib == new_transcript_element.attrib
+                        for transcript_elem in transcripts_element.findall("transcript")
                     ):
-                        transcripts.append(new_transcript)
+                        transcripts_element.append(new_transcript_element)
 
             # Add a new <transcript> tag for the target language
-            for transcript in root.findall("transcript"):
-                src = transcript.get("src")
-                if src:
-                    new_src = re.sub(r"-[a-zA-Z]{2}\.srt$", f"-{lang_code}.srt", src)
-                    new_transcript = Element("transcript")
-                    new_transcript.set("language", lang_code)
-                    new_transcript.set("src", new_src)
+            for transcript_element in xml_root.findall("transcript"):
+                transcript_src = transcript_element.get("src")
+                if transcript_src:
+                    new_transcript_src = re.sub(
+                        r"-[a-zA-Z]{2}\.srt$",
+                        f"-{target_lang_code}.srt",
+                        transcript_src,
+                    )
+                    new_transcript_element = Element("transcript")
+                    new_transcript_element.set("language", target_lang_code)
+                    new_transcript_element.set("src", new_transcript_src)
                     # Avoid duplicates
                     if not any(
-                        t.get("language") == lang_code and t.get("src") == new_src
-                        for t in root.findall("transcript")
+                        existing_transcript.get("language") == target_lang_code
+                        and existing_transcript.get("src") == new_transcript_src
+                        for existing_transcript in xml_root.findall("transcript")
                     ):
-                        root.append(new_transcript)
+                        xml_root.append(new_transcript_element)
 
-            xml_content = ElementTree.tostring(root, encoding="unicode")
+            xml_content = ElementTree.tostring(xml_root, encoding="unicode")
         except Exception as e:  # noqa: BLE001
             logger.warning("Failed to update transcripts in video XML: %s", e)
 
         return xml_content
 
     def _translate_file(
-        self, file_path: Path, source_language: str, translation_language: str
-    ) -> int:
-        """Translate a single file and return billed characters."""
-        # Handle SRT files with DeepL document translation
+        self, file_path: Path, source_language: str, target_language: str
+    ) -> None:
+        """Translate a single file."""
+        # Handle SRT files with SRT provider
         if file_path.suffix == ".srt":
             try:
-                billed_chars = self.translate_srt_file(
-                    file_path, source_language, translation_language
+                self._translate_srt_file_with_provider(
+                    file_path, source_language, target_language
                 )
-            except Exception as e:  # noqa: BLE001
+            except (OSError, ValueError) as e:
                 logger.warning("Failed to translate SRT %s: %s", file_path, e)
-                return 0
-            else:
-                return billed_chars
+            return
 
         try:
-            content = file_path.read_text(encoding="utf-8")
+            file_content = file_path.read_text(encoding="utf-8")
             logger.debug("Translating: %s", file_path)
 
-            translated_content, billed_chars = self._translate_text(
-                content, source_language, translation_language, file_path.name
+            # Use XML provider for all other content
+            tag_handling_mode = None
+            if file_path.suffix in [".xml", ".html"]:
+                tag_handling_mode = file_path.suffix.lstrip(".")
+
+            translated_file_content = self.xml_provider.translate_text(
+                file_content,
+                target_language.lower(),
+                tag_handling=tag_handling_mode,
+                glossary_file=self.glossary_directory,
             )
 
             # Handle XML display_name translation
             if file_path.suffix == ".xml":
-                translated_content = self._translate_display_name(
-                    translated_content, source_language, translation_language
+                translated_file_content = self._translate_display_name(
+                    translated_file_content, target_language
                 )
 
                 # If parent directory is 'video', update transcripts attribute
                 if file_path.parent.name == "video":
-                    translated_content = self._update_video_xml(
-                        translated_content, translation_language
+                    translated_file_content = self._update_video_xml(
+                        translated_file_content, target_language
                     )
 
-            file_path.write_text(translated_content, encoding="utf-8")
+            file_path.write_text(translated_file_content, encoding="utf-8")
         except (OSError, UnicodeDecodeError) as e:
             logger.warning("Failed to translate %s: %s", file_path, e)
-            return 0
-        else:
-            return billed_chars
 
-    def _translate_grading_policy(
-        self, course_dir: Path, source_language: str, translation_language: str
-    ) -> int:
+    def _translate_srt_file_with_provider(
+        self, srt_file_path: Path, source_language: str, target_language: str
+    ) -> None:
+        """Translate an SRT file using the configured SRT provider."""
+        self.srt_provider.translate_document(
+            srt_file_path, srt_file_path, source_language, target_language
+        )
+
+    def _translate_text(
+        self,
+        input_text: str,
+        target_language: str,
+        source_filename: str | None = None,
+    ) -> str:
+        """Translate text using XML provider."""
+        if not input_text or not input_text.strip():
+            return input_text
+
+        tag_handling_mode = None
+        if source_filename:
+            file_extension = Path(source_filename).suffix.lstrip(".")
+            if file_extension in ["html", "xml"]:
+                tag_handling_mode = file_extension
+
+        try:
+            return self.xml_provider.translate_text(
+                input_text,
+                target_language.lower(),
+                tag_handling=tag_handling_mode,
+                glossary_file=self.glossary_directory,
+            )
+        except (OSError, ValueError) as e:
+            logger.warning(
+                "Translation failed for text: %s... Error: %s", input_text[:50], e
+            )
+            return input_text
+
+    def _translate_grading_policy(self, course_dir: Path, target_language: str) -> None:
         """Translate grading_policy.json files."""
-        total_billed_chars = 0
-        policies_dir = course_dir / "course" / "policies"
+        course_policies_dir = course_dir / "course" / "policies"
 
-        if not policies_dir.exists():
-            return 0
+        if not course_policies_dir.exists():
+            return
 
-        for child_dir in policies_dir.iterdir():
-            if not child_dir.is_dir():
+        for policy_child_dir in course_policies_dir.iterdir():
+            if not policy_child_dir.is_dir():
                 continue
 
-            grading_policy_path = child_dir / "grading_policy.json"
-            if not grading_policy_path.exists():
+            grading_policy_file_path = policy_child_dir / "grading_policy.json"
+            if not grading_policy_file_path.exists():
                 continue
 
             try:
-                grading_policy = json.loads(
-                    grading_policy_path.read_text(encoding="utf-8")
+                grading_policy_data = json.loads(
+                    grading_policy_file_path.read_text(encoding="utf-8")
                 )
-                updated = False
+                policy_updated = False
 
-                for item in grading_policy.get("GRADER", []):
-                    if "short_label" in item:
-                        translated_label, billed_chars = self._translate_text(
-                            item["short_label"], source_language, translation_language
+                for grader_item in grading_policy_data.get("GRADER", []):
+                    if "short_label" in grader_item:
+                        translated_short_label = self._translate_text(
+                            grader_item["short_label"], target_language
                         )
-                        item["short_label"] = translated_label
-                        total_billed_chars += billed_chars
-                        updated = True
+                        grader_item["short_label"] = translated_short_label
+                        policy_updated = True
 
-                if updated:
-                    grading_policy_path.write_text(
-                        json.dumps(grading_policy, ensure_ascii=False, indent=4),
+                if policy_updated:
+                    grading_policy_file_path.write_text(
+                        json.dumps(grading_policy_data, ensure_ascii=False, indent=4),
                         encoding="utf-8",
                     )
             except (OSError, json.JSONDecodeError) as e:
                 logger.warning(
-                    "Failed to translate grading policy in %s: %s", child_dir, e
+                    "Failed to translate grading policy in %s: %s", policy_child_dir, e
                 )
 
-        return total_billed_chars
-
-    def _translate_policy_json(
-        self, course_dir: Path, source_language: str, translation_language: str
-    ) -> int:
+    def _translate_policy_json(self, course_dir: Path, target_language: str) -> None:
         """Translate policy.json files."""
-        total_billed_chars = 0
-        policies_dir = course_dir / "course" / "policies"
+        course_policies_dir = course_dir / "course" / "policies"
 
-        if not policies_dir.exists():
-            return 0
+        if not course_policies_dir.exists():
+            return
 
-        for child_dir in policies_dir.iterdir():
-            if not child_dir.is_dir():
+        for policy_child_dir in course_policies_dir.iterdir():
+            if not policy_child_dir.is_dir():
                 continue
 
-            policy_path = child_dir / "policy.json"
-            if not policy_path.exists():
+            policy_file_path = policy_child_dir / "policy.json"
+            if not policy_file_path.exists():
                 continue
 
             try:
-                policy_data = json.loads(policy_path.read_text(encoding="utf-8"))
-                updated = False
+                policy_json_data = json.loads(
+                    policy_file_path.read_text(encoding="utf-8")
+                )
+                policy_data_updated = False
 
-                for course_obj in policy_data.values():
-                    if not isinstance(course_obj, dict):
+                for course_policy_obj in policy_json_data.values():
+                    if not isinstance(course_policy_obj, dict):
                         continue
 
                     # Translate various fields
-                    billed_chars, field_updated = self._translate_policy_fields(
-                        course_obj, source_language, translation_language
+                    fields_updated = self._translate_policy_fields(
+                        course_policy_obj, target_language
                     )
-                    total_billed_chars += billed_chars
-                    updated = updated or field_updated
+                    policy_data_updated = policy_data_updated or fields_updated
 
-                if updated:
-                    policy_path.write_text(
-                        json.dumps(policy_data, ensure_ascii=False, indent=4),
+                if policy_data_updated:
+                    policy_file_path.write_text(
+                        json.dumps(policy_json_data, ensure_ascii=False, indent=4),
                         encoding="utf-8",
                     )
             except (OSError, json.JSONDecodeError) as e:
-                logger.warning("Failed to translate policy in %s: %s", child_dir, e)
-
-        return total_billed_chars
+                logger.warning(
+                    "Failed to translate policy in %s: %s", policy_child_dir, e
+                )
 
     def _translate_policy_fields(
         self,
-        course_obj: dict[str, Any],
-        source_language: str,
-        translation_language: str,
-    ) -> tuple[int, bool]:
+        course_policy_obj: dict[str, Any],
+        target_language: str,
+    ) -> bool:
         """Translate specific fields in policy object."""
-        total_billed_chars = 0
-        updated = False
+        any_field_updated = False
 
         # Translate simple string fields
-        billed_chars, field_updated = self._translate_string_fields(
-            course_obj, source_language, translation_language
+        string_fields_updated = self._translate_string_fields(
+            course_policy_obj, target_language
         )
-        total_billed_chars += billed_chars
-        updated = updated or field_updated
+        any_field_updated = any_field_updated or string_fields_updated
 
         # Translate discussion topics
-        billed_chars, field_updated = self._translate_discussion_topics(
-            course_obj, source_language, translation_language
+        discussion_topics_updated = self._translate_discussion_topics(
+            course_policy_obj, target_language
         )
-        total_billed_chars += billed_chars
-        updated = updated or field_updated
+        any_field_updated = any_field_updated or discussion_topics_updated
 
         # Translate learning info and tabs
-        billed_chars, field_updated = self._translate_learning_info_and_tabs(
-            course_obj, source_language, translation_language
+        learning_info_tabs_updated = self._translate_learning_info_and_tabs(
+            course_policy_obj, target_language
         )
-        total_billed_chars += billed_chars
-        updated = updated or field_updated
+        any_field_updated = any_field_updated or learning_info_tabs_updated
 
         # Translate XML attributes
-        billed_chars, field_updated = self._translate_xml_attributes(
-            course_obj, source_language, translation_language
+        xml_attributes_updated = self._translate_xml_attributes(
+            course_policy_obj, target_language
         )
-        total_billed_chars += billed_chars
-        updated = updated or field_updated
-
-        return total_billed_chars, updated
+        return any_field_updated or xml_attributes_updated
 
     def _translate_string_fields(
         self,
-        course_obj: dict[str, Any],
-        source_language: str,
-        translation_language: str,
-    ) -> tuple[int, bool]:
+        course_policy_obj: dict[str, Any],
+        target_language: str,
+    ) -> bool:
         """Translate simple string fields."""
-        total_billed_chars = 0
-        updated = False
+        string_fields_updated = False
 
-        string_fields = ["advertised_start", "display_name", "display_organization"]
-        for field in string_fields:
-            if field in course_obj:
-                translated, billed_chars = self._translate_text(
-                    course_obj[field], source_language, translation_language
+        translatable_string_fields = [
+            "advertised_start",
+            "display_name",
+            "display_organization",
+        ]
+        for field_name in translatable_string_fields:
+            if field_name in course_policy_obj:
+                translated_field_value = self._translate_text(
+                    course_policy_obj[field_name], target_language
                 )
-                course_obj[field] = translated
-                total_billed_chars += billed_chars
-                updated = True
+                course_policy_obj[field_name] = translated_field_value
+                string_fields_updated = True
 
-        return total_billed_chars, updated
+        return string_fields_updated
 
     def _translate_discussion_topics(
         self,
-        course_obj: dict[str, Any],
-        source_language: str,
-        translation_language: str,
-    ) -> tuple[int, bool]:
+        course_policy_obj: dict[str, Any],
+        target_language: str,
+    ) -> bool:
         """Translate discussion topics."""
-        total_billed_chars = 0
-        updated = False
+        discussion_topics_updated = False
 
-        if "discussion_topics" in course_obj:
-            topics = course_obj["discussion_topics"]
-            if isinstance(topics, dict):
-                new_topics = {}
-                for topic_key, value in topics.items():
-                    translated_key, billed_chars = self._translate_text(
-                        topic_key, source_language, translation_language
+        if "discussion_topics" in course_policy_obj:
+            discussion_topics_dict = course_policy_obj["discussion_topics"]
+            if isinstance(discussion_topics_dict, dict):
+                translated_discussion_topics = {}
+                for topic_key, topic_value in discussion_topics_dict.items():
+                    translated_topic_key = self._translate_text(
+                        topic_key, target_language
                     )
-                    new_topics[translated_key] = value
-                    total_billed_chars += billed_chars
-                course_obj["discussion_topics"] = new_topics
-                updated = True
+                    translated_discussion_topics[translated_topic_key] = topic_value
+                course_policy_obj["discussion_topics"] = translated_discussion_topics
+                discussion_topics_updated = True
 
-        return total_billed_chars, updated
+        return discussion_topics_updated
 
     def _translate_learning_info_and_tabs(
         self,
-        course_obj: dict[str, Any],
-        source_language: str,
-        translation_language: str,
-    ) -> tuple[int, bool]:
+        course_policy_obj: dict[str, Any],
+        target_language: str,
+    ) -> bool:
         """Translate learning info and tabs."""
-        total_billed_chars = 0
-        updated = False
+        learning_info_tabs_updated = False
 
         # Learning info
-        if "learning_info" in course_obj and isinstance(
-            course_obj["learning_info"], list
+        if "learning_info" in course_policy_obj and isinstance(
+            course_policy_obj["learning_info"], list
         ):
-            translated_info = []
-            for item in course_obj["learning_info"]:
-                translated, billed_chars = self._translate_text(
-                    item, source_language, translation_language
+            translated_learning_info = []
+            for learning_info_item in course_policy_obj["learning_info"]:
+                translated_info_item = self._translate_text(
+                    learning_info_item, target_language
                 )
-                translated_info.append(translated)
-                total_billed_chars += billed_chars
-            course_obj["learning_info"] = translated_info
-            updated = True
+                translated_learning_info.append(translated_info_item)
+            course_policy_obj["learning_info"] = translated_learning_info
+            learning_info_tabs_updated = True
 
         # Tabs
-        if "tabs" in course_obj and isinstance(course_obj["tabs"], list):
-            for tab in course_obj["tabs"]:
-                if isinstance(tab, dict) and "name" in tab:
-                    translated, billed_chars = self._translate_text(
-                        tab["name"], source_language, translation_language
+        if "tabs" in course_policy_obj and isinstance(course_policy_obj["tabs"], list):
+            for tab_obj in course_policy_obj["tabs"]:
+                if isinstance(tab_obj, dict) and "name" in tab_obj:
+                    translated_tab_name = self._translate_text(
+                        tab_obj["name"], target_language
                     )
-                    tab["name"] = translated
-                    total_billed_chars += billed_chars
-                    updated = True
+                    tab_obj["name"] = translated_tab_name
+                    learning_info_tabs_updated = True
 
-        return total_billed_chars, updated
+        return learning_info_tabs_updated
 
     def _translate_xml_attributes(
         self,
-        course_obj: dict[str, Any],
-        source_language: str,
-        translation_language: str,
-    ) -> tuple[int, bool]:
+        course_policy_obj: dict[str, Any],
+        target_language: str,
+    ) -> bool:
         """Translate XML attributes."""
-        total_billed_chars = 0
-        updated = False
+        xml_attributes_updated = False
 
-        if "xml_attributes" in course_obj and isinstance(
-            course_obj["xml_attributes"], dict
+        if "xml_attributes" in course_policy_obj and isinstance(
+            course_policy_obj["xml_attributes"], dict
         ):
-            xml_attrs = course_obj["xml_attributes"]
-            xml_fields = [
-                "diplay_name",
+            xml_attributes_dict = course_policy_obj["xml_attributes"]
+            translatable_xml_fields = [
+                "diplay_name",  # Note: keeping typo as in original
                 "info_sidebar_name",
-            ]  # Note: keeping typo as in original
-            for field in xml_fields:
-                if field in xml_attrs:
-                    translated, billed_chars = self._translate_text(
-                        xml_attrs[field], source_language, translation_language
+            ]
+            for xml_field_name in translatable_xml_fields:
+                if xml_field_name in xml_attributes_dict:
+                    translated_xml_field_value = self._translate_text(
+                        xml_attributes_dict[xml_field_name],
+                        target_language,
                     )
-                    xml_attrs[field] = translated
-                    total_billed_chars += billed_chars
-                    updated = True
+                    xml_attributes_dict[xml_field_name] = translated_xml_field_value
+                    xml_attributes_updated = True
 
-        return total_billed_chars, updated
+        return xml_attributes_updated
 
     def _create_translated_archive(
-        self, translated_dir: Path, translation_language: str, original_name: str
+        self,
+        translated_course_dir: Path,
+        target_language: str,
+        original_archive_name: str,
     ) -> Path:
         """Create tar.gz archive of translated course."""
         # Remove all archive extensions from the original name
-        ext = self.get_supported_archive_extension(original_name)
-        clean_name = original_name[: -len(ext)] if ext else original_name
+        archive_extension = self.get_supported_archive_extension(original_archive_name)
+        clean_archive_name = (
+            original_archive_name[: -len(archive_extension)]
+            if archive_extension
+            else original_archive_name
+        )
 
-        tar_gz_name = f"{translation_language}_{clean_name}.tar.gz"
-        tar_gz_path = translated_dir.parent / tar_gz_name
+        translated_archive_name = f"{target_language}_{clean_archive_name}.tar.gz"
+        translated_archive_path = translated_course_dir.parent / translated_archive_name
 
         # Remove existing archive
-        if tar_gz_path.exists():
-            tar_gz_path.unlink()
+        if translated_archive_path.exists():
+            translated_archive_path.unlink()
 
         # Create tar.gz archive containing only the 'course' directory
-        course_dir_path = translated_dir / "course"
-        with tarfile.open(tar_gz_path, "w:gz") as tar:
-            tar.add(course_dir_path, arcname="course")
+        course_directory_path = translated_course_dir / "course"
+        with tarfile.open(translated_archive_path, "w:gz") as tar_archive:
+            tar_archive.add(course_directory_path, arcname="course")
 
         # Delete extracted directory after copying
-        if translated_dir.exists():
-            shutil.rmtree(translated_dir)
+        if translated_course_dir.exists():
+            shutil.rmtree(translated_course_dir)
 
-        logger.info("Created tar.gz archive: %s", tar_gz_path)
-        return tar_gz_path
+        logger.info("Created tar.gz archive: %s", translated_archive_path)
+        return translated_archive_path
 
     def translate_srt_file(
-        self, input_file_path: Path, source_language: str, target_language: str
-    ) -> int:
+        self, srt_input_file_path: Path, source_language: str, target_language: str
+    ) -> None:
         """
-        Translate an SRT file using DeepL document translation.
+        Translate an SRT file using translation provider.
         Creates a new output file with the target language prefix, then renames
-        it to the original file. Returns the number of billed characters.
+        it to the original file.
         """
-        input_name = input_file_path.name
-        output_name = input_name
-        if "-" in input_name and input_name.endswith(".srt"):
-            parts = input_name.rsplit("-", 1)
-            output_name = f"{parts[0]}-{target_language.lower()}.srt"
-        output_file_path = input_file_path.parent / output_name
+        input_filename = srt_input_file_path.name
+        output_filename = input_filename
+        if "-" in input_filename and input_filename.endswith(".srt"):
+            filename_parts = input_filename.rsplit("-", 1)
+            output_filename = f"{filename_parts[0]}-{target_language.lower()}.srt"
+        srt_output_file_path = srt_input_file_path.parent / output_filename
 
-        deepl_client = deepl.Translator(settings.DEEPL_API_KEY)
-        result = deepl_client.translate_document_from_filepath(
-            input_file_path,
-            output_file_path,
-            source_lang=source_language,
-            target_lang=target_language,
+        # Use available provider for SRT translation
+        srt_translation_provider = (
+            self._get_provider("deepl")
+            if hasattr(settings, "DEEPL_API_KEY") and settings.DEEPL_API_KEY
+            else self.srt_provider
         )
-        return result.billed_characters
+        srt_translation_provider.translate_document(
+            srt_input_file_path, srt_output_file_path, source_language, target_language
+        )
 
-    def _translate_text(
-        self,
-        text: str,
-        source_language: str,
-        target_language: str,
-        filename: str | None = None,
-    ) -> tuple[str, int]:
-        """Translate text using DeepL API."""
-        if not text or not text.strip():
-            return text, 0
-
-        try:
-            deepl_client = deepl.Translator(settings.DEEPL_API_KEY)
-
-            tag_handling = None
-            if filename:
-                extension = Path(filename).suffix.lstrip(".")
-                if extension in ["html", "xml"]:
-                    tag_handling = extension
-
-            result = deepl_client.translate_text(
-                text,
-                source_lang=source_language,
-                target_lang=target_language,
-                tag_handling=tag_handling,
-            )
-
-            return result.text, result.billed_characters  # noqa: TRY300
-        except (deepl.exceptions.DeepLException, OSError) as e:
-            logger.warning("Translation failed for text: %s... Error: %s", text[:50], e)
-            return text, 0
-
-    def _translate_display_name(
-        self, xml_content: str, source_language: str, target_language: str
-    ) -> str:
+    def _translate_display_name(self, xml_content: str, target_language: str) -> str:
         """Extract and translate the display_name attribute of the root element."""
         try:
-            root = ElementTree.fromstring(xml_content)
-            display_name = root.attrib.get("display_name")
+            xml_root = ElementTree.fromstring(xml_content)
+            display_name_attribute = xml_root.attrib.get("display_name")
 
-            if display_name:
-                translated_name, _ = self._translate_text(
-                    display_name, source_language, target_language
+            if display_name_attribute:
+                translated_display_name = self._translate_text(
+                    display_name_attribute, target_language
                 )
-                root.set("display_name", translated_name)
-                return ElementTree.tostring(root, encoding="unicode")
+                xml_root.set("display_name", translated_display_name)
+                return ElementTree.tostring(xml_root, encoding="unicode")
         except ElementTree.ParseError as e:
             logger.warning("Could not translate display_name: %s", e)
 

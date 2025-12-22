@@ -33,3 +33,14 @@ def apply_common_settings(settings):
         ".xml",
         ".srt",
     ]
+
+    # Translation provider API keys
+    settings.DEEPL_API_KEY = ""
+    settings.OPENAI_API_KEY = ""
+    settings.GEMINI_API_KEY = ""
+    settings.MISTRAL_API_KEY = ""
+
+    # Default model names
+    settings.OPENAI_MODEL = "gpt-4o"
+    settings.GEMINI_MODEL = "gemini-1.5-pro"
+    settings.MISTRAL_MODEL = "mistral-large-latest"
