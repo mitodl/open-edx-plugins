@@ -37,31 +37,9 @@ The plugin includes an auto language selection feature that automatically sets t
 
 To enable auto language selection:
 
-1. Add ``Dark Lang Config`` at ``/admin/dark_lang/darklangconfig/`` with the languages you want to support. For example, to support English and Arabic, add ``en,ar`` in released languages and enable the config.
+1. Set ``ENABLE_AUTO_LANGUAGE_SELECTION`` to ``true`` in your settings.
 
-2. Set ``ENABLE_AUTO_LANGUAGE_SELECTION`` to ``true`` in your settings.
-
-3. Set ``SHARED_COOKIE_DOMAIN`` to your domain (e.g., ``.local.openedx.io`` for local tutor setup) to allow cookies to be shared between LMS and CMS.
-
-4. Add the following middleware to your LMS configuration:
-
-   .. code-block:: python
-
-       # In lms/envs/private.py
-       from .common import MIDDLEWARE
-       MIDDLEWARE += [
-           'ol_openedx_course_translations.middleware.CourseLanguageCookieMiddleware',
-       ]
-
-5. Add the following middleware to your CMS configuration:
-
-   .. code-block:: python
-
-       # In cms/envs/private.py
-       from .common import MIDDLEWARE
-       MIDDLEWARE += [
-           'ol_openedx_course_translations.middleware.CourseLanguageCookieResetMiddleware',
-       ]
+2. Set ``SHARED_COOKIE_DOMAIN`` to your domain (e.g., ``.local.openedx.io`` for local tutor setup) to allow cookies to be shared between LMS and CMS.
 
 **How it works:**
 
