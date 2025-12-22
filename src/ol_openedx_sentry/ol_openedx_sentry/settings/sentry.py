@@ -1,4 +1,3 @@
-# noqa: D100
 from __future__ import annotations
 
 import builtins
@@ -90,14 +89,16 @@ def _load_env_tokens(app_settings) -> dict[str, Any]:
         app_settings,
         "ENV_TOKENS",
         {
-            "SENTRY_IGNORED_EXCEPTION_CLASSES": ["NoUpstream",
-                                                 "DisallowedHost",
-                                                 "GitExportError",
-                                                 "CalledProcessError"],
+            "SENTRY_IGNORED_EXCEPTION_CLASSES": [
+                "NoUpstream",
+                "DisallowedHost",
+                "GitExportError",
+                "CalledProcessError",
+            ],
             "SENTRY_IGNORED_EXCEPTION_MESSAGES": [
                 "A label was requested for language code `ht` but the code is\
                         completely unknown"
-                ],
+            ],
             "SENTRY_DSN": "",
             "SENTRY_ENVIRONMENT": None,
             "SENTRY_SAMPLE_RATE": 0,
@@ -107,7 +108,7 @@ def _load_env_tokens(app_settings) -> dict[str, Any]:
     )
 
 
-def plugin_settings(app_settings): # noqa: D103
+def plugin_settings(app_settings):
     env_tokens = _load_env_tokens(app_settings)
     ignored_exceptions = env_tokens.get("SENTRY_IGNORED_EXCEPTION_CLASSES", [])
     ignored_messages = env_tokens.get("SENTRY_IGNORED_EXCEPTION_MESSAGES", [])
