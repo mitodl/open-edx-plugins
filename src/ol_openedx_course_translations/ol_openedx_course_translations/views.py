@@ -20,7 +20,7 @@ class CourseLanguageView(APIView):
     API View to retrieve the language of a specified course.
 
     Sample Request:
-        GET /api/ol-openedx-course-translations/course_language/{course_key}/
+        GET /course-translations/api/course_language/{course_key}/
 
     Sample Response:
         200 OK

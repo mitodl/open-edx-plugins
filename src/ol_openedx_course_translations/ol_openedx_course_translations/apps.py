@@ -18,7 +18,7 @@ class OLOpenedXCourseTranslationsConfig(AppConfig):
         PluginURLs.CONFIG: {
             ProjectType.LMS: {
                 PluginURLs.NAMESPACE: "",
-                PluginURLs.REGEX: "^api/ol-openedx-course-translations/",
+                PluginURLs.REGEX: "^course-translations/",
                 PluginURLs.RELATIVE_PATH: "urls",
             }
         },

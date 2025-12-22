@@ -9,7 +9,7 @@ from ol_openedx_course_translations.views import CourseLanguageView
 
 urlpatterns = [
     re_path(
-        rf"course-language/{settings.COURSE_KEY_PATTERN}$",
+        rf"api/course-language/{settings.COURSE_KEY_PATTERN}$",
         CourseLanguageView.as_view(),
         name="ol_openedx_course_language",
     ),
