@@ -17,6 +17,7 @@ dependencies = [
   "GitPython>=3.1.40",
   "requests>=2.31.0",
   "polib>=1.2.0",
+  "srt>=3.5.3",
 ]
 
 [project.entry-points."cms.djangoapp"]

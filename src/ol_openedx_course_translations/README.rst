@@ -21,13 +21,17 @@ Installation required in:
 Configuration
 =============
 
-- Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py``. These should be added to the top level. **Ask a fellow developer for these values.**
+- Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml`` and ``/edx/etc/cms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py`` and ``cms/envs/private.py``. These should be added to the top level. **Ask a fellow developer for these values.**
 
   .. code-block:: python
 
+       # Required API keys
        DEEPL_API_KEY: <YOUR_DEEPL_API_KEY_HERE>
-       ENABLE_AUTO_LANGUAGE_SELECTION: true  # Enable auto language selection based on course language
 
+       # Enable auto language selection
+       ENABLE_AUTO_LANGUAGE_SELECTION: true
+
+       # Translation providers configuration
        TRANSLATIONS_PROVIDERS: {
            "default_provider": "mistral",  # Default provider to use
            "openai": {
@@ -47,7 +51,76 @@ Configuration
        TRANSLATIONS_REPO_PATH: ""
        TRANSLATIONS_REPO_URL: "https://github.com/mitodl/mitxonline-translations.git"
 
+       **Note:** DeepL uses the ``DEEPL_API_KEY`` setting directly. LLM providers (OpenAI, Gemini, Mistral) use the ``TRANSLATIONS_PROVIDERS`` dictionary for configuration.
+
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
+
+Translation Providers
+=====================
+
+The plugin supports multiple translation providers:
+
+- DeepL
+- OpenAI (GPT models)
+- Gemini (Google)
+- Mistral
+
+**Provider Selection**
+
+You can specify different providers for content and SRT subtitle translation:
+
+.. code-block:: bash
+
+    ./manage.py cms translate_course \
+        --translation-language AR \
+        --course-dir /path/to/course.tar.gz \
+        --contenttranslations deepl \
+        --srttranslations openai \
+        --openai-model gpt-5.2
+
+Translating a Course
+====================
+1. Open the course in Studio.
+2. Go to Tools -> Export Course.
+3. Export the course as a .tar.gz file.
+4. Go to the CMS shell
+5. Run the management command to translate the course:
+
+   .. code-block:: bash
+
+        ./manage.py cms translate_course \
+            --source-language EN \
+            --translation-language AR \
+            --course-dir /path/to/course.tar.gz \
+            --contenttranslations deepl \
+            --srttranslations openai \
+            --openai-model gpt-5.2 \
+            --glossary-dir /path/to/glossary
+
+**Command Options:**
+
+- ``--source-language``: Source language code (default: EN)
+- ``--translation-language``: Target language code (required)
+- ``--course-dir``: Path to exported course tar.gz file (required)
+- ``--contenttranslations``: AI provider for content translation (required): deepl, openai, gemini, mistral
+- ``--srttranslations``: AI provider for SRT subtitle translation (required): deepl, openai, gemini, mistral
+- ``--glossary-dir``: Path to glossary directory (optional)
+- ``--openai-model``: OpenAI model name (default: from TRANSLATIONS_PROVIDERS or gpt-5.2)
+- ``--gemini-model``: Gemini model name (default: from TRANSLATIONS_PROVIDERS or gemini-3-pro-preview)
+- ``--mistral-model``: Mistral model name (default: from TRANSLATIONS_PROVIDERS or mistral-large-latest)
+
+**Glossary Support:**
+
+Create language-specific glossary files in the glossary directory:
+
+.. code-block:: bash
+
+    glossaries/machine_learning/
+    ├── ar.txt  # Arabic glossary
+    ├── fr.txt  # French glossary
+    └── es.txt  # Spanish glossary
+
+Format: One term per line as "source_term : translated_term"
 
 Auto Language Selection
 =======================
@@ -89,18 +162,6 @@ To make auto language selection work with Micro-Frontends (MFEs), you need to us
 4. Configure your MFE slot overrides to use this custom Footer component instead of the default one.
 
 **Note:** The custom Footer is required because MFEs run as separate applications and need their own mechanism to detect and respond to course language settings. The environment variable must be set in each MFE's configuration for the feature to work properly.
-
-Translating a Course
-====================
-1. Open the course in Studio.
-2. Go to Tools -> Export Course.
-3. Export the course as a .tar.gz file.
-4. Go to the CMS shell
-5. Run the management command to translate the course:
-
-   .. code-block:: bash
-
-        ./manage.py cms translate_course --source-language <SOURCE_LANGUAGE_CODE, defaults to `EN`> --translation-language <TRANSLATION_LANGUAGE_CODE i.e. AR> --course-dir <PATH_TO_EXPORTED_COURSE_TAR_GZ>
 
 Generating static content translations
 ======================================
