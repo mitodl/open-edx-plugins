@@ -24,10 +24,10 @@ class OLOpenedXCourseTranslationsConfig(AppConfig):
         },
         PluginSettings.CONFIG: {
             ProjectType.CMS: {
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
+                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.cms"},
             },
             ProjectType.LMS: {
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
+                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.lms"},
             },
         },
     }
