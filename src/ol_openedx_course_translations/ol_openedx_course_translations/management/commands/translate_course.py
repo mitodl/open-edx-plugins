@@ -268,9 +268,7 @@ class Command(BaseCommand):
             )
 
             # Translate files in target subdirectories
-            for (
-                target_dir_name
-            ) in settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES:
+            for target_dir_name in settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES:
                 target_directory = search_directory / target_dir_name
                 if target_directory.exists() and target_directory.is_dir():
                     self._translate_files_in_directory(
@@ -295,9 +293,7 @@ class Command(BaseCommand):
         """Translate files in a directory."""
         if recursive:
             translatable_file_paths: list[Path] = []
-            for (
-                file_extension
-            ) in settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS:
+            for file_extension in settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS:
                 translatable_file_paths.extend(
                     directory_path.rglob(f"*{file_extension}")
                 )
