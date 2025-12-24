@@ -231,7 +231,7 @@ class Command(BaseCommand):
                 if f.is_file()
                 and any(
                     f.name.endswith(ext)
-                    for ext in settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS  # noqa: E501
+                    for ext in settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS
                 )
             ]
 
