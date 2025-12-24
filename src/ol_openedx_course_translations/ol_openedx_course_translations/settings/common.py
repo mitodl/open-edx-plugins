@@ -10,7 +10,7 @@ def apply_common_settings(settings):
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["admin", "sysadmin", "instructor"]
     settings.DEEPL_API_KEY = ""
-    settings.OL_OPENEDX_COURSE_TRANSLATIONS_TARGET_DIRECTORIES = [
+    settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES = [
         "about",
         "course",
         "chapter",
@@ -23,12 +23,12 @@ def apply_common_settings(settings):
         "static",
         "tabs",
     ]
-    settings.OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS = [
+    settings.COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS = [
         ".tar.gz",
         ".tgz",
         ".tar",
     ]
-    settings.OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS = [
+    settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS = [
         ".html",
         ".xml",
         ".srt",
