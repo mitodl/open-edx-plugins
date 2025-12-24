@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-course-translations"
-version = "0.1.1"
+version = "0.2.0"
 description = "An Open edX plugin to translate courses"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -16,6 +16,9 @@ dependencies = [
 ]
 
 [project.entry-points."cms.djangoapp"]
+ol_openedx_course_translations = "ol_openedx_course_translations.apps:OLOpenedXCourseTranslationsConfig"
+
+[project.entry-points."lms.djangoapp"]
 ol_openedx_course_translations = "ol_openedx_course_translations.apps:OLOpenedXCourseTranslationsConfig"
 
 [build-system]

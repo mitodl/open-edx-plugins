@@ -98,7 +98,7 @@ class Command(BaseCommand):
         """
         Return the supported archive extension if filename ends with one, else None.
         """
-        for ext in settings.OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS:
+        for ext in settings.COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS:
             if filename.endswith(ext):
                 return ext
         return None
@@ -113,7 +113,7 @@ class Command(BaseCommand):
 
         if self.get_supported_archive_extension(course_dir.name) is None:
             supported_exts = ", ".join(
-                settings.OL_OPENEDX_COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS
+                settings.COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS
             )
             error_msg = f"Course directory must be a tar file: {supported_exts}"
             raise CommandError(error_msg)
@@ -189,7 +189,7 @@ class Command(BaseCommand):
             )
 
             # Translate files in target subdirectories
-            for dir_name in settings.OL_OPENEDX_COURSE_TRANSLATIONS_TARGET_DIRECTORIES:
+            for dir_name in settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES:
                 target_dir = search_dir / dir_name
                 if target_dir.exists() and target_dir.is_dir():
                     total_billed_chars += self._translate_files_in_directory(
@@ -222,7 +222,7 @@ class Command(BaseCommand):
 
         if recursive:
             file_paths: list[Path] = []
-            for ext in settings.OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS:
+            for ext in settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS:
                 file_paths.extend(directory.rglob(f"*{ext}"))
         else:
             file_paths = [
@@ -231,7 +231,7 @@ class Command(BaseCommand):
                 if f.is_file()
                 and any(
                     f.name.endswith(ext)
-                    for ext in settings.OL_OPENEDX_COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS  # noqa: E501
+                    for ext in settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS
                 )
             ]
 
