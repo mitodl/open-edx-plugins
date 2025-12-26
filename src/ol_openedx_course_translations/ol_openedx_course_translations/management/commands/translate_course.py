@@ -393,10 +393,18 @@ class Command(BaseCommand):
         """Translate a single file."""
         # Handle SRT files with SRT provider
         if file_path.suffix == ".srt":
-            try:
-                self._translate_srt_file_with_provider(
-                    file_path, source_language, target_language
+            # Only translate SRT files that end with source language code
+            source_lang_pattern = f"-{source_language.lower()}.srt"
+            if not file_path.name.lower().endswith(source_lang_pattern):
+                logger.debug(
+                    "Skipping SRT file %s: does not end with source language code %s",
+                    file_path,
+                    source_lang_pattern,
                 )
+                return
+
+            try:
+                self._translate_srt_file(file_path, source_language, target_language)
             except (OSError, ValueError) as e:
                 logger.warning("Failed to translate SRT %s: %s", file_path, e)
             return
@@ -432,14 +440,6 @@ class Command(BaseCommand):
             file_path.write_text(translated_file_content, encoding="utf-8")
         except (OSError, UnicodeDecodeError) as e:
             logger.warning("Failed to translate %s: %s", file_path, e)
-
-    def _translate_srt_file_with_provider(
-        self, srt_file_path: Path, source_language: str, target_language: str
-    ) -> None:
-        """Translate an SRT file using the configured SRT provider."""
-        self.srt_provider.translate_document(
-            srt_file_path, srt_file_path, source_language, target_language
-        )
 
     def _translate_text(
         self,
@@ -721,7 +721,7 @@ class Command(BaseCommand):
         logger.info("Created tar.gz archive: %s", translated_archive_path)
         return translated_archive_path
 
-    def translate_srt_file(
+    def _translate_srt_file(
         self, srt_input_file_path: Path, source_language: str, target_language: str
     ) -> None:
         """
@@ -736,13 +736,7 @@ class Command(BaseCommand):
             output_filename = f"{filename_parts[0]}-{target_language.lower()}.srt"
         srt_output_file_path = srt_input_file_path.parent / output_filename
 
-        # Use available provider for SRT translation
-        srt_translation_provider = (
-            self._get_provider("deepl")
-            if hasattr(settings, "DEEPL_API_KEY") and settings.DEEPL_API_KEY
-            else self.srt_provider
-        )
-        srt_translation_provider.translate_document(
+        self.srt_provider.translate_document(
             srt_input_file_path, srt_output_file_path, source_language, target_language
         )
 

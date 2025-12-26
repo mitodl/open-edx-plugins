@@ -181,9 +181,12 @@ class DeepLProvider(TranslationProvider):
             error_msg = f"{DEEPL_LANGUAGE_NOT_SUPPORTED} '{target_language}'."
             raise ValueError(error_msg)
 
-        self.deepl_translator.translate_document_from_filepath(
-            input_file_path,
-            output_file_path,
-            source_lang=source_language,
-            target_lang=deepl_target_code,
-        )
+        try:
+            self.deepl_translator.translate_document_from_filepath(
+                input_file_path,
+                output_file_path,
+                source_lang=source_language,
+                target_lang=deepl_target_code,
+            )
+        except deepl.exceptions.DeepLException as deepl_error:
+            logger.warning("DeepL document translation failed: %s", deepl_error)
