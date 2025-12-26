@@ -261,22 +261,28 @@ class Command(BaseCommand):
         self, course_dir: Path, source_language: str, target_language: str
     ) -> None:
         """Translate all course content."""
-        # Translate files in main directories
-        for search_directory in [course_dir, course_dir.parent]:
-            self._translate_files_in_directory(
-                search_directory, source_language, target_language, recursive=False
-            )
+        # Only traverse the 'course' directory from the extracted tar
+        course_directory = course_dir / "course"
 
-            # Translate files in target subdirectories
-            for target_dir_name in settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES:
-                target_directory = search_directory / target_dir_name
-                if target_directory.exists() and target_directory.is_dir():
-                    self._translate_files_in_directory(
-                        target_directory,
-                        source_language,
-                        target_language,
-                        recursive=True,
-                    )
+        if not course_directory.exists() or not course_directory.is_dir():
+            error_msg = f"Course directory not found: {course_directory}"
+            raise CommandError(error_msg)
+
+        # Translate files in the course directory
+        self._translate_files_in_directory(
+            course_directory, source_language, target_language, recursive=False
+        )
+
+        # Translate files in target subdirectories within course
+        for target_dir_name in settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES:
+            target_directory = course_directory / target_dir_name
+            if target_directory.exists() and target_directory.is_dir():
+                self._translate_files_in_directory(
+                    target_directory,
+                    source_language,
+                    target_language,
+                    recursive=True,
+                )
 
         # Translate special JSON files
         self._translate_grading_policy(course_dir, target_language)
@@ -315,8 +321,44 @@ class Command(BaseCommand):
                 self._translate_file(
                     translatable_file_path, source_language, target_language
                 )
+                logger.info("Translated file: %s", translatable_file_path)
             except (OSError, UnicodeDecodeError) as e:
                 logger.warning("Failed to translate %s: %s", translatable_file_path, e)
+
+        # Update language attribute in course XML files if processing 'course' directory
+        if directory_path.name == "course":
+            self._update_course_language_attribute(directory_path, target_language)
+
+    def _update_course_language_attribute(
+        self, course_dir: Path, target_language: str
+    ) -> None:
+        """
+        Update language attribute in course XML files from source to target language.
+        """
+        for xml_file in course_dir.glob("*.xml"):
+            try:
+                xml_content = xml_file.read_text(encoding="utf-8")
+                xml_root = ElementTree.fromstring(xml_content)
+
+                # Check if root tag is 'course' and has language attribute
+                if xml_root.tag == "course" and "language" in xml_root.attrib:
+                    current_language = xml_root.attrib["language"]
+                    # Update language attribute to target language
+                    xml_root.set("language", target_language.lower())
+                    updated_xml_content = ElementTree.tostring(
+                        xml_root, encoding="unicode"
+                    )
+                    xml_file.write_text(updated_xml_content, encoding="utf-8")
+                    logger.debug(
+                        "Updated language attribute in %s from %s to %s",
+                        xml_file,
+                        current_language,
+                        target_language.lower(),
+                    )
+            except (OSError, ElementTree.ParseError) as e:
+                logger.warning(
+                    "Failed to update language attribute in %s: %s", xml_file, e
+                )
 
     def _update_video_xml(self, xml_content: str, target_language: str) -> str:  # noqa: C901
         """Update video XML transcripts and transcript tags for the target language."""
@@ -602,6 +644,11 @@ class Command(BaseCommand):
                 )
                 course_policy_obj[field_name] = translated_field_value
                 string_fields_updated = True
+
+        # Update language attribute to target language (no translation needed)
+        if "language" in course_policy_obj:
+            course_policy_obj["language"] = target_language.lower()
+            string_fields_updated = True
 
         return string_fields_updated
 
