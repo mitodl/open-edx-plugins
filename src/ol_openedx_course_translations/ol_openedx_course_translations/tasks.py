@@ -6,6 +6,7 @@ from pathlib import Path
 
 from celery import shared_task
 
+from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
 from ol_openedx_course_translations.utils import (
     get_srt_output_filename,
     get_translation_provider,
@@ -47,9 +48,7 @@ def translate_file_task(  # noqa: PLR0913
                     "reason": "Not source language SRT",
                 }
 
-            output_filename = get_srt_output_filename(
-                file_path.name, source_language, target_language
-            )
+            output_filename = get_srt_output_filename(file_path.name, target_language)
             output_file_path = file_path.parent / output_filename
 
             provider.translate_document(
@@ -76,17 +75,18 @@ def translate_file_task(  # noqa: PLR0913
             glossary_file=glossary_directory,
         )
 
-        # Handle XML display_name translation
-        if file_path.suffix == ".xml":
+        # Handle XML display_name translation only for DeepL provider
+        # LLM providers translate display_name as part of the XML translation
+        if file_path.suffix == ".xml" and isinstance(provider, DeepLProvider):
             translated_content = translate_xml_display_name(
                 translated_content, target_language, provider, glossary_directory
             )
 
-            # Update video XML if needed (use complete version)
-            if file_path.parent.name == "video":
-                translated_content = update_video_xml_complete(
-                    translated_content, target_language
-                )
+        # Update video XML if needed (use complete version)
+        if file_path.suffix == ".xml" and file_path.parent.name == "video":
+            translated_content = update_video_xml_complete(
+                translated_content, target_language
+            )
 
         file_path.write_text(translated_content, encoding="utf-8")
     except Exception as e:

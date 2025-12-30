@@ -67,7 +67,7 @@ class LLMProvider(TranslationProvider):
                 "Your translated text here\n"
                 ":::TRANSLATION_END:::\n\n"
                 "CRITICAL RULES FOR XML/HTML TAGS:\n"
-                "1. NEVER translate or modify XML/HTML tags, tag names, or attributes.\n"  # noqa: E501
+                "1. NEVER translate or modify XML/HTML tags, tag names, or attributes except display_name.\n"  # noqa: E501
                 "2. XML/HTML tags include anything within angle brackets: < >.\n"
                 '3. Tag attributes (name="value") must remain in English.\n'
                 "4. Only translate the TEXT CONTENT between tags.\n"

@@ -78,6 +78,9 @@ def translate_xml_display_name(
     """
     Translate display_name attribute in XML content.
 
+    This function is used primarily with DeepL for separate display_name translation.
+    LLM providers handle display_name translation as part of the full XML translation.
+
     Args:
         xml_content: XML content as string
         target_language: Target language code
