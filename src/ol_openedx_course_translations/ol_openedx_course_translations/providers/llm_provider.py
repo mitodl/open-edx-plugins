@@ -62,17 +62,32 @@ class LLMProvider(TranslationProvider):
                 f"You are a professional translator. "
                 f"Translate the following English text to "
                 f"{target_language_display_name}.\n\n"
-                "RULES:\n"
-                "1. Preserve HTML/XML tags and structure exactly.\n"
-                "2. Translate only the text content, not tags or attributes.\n"
+                "OUTPUT FORMAT (exactly):\n"
+                ":::TRANSLATION_START:::\n"
+                "Your translated text here\n"
+                ":::TRANSLATION_END:::\n\n"
+                "CRITICAL RULES FOR XML/HTML TAGS:\n"
+                "1. NEVER translate or modify XML/HTML tags, tag names, or attributes.\n"
+                "2. XML/HTML tags include anything within angle brackets: < >.\n"
+                "3. Tag attributes (name=\"value\") must remain in English.\n"
+                "4. Only translate the TEXT CONTENT between tags.\n"
+                "5. Preserve ALL tags exactly as they appear in the input.\n"
+                "6. Examples of what NOT to translate:\n"
+                "   - <video>, <problem>, <html>, <div>, <p>, etc.\n"
+                "   - Attributes: display_name, url_name, filename, src, etc.\n"
+                "   - Self-closing tags: <vertical />, <sequential />\n\n"
+                "GENERAL TRANSLATION RULES:\n"
+                "1. Output ONLY the translation between the markers.\n"
+                "2. Maintain the original formatting and structure.\n"
                 "3. Keep proper nouns, brand names, and acronyms unchanged.\n"
-                "4. Maintain the original formatting and structure.\n"
+                "4. Do NOT include explanations, notes, or commentary.\n"
+                "5. Preserve spacing, line breaks, and indentation.\n"
             )
 
         if glossary_file:
             glossary_terms = load_glossary(target_language, glossary_file)
             if glossary_terms:
-                system_prompt_template += f"\nGLOSSARY TERMS:\n{glossary_terms}\n"
+                system_prompt_template += f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
 
         return system_prompt_template
 
@@ -118,6 +133,61 @@ class LLMProvider(TranslationProvider):
                 )
 
         return parsed_subtitle_list
+
+    def _parse_text_response(self, llm_response_text: str) -> str:
+        """Parse the structured text translation response."""
+        # Try to extract content between markers
+        start_marker = ":::TRANSLATION_START:::"
+        end_marker = ":::TRANSLATION_END:::"
+
+        start_idx = llm_response_text.find(start_marker)
+        end_idx = llm_response_text.find(end_marker)
+
+        if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
+            # Extract content between markers
+            translated_content = llm_response_text[start_idx + len(start_marker) : end_idx]
+            return translated_content.strip()
+
+        # Fallback: if markers not found, try to extract without explanation
+        # Look for common explanation patterns and remove them
+        lines = llm_response_text.split("\n")
+        filtered_lines = []
+        skip_explanation = False
+
+        for line in lines:
+            lower_line = line.lower().strip()
+            # Skip lines that look like explanations
+            if any(
+                phrase in lower_line
+                for phrase in [
+                    "here is",
+                    "here's",
+                    "translation:",
+                    "translated text:",
+                    "note:",
+                    "explanation:",
+                    "i have translated",
+                    "i've translated",
+                ]
+            ):
+                skip_explanation = True
+                continue
+
+            # If we hit the translation markers in any form, start including
+            if start_marker.lower() in lower_line:
+                skip_explanation = False
+                continue
+
+            if end_marker.lower() in lower_line:
+                break
+
+            if not skip_explanation and line.strip():
+                filtered_lines.append(line)
+
+        result = "\n".join(filtered_lines).strip()
+
+        # If we still have no result, return the original response
+        return result if result else llm_response_text.strip()
 
     def _call_llm(
         self, system_prompt: str, user_content: str, **additional_kwargs: Any
@@ -215,7 +285,9 @@ class LLMProvider(TranslationProvider):
         system_prompt = self._get_system_prompt(target_language, "text", glossary_file)
 
         try:
-            return self._call_llm(system_prompt, source_text)
+            llm_response = self._call_llm(system_prompt, source_text)
+            logger.info("\n\n\nSource Text:\n%s\n LLM Response:\n%s\n\n", source_text, llm_response)
+            return self._parse_text_response(llm_response)
         except (ValueError, ConnectionError) as llm_error:
             logger.warning("LLM translation failed: %s", llm_error)
             return source_text
@@ -291,4 +363,4 @@ class MistralProvider(LLMProvider):
         mistral_model = model_name or getattr(
             settings, "MISTRAL_MODEL", "mistral-large-latest"
         )
-        super().__init__(primary_api_key, repair_api_key, mistral_model)
+        super().__init__(primary_api_key, repair_api_key, f"mistral/{mistral_model}")

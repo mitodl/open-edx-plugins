@@ -71,11 +71,11 @@ class Command(BaseCommand):
             help="Specify the course directory (tar archive).",
         )
         parser.add_argument(
-            "--xmltranslation",
-            dest="xml_translation_provider",
+            "--contenttranslations",
+            dest="content_translation_provider",
             required=True,
             choices=["deepl", "gemini", "mistral", "openai"],
-            help="AI model to use for XML/HTML and text translation.",
+            help="AI model to use for content (XML/HTML and text) translation.",
         )
         parser.add_argument(
             "--srttranslations",
@@ -85,7 +85,7 @@ class Command(BaseCommand):
             help="AI model to use for SRT subtitle translation.",
         )
         parser.add_argument(
-            "--glossaryfile",
+            "--glossary-dir",
             dest="glossary_directory",
             required=False,
             help=(
@@ -102,12 +102,12 @@ class Command(BaseCommand):
             course_archive_path = Path(options["course_archive_path"])
             source_language = options["source_language"]
             target_language = options["target_language"]
-            xml_provider_name = options["xml_translation_provider"]
+            content_translation_provider = options["content_translation_provider"]
             srt_provider_name = options["srt_translation_provider"]
             glossary_directory = options.get("glossary_directory")
 
             # Initialize providers
-            self.xml_provider = self._get_provider(xml_provider_name)
+            self.content_provider = self._get_provider(content_translation_provider)
             self.srt_provider = self._get_provider(srt_provider_name)
             self.glossary_directory = glossary_directory
 
@@ -455,12 +455,12 @@ class Command(BaseCommand):
             file_content = file_path.read_text(encoding="utf-8")
             logger.debug("Translating: %s", file_path)
 
-            # Use XML provider for all other content
+            # Use content provider for all other content
             tag_handling_mode = None
             if file_path.suffix in [".xml", ".html"]:
                 tag_handling_mode = file_path.suffix.lstrip(".")
 
-            translated_file_content = self.xml_provider.translate_text(
+            translated_file_content = self.content_provider.translate_text(
                 file_content,
                 target_language.lower(),
                 tag_handling=tag_handling_mode,
@@ -489,7 +489,7 @@ class Command(BaseCommand):
         target_language: str,
         source_filename: str | None = None,
     ) -> str:
-        """Translate text using XML provider."""
+        """Translate text using content provider."""
         if not input_text or not input_text.strip():
             return input_text
 
@@ -500,7 +500,7 @@ class Command(BaseCommand):
                 tag_handling_mode = file_extension
 
         try:
-            return self.xml_provider.translate_text(
+            return self.content_provider.translate_text(
                 input_text,
                 target_language.lower(),
                 tag_handling=tag_handling_mode,
