@@ -1,7 +1,7 @@
 # EL HINTS
 ## TERM MAPPINGS
-The following mappings are the CANONICAL Greek translations for AI/ML terms. 
-When translating TO GREEK, you MUST use these exact Greek terms for the listed English expressions whenever the same technical meaning is intended. 
+The following mappings are the CANONICAL Greek translations for AI/ML terms.
+When translating TO GREEK, you MUST use these exact Greek terms for the listed English expressions whenever the same technical meaning is intended.
 
 - 'a priori probability' -> «πιθανότητα εκ των προτέρων»
 - 'A* Search' -> «αλγόριθμοι αναζήτησης Α*»

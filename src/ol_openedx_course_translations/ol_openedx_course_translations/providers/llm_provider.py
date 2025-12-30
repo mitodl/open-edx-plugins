@@ -67,9 +67,9 @@ class LLMProvider(TranslationProvider):
                 "Your translated text here\n"
                 ":::TRANSLATION_END:::\n\n"
                 "CRITICAL RULES FOR XML/HTML TAGS:\n"
-                "1. NEVER translate or modify XML/HTML tags, tag names, or attributes.\n"
+                "1. NEVER translate or modify XML/HTML tags, tag names, or attributes.\n"  # noqa: E501
                 "2. XML/HTML tags include anything within angle brackets: < >.\n"
-                "3. Tag attributes (name=\"value\") must remain in English.\n"
+                '3. Tag attributes (name="value") must remain in English.\n'
                 "4. Only translate the TEXT CONTENT between tags.\n"
                 "5. Preserve ALL tags exactly as they appear in the input.\n"
                 "6. Examples of what NOT to translate:\n"
@@ -87,7 +87,9 @@ class LLMProvider(TranslationProvider):
         if glossary_file:
             glossary_terms = load_glossary(target_language, glossary_file)
             if glossary_terms:
-                system_prompt_template += f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
+                system_prompt_template += (
+                    f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
+                )
 
         return system_prompt_template
 
@@ -145,7 +147,9 @@ class LLMProvider(TranslationProvider):
 
         if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
             # Extract content between markers
-            translated_content = llm_response_text[start_idx + len(start_marker) : end_idx]
+            translated_content = llm_response_text[
+                start_idx + len(start_marker) : end_idx
+            ]
             return translated_content.strip()
 
         # Fallback: if markers not found, try to extract without explanation
@@ -286,7 +290,11 @@ class LLMProvider(TranslationProvider):
 
         try:
             llm_response = self._call_llm(system_prompt, source_text)
-            logger.info("\n\n\nSource Text:\n%s\n LLM Response:\n%s\n\n", source_text, llm_response)
+            logger.info(
+                "\n\n\nSource Text:\n%s\n LLM Response:\n%s\n\n",
+                source_text,
+                llm_response,
+            )
             return self._parse_text_response(llm_response)
         except (ValueError, ConnectionError) as llm_error:
             logger.warning("LLM translation failed: %s", llm_error)
