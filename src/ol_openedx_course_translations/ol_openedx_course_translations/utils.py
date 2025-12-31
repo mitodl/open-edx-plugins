@@ -167,10 +167,10 @@ def update_course_language_attribute(course_dir: Path, target_language: str) -> 
     Update language attribute in course XML files.
 
     Args:
-        course_dir: Path to course directory containing XML files
+        course_dir: Parent course directory path
         target_language: Target language code
     """
-    for xml_file in course_dir.glob("*.xml"):
+    for xml_file in (course_dir / "course").glob("*.xml"):
         try:
             xml_content = xml_file.read_text(encoding="utf-8")
             xml_root = ElementTree.fromstring(xml_content)
@@ -191,12 +191,12 @@ def update_course_language_attribute(course_dir: Path, target_language: str) -> 
             logger.warning("Failed to update language attribute in %s: %s", xml_file, e)
 
 
-def translate_policy_fields(  # noqa: C901, PLR0912
+def translate_policy_fields(  # noqa: C901
     course_policy_obj: dict,
     target_language: str,
     provider,
     glossary_directory: str | None = None,
-) -> bool:
+) -> None:
     """
     Translate fields in policy object.
 
@@ -205,12 +205,7 @@ def translate_policy_fields(  # noqa: C901, PLR0912
         target_language: Target language code
         provider: Translation provider instance
         glossary_directory: Optional glossary directory path
-
-    Returns:
-        True if any field was updated, False otherwise
     """
-    any_updated = False
-
     # Translate string fields
     string_fields = ["advertised_start", "display_name", "display_organization"]
     for field in string_fields:
@@ -221,12 +216,9 @@ def translate_policy_fields(  # noqa: C901, PLR0912
                 glossary_file=glossary_directory,
             )
             course_policy_obj[field] = translated
-            any_updated = True
 
     # Update language attribute
-    if "language" in course_policy_obj:
-        course_policy_obj["language"] = target_language.lower()
-        any_updated = True
+    course_policy_obj["language"] = target_language.lower()
 
     # Translate discussion topics
     if "discussion_topics" in course_policy_obj:
@@ -239,7 +231,6 @@ def translate_policy_fields(  # noqa: C901, PLR0912
                 )
                 translated_topics[translated_key] = value
             course_policy_obj["discussion_topics"] = translated_topics
-            any_updated = True
 
     # Translate learning info
     if "learning_info" in course_policy_obj and isinstance(
@@ -252,7 +243,6 @@ def translate_policy_fields(  # noqa: C901, PLR0912
             for item in course_policy_obj["learning_info"]
         ]
         course_policy_obj["learning_info"] = translated_info
-        any_updated = True
 
     # Translate tabs
     if "tabs" in course_policy_obj and isinstance(course_policy_obj["tabs"], list):
@@ -263,7 +253,6 @@ def translate_policy_fields(  # noqa: C901, PLR0912
                     target_language.lower(),
                     glossary_file=glossary_directory,
                 )
-                any_updated = True
 
     # Translate XML attributes
     if "xml_attributes" in course_policy_obj and isinstance(
@@ -279,9 +268,6 @@ def translate_policy_fields(  # noqa: C901, PLR0912
                     glossary_file=glossary_directory,
                 )
                 xml_attributes_dict[xml_field_name] = translated_value
-                any_updated = True
-
-    return any_updated
 
 
 def get_srt_output_filename(input_filename: str, target_language: str) -> str:

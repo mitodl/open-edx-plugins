@@ -193,6 +193,10 @@ class Command(BaseCommand):
             error_msg = f"Course directory not found: {course_directory}"
             raise CommandError(error_msg)
 
+        # Update language attributes in course XML, doing this
+        # because tasks can override the XML files
+        update_course_language_attribute(course_directory, target_language)
+
         # Dispatch translation tasks for files in course directory
         self._dispatch_file_translation_tasks(
             course_directory, source_language, target_language, recursive=False
@@ -209,9 +213,6 @@ class Command(BaseCommand):
         # Dispatch tasks for special JSON files
         self._dispatch_grading_policy_tasks(course_dir, target_language)
         self._dispatch_policy_json_tasks(course_dir, target_language)
-
-        # Update language attributes in course XML (synchronous, quick operation)
-        update_course_language_attribute(course_directory, target_language)
 
     def _dispatch_file_translation_tasks(
         self,

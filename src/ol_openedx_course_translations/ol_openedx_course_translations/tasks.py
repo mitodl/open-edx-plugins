@@ -165,23 +165,18 @@ def translate_policy_json_task(  # noqa: PLR0913
         )
 
         policy_json_data = json.loads(policy_file_path.read_text(encoding="utf-8"))
-        policy_updated = False
-
         for course_policy_obj in policy_json_data.values():
             if not isinstance(course_policy_obj, dict):
                 continue
 
-            # Translate various fields using utility function
-            if translate_policy_fields(
+            translate_policy_fields(
                 course_policy_obj, target_language, provider, glossary_directory
-            ):
-                policy_updated = True
-
-        if policy_updated:
-            policy_file_path.write_text(
-                json.dumps(policy_json_data, ensure_ascii=False, indent=4),
-                encoding="utf-8",
             )
+
+        policy_file_path.write_text(
+            json.dumps(policy_json_data, ensure_ascii=False, indent=4),
+            encoding="utf-8",
+        )
     except Exception as e:
         logger.exception("Failed to translate policy.json %s", policy_file_path_str)
         return {"status": "error", "file": policy_file_path_str, "error": str(e)}
