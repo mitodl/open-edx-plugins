@@ -8,7 +8,15 @@ from typing import Any
 import srt
 from litellm import completion
 
-from .base import LANGUAGE_DISPLAY_NAMES, TranslationProvider, load_glossary
+from ol_openedx_course_translations.constants import (
+    LANGUAGE_DISPLAY_NAMES,
+    LLM_ERROR_KEYWORDS,
+    LLM_EXPLANATION_KEYWORDS,
+    TRANSLATION_MARKER_END,
+    TRANSLATION_MARKER_START,
+)
+
+from .base import TranslationProvider, load_glossary
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +69,10 @@ class LLMProvider(TranslationProvider):
                 f"You are a professional translator. "
                 f"Translate the following English text to "
                 f"{target_language_display_name}.\n\n"
-                "OUTPUT FORMAT (exactly):\n"
-                ":::TRANSLATION_START:::\n"
+                f"OUTPUT FORMAT (exactly):\n"
+                f"{TRANSLATION_MARKER_START}\n"
                 "Your translated text here\n"
-                ":::TRANSLATION_END:::\n\n"
+                f"{TRANSLATION_MARKER_END}\n\n"
                 "CRITICAL RULES FOR XML/HTML TAGS:\n"
                 "1. NEVER translate or modify XML/HTML tags, tag names, or attributes except display_name.\n"  # noqa: E501
                 "2. XML/HTML tags include anything within angle brackets: < >.\n"
@@ -73,7 +81,7 @@ class LLMProvider(TranslationProvider):
                 "5. Preserve ALL tags exactly as they appear in the input.\n"
                 "6. Examples of what NOT to translate:\n"
                 "   - <video>, <problem>, <html>, <div>, <p>, etc.\n"
-                "   - Attributes: display_name, url_name, filename, src, etc.\n"
+                "   - Attributes: url_name, filename, src, etc.\n"
                 "   - Self-closing tags: <vertical />, <sequential />\n\n"
                 "GENERAL TRANSLATION RULES:\n"
                 "1. Output ONLY the translation between the markers.\n"
@@ -138,21 +146,17 @@ class LLMProvider(TranslationProvider):
     def _parse_text_response(self, llm_response_text: str) -> str:
         """Parse the structured text translation response."""
         # Try to extract content between markers
-        start_marker = ":::TRANSLATION_START:::"
-        end_marker = ":::TRANSLATION_END:::"
-
-        start_idx = llm_response_text.find(start_marker)
-        end_idx = llm_response_text.find(end_marker)
+        start_idx = llm_response_text.find(TRANSLATION_MARKER_START)
+        end_idx = llm_response_text.find(TRANSLATION_MARKER_END)
 
         if start_idx != -1 and end_idx != -1 and start_idx < end_idx:
             # Extract content between markers
             translated_content = llm_response_text[
-                start_idx + len(start_marker) : end_idx
+                start_idx + len(TRANSLATION_MARKER_START) : end_idx
             ]
             return translated_content.strip()
 
         # Fallback: if markers not found, try to extract without explanation
-        # Look for common explanation patterns and remove them
         lines = llm_response_text.split("\n")
         filtered_lines = []
         skip_explanation = False
@@ -160,28 +164,16 @@ class LLMProvider(TranslationProvider):
         for line in lines:
             lower_line = line.lower().strip()
             # Skip lines that look like explanations
-            if any(
-                phrase in lower_line
-                for phrase in [
-                    "here is",
-                    "here's",
-                    "translation:",
-                    "translated text:",
-                    "note:",
-                    "explanation:",
-                    "i have translated",
-                    "i've translated",
-                ]
-            ):
+            if any(phrase in lower_line for phrase in LLM_EXPLANATION_KEYWORDS):
                 skip_explanation = True
                 continue
 
             # If we hit the translation markers in any form, start including
-            if start_marker.lower() in lower_line:
+            if TRANSLATION_MARKER_START.lower() in lower_line:
                 skip_explanation = False
                 continue
 
-            if end_marker.lower() in lower_line:
+            if TRANSLATION_MARKER_END.lower() in lower_line:
                 break
 
             if not skip_explanation and line.strip():
@@ -251,16 +243,7 @@ class LLMProvider(TranslationProvider):
             except Exception as llm_error:
                 error_message = str(llm_error).lower()
                 if any(
-                    error_term in error_message
-                    for error_term in [
-                        "token",
-                        "quota",
-                        "limit",
-                        "too large",
-                        "context_length_exceeded",
-                        "503",
-                        "timeout",
-                    ]
+                    error_term in error_message for error_term in LLM_ERROR_KEYWORDS
                 ):
                     if current_batch_size <= 1:
                         logger.exception("Failed even with batch size 1")

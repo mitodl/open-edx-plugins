@@ -12,6 +12,13 @@ from defusedxml import ElementTree
 from django.conf import settings
 from django.core.management.base import CommandError
 
+from ol_openedx_course_translations.constants import (
+    PROVIDER_DEEPL,
+    PROVIDER_GEMINI,
+    PROVIDER_MISTRAL,
+    PROVIDER_OPENAI,
+    TAR_FILE_SIZE_LIMIT,
+)
 from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
 from ol_openedx_course_translations.providers.llm_provider import (
     GeminiProvider,
@@ -45,27 +52,27 @@ def get_translation_provider(
     """
     openai_api_key = getattr(settings, "OPENAI_API_KEY", "")
 
-    if provider_name == "deepl":
+    if provider_name == PROVIDER_DEEPL:
         deepl_api_key = getattr(settings, "DEEPL_API_KEY", "")
         if not deepl_api_key:
             msg = "DEEPL_API_KEY is required for DeepL provider"
             raise ValueError(msg)
         return DeepLProvider(deepl_api_key, openai_api_key)
 
-    elif provider_name == "openai":
+    elif provider_name == PROVIDER_OPENAI:
         if not openai_api_key:
             msg = "OPENAI_API_KEY is required for OpenAI provider"
             raise ValueError(msg)
         return OpenAIProvider(openai_api_key, openai_api_key, openai_model)
 
-    elif provider_name == "gemini":
+    elif provider_name == PROVIDER_GEMINI:
         gemini_api_key = getattr(settings, "GEMINI_API_KEY", "")
         if not gemini_api_key:
             msg = "GEMINI_API_KEY is required for Gemini provider"
             raise ValueError(msg)
         return GeminiProvider(gemini_api_key, openai_api_key, gemini_model)
 
-    elif provider_name == "mistral":
+    elif provider_name == PROVIDER_MISTRAL:
         mistral_api_key = getattr(settings, "MISTRAL_API_KEY", "")
         if not mistral_api_key:
             msg = "MISTRAL_API_KEY is required for Mistral provider"
@@ -325,8 +332,8 @@ def validate_tar_file(tar_file: tarfile.TarFile) -> None:
         if tar_member.name.startswith("/") or ".." in tar_member.name:
             error_msg = f"Unsafe tar member: {tar_member.name}"
             raise CommandError(error_msg)
-        # Check for excessively large files (0.5GB limit)
-        if tar_member.size > 512 * 1024 * 1024:
+        # Check for excessively large files (512MB limit)
+        if tar_member.size > TAR_FILE_SIZE_LIMIT:
             error_msg = f"File too large: {tar_member.name}"
             raise CommandError(error_msg)
 

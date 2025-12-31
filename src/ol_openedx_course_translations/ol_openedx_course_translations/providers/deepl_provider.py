@@ -7,21 +7,22 @@ from pathlib import Path
 import deepl
 import srt
 
-from .base import DEEPL_LANGUAGE_CODES, TranslationProvider
+from ol_openedx_course_translations.constants import (
+    DEEPL_ENABLE_BETA_LANGUAGES,
+    DEEPL_LANGUAGE_CODES,
+    DEEPL_MAX_PAYLOAD_SIZE,
+)
+
+from .base import TranslationProvider
 
 logger = logging.getLogger(__name__)
-
-# Constants
-DEEPL_MAX_PAYLOAD_SIZE = 128000  # 128KB limit for DeepL API
-DEEPL_LANGUAGE_NOT_SUPPORTED = "DeepL does not support language"
-PAYLOAD_TOO_LARGE_ERROR = "Payload too large for DeepL API"
-COUNT_MISMATCH_ERROR = "Count mismatch in DeepL response"
 
 
 def _check_payload_size(payload: str) -> None:
     """Check if payload size exceeds DeepL API limits."""
     if len(payload.encode("utf-8")) > DEEPL_MAX_PAYLOAD_SIZE:
-        raise ValueError(PAYLOAD_TOO_LARGE_ERROR)
+        msg = "Payload too large for DeepL API"
+        raise ValueError(msg)
 
 
 def _validate_batch_response(xml_matches: list, subtitle_batch: list) -> None:
@@ -32,7 +33,8 @@ def _validate_batch_response(xml_matches: list, subtitle_batch: list) -> None:
             len(xml_matches),
             len(subtitle_batch),
         )
-        raise ValueError(COUNT_MISMATCH_ERROR)
+        msg = "Count mismatch in DeepL response"
+        raise ValueError(msg)
 
 
 class DeepLProvider(TranslationProvider):
@@ -51,10 +53,10 @@ class DeepLProvider(TranslationProvider):
         """Translate SRT subtitles using DeepL."""
         deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language.lower())
         if not deepl_target_code:
-            error_msg = f"{DEEPL_LANGUAGE_NOT_SUPPORTED} '{target_language}'."
+            error_msg = f"DeepL does not support language '{target_language}'."
             raise ValueError(error_msg)
 
-        deepl_extra_params = {"enable_beta_languages": True}
+        deepl_extra_params = {"enable_beta_languages": DEEPL_ENABLE_BETA_LANGUAGES}
 
         translated_subtitle_list = []
         current_batch_size = len(subtitle_list)
@@ -152,7 +154,7 @@ class DeepLProvider(TranslationProvider):
 
         deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language.lower())
         if not deepl_target_code:
-            error_msg = f"{DEEPL_LANGUAGE_NOT_SUPPORTED} '{target_language}'."
+            error_msg = f"DeepL does not support language '{target_language}'."
             raise ValueError(error_msg)
 
         try:
@@ -178,7 +180,7 @@ class DeepLProvider(TranslationProvider):
         """Translate document using DeepL."""
         deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language.lower())
         if not deepl_target_code:
-            error_msg = f"{DEEPL_LANGUAGE_NOT_SUPPORTED} '{target_language}'."
+            error_msg = f"DeepL does not support language '{target_language}'."
             raise ValueError(error_msg)
 
         try:

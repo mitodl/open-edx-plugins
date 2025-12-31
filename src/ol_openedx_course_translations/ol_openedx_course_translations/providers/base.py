@@ -8,44 +8,6 @@ import srt
 
 logger = logging.getLogger(__name__)
 
-# Language code mappings for DeepL API
-DEEPL_LANGUAGE_CODES = {
-    "fr": "FR",
-    "de": "DE",
-    "es": "ES",
-    "pt": "PT-PT",
-    "pt-br": "PT-BR",
-    "hi": "HI",
-    "ar": "AR",
-    "zh": "ZH",
-    "kr": "KO",
-    "ja": "JA",
-    "id": "ID",
-    "ru": "RU",
-    "el": "EL",
-    "tr": "TR",
-    "sq": "SQ",
-}
-
-# Human-readable language names for prompts
-LANGUAGE_DISPLAY_NAMES = {
-    "en": "English",
-    "de": "Deutsch",
-    "es": "Español",
-    "fr": "Français",
-    "pt-br": "Português - Brasil",  # Fixed EN DASH
-    "ru": "Русский",
-    "hi": "हिंदी",
-    "el": "ελληνικά",
-    "ja": "日本語",
-    "ar": "العربية",
-    "zh": "中文",
-    "tr": "Türkçe",
-    "sq": "Shqip",
-    "kr": "한국어",
-    "id": "Bahasa Indonesia",
-}
-
 
 def load_glossary(
     target_language_code: str, glossary_directory: str | None = None

@@ -11,7 +11,5 @@ def plugin_settings(settings):
     """
     apply_common_settings(settings)
     settings.MIDDLEWARE.extend(
-        [
-            "ol_openedx_course_translations.middleware.CourseLanguageCookieMiddleware",
-        ]
+        ["ol_openedx_course_translations.middleware.CourseLanguageCookieMiddleware"]
     )

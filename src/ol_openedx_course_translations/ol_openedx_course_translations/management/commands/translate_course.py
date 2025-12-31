@@ -10,6 +10,10 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from ol_openedx_course_translations.constants import (
+    TASK_POLL_INTERVAL_SECONDS,
+    TASK_TIMEOUT_SECONDS,
+)
 from ol_openedx_course_translations.tasks import (
     translate_file_task,
     translate_grading_policy_task,
@@ -322,8 +326,6 @@ class Command(BaseCommand):
         }
 
         # Poll for task completion
-        timeout = 600  # 10 minutes total timeout per task
-        poll_interval = 2  # Check every 2 seconds
         start_time = time.time()
 
         while pending_tasks:
@@ -371,7 +373,7 @@ class Command(BaseCommand):
                 del pending_tasks[task_id]
 
             # Check for timeout
-            if time.time() - start_time > timeout * total_tasks:
+            if time.time() - start_time > TASK_TIMEOUT_SECONDS * total_tasks:
                 self.stdout.write(
                     self.style.ERROR(
                         f"\nTimeout: {len(pending_tasks)} tasks did not complete"
@@ -382,7 +384,7 @@ class Command(BaseCommand):
 
             # Sleep before next poll if there are still pending tasks
             if pending_tasks:
-                time.sleep(poll_interval)
+                time.sleep(TASK_POLL_INTERVAL_SECONDS)
 
                 # Show progress
                 completed_count = total_tasks - len(pending_tasks)
