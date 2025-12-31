@@ -4,6 +4,7 @@ Management command to translate course content to a specified language.
 
 import logging
 import shutil
+import time
 from pathlib import Path
 
 from django.conf import settings
@@ -254,42 +255,102 @@ class Command(BaseCommand):
                 self.task_results.append(("policy", str(policy_file), task_result))
                 logger.info("Dispatched policy.json task for: %s", policy_file)
 
-    def _wait_and_report_tasks(self) -> None:
+    def _wait_and_report_tasks(self) -> None:  # noqa: C901, PLR0912, PLR0915
         """Wait for all Celery tasks to complete and report their status."""
-        self.stdout.write("\nWaiting for translation tasks to complete...")
+        if not self.task_results:
+            self.stdout.write("No tasks to wait for.")
+            return
+
+        self.stdout.write(
+            f"\nDispatched {len(self.task_results)} tasks. Waiting for completion...\n"
+        )
 
         total_tasks = len(self.task_results)
         completed_tasks = 0
         failed_tasks = 0
         skipped_tasks = 0
 
-        for task_type, file_path, task_result in self.task_results:
-            try:
-                # Wait for task to complete (with timeout)
-                result = task_result.get(timeout=600)  # 10 minute timeout per task
+        # Create a mapping of task_id to task info for quick lookup
+        task_info = {
+            task_result.id: (task_type, file_path)
+            for task_type, file_path, task_result in self.task_results
+        }
 
-                if result["status"] == "success":
-                    completed_tasks += 1
-                    self.stdout.write(self.style.SUCCESS(f"✓ {task_type}: {file_path}"))
-                elif result["status"] == "skipped":
-                    skipped_tasks += 1
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f"⊘ {task_type}: {file_path} - "
-                            f"{result.get('reason', 'Skipped')}"
+        # Get all AsyncResult objects
+        pending_tasks = {
+            task_result.id: task_result for _, _, task_result in self.task_results
+        }
+
+        # Poll for task completion
+        timeout = 600  # 10 minutes total timeout per task
+        poll_interval = 2  # Check every 2 seconds
+        start_time = time.time()
+
+        while pending_tasks:
+            completed_in_iteration = []
+
+            for task_id, task_result in list(pending_tasks.items()):
+                if task_result.ready():
+                    completed_in_iteration.append(task_id)
+                    task_type, file_path = task_info[task_id]
+
+                    try:
+                        result = task_result.get(timeout=1)
+
+                        if result["status"] == "success":
+                            completed_tasks += 1
+                            self.stdout.write(
+                                self.style.SUCCESS(f"✓ {task_type}: {file_path}")
+                            )
+                        elif result["status"] == "skipped":
+                            skipped_tasks += 1
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"⊘ {task_type}: {file_path} - "
+                                    f"{result.get('reason', 'Skipped')}"
+                                )
+                            )
+                        else:
+                            failed_tasks += 1
+                            error = result.get("error", "Unknown error")
+                            self.stdout.write(
+                                self.style.ERROR(
+                                    f"✗ {task_type}: {file_path} - {error}"
+                                )
+                            )
+                    except (TimeoutError, KeyError, TypeError) as e:
+                        failed_tasks += 1
+                        self.stdout.write(
+                            self.style.ERROR(
+                                f"✗ {task_type}: {file_path} - Task failed: {e}"
+                            )
                         )
-                    )
-                else:
-                    failed_tasks += 1
-                    error = result.get("error", "Unknown error")
-                    self.stdout.write(
-                        self.style.ERROR(f"✗ {task_type}: {file_path} - {error}")
-                    )
-            except (TimeoutError, KeyError, TypeError) as e:
-                failed_tasks += 1
+
+            # Remove completed tasks from pending
+            for task_id in completed_in_iteration:
+                del pending_tasks[task_id]
+
+            # Check for timeout
+            if time.time() - start_time > timeout * total_tasks:
                 self.stdout.write(
-                    self.style.ERROR(f"✗ {task_type}: {file_path} - Task failed: {e}")
+                    self.style.ERROR(
+                        f"\nTimeout: {len(pending_tasks)} tasks did not complete"
+                    )
                 )
+                failed_tasks += len(pending_tasks)
+                break
+
+            # Sleep before next poll if there are still pending tasks
+            if pending_tasks:
+                time.sleep(poll_interval)
+
+                # Show progress
+                completed_count = total_tasks - len(pending_tasks)
+                self.stdout.write(
+                    f"Progress: {completed_count}/{total_tasks} tasks completed\r",
+                    ending="",
+                )
+                self.stdout.flush()
 
         # Print summary
         self.stdout.write("\n" + "=" * 60)

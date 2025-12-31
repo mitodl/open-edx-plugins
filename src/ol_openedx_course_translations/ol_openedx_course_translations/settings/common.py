@@ -9,7 +9,6 @@ def apply_common_settings(settings):
     """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["admin", "sysadmin", "instructor"]
-    settings.DEEPL_API_KEY = ""
     settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES = [
         "about",
         "course",
