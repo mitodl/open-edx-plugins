@@ -86,6 +86,24 @@ class Command(BaseCommand):
                 "language-specific glossary files."
             ),
         )
+        parser.add_argument(
+            "--openai-model",
+            dest="openai_model",
+            default=settings.OPENAI_MODEL,
+            help=f"OpenAI model name to use (default: {settings.OPENAI_MODEL})",
+        )
+        parser.add_argument(
+            "--gemini-model",
+            dest="gemini_model",
+            default=settings.GEMINI_MODEL,
+            help=f"Gemini model name to use (default: {settings.GEMINI_MODEL})",
+        )
+        parser.add_argument(
+            "--mistral-model",
+            dest="mistral_model",
+            default=settings.MISTRAL_MODEL,
+            help=f"Mistral model name to use (default: {settings.MISTRAL_MODEL})",
+        )
 
     def handle(self, **options) -> None:
         """Handle the translate_course command."""
@@ -96,19 +114,32 @@ class Command(BaseCommand):
             content_translation_provider = options["content_translation_provider"]
             srt_provider_name = options["srt_translation_provider"]
             glossary_directory = options.get("glossary_directory")
+            openai_model = options["openai_model"]
+            gemini_model = options["gemini_model"]
+            mistral_model = options["mistral_model"]
 
             # Validate inputs
             validate_course_inputs(course_archive_path)
 
-            # Store provider names instead of instances
+            # Store provider names and model names
             self.content_provider_name = content_translation_provider
             self.srt_provider_name = srt_provider_name
             self.glossary_directory = glossary_directory
+            self.openai_model = openai_model
+            self.gemini_model = gemini_model
+            self.mistral_model = mistral_model
 
             # Validate providers by attempting to instantiate them
             try:
-                get_translation_provider(content_translation_provider)
-                get_translation_provider(srt_provider_name)
+                get_translation_provider(
+                    content_translation_provider,
+                    openai_model,
+                    gemini_model,
+                    mistral_model,
+                )
+                get_translation_provider(
+                    srt_provider_name, openai_model, gemini_model, mistral_model
+                )
             except ValueError as e:
                 raise CommandError(str(e)) from e
 
@@ -199,6 +230,9 @@ class Command(BaseCommand):
                 self.content_provider_name,
                 self.srt_provider_name,
                 self.glossary_directory,
+                self.openai_model,
+                self.gemini_model,
+                self.mistral_model,
             )
             self.task_results.append(("file", str(file_path), task_result))
             logger.info("Dispatched translation task for: %s", file_path)
@@ -223,6 +257,9 @@ class Command(BaseCommand):
                     target_language,
                     self.content_provider_name,
                     self.glossary_directory,
+                    self.openai_model,
+                    self.gemini_model,
+                    self.mistral_model,
                 )
                 self.task_results.append(
                     ("grading_policy", str(grading_policy_file), task_result)
@@ -251,6 +288,9 @@ class Command(BaseCommand):
                     target_language,
                     self.content_provider_name,
                     self.glossary_directory,
+                    self.openai_model,
+                    self.gemini_model,
+                    self.mistral_model,
                 )
                 self.task_results.append(("policy", str(policy_file), task_result))
                 logger.info("Dispatched policy.json task for: %s", policy_file)

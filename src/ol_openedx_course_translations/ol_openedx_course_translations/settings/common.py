@@ -40,6 +40,6 @@ def apply_common_settings(settings):
     settings.MISTRAL_API_KEY = ""
 
     # Default model names
-    settings.OPENAI_MODEL = "gpt-5"
+    settings.OPENAI_MODEL = "gpt-5.2"
     settings.GEMINI_MODEL = "gemini-3-pro-preview"
     settings.MISTRAL_MODEL = "mistral-large-latest"

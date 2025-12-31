@@ -27,6 +27,9 @@ def translate_file_task(  # noqa: PLR0913
     content_provider_name: str,
     srt_provider_name: str,
     glossary_directory: str | None = None,
+    openai_model: str | None = None,
+    gemini_model: str | None = None,
+    mistral_model: str | None = None,
 ):
     """Translate a single file asynchronously."""
     try:
@@ -34,9 +37,13 @@ def translate_file_task(  # noqa: PLR0913
 
         # Determine which provider to use
         if file_path.suffix == ".srt":
-            provider = get_translation_provider(srt_provider_name)
+            provider = get_translation_provider(
+                srt_provider_name, openai_model, gemini_model, mistral_model
+            )
         else:
-            provider = get_translation_provider(content_provider_name)
+            provider = get_translation_provider(
+                content_provider_name, openai_model, gemini_model, mistral_model
+            )
 
         # Handle SRT files
         if file_path.suffix == ".srt":
@@ -97,17 +104,22 @@ def translate_file_task(  # noqa: PLR0913
 
 
 @shared_task(bind=True, name="translate_grading_policy_task")
-def translate_grading_policy_task(
+def translate_grading_policy_task(  # noqa: PLR0913
     _self,
     policy_file_path_str: str,
     target_language: str,
     content_provider_name: str,
     glossary_directory: str | None = None,
+    openai_model: str | None = None,
+    gemini_model: str | None = None,
+    mistral_model: str | None = None,
 ):
     """Translate grading_policy.json file."""
     try:
         policy_file_path = Path(policy_file_path_str)
-        provider = get_translation_provider(content_provider_name)
+        provider = get_translation_provider(
+            content_provider_name, openai_model, gemini_model, mistral_model
+        )
 
         grading_policy_data = json.loads(policy_file_path.read_text(encoding="utf-8"))
         policy_updated = False
@@ -135,17 +147,22 @@ def translate_grading_policy_task(
 
 
 @shared_task(bind=True, name="translate_policy_json_task")
-def translate_policy_json_task(
+def translate_policy_json_task(  # noqa: PLR0913
     _self,
     policy_file_path_str: str,
     target_language: str,
     content_provider_name: str,
     glossary_directory: str | None = None,
+    openai_model: str | None = None,
+    gemini_model: str | None = None,
+    mistral_model: str | None = None,
 ):
     """Translate policy.json file."""
     try:
         policy_file_path = Path(policy_file_path_str)
-        provider = get_translation_provider(content_provider_name)
+        provider = get_translation_provider(
+            content_provider_name, openai_model, gemini_model, mistral_model
+        )
 
         policy_json_data = json.loads(policy_file_path.read_text(encoding="utf-8"))
         policy_updated = False

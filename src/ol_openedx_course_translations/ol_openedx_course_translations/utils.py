@@ -22,12 +22,20 @@ from ol_openedx_course_translations.providers.llm_provider import (
 logger = logging.getLogger(__name__)
 
 
-def get_translation_provider(provider_name: str):
+def get_translation_provider(
+    provider_name: str,
+    openai_model: str | None = None,
+    gemini_model: str | None = None,
+    mistral_model: str | None = None,
+):
     """
     Get translation provider instance based on provider name.
 
     Args:
         provider_name: Name of the provider (deepl, openai, gemini, mistral)
+        openai_model: OpenAI model name to use
+        gemini_model: Gemini model name to use
+        mistral_model: Mistral model name to use
 
     Returns:
         Translation provider instance
@@ -48,21 +56,21 @@ def get_translation_provider(provider_name: str):
         if not openai_api_key:
             msg = "OPENAI_API_KEY is required for OpenAI provider"
             raise ValueError(msg)
-        return OpenAIProvider(openai_api_key, openai_api_key)
+        return OpenAIProvider(openai_api_key, openai_api_key, openai_model)
 
     elif provider_name == "gemini":
         gemini_api_key = getattr(settings, "GEMINI_API_KEY", "")
         if not gemini_api_key:
             msg = "GEMINI_API_KEY is required for Gemini provider"
             raise ValueError(msg)
-        return GeminiProvider(gemini_api_key, openai_api_key)
+        return GeminiProvider(gemini_api_key, openai_api_key, gemini_model)
 
     elif provider_name == "mistral":
         mistral_api_key = getattr(settings, "MISTRAL_API_KEY", "")
         if not mistral_api_key:
             msg = "MISTRAL_API_KEY is required for Mistral provider"
             raise ValueError(msg)
-        return MistralProvider(mistral_api_key, openai_api_key)
+        return MistralProvider(mistral_api_key, openai_api_key, mistral_model)
 
     else:
         msg = f"Unknown provider: {provider_name}"
