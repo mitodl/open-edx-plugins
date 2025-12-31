@@ -335,15 +335,13 @@ class OpenAIProvider(LLMProvider):
         repair_api_key: str | None = None,
         model_name: str | None = None,
     ):
-        openai_model = model_name or getattr(settings, "OPENAI_MODEL", "gpt-4o")
+        openai_model = model_name or getattr(settings, "OPENAI_MODEL", "gpt-5.2")
         super().__init__(primary_api_key, repair_api_key, f"openai/{openai_model}")
 
     def _call_llm(
         self, system_prompt: str, user_content: str, **additional_kwargs: Any
     ) -> str:
-        return super()._call_llm(
-            system_prompt, user_content, reasoning_effort="low", **additional_kwargs
-        )
+        return super()._call_llm(system_prompt, user_content, **additional_kwargs)
 
 
 class GeminiProvider(LLMProvider):
@@ -355,7 +353,9 @@ class GeminiProvider(LLMProvider):
         repair_api_key: str | None = None,
         model_name: str | None = None,
     ):
-        gemini_model = model_name or getattr(settings, "GEMINI_MODEL", "gemini-1.5-pro")
+        gemini_model = model_name or getattr(
+            settings, "GEMINI_MODEL", "gemini-3-pro-preview"
+        )
         super().__init__(primary_api_key, repair_api_key, f"gemini/{gemini_model}")
 
 
