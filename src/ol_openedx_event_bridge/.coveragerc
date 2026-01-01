@@ -1,0 +1,10 @@
+[run]
+branch = True
+data_file = .coverage
+source=ol_openedx_event_bridge
+omit =
+    test_settings.py
+    */migrations/*
+    *admin.py
+    */static/*
+    */templates/*
