@@ -34,7 +34,16 @@ from ol_openedx_course_translations.utils.command_utils import (
     validate_branch_name,
     validate_language_code,
 )
-from ol_openedx_course_translations.utils.constants import LANGUAGE_MAPPING, MAX_RETRIES
+from ol_openedx_course_translations.utils.constants import (
+    HTTP_CREATED,
+    HTTP_NOT_FOUND,
+    HTTP_OK,
+    HTTP_TOO_MANY_REQUESTS,
+    HTTP_UNPROCESSABLE_ENTITY,
+    LANGUAGE_MAPPING,
+    MAX_ERROR_MESSAGE_LENGTH,
+    MAX_RETRIES,
+)
 from ol_openedx_course_translations.utils.translation_sync import (
     apply_json_translations,
     apply_po_translations,
@@ -43,20 +52,6 @@ from ol_openedx_course_translations.utils.translation_sync import (
     match_glossary_term,
     sync_all_translations,
 )
-
-# ============================================================================
-# Constants
-# ============================================================================
-
-# HTTP Status Codes
-HTTP_OK = 200
-HTTP_CREATED = 201
-HTTP_NOT_FOUND = 404
-HTTP_TOO_MANY_REQUESTS = 429
-HTTP_UNPROCESSABLE_ENTITY = 422
-
-# Error message length limit
-MAX_ERROR_MESSAGE_LENGTH = 200
 
 # ============================================================================
 # Git Repository Helper Class
@@ -88,16 +83,13 @@ class GitRepository:
 
     def _get_main_branch_name(self) -> str:
         """
-        Determine the main branch name (main or master).
+        Determine the main branch name.
         Checks local branches first, then remote branches.
         Fetches from remote if needed to check remote branches.
         """
-        # First check if 'main' exists locally
+        # Check if 'main' exists locally
         if "main" in [ref.name for ref in self.repo.heads]:
             return "main"
-        # Then check if 'master' exists locally
-        if "master" in [ref.name for ref in self.repo.heads]:
-            return "master"
 
         # If not found locally, fetch from remote and check remote branches
         with suppress(git.exc.GitCommandError):
@@ -107,10 +99,8 @@ class GitRepository:
         # Check remote branches
         if "origin/main" in [ref.name for ref in self.repo.remotes.origin.refs]:
             return "main"
-        if "origin/master" in [ref.name for ref in self.repo.remotes.origin.refs]:
-            return "master"
 
-        msg = "Neither 'main' nor 'master' branch found locally or on remote"
+        msg = "Main branch not found locally or on remote"
         raise CommandError(msg)
 
     def ensure_clean(self) -> bool:
@@ -141,7 +131,7 @@ class GitRepository:
                 # Detached HEAD state - we'll checkout main anyway
                 current_branch = None
 
-            # Determine which branch name to use (main or master)
+            # Get the main branch name
             main_branch = self._get_main_branch_name()
 
             # Only switch if we're not already on the main branch
@@ -161,7 +151,7 @@ class GitRepository:
             self._handle_git_error("switching branches", e)
 
     def update_from_remote(self) -> None:
-        """Fetch and pull latest changes from origin/main or origin/master."""
+        """Fetch and pull latest changes from origin/main."""
         try:
             self.repo.remotes.origin.fetch()
             main_branch = self._get_main_branch_name()

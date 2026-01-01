@@ -198,3 +198,13 @@ MAX_RETRIES = 3
 
 # Glossary parsing constants
 EXPECTED_GLOSSARY_PARTS = 2  # English term and translation separated by "->"
+
+# HTTP Status Codes
+HTTP_OK = 200
+HTTP_CREATED = 201
+HTTP_NOT_FOUND = 404
+HTTP_TOO_MANY_REQUESTS = 429
+HTTP_UNPROCESSABLE_ENTITY = 422
+
+# Error message length limit
+MAX_ERROR_MESSAGE_LENGTH = 200
