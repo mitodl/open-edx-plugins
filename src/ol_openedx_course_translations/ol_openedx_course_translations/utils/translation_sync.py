@@ -577,7 +577,7 @@ def load_glossary(glossary_path: Path, lang_code: str = "") -> dict[str, Any]:
 
         return glossary
 
-    except (OSError, IOError, UnicodeDecodeError) as e:
+    except (OSError, UnicodeDecodeError):
         # Log specific file-related errors but return empty dict to allow continuation
         # In a library function, we can't use stdout, so we just return empty dict
         # The caller can handle logging if needed

@@ -13,7 +13,6 @@ from typing import Any
 from django.conf import settings
 from django.core.management.base import CommandError
 
-
 # ============================================================================
 # Validation Utilities
 # ============================================================================
@@ -62,7 +61,7 @@ def get_config_value(key: str, options: dict, default: Any = None) -> Any:
     option_value = options.get(key) or options.get(key.replace("_", "-"))
     if option_value:
         return option_value
-    
+
     # Check settings with TRANSLATIONS_ prefix
     setting_key = f"TRANSLATIONS_{key.upper().replace('-', '_')}"
     if hasattr(settings, setting_key):
@@ -70,13 +69,13 @@ def get_config_value(key: str, options: dict, default: Any = None) -> Any:
         # Only use setting if it's not empty
         if setting_value:
             return setting_value
-    
+
     # Check environment variable with TRANSLATIONS_ prefix
     env_key = setting_key
     env_value = os.environ.get(env_key)
     if env_value:
         return env_value
-    
+
     # Return default if nothing found
     return default
 

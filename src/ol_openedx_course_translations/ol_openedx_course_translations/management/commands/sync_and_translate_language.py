@@ -22,7 +22,6 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from litellm import completion
 
-from ol_openedx_course_translations.utils.constants import LANGUAGE_MAPPING, MAX_RETRIES
 from ol_openedx_course_translations.utils.command_utils import (
     create_branch_name,
     get_config_value,
@@ -31,6 +30,7 @@ from ol_openedx_course_translations.utils.command_utils import (
     validate_branch_name,
     validate_language_code,
 )
+from ol_openedx_course_translations.utils.constants import LANGUAGE_MAPPING, MAX_RETRIES
 from ol_openedx_course_translations.utils.translation_sync import (
     apply_json_translations,
     apply_po_translations,
@@ -66,6 +66,7 @@ class GitRepository:
         """Convert git errors to CommandError with context."""
         msg = f"Git error {operation}: {error!s}"
         raise CommandError(msg) from error
+
     def _get_main_branch_name(self) -> str:
         """
         Determine the main branch name (main or master).
@@ -78,20 +79,20 @@ class GitRepository:
         # Then check if 'master' exists locally
         if "master" in [ref.name for ref in self.repo.heads]:
             return "master"
-        
+
         # If not found locally, fetch from remote and check remote branches
         try:
             self.repo.remotes.origin.fetch()
         except git.exc.GitCommandError:
             # If fetch fails, we'll try to check existing remote refs anyway
             pass
-        
+
         # Check remote branches
         if "origin/main" in [ref.name for ref in self.repo.remotes.origin.refs]:
             return "main"
         if "origin/master" in [ref.name for ref in self.repo.remotes.origin.refs]:
             return "master"
-        
+
         raise CommandError(
             "Neither 'main' nor 'master' branch found locally or on remote"
         )
@@ -100,7 +101,7 @@ class GitRepository:
         """
         Clean uncommitted changes in tracked files.
         Returns True if cleaned, False if already clean.
-        
+
         This ensures any leftover staged/uncommitted changes from a previous
         interrupted run are removed before starting a new translation sync.
         """
@@ -693,7 +694,12 @@ class Command(BaseCommand):
         import ol_openedx_course_translations.utils.translation_sync as utils_module
 
         utils_file = Path(utils_module.__file__)
-        glossary_path = utils_file.parent.parent / "glossaries" / "machine_learning" / f"{lang_code}.txt"
+        glossary_path = (
+            utils_file.parent.parent
+            / "glossaries"
+            / "machine_learning"
+            / f"{lang_code}.txt"
+        )
 
         if glossary_path.exists():
             self.stdout.write(f"\nLoading glossary from {glossary_path}...")
@@ -771,7 +777,9 @@ class Command(BaseCommand):
             # Retry loop for this batch
             for attempt in range(max_retries + 1):  # +1 for initial attempt
                 try:
-                    batch_translations = self._call_llm_batch(batch, lang_code, model, glossary)
+                    batch_translations = self._call_llm_batch(
+                        batch, lang_code, model, glossary
+                    )
                     batch_successes = 0
                     batch_partial_errors = 0
                     batch_errors_by_app: dict[str, int] = {}
@@ -788,7 +796,9 @@ class Command(BaseCommand):
                         else:
                             llm_errors += 1
                             batch_partial_errors += 1
-                            batch_errors_by_app[app] = batch_errors_by_app.get(app, 0) + 1
+                            batch_errors_by_app[app] = (
+                                batch_errors_by_app.get(app, 0) + 1
+                            )
                             errors_by_app[app] = errors_by_app.get(app, 0) + 1
 
                     completed = min(batch_idx * batch_size, total_keys)
@@ -797,10 +807,13 @@ class Command(BaseCommand):
                     remaining_keys = total_keys - llm_translations
 
                     if batch_partial_errors > 0:
-                        retry_msg = f" (after {attempt + 1} attempt(s))" if attempt > 0 else ""
+                        retry_msg = (
+                            f" (after {attempt + 1} attempt(s))" if attempt > 0 else ""
+                        )
                         apps_str = ", ".join(sorted(batch_apps))
                         errors_by_app_str = ", ".join(
-                            f"{app}: {count}" for app, count in sorted(batch_errors_by_app.items())
+                            f"{app}: {count}"
+                            for app, count in sorted(batch_errors_by_app.items())
                         )
                         self.stdout.write(
                             f"   Batch {batch_idx}/{num_batches} completed with partial success "
@@ -810,7 +823,9 @@ class Command(BaseCommand):
                             f"         Errors by app: {errors_by_app_str}"
                         )
                     else:
-                        retry_msg = f" (after {attempt + 1} attempt(s))" if attempt > 0 else ""
+                        retry_msg = (
+                            f" (after {attempt + 1} attempt(s))" if attempt > 0 else ""
+                        )
                         self.stdout.write(
                             f"   Batch {batch_idx}/{num_batches} completed{retry_msg} "
                             f"({completed}/{total_keys} keys, {progress_pct:.1f}% complete, {remaining_keys} remaining)"
@@ -835,7 +850,7 @@ class Command(BaseCommand):
                     # Retryable error - check if we have retries left
                     if attempt < max_retries:
                         # Exponential backoff: 2^attempt seconds (1s, 2s, 4s, 8s...)
-                        wait_time = 2 ** attempt
+                        wait_time = 2**attempt
                         self.stdout.write(
                             self.style.WARNING(
                                 f"   WARNING: Batch {batch_idx}/{num_batches} failed (attempt {attempt + 1}/{max_retries + 1}): {e!s}\n"
@@ -973,10 +988,15 @@ When translating sentences, ensure that glossary terms are translated consistent
 """
 
     def _call_llm_batch(
-        self, key_batch: list[dict], lang_code: str, model: str, glossary: dict[str, Any] | None = None, timeout: int = 120
+        self,
+        key_batch: list[dict],
+        lang_code: str,
+        model: str,
+        glossary: dict[str, Any] | None = None,
+        timeout: int = 120,
     ) -> list[str | dict]:
         """Call LLM API to translate multiple texts in a single request.
-        
+
         Args:
             key_batch: List of key information dictionaries to translate
             lang_code: Target language code
@@ -1048,7 +1068,7 @@ Return ONLY valid JSON in this format:
 
             return self._parse_order_based_response(response_text, key_batch)
 
-        except TimeoutError as e:
+        except TimeoutError:
             raise CommandError(
                 f"LLM batch API call timed out after {timeout} seconds.\n"
                 f"Model: {model}\n"
@@ -1331,7 +1351,9 @@ Return ONLY valid JSON in this format:
                 repo_url,
             )
 
-    def _generate_error_section(self, errors: int, errors_by_app: dict[str, int] | None = None) -> str:
+    def _generate_error_section(
+        self, errors: int, errors_by_app: dict[str, int] | None = None
+    ) -> str:
         """Generate error warning section for PR body if there are errors.
 
         Args:
@@ -1348,9 +1370,13 @@ Return ONLY valid JSON in this format:
         if errors_by_app:
             error_lines = [
                 f"- **{app}**: {count} key(s) failed"
-                for app, count in sorted(errors_by_app.items(), key=lambda x: x[1], reverse=True)
+                for app, count in sorted(
+                    errors_by_app.items(), key=lambda x: x[1], reverse=True
+                )
             ]
-            error_details = f"\n**Errors by app/MFE:**\n\n" + "\n".join(error_lines) + "\n"
+            error_details = (
+                "\n**Errors by app/MFE:**\n\n" + "\n".join(error_lines) + "\n"
+            )
 
         return f"""
 ### Translation Errors

@@ -158,4 +158,3 @@ LANGUAGE_MAPPING = {
 
 # Maximum number of retries for failed translation batches
 MAX_RETRIES = 3
-
