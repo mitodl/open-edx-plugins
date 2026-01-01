@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import time
 import urllib.parse
+from configparser import NoSectionError
 from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import Any, TypedDict, cast
@@ -176,9 +177,18 @@ class GitRepository:
         """Configure git user for this repository."""
         try:
             with self.repo.config_writer() as config:
-                if not config.get_value("user", "email", default=None):
+                # Check if user section exists and get existing values
+                try:
+                    existing_email = config.get_value("user", "email", default=None)
+                    existing_name = config.get_value("user", "name", default=None)
+                except NoSectionError:
+                    # Section doesn't exist, set both values
+                    existing_email = None
+                    existing_name = None
+                # Set values only if they don't exist
+                if not existing_email:
                     config.set_value("user", "email", email)
-                if not config.get_value("user", "name", default=None):
+                if not existing_name:
                     config.set_value("user", "name", name)
         except git.exc.GitCommandError as e:
             self._handle_git_error("configuring user", e)
@@ -529,8 +539,11 @@ class Command(BaseCommand):
         parser.add_argument(
             "--repo-path",
             type=str,
-            help="Path to mitxonline-translations repository. "
-            "Can also be set via REPO_PATH setting or environment variable.",
+            help=(
+                "Path to mitxonline-translations repository. "
+                "Can also be set via TRANSLATIONS_REPO_PATH setting "
+                "or environment variable."
+            ),
         )
         parser.add_argument(
             "--model",
@@ -583,7 +596,8 @@ class Command(BaseCommand):
             type=str,
             help=(
                 "GitHub repository URL. "
-                "Can also be set via REPO_URL setting or environment variable."
+                "Can also be set via TRANSLATIONS_REPO_URL setting "
+                "or environment variable."
             ),
         )
 
@@ -604,7 +618,7 @@ class Command(BaseCommand):
         repo_url = get_config_value(
             "repo_url",
             options,
-            "https://github.com/zamanafzal/mitxonline-translations.git",
+            "https://github.com/mitodl/mitxonline-translations.git",
         )
 
         # Validate repository path is not empty

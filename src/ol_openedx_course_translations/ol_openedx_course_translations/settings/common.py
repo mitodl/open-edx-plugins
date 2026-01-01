@@ -16,8 +16,10 @@ def apply_common_settings(settings):
     settings.GOOGLE_API_KEY = ""
     settings.GITHUB_TOKEN = ""
     # Translation repository settings
-    settings.REPO_PATH = ""
-    settings.REPO_URL = "https://github.com/zamanafzal/mitxonline-translations.git"
+    settings.TRANSLATIONS_REPO_PATH = ""
+    settings.TRANSLATIONS_REPO_URL = (
+        "https://github.com/mitodl/mitxonline-translations.git"
+    )
     # Default LLM model for translations
     settings.DEFAULT_MODEL = "mistral/mistral-large-latest"
     settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES = [
