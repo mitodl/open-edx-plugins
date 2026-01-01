@@ -83,6 +83,50 @@ Translating a Course
 
         ./manage.py cms translate_course --source-language <SOURCE_LANGUAGE_CODE, defaults to `EN`> --translation-language <TRANSLATION_LANGUAGE_CODE i.e. AR> --course-dir <PATH_TO_EXPORTED_COURSE_TAR_GZ>
 
+Syncing and Translating Language Keys
+======================================
+
+This command synchronizes translation keys from edx-platform, translates empty keys using LLM, and automatically creates a pull request in the mitxonline-translations repository.
+
+**What it does:**
+
+1. Syncs translation keys from edx-platform to the translations repository
+2. Extracts empty translation keys that need translation
+3. Translates empty keys using the specified LLM model
+4. Applies translations to JSON and PO files
+5. Commits changes to a new branch
+6. Creates a pull request with translation statistics
+
+**Usage:**
+
+1. Go to the LMS shell
+2. Run the management command:
+
+   .. code-block:: bash
+
+        ./manage.py cms sync_and_translate_language <LANGUAGE_CODE> [OPTIONS]
+
+**Required arguments:**
+
+- ``LANGUAGE_CODE``: Language code (e.g., ``el``, ``fr``, ``es_ES``)
+
+**Optional arguments:**
+
+- ``--iso-code``: ISO code for JSON files (default: same as language code)
+- ``--model``: LLM model name (default: ``mistral/mistral-large-latest``). Examples: ``gpt-4``, ``claude-3-opus-20240229``, ``mistral/mistral-large-latest``
+- ``--repo-path``: Path to mitxonline-translations repository (can also be set via ``TRANSLATIONS_REPO_PATH`` setting or environment variable)
+- ``--repo-url``: GitHub repository URL (can also be set via ``TRANSLATIONS_REPO_URL`` setting or environment variable)
+- ``--glossary``: Use glossary from plugin glossaries folder (looks for ``{plugin_dir}/glossaries/machine_learning/{lang_code}.txt``)
+- ``--batch-size``: Number of keys to translate per API request (default: 200, recommended: 200-300 for most models)
+- ``--mfe``: Filter by specific MFE(s). Use ``edx-platform`` for backend translations
+- ``--dry-run``: Run without committing or creating PR
+
+**Example:**
+
+   .. code-block:: bash
+
+        ./manage.py cms sync_and_translate_language el --model gpt-4 --glossary --batch-size 250
+
 License
 *******
 
