@@ -75,25 +75,62 @@ PLURAL_FORMS = {
     "fr": "nplurals=2; plural=(n > 1);",  # French
     "br": "nplurals=2; plural=(n > 1);",  # Breton
     # Languages with 3 plural forms
-    "pl": "nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);",  # Polish
-    "ru": "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);",  # Russian
-    "uk": "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);",  # Ukrainian
-    "be": "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);",  # Belarusian
-    "sr": "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);",  # Serbian
-    "hr": "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);",  # Croatian
-    "bs": "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);",  # Bosnian
+    "pl": (
+        "nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && "
+        "(n%100<10 || n%100>=20) ? 1 : 2);"
+    ),  # Polish
+    "ru": (
+        "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && "
+        "(n%100<10 || n%100>=20) ? 1 : 2);"
+    ),  # Russian
+    "uk": (
+        "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && "
+        "(n%100<10 || n%100>=20) ? 1 : 2);"
+    ),  # Ukrainian
+    "be": (
+        "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && "
+        "(n%100<10 || n%100>=20) ? 1 : 2);"
+    ),  # Belarusian
+    "sr": (
+        "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && "
+        "(n%100<10 || n%100>=20) ? 1 : 2);"
+    ),  # Serbian
+    "hr": (
+        "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && "
+        "(n%100<10 || n%100>=20) ? 1 : 2);"
+    ),  # Croatian
+    "bs": (
+        "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && "
+        "(n%100<10 || n%100>=20) ? 1 : 2);"
+    ),  # Bosnian
     "cs": "nplurals=3; plural=(n==1 ? 0 : (n>=2 && n<=4) ? 1 : 2);",  # Czech
     "sk": "nplurals=3; plural=(n==1 ? 0 : (n>=2 && n<=4) ? 1 : 2);",  # Slovak
-    "lt": "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && (n%100<10 || n%100>=20) ? 1 : 2);",  # Lithuanian
+    "lt": (
+        "nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+        "(n%100<10 || n%100>=20) ? 1 : 2);"
+    ),  # Lithuanian
     "hy": "nplurals=3; plural=(n==1 ? 0 : n>=2 && n<=4 ? 1 : 2);",  # Armenian
-    "ro": "nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);",  # Romanian
+    "ro": (
+        "nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);"
+    ),  # Romanian
     # Languages with 4 plural forms
-    "cy": "nplurals=4; plural=(n==1 ? 0 : n==2 ? 1 : (n==8 || n==11) ? 2 : 3);",  # Welsh
+    "cy": (
+        "nplurals=4; plural=(n==1 ? 0 : n==2 ? 1 : (n==8 || n==11) ? 2 : 3);"
+    ),  # Welsh
     "ga": "nplurals=4; plural=(n==1 ? 0 : n==2 ? 1 : (n>2 && n<7) ? 2 : 3);",  # Irish
-    "gd": "nplurals=4; plural=(n==1 || n==11) ? 0 : (n==2 || n==12) ? 1 : (n>2 && n<20) ? 2 : 3);",  # Scottish Gaelic
-    "mt": "nplurals=4; plural=(n==1 ? 0 : n==0 || (n%100>=2 && n%100<=10) ? 1 : (n%100>=11 && n%100<=19) ? 2 : 3);",  # Maltese
+    "gd": (
+        "nplurals=4; plural=(n==1 || n==11) ? 0 : (n==2 || n==12) ? 1 : "
+        "(n>2 && n<20) ? 2 : 3);"
+    ),  # Scottish Gaelic
+    "mt": (
+        "nplurals=4; plural=(n==1 ? 0 : n==0 || (n%100>=2 && n%100<=10) ? 1 : "
+        "(n%100>=11 && n%100<=19) ? 2 : 3);"
+    ),  # Maltese
     # Languages with 6 plural forms
-    "ar": "nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5);",  # Arabic
+    "ar": (
+        "nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && "
+        "n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5);"
+    ),  # Arabic
     # Other languages
     "fa": "nplurals=2; plural=(n==0 || n==1 ? 0 : 1);",  # Persian/Farsi
     "hu": "nplurals=2; plural=(n != 1);",  # Hungarian
@@ -158,3 +195,6 @@ LANGUAGE_MAPPING = {
 
 # Maximum number of retries for failed translation batches
 MAX_RETRIES = 3
+
+# Glossary parsing constants
+EXPECTED_GLOSSARY_PARTS = 2  # English term and translation separated by "->"

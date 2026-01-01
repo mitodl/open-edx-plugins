@@ -7,7 +7,7 @@ including validation, error handling, git operations, and configuration helpers.
 
 import os
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from django.conf import settings
@@ -21,16 +21,18 @@ from django.core.management.base import CommandError
 def validate_language_code(code: str, field_name: str = "language code") -> None:
     """Validate language code format (xx or xx_XX)."""
     if not re.match(r"^[a-z]{2}(_[A-Z]{2})?$", code):
-        raise CommandError(
+        msg = (
             f"Invalid {field_name} format: {code}. "
             f"Expected format: 'xx' or 'xx_XX' (e.g., 'el', 'es_ES')"
         )
+        raise CommandError(msg)
 
 
 def validate_branch_name(branch_name: str) -> None:
     """Validate branch name format to prevent injection."""
     if not re.match(r"^[a-z0-9/_-]+$", branch_name):
-        raise CommandError(f"Invalid branch name format: {branch_name}")
+        msg = f"Invalid branch name format: {branch_name}"
+        raise CommandError(msg)
 
 
 # ============================================================================
@@ -46,7 +48,7 @@ def sanitize_for_git(text: str) -> str:
 def create_branch_name(lang_code: str) -> str:
     """Create a safe branch name from language code."""
     safe_lang = re.sub(r"[^a-z0-9_-]", "", lang_code.lower())
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d-%H%M%S")
     return f"feature/add-{safe_lang}-translations-{timestamp}"
 
 
@@ -102,7 +104,6 @@ def is_retryable_error(error: Exception) -> bool:
         False
     """
     error_str = str(error).lower()
-    error_type = type(error).__name__
 
     # Retryable errors
     retryable_patterns = [

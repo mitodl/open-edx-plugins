@@ -5,12 +5,13 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
-import polib
+import polib  # type: ignore[import-untyped]
 
 from ol_openedx_course_translations.utils.constants import (
     BACKEND_PO_FILES,
     DEFAULT_JSON_INDENT,
     DEFAULT_PLURAL_FORM,
+    EXPECTED_GLOSSARY_PARTS,
     LANGUAGE_MAPPING,
     LEARNER_FACING_APPS,
     PLURAL_FORMS,
@@ -31,16 +32,17 @@ def load_json_file(file_path: Path) -> dict:
     if not file_path.exists():
         return {}
     try:
-        with open(file_path, encoding="utf-8") as f:
+        with file_path.open(encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
-        raise ValueError(f"Error parsing JSON file {file_path}: {e}")
+        msg = f"Error parsing JSON file {file_path}: {e}"
+        raise ValueError(msg) from e
 
 
 def save_json_file(file_path: Path, data: dict, indent: int = DEFAULT_JSON_INDENT):
     """Save a JSON translation file with proper formatting."""
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(file_path, "w", encoding="utf-8") as f:
+    with file_path.open("w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=indent)
         f.write("\n")
 
@@ -62,7 +64,9 @@ def find_typo_mappings(data: dict) -> list[tuple[str, str]]:
 def sync_or_create_json_file(en_file: Path, target_file: Path) -> dict:
     """
     Sync or create a JSON translation file.
-    Returns dict with stats: {'action': 'created'|'synced'|'skipped', 'added': int, 'fixed': int, 'removed': int}
+    Returns dict with stats:
+        {'action': 'created'|'synced'|'skipped', 'added': int,
+         'fixed': int, 'removed': int}
     """
     try:
         en_data = load_json_file(en_file)
@@ -104,16 +108,19 @@ def sync_or_create_json_file(en_file: Path, target_file: Path) -> dict:
 
             if not correct_value and typo_value:
                 ordered_data[correct_key] = typo_value
-                stats["fixed"] += 1
+                # Type assertion: stats["fixed"] is always int
+                stats["fixed"] = int(stats["fixed"]) + 1
 
             if typo_key in ordered_data:
                 del ordered_data[typo_key]
-                stats["removed"] += 1
+                # Type assertion: stats["removed"] is always int
+                stats["removed"] = int(stats["removed"]) + 1
 
         for key in en_data:
             if key not in ordered_data:
                 ordered_data[key] = ""
-                stats["added"] += 1
+                # Type assertion: stats["added"] is always int
+                stats["added"] = int(stats["added"]) + 1
 
         target_data = dict(ordered_data)
     else:
@@ -145,7 +152,7 @@ def create_po_file_header(lang_code: str, iso_code: str | None = None) -> str:
     plural = _get_plural_form(lang_code)
     lang_name = LANGUAGE_MAPPING.get(lang_code, lang_code)
 
-    header = f"""msgid ""
+    return f"""msgid ""
 msgstr ""
 "Project-Id-Version: {PO_HEADER_PROJECT_VERSION}\\n"
 "Report-Msgid-Bugs-To: {PO_HEADER_BUGS_EMAIL}\\n"
@@ -160,13 +167,13 @@ msgstr ""
 "Plural-Forms: {plural}\\n"
 
 """
-    return header
 
 
 def parse_po_file(po_file: Path) -> dict[str, str]:
     """
     Parse a PO file and extract msgid -> msgstr mappings.
-    For plural forms, uses msgid as the key (msgid_plural entries are handled separately).
+    For plural forms, uses msgid as the key
+    (msgid_plural entries are handled separately).
     Uses polib if available, falls back to manual parsing.
     """
     if not po_file.exists():
@@ -184,8 +191,9 @@ def parse_po_file(po_file: Path) -> dict[str, str]:
 def parse_po_file_with_metadata(po_file: Path) -> dict[str, dict]:
     """
     Parse a PO file and extract msgid -> metadata mappings.
-    Returns dict with structure: {msgid: {'msgstr': str, 'msgid_plural': str, 'msgstr_plural': dict,
-                                         'locations': List[str], 'flags': List[str], 'is_plural': bool}}
+    Returns dict with structure:
+        {msgid: {'msgstr': str, 'msgid_plural': str, 'msgstr_plural': dict,
+                 'locations': List[str], 'flags': List[str], 'is_plural': bool}}
     Uses polib if available, falls back to manual parsing.
     """
     if not po_file.exists():
@@ -195,7 +203,6 @@ def parse_po_file_with_metadata(po_file: Path) -> dict[str, dict]:
     entries = {}
     for entry in po:
         if entry.msgid:  # Skip empty header msgid
-            # Convert occurrences from (filepath, line) tuples to strings like "filepath:line"
             locations = [
                 f"{occ[0]}:{occ[1]}" if len(occ) > 1 else occ[0]
                 for occ in entry.occurrences
@@ -216,6 +223,82 @@ def parse_po_file_with_metadata(po_file: Path) -> dict[str, dict]:
                 }
             entries[entry.msgid] = entry_data
     return entries
+
+
+def _create_po_entry_from_en(entry: polib.POEntry) -> polib.POEntry:
+    """Create a new PO entry from an English entry with empty translation."""
+    new_entry = polib.POEntry(
+        msgid=entry.msgid,
+        msgid_plural=entry.msgid_plural,
+        occurrences=entry.occurrences,
+        flags=entry.flags,
+    )
+    if entry.msgid_plural:
+        # Initialize plural forms (at least 2)
+        num_forms = max(2, len(entry.msgstr_plural) if entry.msgstr_plural else 2)
+        new_entry.msgstr_plural = dict.fromkeys(range(num_forms), "")
+    else:
+        new_entry.msgstr = ""
+    return new_entry
+
+
+def _sync_existing_po_file(
+    en_po: polib.POFile, target_po: polib.POFile, target_file: Path
+) -> int:
+    """Sync existing PO file by adding missing entries. Returns count added."""
+    # Create a set of existing entries (msgid + msgid_plural for plural entries)
+    existing_entries = set()
+    for entry in target_po:
+        if entry.msgid:
+            key = (entry.msgid, entry.msgid_plural if entry.msgid_plural else None)
+            existing_entries.add(key)
+
+    # Add missing entries from English file
+    added_count = 0
+    for entry in en_po:
+        if not entry.msgid:  # Skip header
+            continue
+
+        entry_key = (entry.msgid, entry.msgid_plural if entry.msgid_plural else None)
+        if entry_key not in existing_entries:
+            new_entry = _create_po_entry_from_en(entry)
+            target_po.append(new_entry)
+            added_count += 1
+
+    if added_count > 0:
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        target_po.save(str(target_file))
+
+    return added_count
+
+
+def _create_new_po_file(
+    en_po: polib.POFile, target_file: Path, lang_code: str, iso_code: str | None
+) -> int:
+    """Create a new PO file with all entries from English. Returns count added."""
+    target_po = polib.POFile()
+
+    # Set metadata - preserve important fields from English file
+    target_po.metadata = en_po.metadata.copy()
+    target_po.metadata["Language"] = iso_code or lang_code
+
+    # Ensure Plural-Forms is set correctly for the target language
+    if "Plural-Forms" not in target_po.metadata:
+        target_po.metadata["Plural-Forms"] = _get_plural_form(lang_code)
+
+    # Copy all entries with empty translations
+    added_count = 0
+    for entry in en_po:
+        if not entry.msgid:  # Skip header
+            continue
+
+        new_entry = _create_po_entry_from_en(entry)
+        target_po.append(new_entry)
+        added_count += 1
+
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    target_po.save(str(target_file))
+    return added_count
 
 
 def sync_or_create_po_file(
@@ -241,107 +324,16 @@ def sync_or_create_po_file(
     if file_exists:
         # File exists: sync entries
         target_po = polib.pofile(str(target_file))
-
-        # Create a set of existing entries (msgid + msgid_plural for plural entries)
-        existing_entries = set()
-        for entry in target_po:
-            if entry.msgid:
-                if entry.msgid_plural:
-                    existing_entries.add((entry.msgid, entry.msgid_plural))
-                else:
-                    existing_entries.add((entry.msgid, None))
-
-        # Add missing entries from English file
-        added_count = 0
-        for entry in en_po:
-            if not entry.msgid:  # Skip header
-                continue
-
-            # Check if entry exists
-            entry_key = (
-                entry.msgid,
-                entry.msgid_plural if entry.msgid_plural else None,
-            )
-            if entry_key not in existing_entries:
-                # Create new entry with empty translation
-                new_entry = polib.POEntry(
-                    msgid=entry.msgid,
-                    msgid_plural=entry.msgid_plural,
-                    occurrences=entry.occurrences,
-                    flags=entry.flags,
-                )
-                if entry.msgid_plural:
-                    # Initialize plural forms (at least 2)
-                    # Use the number of forms from English entry or default to 2
-                    num_forms = max(
-                        2, len(entry.msgstr_plural) if entry.msgstr_plural else 2
-                    )
-                    new_entry.msgstr_plural = dict.fromkeys(range(num_forms), "")
-                else:
-                    new_entry.msgstr = ""
-                target_po.append(new_entry)
-                added_count += 1
-
-        if added_count > 0:
-            target_file.parent.mkdir(parents=True, exist_ok=True)
-            target_po.save(str(target_file))
-
-        stats["added"] = added_count
+        stats["added"] = _sync_existing_po_file(en_po, target_po, target_file)
     else:
         # File doesn't exist: create new with all entries from English
-        target_po = polib.POFile()
-
-        # Set metadata - preserve important fields from English file
-        target_po.metadata = en_po.metadata.copy()
-        target_po.metadata["Language"] = iso_code or lang_code
-
-        # Ensure Plural-Forms is set correctly for the target language
-        if "Plural-Forms" not in target_po.metadata:
-            target_po.metadata["Plural-Forms"] = _get_plural_form(lang_code)
-
-        # Copy all entries with empty translations
-        added_count = 0
-        for entry in en_po:
-            if not entry.msgid:  # Skip header
-                continue
-
-            new_entry = polib.POEntry(
-                msgid=entry.msgid,
-                msgid_plural=entry.msgid_plural,
-                occurrences=entry.occurrences,
-                flags=entry.flags,
-            )
-            if entry.msgid_plural:
-                # Initialize plural forms
-                num_forms = max(
-                    2, len(entry.msgstr_plural) if entry.msgstr_plural else 2
-                )
-                new_entry.msgstr_plural = dict.fromkeys(range(num_forms), "")
-            else:
-                new_entry.msgstr = ""
-            target_po.append(new_entry)
-            added_count += 1
-
-        target_file.parent.mkdir(parents=True, exist_ok=True)
-        target_po.save(str(target_file))
-        stats["added"] = added_count
+        stats["added"] = _create_new_po_file(en_po, target_file, lang_code, iso_code)
 
     return stats
 
 
-def extract_empty_keys(
-    base_dir: Path,
-    lang_code: str,
-    iso_code: str | None = None,
-    skip_backend: bool = False,
-) -> list[dict]:
-    """
-    Extract all empty translation keys for a language.
-    Returns list of dicts with: {'app': str, 'key': str, 'english': str, 'file_type': 'json'|'po'}
-    """
-    if iso_code is None:
-        iso_code = lang_code
-
+def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dict]:
+    """Extract empty keys from frontend JSON files."""
     empty_keys = []
 
     for app in LEARNER_FACING_APPS:
@@ -377,7 +369,6 @@ def extract_empty_keys(
             target_data = load_json_file(target_file)
             en_data = load_json_file(en_file)
 
-            # Use set for faster lookup if target_data is large
             for key in en_data:
                 target_value = target_data.get(key, "")
                 if not target_value or (
@@ -394,106 +385,111 @@ def extract_empty_keys(
                         }
                     )
         except (OSError, ValueError, json.JSONDecodeError):
-            # More specific exception handling
             continue
 
-    if not skip_backend:
-        # Use iso_code for backend locale directory if provided, otherwise use lang_code
-        backend_locale = iso_code if iso_code and iso_code != lang_code else lang_code
-        locale_dir = (
+    return empty_keys
+
+
+def _is_po_entry_empty(
+    entry: polib.POEntry, target_entry: polib.POEntry | None
+) -> bool:
+    """Check if a PO entry is empty or missing."""
+    if target_entry is None:
+        return True
+
+    if entry.msgid_plural:
+        # Plural entry - check if plural forms are empty
+        return any(
+            not target_entry.msgstr_plural.get(i, "").strip()
+            for i in range(len(target_entry.msgstr_plural))
+        )
+
+    # Singular entry - check if empty
+    return not target_entry.msgstr or not target_entry.msgstr.strip()
+
+
+def _extract_empty_keys_from_backend(base_dir: Path, backend_locale: str) -> list[dict]:
+    """Extract empty keys from backend PO files."""
+    empty_keys = []
+    locale_dir = (
+        base_dir
+        / TRANSLATION_FILE_NAMES["edx_platform"]
+        / TRANSLATION_FILE_NAMES["conf_dir"]
+        / TRANSLATION_FILE_NAMES["locale_dir"]
+        / backend_locale
+        / TRANSLATION_FILE_NAMES["lc_messages"]
+    )
+
+    for po_file_name in BACKEND_PO_FILES:
+        target_file = locale_dir / po_file_name
+        en_file = (
             base_dir
             / TRANSLATION_FILE_NAMES["edx_platform"]
             / TRANSLATION_FILE_NAMES["conf_dir"]
             / TRANSLATION_FILE_NAMES["locale_dir"]
-            / backend_locale
+            / "en"
             / TRANSLATION_FILE_NAMES["lc_messages"]
+            / po_file_name
         )
-        for po_file_name in BACKEND_PO_FILES:
-            target_file = locale_dir / po_file_name
-            en_file = (
-                base_dir
-                / TRANSLATION_FILE_NAMES["edx_platform"]
-                / TRANSLATION_FILE_NAMES["conf_dir"]
-                / TRANSLATION_FILE_NAMES["locale_dir"]
-                / "en"
-                / TRANSLATION_FILE_NAMES["lc_messages"]
-                / po_file_name
-            )
 
-            if not target_file.exists() or not en_file.exists():
-                continue
+        if not target_file.exists() or not en_file.exists():
+            continue
 
-            try:
-                # Parse both files once and reuse
-                target_po = polib.pofile(str(target_file))
-                en_po = polib.pofile(str(en_file))
+        try:
+            target_po = polib.pofile(str(target_file))
+            en_po = polib.pofile(str(en_file))
 
-                # Create dict of target entries: msgid -> entry for O(1) lookup
-                target_entries_dict = {
-                    entry.msgid: entry for entry in target_po if entry.msgid
-                }
+            target_entries_dict = {
+                entry.msgid: entry for entry in target_po if entry.msgid
+            }
 
-                for entry in en_po:
-                    if not entry.msgid:  # Skip header
-                        continue
+            for entry in en_po:
+                if not entry.msgid:  # Skip header
+                    continue
 
-                    # Check if entry is missing or empty in target
-                    target_entry = target_entries_dict.get(entry.msgid)
-                    if target_entry is None:
-                        # Entry doesn't exist
-                        empty_keys.append(
-                            {
-                                "app": "edx-platform",
-                                "key": entry.msgid,
-                                "english": entry.msgid,
-                                "translation": "",
-                                "file_type": "po",
-                                "file_path": str(target_file.resolve()),
-                                "po_file": po_file_name,
-                                "is_plural": entry.msgid_plural is not None,
-                                "msgid_plural": entry.msgid_plural
-                                if entry.msgid_plural
-                                else None,
-                            }
-                        )
-                    elif entry.msgid_plural:
-                        # Plural entry - check if plural forms are empty
-                        plural_empty = any(
-                            not target_entry.msgstr_plural.get(i, "").strip()
-                            for i in range(len(target_entry.msgstr_plural))
-                        )
-                        if plural_empty:
-                            empty_keys.append(
-                                {
-                                    "app": "edx-platform",
-                                    "key": entry.msgid,
-                                    "english": entry.msgid,
-                                    "translation": "",
-                                    "file_type": "po",
-                                    "file_path": str(target_file.resolve()),
-                                    "po_file": po_file_name,
-                                    "is_plural": True,
-                                    "msgid_plural": entry.msgid_plural,
-                                }
-                            )
-                    elif not target_entry.msgstr or not target_entry.msgstr.strip():
-                        # Singular entry - check if empty
-                        empty_keys.append(
-                            {
-                                "app": "edx-platform",
-                                "key": entry.msgid,
-                                "english": entry.msgid,
-                                "translation": "",
-                                "file_type": "po",
-                                "file_path": str(target_file.resolve()),
-                                "po_file": po_file_name,
-                                "is_plural": False,
-                                "msgid_plural": None,
-                            }
-                        )
-            except (OSError, polib.POFileError, ValueError):
-                # More specific exception handling
-                continue
+                target_entry = target_entries_dict.get(entry.msgid)
+                if _is_po_entry_empty(entry, target_entry):
+                    empty_keys.append(
+                        {
+                            "app": "edx-platform",
+                            "key": entry.msgid,
+                            "english": entry.msgid,
+                            "translation": "",
+                            "file_type": "po",
+                            "file_path": str(target_file.resolve()),
+                            "po_file": po_file_name,
+                            "is_plural": entry.msgid_plural is not None,
+                            "msgid_plural": entry.msgid_plural
+                            if entry.msgid_plural
+                            else None,
+                        }
+                    )
+        except (OSError, polib.POFileError, ValueError):
+            continue
+
+    return empty_keys
+
+
+def extract_empty_keys(
+    base_dir: Path,
+    lang_code: str,
+    iso_code: str | None = None,
+    *,
+    skip_backend: bool = False,
+) -> list[dict]:
+    """
+    Extract all empty translation keys for a language.
+    Returns list of dicts with:
+        {'app': str, 'key': str, 'english': str, 'file_type': 'json'|'po'}
+    """
+    if iso_code is None:
+        iso_code = lang_code
+
+    empty_keys = _extract_empty_keys_from_frontend(base_dir, iso_code)
+
+    if not skip_backend:
+        backend_locale = iso_code if iso_code and iso_code != lang_code else lang_code
+        empty_keys.extend(_extract_empty_keys_from_backend(base_dir, backend_locale))
 
     return empty_keys
 
@@ -522,7 +518,7 @@ def apply_json_translations(file_path: Path, translations: dict[str, str]) -> in
     return applied
 
 
-def load_glossary(glossary_path: Path, lang_code: str = "") -> dict[str, Any]:
+def load_glossary(glossary_path: Path, _lang_code: str = "") -> dict[str, Any]:
     """
     Load glossary for a language from a text file.
     Parses text format with term mappings like: - 'english term' -> 'translation'
@@ -530,7 +526,7 @@ def load_glossary(glossary_path: Path, lang_code: str = "") -> dict[str, Any]:
 
     Args:
         glossary_path: Path to the glossary text file.
-        lang_code: Language code (currently unused, kept for API compatibility).
+        _lang_code: Language code (currently unused, kept for API compatibility).
 
     Returns:
         Dictionary mapping English terms to translations. Translations can be:
@@ -553,9 +549,9 @@ def load_glossary(glossary_path: Path, lang_code: str = "") -> dict[str, Any]:
     glossary = {}
 
     try:
-        with open(glossary_path, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
+        with glossary_path.open(encoding="utf-8") as f:
+            for raw_line in f:
+                line = raw_line.strip()
 
                 # Skip empty lines, comments, and headers
                 if not line or line.startswith("#"):
@@ -565,40 +561,42 @@ def load_glossary(glossary_path: Path, lang_code: str = "") -> dict[str, Any]:
                 if line.startswith("- ") and "->" in line:
                     # Extract the mapping
                     # Format: - 'english term' -> 'translation'
-                    line = line[2:].strip()  # Remove leading '- '
-                    parts = line.split("->", 1)
+                    mapping_line = line[2:].strip()  # Remove leading '- '
+                    parts = mapping_line.split("->", 1)
 
-                    if len(parts) == 2:
+                    if len(parts) == EXPECTED_GLOSSARY_PARTS:
                         english_term = parts[0].strip().strip("'\"")
                         translation = parts[1].strip().strip("'\"")
 
                         if english_term and translation:
                             glossary[english_term] = translation
-
-        return glossary
-
     except (OSError, UnicodeDecodeError):
         # Log specific file-related errors but return empty dict to allow continuation
         # In a library function, we can't use stdout, so we just return empty dict
         # The caller can handle logging if needed
         return {}
-    except Exception:
-        # Catch-all for any other unexpected errors
+    except (ValueError, AttributeError, IndexError):
+        # Catch parsing errors and other unexpected errors
         return {}
+    else:
+        return glossary
 
 
 def match_glossary_term(
-    text: str, glossary: dict[str, Any] | None, exact_match: bool = True
+    text: str, glossary: dict[str, Any] | None, *, exact_match: bool = True
 ) -> Any | None:
     """
     Match text against glossary terms.
-    Returns translation (string or dict with 'singular'/'plural') if match found, None otherwise.
-    Supports both simple format ("term": "translation") and plural format ("term": {"singular": "...", "plural": "..."}).
+    Returns translation (string or dict with 'singular'/'plural') if match found,
+    None otherwise.
+    Supports both simple format ("term": "translation") and plural format
+    ("term": {"singular": "...", "plural": "..."}).
 
     Args:
         text: The text to match against glossary terms.
         glossary: Dictionary mapping English terms to translations, or None.
-        exact_match: If True, only exact matches are returned. If False, case-insensitive and partial matches are allowed.
+        exact_match: If True, only exact matches are returned.
+            If False, case-insensitive and partial matches are allowed.
 
     Returns:
         Translation string/dict if match found, None otherwise.
@@ -607,9 +605,8 @@ def match_glossary_term(
         return None
 
     if text in glossary:
-        value = glossary[text]
         # Return as-is: string for singular, dict for plural
-        return value
+        return glossary[text]
 
     if not exact_match:
         text_lower = text.lower().strip()
@@ -622,6 +619,66 @@ def match_glossary_term(
                 return translation
 
     return None
+
+
+def _apply_plural_dict_translation(
+    entry: polib.POEntry, translation: dict[str, str]
+) -> bool:
+    """Apply plural translation from dict. Returns True if applied."""
+    plural_applied = False
+    if not entry.msgstr_plural.get(0, "").strip():
+        entry.msgstr_plural[0] = translation["singular"]
+        plural_applied = True
+    if len(entry.msgstr_plural) > 1 and not entry.msgstr_plural.get(1, "").strip():
+        entry.msgstr_plural[1] = translation["plural"]
+        plural_applied = True
+    return plural_applied
+
+
+def _apply_plural_string_translation(entry: polib.POEntry, translation: str) -> bool:
+    """Apply plural translation from string. Returns True if applied."""
+    plural_applied = False
+    for i in range(len(entry.msgstr_plural)):
+        if not entry.msgstr_plural.get(i, "").strip():
+            entry.msgstr_plural[i] = translation
+            plural_applied = True
+    return plural_applied
+
+
+def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
+    """
+    Apply translation to a PO entry. Returns True if translation was applied.
+
+    Args:
+        entry: The PO entry to apply translation to.
+        translation: Translation value (string or dict with 'singular'/'plural').
+
+    Returns:
+        True if translation was applied, False otherwise.
+    """
+    if entry.msgid_plural:
+        # Plural entry
+        if (
+            isinstance(translation, dict)
+            and "singular" in translation
+            and "plural" in translation
+        ):
+            return _apply_plural_dict_translation(entry, translation)
+        if (
+            isinstance(translation, str)
+            and translation
+            and _apply_plural_string_translation(entry, translation)
+        ):
+            return True
+    # Singular entry - translation should be a string
+    elif (
+        isinstance(translation, str)
+        and translation
+        and (not entry.msgstr or not entry.msgstr.strip())
+    ):
+        entry.msgstr = translation
+        return True
+    return False
 
 
 def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
@@ -641,43 +698,7 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
 
         if entry.msgid in translations:
             translation = translations[entry.msgid]
-
-            if entry.msgid_plural:
-                # Plural entry
-                if (
-                    isinstance(translation, dict)
-                    and "singular" in translation
-                    and "plural" in translation
-                ):
-                    # Both singular and plural provided
-                    plural_applied = False
-                    if not entry.msgstr_plural.get(0, "").strip():
-                        entry.msgstr_plural[0] = translation["singular"]
-                        plural_applied = True
-                    if (
-                        len(entry.msgstr_plural) > 1
-                        and not entry.msgstr_plural.get(1, "").strip()
-                    ):
-                        entry.msgstr_plural[1] = translation["plural"]
-                        plural_applied = True
-                    if plural_applied:
-                        applied += 1
-                elif isinstance(translation, str) and translation:
-                    # Single translation - apply to all empty plural forms
-                    plural_applied = False
-                    for i in range(len(entry.msgstr_plural)):
-                        if not entry.msgstr_plural.get(i, "").strip():
-                            entry.msgstr_plural[i] = translation
-                            plural_applied = True
-                    if plural_applied:
-                        applied += 1
-            # Singular entry - translation should be a string
-            elif (
-                isinstance(translation, str)
-                and translation
-                and (not entry.msgstr or not entry.msgstr.strip())
-            ):
-                entry.msgstr = translation
+            if _apply_translation_to_entry(entry, translation):
                 applied += 1
 
     if applied > 0:
@@ -686,21 +707,9 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
     return applied
 
 
-def sync_all_translations(
-    base_dir: Path,
-    lang_code: str,
-    iso_code: str | None = None,
-    skip_backend: bool = False,
-) -> dict:
-    """
-    Sync all translation files for a language.
-    Returns summary stats.
-    """
-    if iso_code is None:
-        iso_code = lang_code
-
+def _sync_frontend_translations(base_dir: Path, iso_code: str) -> dict[str, int]:
+    """Sync frontend translation files. Returns stats."""
     frontend_stats = {"added": 0, "fixed": 0, "removed": 0, "created": 0, "synced": 0}
-    backend_stats = {"added": 0}
 
     for app in LEARNER_FACING_APPS:
         app_dir = base_dir / app / "src" / TRANSLATION_FILE_NAMES["i18n_dir"]
@@ -726,44 +735,72 @@ def sync_all_translations(
             frontend_stats["fixed"] += stats.get("fixed", 0)
             frontend_stats["removed"] += stats.get("removed", 0)
         except (OSError, ValueError, json.JSONDecodeError):
-            # More specific exception handling
             continue
 
-    if not skip_backend:
-        # Use iso_code for backend locale directory if provided, otherwise use lang_code
-        backend_locale = iso_code if iso_code and iso_code != lang_code else lang_code
-        locale_dir = (
+    return frontend_stats
+
+
+def _sync_backend_translations(
+    base_dir: Path, lang_code: str, iso_code: str
+) -> dict[str, int]:
+    """Sync backend translation files. Returns stats."""
+    backend_stats = {"added": 0}
+    backend_locale = iso_code if iso_code and iso_code != lang_code else lang_code
+    locale_dir = (
+        base_dir
+        / TRANSLATION_FILE_NAMES["edx_platform"]
+        / TRANSLATION_FILE_NAMES["conf_dir"]
+        / TRANSLATION_FILE_NAMES["locale_dir"]
+        / backend_locale
+        / TRANSLATION_FILE_NAMES["lc_messages"]
+    )
+
+    for po_file_name in BACKEND_PO_FILES:
+        en_file = (
             base_dir
             / TRANSLATION_FILE_NAMES["edx_platform"]
             / TRANSLATION_FILE_NAMES["conf_dir"]
             / TRANSLATION_FILE_NAMES["locale_dir"]
-            / backend_locale
+            / "en"
             / TRANSLATION_FILE_NAMES["lc_messages"]
+            / po_file_name
         )
+        target_file = locale_dir / po_file_name
 
-        for po_file_name in BACKEND_PO_FILES:
-            en_file = (
-                base_dir
-                / TRANSLATION_FILE_NAMES["edx_platform"]
-                / TRANSLATION_FILE_NAMES["conf_dir"]
-                / TRANSLATION_FILE_NAMES["locale_dir"]
-                / "en"
-                / TRANSLATION_FILE_NAMES["lc_messages"]
-                / po_file_name
+        if not en_file.exists():
+            continue
+
+        try:
+            stats = sync_or_create_po_file(
+                en_file, target_file, backend_locale, iso_code
             )
-            target_file = locale_dir / po_file_name
+            backend_stats["added"] += stats.get("added", 0)
+        except (OSError, polib.POFileError, ValueError):
+            continue
 
-            if not en_file.exists():
-                continue
+    return backend_stats
 
-            try:
-                stats = sync_or_create_po_file(
-                    en_file, target_file, backend_locale, iso_code
-                )
-                backend_stats["added"] += stats.get("added", 0)
-            except (OSError, polib.POFileError, ValueError):
-                # More specific exception handling
-                continue
+
+def sync_all_translations(
+    base_dir: Path,
+    lang_code: str,
+    iso_code: str | None = None,
+    *,
+    skip_backend: bool = False,
+) -> dict:
+    """
+    Sync all translation files for a language.
+    Returns summary stats.
+    """
+    if iso_code is None:
+        iso_code = lang_code
+
+    frontend_stats = _sync_frontend_translations(base_dir, iso_code)
+    backend_stats = (
+        _sync_backend_translations(base_dir, lang_code, iso_code)
+        if not skip_backend
+        else {"added": 0}
+    )
 
     return {
         "frontend": frontend_stats,
