@@ -13,7 +13,6 @@ import subprocess
 import time
 import urllib.parse
 from contextlib import contextmanager, suppress
-from json import JSONDecodeError
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +22,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from litellm import completion
 
-import ol_openedx_course_translations.utils.translation_sync as translation_sync_utils
+from ol_openedx_course_translations.utils.constants import LANGUAGE_MAPPING, MAX_RETRIES
 from ol_openedx_course_translations.utils.command_utils import (
     create_branch_name,
     get_config_value,
@@ -31,17 +30,6 @@ from ol_openedx_course_translations.utils.command_utils import (
     sanitize_for_git,
     validate_branch_name,
     validate_language_code,
-)
-from ol_openedx_course_translations.utils.constants import (
-    HTTP_STATUS_CREATED,
-    HTTP_STATUS_NOT_FOUND,
-    HTTP_STATUS_OK,
-    HTTP_STATUS_TOO_MANY_REQUESTS,
-    HTTP_STATUS_UNPROCESSABLE_ENTITY,
-    LANGUAGE_MAPPING,
-    MAX_ERROR_MESSAGE_LENGTH,
-    MAX_RETRIES,
-    MIN_GROUPS_FOR_REPO_PARSE,
 )
 from ol_openedx_course_translations.utils.translation_sync import (
     apply_json_translations,
@@ -78,13 +66,47 @@ class GitRepository:
         """Convert git errors to CommandError with context."""
         msg = f"Git error {operation}: {error!s}"
         raise CommandError(msg) from error
+    def _get_main_branch_name(self) -> str:
+        """
+        Determine the main branch name (main or master).
+        Checks local branches first, then remote branches.
+        Fetches from remote if needed to check remote branches.
+        """
+        # First check if 'main' exists locally
+        if "main" in [ref.name for ref in self.repo.heads]:
+            return "main"
+        # Then check if 'master' exists locally
+        if "master" in [ref.name for ref in self.repo.heads]:
+            return "master"
+        
+        # If not found locally, fetch from remote and check remote branches
+        try:
+            self.repo.remotes.origin.fetch()
+        except git.exc.GitCommandError:
+            # If fetch fails, we'll try to check existing remote refs anyway
+            pass
+        
+        # Check remote branches
+        if "origin/main" in [ref.name for ref in self.repo.remotes.origin.refs]:
+            return "main"
+        if "origin/master" in [ref.name for ref in self.repo.remotes.origin.refs]:
+            return "master"
+        
+        raise CommandError(
+            "Neither 'main' nor 'master' branch found locally or on remote"
+        )
 
     def ensure_clean(self) -> bool:
-        """Clean uncommitted changes. Returns True if cleaned."""
+        """
+        Clean uncommitted changes in tracked files.
+        Returns True if cleaned, False if already clean.
+        
+        This ensures any leftover staged/uncommitted changes from a previous
+        interrupted run are removed before starting a new translation sync.
+        """
         try:
-            if self.repo.is_dirty(untracked_files=True):
+            if self.repo.is_dirty(untracked_files=False):
                 self.repo.head.reset(index=True, working_tree=True)
-                self.repo.git.clean("-fd")
                 return True
             else:
                 return False
@@ -95,19 +117,38 @@ class GitRepository:
     def switch_to_main(self) -> None:
         """Switch to main branch, deleting current branch if it's not main."""
         try:
-            current_branch = self.repo.active_branch.name
-            if current_branch != "main":
-                self.repo.git.checkout("main")
-                with suppress(git.exc.GitCommandError):
-                    self.repo.git.branch("-D", current_branch)  # Branch might not exist
+            # Get current branch name (might be in detached HEAD state)
+            try:
+                current_branch = self.repo.active_branch.name
+            except TypeError:
+                # Detached HEAD state - we'll checkout main anyway
+                current_branch = None
+
+            # Determine which branch name to use (main or master)
+            main_branch = self._get_main_branch_name()
+
+            # Only switch if we're not already on the main branch
+            if current_branch != main_branch:
+                # Try to checkout the branch (will work if it exists locally)
+                try:
+                    self.repo.git.checkout(main_branch)
+                except git.exc.GitCommandError:
+                    # Branch doesn't exist locally, checkout from remote
+                    self.repo.git.checkout("-b", main_branch, f"origin/{main_branch}")
+
+                # Delete the previous branch if it exists and is not the main branch
+                if current_branch and current_branch != main_branch:
+                    with suppress(git.exc.GitCommandError):
+                        self.repo.git.branch("-D", current_branch)
         except (git.exc.GitCommandError, TypeError) as e:
             self._handle_git_error("switching branches", e)
 
     def update_from_remote(self) -> None:
-        """Fetch and pull latest changes from origin/main."""
+        """Fetch and pull latest changes from origin/main or origin/master."""
         try:
             self.repo.remotes.origin.fetch()
-            self.repo.git.pull("origin", "main")
+            main_branch = self._get_main_branch_name()
+            self.repo.git.pull("origin", main_branch)
         except git.exc.GitCommandError as e:
             self._handle_git_error("updating repository", e)
 
@@ -125,6 +166,27 @@ class GitRepository:
                     config.set_value("user", "name", name)
         except git.exc.GitCommandError as e:
             self._handle_git_error("configuring user", e)
+
+    def branch_exists(self, branch_name: str) -> bool:
+        """Check if branch exists locally or remotely."""
+        validate_branch_name(branch_name)
+        try:
+            # Check local branches
+            if branch_name in [ref.name for ref in self.repo.heads]:
+                return True
+            # Check remote branches
+            try:
+                self.repo.remotes.origin.fetch()
+            except git.exc.GitCommandError:
+                # If fetch fails, try to check existing remote refs anyway
+                pass
+            remote_branch = f"origin/{branch_name}"
+            if remote_branch in [ref.name for ref in self.repo.remotes.origin.refs]:
+                return True
+            return False
+        except git.exc.GitCommandError as e:
+            self._handle_git_error("checking branch existence", e)
+            return False  # Never reached, but satisfies type checker
 
     def create_branch(self, branch_name: str) -> None:
         """Create and checkout a new branch."""
@@ -147,7 +209,6 @@ class GitRepository:
             return self.repo.is_dirty(untracked_files=True)
         except git.exc.GitCommandError as e:
             self._handle_git_error("checking changes", e)
-            return False  # Never reached, but satisfies type checker
 
     def commit(self, message: str) -> None:
         """Commit staged changes."""
@@ -176,8 +237,11 @@ class GitRepository:
             origin.set_url(push_url)
             yield
         finally:
-            with suppress(Exception):
+            # Always restore original URL
+            try:
                 origin.set_url(original_url)
+            except Exception:
+                pass  # Best effort cleanup
 
     def push_branch(self, branch_name: str, github_token: str | None = None) -> None:
         """Push branch to remote with optional authentication."""
@@ -241,17 +305,13 @@ class GitHubAPIClient:
         if not match:
             msg = f"Could not parse owner/repo from repo URL: {repo_url}"
             raise CommandError(msg)
-        groups = match.groups()
-        if len(groups) >= MIN_GROUPS_FOR_REPO_PARSE:
-            return (groups[0], groups[1])
-        msg = f"Could not parse owner/repo from repo URL: {repo_url}"
-        raise CommandError(msg)
+        return match.groups()
 
     def _handle_rate_limit(
         self, response: requests.Response, attempt: int, max_retries: int, stdout
     ) -> bool:
         """Handle rate limit response. Returns True if should retry."""
-        if response.status_code == HTTP_STATUS_TOO_MANY_REQUESTS:
+        if response.status_code == 429:
             retry_after = int(response.headers.get("Retry-After", 2 * (2**attempt)))
             if attempt < max_retries - 1:
                 stdout.write(
@@ -270,7 +330,7 @@ class GitHubAPIClient:
         try:
             error_data = response.json()
             return error_data.get("message", f"HTTP {response.status_code}")
-        except (JSONDecodeError, ValueError):
+        except Exception:
             return f"HTTP {response.status_code}"
 
     def verify_branch(
@@ -284,13 +344,13 @@ class GitHubAPIClient:
         url = f"https://api.github.com/repos/{owner}/{repo}/branches/{branch_name}"
         response = requests.get(url, headers=self._get_headers(), timeout=10)
 
-        if response.status_code == HTTP_STATUS_NOT_FOUND:
+        if response.status_code == 404:
             msg = (
                 f"Branch '{branch_name}' not found on remote. "
                 f"Ensure the branch was pushed successfully."
             )
             raise CommandError(msg)
-        elif response.status_code != HTTP_STATUS_OK:
+        elif response.status_code != 200:
             error_msg = self._extract_error_message(response)
             msg = f"Failed to verify branch: {error_msg}"
             raise CommandError(msg)
@@ -305,7 +365,7 @@ class GitHubAPIClient:
         base: str = "main",
         stdout=None,
     ) -> str:
-        """Create a pull request."""
+        """Create a pull request with retry logic."""
         url = f"https://api.github.com/repos/{owner}/{repo}/pulls"
         payload = {"title": title, "body": body, "head": branch_name, "base": base}
         headers = self._get_headers()
@@ -319,7 +379,7 @@ class GitHubAPIClient:
             try:
                 response = requests.post(url, json=payload, headers=headers, timeout=30)
 
-                if response.status_code == HTTP_STATUS_CREATED:
+                if response.status_code == 201:
                     return response.json()["html_url"]
 
                 if self._handle_rate_limit(
@@ -327,13 +387,9 @@ class GitHubAPIClient:
                 ):
                     continue
 
-                if response.status_code == HTTP_STATUS_UNPROCESSABLE_ENTITY:
+                if response.status_code == 422:
                     error_msg = self._extract_error_message(response)
-                    safe_error = (
-                        error_msg[:MAX_ERROR_MESSAGE_LENGTH]
-                        if len(error_msg) > MAX_ERROR_MESSAGE_LENGTH
-                        else error_msg
-                    )
+                    safe_error = error_msg[:200] if len(error_msg) > 200 else error_msg
                     msg = (
                         f"GitHub API validation error: {safe_error}\n"
                         f"This usually means the branch doesn't exist on remote "
@@ -342,11 +398,7 @@ class GitHubAPIClient:
                     raise CommandError(msg)
 
                 error_msg = self._extract_error_message(response)
-                safe_error = (
-                    error_msg[:MAX_ERROR_MESSAGE_LENGTH]
-                    if len(error_msg) > MAX_ERROR_MESSAGE_LENGTH
-                    else error_msg
-                )
+                safe_error = error_msg[:200] if len(error_msg) > 200 else error_msg
                 msg = f"GitHub API error: {safe_error}"
                 raise CommandError(msg)
 
@@ -368,18 +420,11 @@ class GitHubAPIClient:
                     continue
                 else:
                     if is_connection_error:
-                        msg = (
-                            f"Failed to connect to GitHub API after {max_retries} attempts: "
-                            f"{e!s}\n"
-                            "Please check your network connection and try again later."
+                        raise CommandError(
+                            f"Failed to connect to GitHub API after {max_retries} attempts: {e!s}\n"
+                            f"Please check your network connection and try again later."
                         )
-                        raise CommandError(msg) from e
-                    msg = f"GitHub API error: {e!s}"
-                    raise CommandError(msg) from e
-
-        # This should never be reached, but satisfies type checker
-        msg = "Failed to create pull request after all retries"
-        raise CommandError(msg)
+                    raise CommandError(f"GitHub API error: {e!s}")
 
 
 # ============================================================================
@@ -411,10 +456,12 @@ class Command(BaseCommand):
         parser.add_argument(
             "--model",
             type=str,
-            help=(
-                "Model name (e.g., gpt-4, claude-3-opus-20240229, "
-                "mistral/mistral-large-latest)."
+            default=getattr(
+                settings, "TRANSLATIONS_DEFAULT_MODEL", "mistral/mistral-large-latest"
             ),
+            help="Model name (e.g., gpt-4, claude-3-opus-20240229, mistral/mistral-large-latest). "
+            "LiteLLM automatically detects provider from model name. "
+            "Mistral models: mistral/mistral-small-latest, mistral/mistral-medium-latest, ",
         )
         parser.add_argument(
             "--dry-run",
@@ -469,18 +516,21 @@ class Command(BaseCommand):
         repo_path = get_config_value(
             "repo_path",
             options,
-            str(Path.home() / ".mitxonline-translations"),
+            os.path.join(os.path.expanduser("~"), ".mitxonline-translations"),
         )
         repo_url = get_config_value(
             "repo_url",
             options,
             "https://github.com/mitodl/mitxonline-translations.git",
         )
-        model = get_config_value(
-            "model",
-            options,
-            "mistral/mistral-large-latest",
-        )
+
+        # Validate repository path is not empty
+        if not repo_path or not repo_path.strip():
+            raise CommandError(
+                "Repository path is not set. Please specify --repo-path, "
+                "set TRANSLATIONS_REPO_PATH in Django settings, or set "
+                "TRANSLATIONS_REPO_PATH environment variable."
+            )
 
         self.stdout.write(self.style.SUCCESS(f"Processing language: {lang_code}"))
         self.stdout.write(f"   ISO code: {iso_code}")
@@ -492,12 +542,16 @@ class Command(BaseCommand):
         # Sync translation keys
         self.stdout.write("\nSyncing translation keys...")
         base_dir = Path(repo_path) / "translations"
-        sync_stats = sync_all_translations(base_dir, lang_code, iso_code)
+        sync_stats = sync_all_translations(
+            base_dir, lang_code, iso_code, skip_backend=False
+        )
         self._log_sync_stats(sync_stats)
 
         # Extract and filter empty keys
         self.stdout.write("\nExtracting empty keys for translation...")
-        empty_keys = extract_empty_keys(base_dir, lang_code, iso_code)
+        empty_keys = extract_empty_keys(
+            base_dir, lang_code, iso_code, skip_backend=False
+        )
         empty_keys = self._filter_by_mfe(empty_keys, options.get("mfe"))
 
         if not empty_keys:
@@ -508,11 +562,11 @@ class Command(BaseCommand):
         glossary = self._load_glossary(options, lang_code)
 
         # Translate keys
-        self.stdout.write(f"\nTranslating using {model}...")
+        self.stdout.write(f"\nTranslating using {options['model']}...")
         translations, translation_stats = self._translate_keys(
             empty_keys,
             lang_code,
-            model,
+            options["model"],
             glossary,
             options.get("batch_size", 200),
             MAX_RETRIES,
@@ -538,18 +592,26 @@ class Command(BaseCommand):
             return
 
         self.stdout.write("\nCreating pull request...")
-        pr_url = self._create_pull_request(
-            repo_path,
-            branch_name,
-            lang_code,
-            iso_code,
-            sync_stats,
-            applied_count,
-            translation_stats,
-            applied_by_app,
-            repo_url,
-        )
-        self.stdout.write(self.style.SUCCESS(f"\nPull request created: {pr_url}"))
+        try:
+            pr_url = self._create_pull_request(
+                repo_path,
+                branch_name,
+                lang_code,
+                iso_code,
+                sync_stats,
+                applied_count,
+                translation_stats,
+                applied_by_app,
+                repo_url,
+            )
+            self.stdout.write(self.style.SUCCESS(f"\nPull request created: {pr_url}"))
+        except CommandError as e:
+            # Clean up branch if PR creation fails
+            self.stdout.write(
+                self.style.ERROR(f"\nFailed to create pull request: {e!s}")
+            )
+            self._cleanup_failed_branch(repo, branch_name)
+            raise
 
     def _ensure_repo(self, repo_path: str, repo_url: str) -> GitRepository:
         """Ensure repository exists and is ready. Returns GitRepository instance."""
@@ -577,11 +639,10 @@ class Command(BaseCommand):
             return repo
 
         elif repo_path_obj.exists():
-            msg = (
+            raise CommandError(
                 f"Path {repo_path} exists but is not a git repository. "
                 f"Please remove it or specify a different path."
             )
-            raise CommandError(msg)
         else:
             self.stdout.write(f"   Cloning repository to {repo_path}...")
             repo = GitRepository.clone(repo_url, repo_path)
@@ -606,25 +667,22 @@ class Command(BaseCommand):
 
         mfe_set = set(mfe_filter)
         original_count = len(empty_keys)
-        available_apps = {key.get("app", "unknown") for key in empty_keys}
+        available_apps = set(key.get("app", "unknown") for key in empty_keys)
         filtered = [key for key in empty_keys if key.get("app") in mfe_set]
 
         if not filtered:
-            mfe_list = ", ".join(mfe_filter)
-            apps_list = ", ".join(sorted(available_apps))
-            warning_msg = (
-                f"\nWARNING: No empty keys found for specified MFE(s): {mfe_list}\n"
-                f"   Available apps: {apps_list}"
+            self.stdout.write(
+                self.style.WARNING(
+                    f"\nWARNING: No empty keys found for specified MFE(s): {', '.join(mfe_filter)}\n"
+                    f"   Available apps: {', '.join(sorted(available_apps))}"
+                )
             )
-            self.stdout.write(self.style.WARNING(warning_msg))
             return []
 
-        mfe_list = ", ".join(mfe_filter)
-        filtered_msg = (
-            f"   Filtered to {len(filtered)} keys from {len(mfe_set)} MFE(s): {mfe_list} "
+        self.stdout.write(
+            f"   Filtered to {len(filtered)} keys from {len(mfe_set)} MFE(s): {', '.join(mfe_filter)} "
             f"(was {original_count} total)"
         )
-        self.stdout.write(filtered_msg)
         return filtered
 
     def _load_glossary(self, options: dict, lang_code: str) -> dict[str, Any]:
@@ -632,13 +690,10 @@ class Command(BaseCommand):
         if not options.get("glossary", False):
             return {}
 
-        utils_file = Path(translation_sync_utils.__file__)
-        glossary_path = (
-            utils_file.parent.parent
-            / "glossaries"
-            / "machine_learning"
-            / f"{lang_code}.txt"
-        )
+        import ol_openedx_course_translations.utils.translation_sync as utils_module
+
+        utils_file = Path(utils_module.__file__)
+        glossary_path = utils_file.parent.parent / "glossaries" / "machine_learning" / f"{lang_code}.txt"
 
         if glossary_path.exists():
             self.stdout.write(f"\nLoading glossary from {glossary_path}...")
@@ -668,12 +723,14 @@ class Command(BaseCommand):
         glossary_matches = 0
         llm_translations = 0
         llm_errors = 0
-        failed_apps_set = set()  # Track which apps have failed keys overall
+        errors_by_app: dict[str, int] = {}  # Track errors by app/MFE
 
         # First pass: check glossary matches
         keys_needing_llm = []
         for key_info in empty_keys:
-            translation_key = f"{key_info['file_path']}:{key_info['key']}"
+            # Normalize file path for consistent comparison
+            file_path_str = str(Path(key_info["file_path"]).resolve())
+            translation_key = f"{file_path_str}:{key_info['key']}"
 
             if glossary:
                 match_result = self._check_glossary_match(key_info, glossary)
@@ -689,6 +746,7 @@ class Command(BaseCommand):
                 "glossary_matches": glossary_matches,
                 "llm_translations": 0,
                 "errors": 0,
+                "errors_by_app": {},
             }
 
         # Translate remaining keys with LLM
@@ -707,18 +765,22 @@ class Command(BaseCommand):
             1,
         ):
             batch_succeeded = False
+            # Track which apps/MFEs are in this batch
+            batch_apps = set(key_info.get("app", "unknown") for key_info in batch)
 
-            for attempt in range(max_retries + 1):
+            # Retry loop for this batch
+            for attempt in range(max_retries + 1):  # +1 for initial attempt
                 try:
-                    batch_translations = self._call_llm_batch(
-                        batch, lang_code, model, glossary
-                    )
+                    batch_translations = self._call_llm_batch(batch, lang_code, model, glossary)
                     batch_successes = 0
                     batch_partial_errors = 0
-                    failed_apps = set()  # Track which apps have failed keys
+                    batch_errors_by_app: dict[str, int] = {}
 
                     for i, key_info in enumerate(batch):
-                        translation_key = f"{key_info['file_path']}:{key_info['key']}"
+                        # Normalize file path for consistent comparison
+                        file_path_str = str(Path(key_info["file_path"]).resolve())
+                        translation_key = f"{file_path_str}:{key_info['key']}"
+                        app = key_info.get("app", "unknown")
                         if i < len(batch_translations) and batch_translations[i]:
                             translations[translation_key] = batch_translations[i]
                             llm_translations += 1
@@ -726,100 +788,85 @@ class Command(BaseCommand):
                         else:
                             llm_errors += 1
                             batch_partial_errors += 1
-                            # Track which app this failed key belongs to
-                            app_name = key_info.get("app", "unknown")
-                            failed_apps.add(app_name)
-                            failed_apps_set.add(app_name)  # Track for final summary
+                            batch_errors_by_app[app] = batch_errors_by_app.get(app, 0) + 1
+                            errors_by_app[app] = errors_by_app.get(app, 0) + 1
 
-                    completed = batch_idx * batch_size
+                    completed = min(batch_idx * batch_size, total_keys)
                     progress_pct = min((completed / total_keys) * 100, 100)
+                    # Calculate remaining keys (total_keys is only for LLM translations, not glossary)
+                    remaining_keys = total_keys - llm_translations
 
                     if batch_partial_errors > 0:
-                        retry_msg = (
-                            f" (after {attempt + 1} attempt(s))" if attempt > 0 else ""
+                        retry_msg = f" (after {attempt + 1} attempt(s))" if attempt > 0 else ""
+                        apps_str = ", ".join(sorted(batch_apps))
+                        errors_by_app_str = ", ".join(
+                            f"{app}: {count}" for app, count in sorted(batch_errors_by_app.items())
                         )
-                        # Show which apps have failed keys
-                        apps_list = ", ".join(sorted(failed_apps))
-                        partial_success = f"({batch_successes} succeeded, {batch_partial_errors} failed)"
-                        progress_info = (
-                            f"({min(completed, total_keys)}/{total_keys} keys, "
-                            f"{progress_pct:.1f}%)"
-                        )
-                        batch_msg = (
-                            f"   Batch {batch_idx}/{num_batches} completed with partial success "
-                            f"{partial_success}{retry_msg} {progress_info}"
-                        )
-                        self.stdout.write(batch_msg)
                         self.stdout.write(
-                            self.style.WARNING(f"         Failed keys in: {apps_list}")
+                            f"   Batch {batch_idx}/{num_batches} completed with partial success "
+                            f"({batch_successes} succeeded, {batch_partial_errors} failed){retry_msg} "
+                            f"({completed}/{total_keys} keys, {progress_pct:.1f}% complete, {remaining_keys} remaining)\n"
+                            f"         Affected apps: {apps_str}\n"
+                            f"         Errors by app: {errors_by_app_str}"
                         )
                     else:
-                        # If batch succeeded (including after retries), show success message
-                        retry_msg = (
-                            f" (after {attempt + 1} attempt(s))" if attempt > 0 else ""
-                        )
-                        progress_info = (
-                            f"({min(completed, total_keys)}/{total_keys} keys, "
-                            f"{progress_pct:.1f}%)"
-                        )
-                        batch_msg = (
+                        retry_msg = f" (after {attempt + 1} attempt(s))" if attempt > 0 else ""
+                        self.stdout.write(
                             f"   Batch {batch_idx}/{num_batches} completed{retry_msg} "
-                            f"{progress_info}"
+                            f"({completed}/{total_keys} keys, {progress_pct:.1f}% complete, {remaining_keys} remaining)"
                         )
-                        self.stdout.write(batch_msg)
 
                     batch_succeeded = True
-                    break
+                    break  # Success - exit retry loop
 
-                except (
-                    Exception  # Broad exception needed for LLM API errors
-                ) as e:
+                except Exception as e:
+                    apps_str = ", ".join(sorted(batch_apps))
                     # Check if error is retryable
                     if not is_retryable_error(e):
                         # Non-retryable error - fail immediately
-                        error_msg = (
-                            f"   ERROR: Batch {batch_idx}/{num_batches} "
-                            f"failed with non-retryable error: {e!s}"
+                        self.stdout.write(
+                            self.style.ERROR(
+                                f"   ERROR: Batch {batch_idx}/{num_batches} failed with non-retryable error: {e!s}\n"
+                                f"         Affected apps: {apps_str}"
+                            )
                         )
-                        self.stdout.write(self.style.ERROR(error_msg))
                         break
 
                     # Retryable error - check if we have retries left
                     if attempt < max_retries:
                         # Exponential backoff: 2^attempt seconds (1s, 2s, 4s, 8s...)
-                        wait_time = 2**attempt
-                        warning_msg = (
-                            f"   WARNING: Batch {batch_idx}/{num_batches} failed "
-                            f"(attempt {attempt + 1}/{max_retries + 1}): {e!s}\n"
-                            f"         Retrying in {wait_time} second(s)..."
+                        wait_time = 2 ** attempt
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"   WARNING: Batch {batch_idx}/{num_batches} failed (attempt {attempt + 1}/{max_retries + 1}): {e!s}\n"
+                                f"         Affected apps: {apps_str}\n"
+                                f"         Retrying in {wait_time} second(s)..."
+                            )
                         )
-                        self.stdout.write(self.style.WARNING(warning_msg))
                         time.sleep(wait_time)
                     else:
                         # Out of retries
-                        error_msg = (
-                            f"   ERROR: Batch {batch_idx}/{num_batches} failed after "
-                            f"{max_retries + 1} attempts: {e!s}"
+                        self.stdout.write(
+                            self.style.ERROR(
+                                f"   ERROR: Batch {batch_idx}/{num_batches} failed after {max_retries + 1} attempts: {e!s}\n"
+                                f"         Affected apps: {apps_str}"
+                            )
                         )
-                        self.stdout.write(self.style.ERROR(error_msg))
 
             # If batch failed after all retries, mark all keys as errors
             if not batch_succeeded:
                 batch_errors = len(batch)
                 llm_errors += batch_errors
-                # Track which apps failed in this batch
-                batch_failed_apps = {
-                    key_info.get("app", "unknown") for key_info in batch
-                }
-                failed_apps_set.update(batch_failed_apps)
-                apps_list = ", ".join(sorted(batch_failed_apps))
-                error_msg = (
-                    f"         Marked {batch_errors} keys as errors, "
-                    f"continuing with next batch..."
-                )
-                self.stdout.write(self.style.ERROR(error_msg))
+                # Track errors by app for this failed batch
+                for key_info in batch:
+                    app = key_info.get("app", "unknown")
+                    errors_by_app[app] = errors_by_app.get(app, 0) + 1
+                apps_str = ", ".join(sorted(batch_apps))
                 self.stdout.write(
-                    self.style.ERROR(f"         Failed keys in: {apps_list}")
+                    self.style.ERROR(
+                        f"         Marked {batch_errors} keys as errors, continuing with next batch...\n"
+                        f"         Affected apps: {apps_str}"
+                    )
                 )
                 # Continue to next batch - don't break the loop
 
@@ -832,17 +879,11 @@ class Command(BaseCommand):
             )
         self.stdout.write(summary)
 
-        # Show which apps have failed keys if any
-        if llm_errors > 0 and failed_apps_set:
-            apps_list = ", ".join(sorted(failed_apps_set))
-            self.stdout.write(
-                self.style.WARNING(f"   Failed keys in repos/apps: {apps_list}")
-            )
-
         return translations, {
             "glossary_matches": glossary_matches,
             "llm_translations": llm_translations,
             "errors": llm_errors,
+            "errors_by_app": errors_by_app,
         }
 
     def _check_glossary_match(
@@ -900,8 +941,7 @@ class Command(BaseCommand):
         """Format glossary as a prompt section for LLM translation requests.
 
         Args:
-            glossary: Dictionary mapping English terms to translations,
-                or None/empty dict.
+            glossary: Dictionary mapping English terms to translations, or None/empty dict.
 
         Returns:
             Empty string if glossary is None or empty, otherwise returns a formatted
@@ -925,28 +965,25 @@ class Command(BaseCommand):
             return ""
         return f"""
 
-IMPORTANT - Use these glossary terms when translating. If any English terms
-from the glossary appear in the texts to translate, use the corresponding
-translation from the glossary:
+IMPORTANT - Use these glossary terms when translating. If any English terms from the glossary appear in the texts to translate, use the corresponding translation from the glossary:
 
 {glossary_json}
 
-When translating sentences, ensure that glossary terms are translated
-consistently according to the glossary above, even if they appear within
-longer sentences. For example, if the glossary specifies "certificate" ->
-"Πιστοποιητικό", then translate "certificate" as "Πιστοποιητικό" even when
-it appears in longer sentences like "The course completion certificate is
-available".
+When translating sentences, ensure that glossary terms are translated consistently according to the glossary above, even if they appear within longer sentences. For example, if the glossary specifies "certificate" -> "Πιστοποιητικό", then translate "certificate" as "Πιστοποιητικό" even when it appears in longer sentences like "The course completion certificate is available".
 """
 
     def _call_llm_batch(
-        self,
-        key_batch: list[dict],
-        lang_code: str,
-        model: str,
-        glossary: dict[str, Any] | None = None,
+        self, key_batch: list[dict], lang_code: str, model: str, glossary: dict[str, Any] | None = None, timeout: int = 120
     ) -> list[str | dict]:
-        """Call LLM API to translate multiple texts in a single request."""
+        """Call LLM API to translate multiple texts in a single request.
+        
+        Args:
+            key_batch: List of key information dictionaries to translate
+            lang_code: Target language code
+            model: LLM model name
+            glossary: Optional glossary dictionary
+            timeout: Request timeout in seconds (default: 120)
+        """
         api_key = self._get_llm_api_key(model)
 
         texts_dict = {}
@@ -967,31 +1004,19 @@ available".
 
         lang_name = LANGUAGE_MAPPING.get(lang_code, lang_code)
 
+        # Build glossary section if glossary is provided
         glossary_section = self._format_glossary_for_prompt(glossary)
 
-        prompt = f"""Translate the following {len(key_batch)} text(s) to {
-            lang_name
-        } (language code: {lang_code}).
+        prompt = f"""Translate the following {len(key_batch)} text(s) to {lang_name} (language code: {lang_code}).
 Context: These are from an educational platform.
 Preserve any placeholders like {{variable}}, {{0}}, %s, etc.
 Preserve HTML tags and formatting.
 {glossary_section}
-{
-            (
-                "IMPORTANT: "
-                + str(plural_count)
-                + " entry/entries have plural forms. "
-                + "For these, return BOTH singular and "
-                + 'plural translations as an object with "singular" and "plural" keys.'
-            )
-            if plural_count > 0
-            else ""
-        }
+{("IMPORTANT: " + str(plural_count) + ' entry/entries have plural forms. For these, return BOTH singular and plural translations as an object with "singular" and "plural" keys.') if plural_count > 0 else ""}
 
 Return a JSON object where each key is the number (1, 2, 3, etc.).
 - For singular entries: value is the translation string.
-- For plural entries: value is an object with "singular" and "plural" keys,
-  each containing the translation.
+- For plural entries: value is an object with "singular" and "plural" keys, each containing the translation.
 
 Input texts (numbered):
 {texts_block}
@@ -1009,6 +1034,7 @@ Return ONLY valid JSON in this format:
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.3,
+                "timeout": timeout,
             }
             if api_key:
                 completion_kwargs["api_key"] = api_key
@@ -1022,16 +1048,20 @@ Return ONLY valid JSON in this format:
 
             return self._parse_order_based_response(response_text, key_batch)
 
+        except TimeoutError as e:
+            raise CommandError(
+                f"LLM batch API call timed out after {timeout} seconds.\n"
+                f"Model: {model}\n"
+                f"Batch size: {len(key_batch)}\n"
+                f"Try reducing --batch-size or check your network connection."
+            )
         except Exception as e:
-            msg = (
+            raise CommandError(
                 f"LLM batch API call failed: {e!s}\n"
                 f"Model: {model}\n"
                 f"Batch size: {len(key_batch)}\n"
-                f"Make sure the appropriate API key is set "
-                f"(e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY, "
-                f"MISTRAL_API_KEY)"
+                f"Make sure the appropriate API key is set (e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY, MISTRAL_API_KEY)"
             )
-            raise CommandError(msg) from e
 
     def _parse_json_response(
         self, response_text: str, key_batch: list[dict]
@@ -1051,7 +1081,7 @@ Return ONLY valid JSON in this format:
 
         try:
             data = json.loads(json_text)
-            translations: list[str | dict] = []
+            translations = []
             for i in range(len(key_batch)):
                 key = str(i + 1)
                 if key in data:
@@ -1077,7 +1107,7 @@ Return ONLY valid JSON in this format:
 
     def _parse_order_based_response(
         self, response_text: str, key_batch: list[dict]
-    ) -> list[str | dict]:
+    ) -> list[str]:
         """Fallback: Parse response assuming translations are in order."""
         lines = [line.strip() for line in response_text.split("\n") if line.strip()]
         cleaned_lines = [
@@ -1087,9 +1117,7 @@ Return ONLY valid JSON in this format:
         ]
         if len(cleaned_lines) < len(key_batch):
             cleaned_lines.extend([""] * (len(key_batch) - len(cleaned_lines)))
-        # Type cast: cleaned_lines is list[str], but function returns list[str | dict]
-        result: list[str | dict] = list(cleaned_lines[: len(key_batch)])
-        return result
+        return cleaned_lines[: len(key_batch)]
 
     def _get_llm_api_key(self, model: str) -> str | None:
         """Get API key for the model from environment or settings."""
@@ -1107,10 +1135,11 @@ Return ONLY valid JSON in this format:
         )
         if not key_name:
             return None
-
-        with suppress(Exception):
+        try:
             if hasattr(settings, key_name):
                 return getattr(settings, key_name)
+        except Exception:
+            pass
         return os.environ.get(key_name)
 
     def _apply_translations(
@@ -1122,18 +1151,19 @@ Return ONLY valid JSON in this format:
     ) -> tuple[int, dict[str, Any]]:
         """Apply translations to files."""
         applied = 0
-        translations_by_file: dict[str, dict[str, Any]] = {}
+        translations_by_file = {}
 
         for key_info in empty_keys:
-            translation_key = f"{key_info['file_path']}:{key_info['key']}"
+            # Normalize file path for consistent comparison
+            file_path_str = str(Path(key_info["file_path"]).resolve())
+            translation_key = f"{file_path_str}:{key_info['key']}"
             if translation_key in translations:
-                file_path = key_info["file_path"]
                 trans_value = translations[translation_key]
 
                 if key_info["file_type"] == "json" and isinstance(trans_value, dict):
                     trans_value = trans_value.get("singular", str(trans_value))
 
-                translations_by_file.setdefault(file_path, {})[key_info["key"]] = (
+                translations_by_file.setdefault(file_path_str, {})[key_info["key"]] = (
                     trans_value
                 )
 
@@ -1152,7 +1182,13 @@ Return ONLY valid JSON in this format:
                 )
                 continue
 
-            key_info = next(k for k in empty_keys if k["file_path"] == file_path)
+            # Normalize paths for comparison
+            normalized_file_path = str(full_path.resolve())
+            key_info = next(
+                k
+                for k in empty_keys
+                if str(Path(k["file_path"]).resolve()) == normalized_file_path
+            )
             app = key_info.get("app", "unknown")
 
             if key_info["file_type"] == "json":
@@ -1180,12 +1216,40 @@ Return ONLY valid JSON in this format:
 
         return applied, {"by_app": applied_by_app, "details": applied_details}
 
+    def _cleanup_failed_branch(self, repo: GitRepository, branch_name: str) -> None:
+        """Clean up branch if PR creation fails."""
+        try:
+            repo.switch_to_main()
+            if repo.branch_exists(branch_name):
+                repo.repo.git.branch("-D", branch_name)
+                self.stdout.write(
+                    self.style.WARNING(f"   Cleaned up failed branch: {branch_name}")
+                )
+        except Exception as e:
+            self.stdout.write(
+                self.style.WARNING(f"   Could not clean up branch {branch_name}: {e!s}")
+            )
+
     def _commit_changes(
         self, repo: GitRepository, branch_name: str, lang_code: str
     ) -> bool:
         """Commit changes to git repository. Returns True if committed."""
-        repo.configure_user()
-        repo.create_branch(branch_name)
+        # Check if branch already exists
+        if repo.branch_exists(branch_name):
+            self.stdout.write(
+                self.style.WARNING(
+                    f"   Branch '{branch_name}' already exists. "
+                    f"Switching to it and continuing..."
+                )
+            )
+            try:
+                repo.repo.git.checkout(branch_name)
+            except git.exc.GitCommandError:
+                # If local branch doesn't exist but remote does, create tracking branch
+                repo.repo.git.checkout("-b", branch_name, f"origin/{branch_name}")
+        else:
+            repo.configure_user()
+            repo.create_branch(branch_name)
         repo.stage_all()
 
         if not repo.has_changes():
@@ -1195,8 +1259,10 @@ Return ONLY valid JSON in this format:
                 )
             )
             repo.switch_to_main()
-            with suppress(git.exc.GitCommandError):
+            try:
                 repo.repo.git.branch("-D", branch_name)
+            except Exception:
+                pass
             return False
 
         safe_lang_code = sanitize_for_git(lang_code)
@@ -1265,11 +1331,12 @@ Return ONLY valid JSON in this format:
                 repo_url,
             )
 
-    def _generate_error_section(self, errors: int) -> str:
+    def _generate_error_section(self, errors: int, errors_by_app: dict[str, int] | None = None) -> str:
         """Generate error warning section for PR body if there are errors.
 
         Args:
             errors: Number of translation errors.
+            errors_by_app: Dictionary mapping app/MFE names to error counts.
 
         Returns:
             Error section markdown string, or empty string if no errors.
@@ -1277,12 +1344,19 @@ Return ONLY valid JSON in this format:
         if errors == 0:
             return ""
 
+        error_details = ""
+        if errors_by_app:
+            error_lines = [
+                f"- **{app}**: {count} key(s) failed"
+                for app, count in sorted(errors_by_app.items(), key=lambda x: x[1], reverse=True)
+            ]
+            error_details = f"\n**Errors by app/MFE:**\n\n" + "\n".join(error_lines) + "\n"
+
         return f"""
 ### Translation Errors
 
-**{errors} translation key(s) failed to translate** due to API errors,
-rate limits, or parsing issues.
-
+**{errors} translation key(s) failed to translate** due to API errors, rate limits, or parsing issues.
+{error_details}
 **Impact:**
 - These keys remain untranslated in the target language files
 - They will need to be translated manually or re-run the command
@@ -1328,11 +1402,12 @@ rate limits, or parsing issues.
         glossary_matches = translation_stats.get("glossary_matches", 0)
         llm_translations = translation_stats.get("llm_translations", 0)
         errors = translation_stats.get("errors", 0)
+        errors_by_app = translation_stats.get("errors_by_app", {})
 
         translation_summary = self._generate_translation_summary(
             glossary_matches, llm_translations, errors
         )
-        error_section = self._generate_error_section(errors)
+        error_section = self._generate_error_section(errors, errors_by_app)
 
         applied_details = applied_by_app.get("details", [])
         breakdown_lines = [
@@ -1428,6 +1503,9 @@ This PR adds {lang_code} translations via LLM automation.
 
         client.verify_branch(owner, repo, branch_name, self.stdout)
 
+        git_repo = GitRepository(repo_path)
+        main_branch = git_repo._get_main_branch_name()
+
         return client.create_pull_request(
             owner=owner,
             repo=repo,
@@ -1441,5 +1519,6 @@ This PR adds {lang_code} translations via LLM automation.
                 translation_stats,
                 applied_by_app,
             ),
+            base=main_branch,
             stdout=self.stdout,
         )

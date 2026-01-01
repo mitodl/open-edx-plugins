@@ -7,11 +7,12 @@ including validation, error handling, git operations, and configuration helpers.
 
 import os
 import re
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from django.conf import settings
 from django.core.management.base import CommandError
+
 
 # ============================================================================
 # Validation Utilities
@@ -21,18 +22,16 @@ from django.core.management.base import CommandError
 def validate_language_code(code: str, field_name: str = "language code") -> None:
     """Validate language code format (xx or xx_XX)."""
     if not re.match(r"^[a-z]{2}(_[A-Z]{2})?$", code):
-        msg = (
+        raise CommandError(
             f"Invalid {field_name} format: {code}. "
             f"Expected format: 'xx' or 'xx_XX' (e.g., 'el', 'es_ES')"
         )
-        raise CommandError(msg)
 
 
 def validate_branch_name(branch_name: str) -> None:
     """Validate branch name format to prevent injection."""
     if not re.match(r"^[a-z0-9/_-]+$", branch_name):
-        msg = f"Invalid branch name format: {branch_name}"
-        raise CommandError(msg)
+        raise CommandError(f"Invalid branch name format: {branch_name}")
 
 
 # ============================================================================
@@ -48,7 +47,7 @@ def sanitize_for_git(text: str) -> str:
 def create_branch_name(lang_code: str) -> str:
     """Create a safe branch name from language code."""
     safe_lang = re.sub(r"[^a-z0-9_-]", "", lang_code.lower())
-    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     return f"feature/add-{safe_lang}-translations-{timestamp}"
 
 
@@ -59,13 +58,27 @@ def create_branch_name(lang_code: str) -> str:
 
 def get_config_value(key: str, options: dict, default: Any = None) -> Any:
     """Get configuration value from options, settings, or environment."""
-    if options.get(key):
-        return options[key]
-    setting_key = key.upper().replace("-", "_")
+    # Check command-line options first (Django converts --repo-path to repo_path)
+    option_value = options.get(key) or options.get(key.replace("_", "-"))
+    if option_value:
+        return option_value
+    
+    # Check settings with TRANSLATIONS_ prefix
+    setting_key = f"TRANSLATIONS_{key.upper().replace('-', '_')}"
     if hasattr(settings, setting_key):
-        return getattr(settings, setting_key)
+        setting_value = getattr(settings, setting_key)
+        # Only use setting if it's not empty
+        if setting_value:
+            return setting_value
+    
+    # Check environment variable with TRANSLATIONS_ prefix
     env_key = setting_key
-    return os.environ.get(env_key, default)
+    env_value = os.environ.get(env_key)
+    if env_value:
+        return env_value
+    
+    # Return default if nothing found
+    return default
 
 
 # ============================================================================
@@ -90,6 +103,7 @@ def is_retryable_error(error: Exception) -> bool:
         False
     """
     error_str = str(error).lower()
+    error_type = type(error).__name__
 
     # Retryable errors
     retryable_patterns = [
