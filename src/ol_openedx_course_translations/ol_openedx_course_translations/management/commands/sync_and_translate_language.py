@@ -2,8 +2,8 @@
 Django management command to sync translation keys, translate using LLM, and create PRs.
 
 Usage:
-    python manage.py sync_and_translate_language el
-    python manage.py sync_and_translate_language fr --model gpt-4
+    ./manage.py cms sync_and_translate_language el
+    ./manage.py cms sync_and_translate_language el --provider openai --model gpt-4-turbo --glossary
 """
 
 import json
@@ -474,7 +474,6 @@ class GitHubAPIClient:
                     msg = f"GitHub API error: {e!s}"
                     raise CommandError(msg) from e
 
-        # This should never be reached, but satisfies type checker
         msg = "Failed to create pull request after all retries"
         raise CommandError(msg)
 
@@ -598,7 +597,6 @@ class Command(BaseCommand):
         lang_code = options["lang"]
         iso_code = options.get("iso_code") or lang_code
 
-        # Validate inputs
         validate_language_code(lang_code)
         validate_language_code(iso_code, "ISO code")
 
@@ -626,10 +624,8 @@ class Command(BaseCommand):
         self.stdout.write(f"   ISO code: {iso_code}")
         self.stdout.write(f"   Repository: {repo_path}")
 
-        # Ensure repository is ready
         repo = self._ensure_repo(repo_path, repo_url)
 
-        # Sync translation keys
         self.stdout.write("\nSyncing translation keys...")
         base_dir = Path(repo_path) / "translations"
         sync_stats = sync_all_translations(
@@ -648,7 +644,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("\nNo empty keys to translate!"))
             return
 
-        # Load glossary if enabled
         glossary = self._load_glossary(options, lang_code)
 
         provider = options.get("provider") or get_default_provider()
@@ -678,7 +673,6 @@ class Command(BaseCommand):
         translations, translation_stats = self._translate_keys(empty_keys, params)
         self.stdout.write(f"   Translated {len(translations)} keys")
 
-        # Apply translations
         self.stdout.write("\nApplying translations...")
         applied_count, applied_by_app = self._apply_translations(
             translations, empty_keys, self.stdout
@@ -689,7 +683,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("\nDry run - no changes committed"))
             return
 
-        # Commit and create PR
         branch_name = create_branch_name(lang_code)
         self.stdout.write(f"\nCommitting changes to branch: {branch_name}")
 

@@ -28,7 +28,6 @@ Configuration
        DEEPL_API_KEY: <YOUR_DEEPL_API_KEY_HERE>
        ENABLE_AUTO_LANGUAGE_SELECTION: true  # Enable auto language selection based on course language
 
-       # Translation providers configuration
        TRANSLATION_PROVIDERS: {
            "default_provider": "mistral",  # Default provider to use
            "openai": {
@@ -44,8 +43,8 @@ Configuration
                "default_model": "mistral/mistral-large-latest",
            },
        }
-       TRANSLATIONS_GITHUB_TOKEN: <YOUR_GITHUB_TOKEN>  # For creating PRs
-       TRANSLATIONS_REPO_PATH: ""  # Optional: path to translations repository
+       TRANSLATIONS_GITHUB_TOKEN: <YOUR_GITHUB_TOKEN>
+       TRANSLATIONS_REPO_PATH: ""
        TRANSLATIONS_REPO_URL: "https://github.com/mitodl/mitxonline-translations.git"
 
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
