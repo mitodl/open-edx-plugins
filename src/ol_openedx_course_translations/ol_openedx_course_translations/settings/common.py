@@ -10,18 +10,27 @@ def apply_common_settings(settings):
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["admin", "sysadmin", "instructor"]
     settings.DEEPL_API_KEY = ""
-    settings.OPENAI_API_KEY = ""
-    settings.ANTHROPIC_API_KEY = ""
-    settings.MISTRAL_API_KEY = ""
-    settings.GOOGLE_API_KEY = ""
-    settings.GITHUB_TOKEN = ""
+    settings.TRANSLATION_PROVIDERS = {
+        "default_provider": "mistral",
+        "openai": {
+            "api_key": "",
+            "default_model": "gpt-4",
+        },
+        "gemini": {
+            "api_key": "",
+            "default_model": "gemini-pro",
+        },
+        "mistral": {
+            "api_key": "",
+            "default_model": "mistral/mistral-large-latest",
+        },
+    }
+    settings.TRANSLATIONS_GITHUB_TOKEN = ""
     # Translation repository settings
     settings.TRANSLATIONS_REPO_PATH = ""
     settings.TRANSLATIONS_REPO_URL = (
         "https://github.com/mitodl/mitxonline-translations.git"
     )
-    # Default LLM model for translations
-    settings.DEFAULT_MODEL = "mistral/mistral-large-latest"
     settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES = [
         "about",
         "course",

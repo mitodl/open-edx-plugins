@@ -82,6 +82,19 @@ def get_config_value(key: str, options: dict, default: Any = None) -> Any:
     return default
 
 
+def get_default_provider() -> str | None:
+    """Get default provider from TRANSLATION_PROVIDERS."""
+    providers = getattr(settings, "TRANSLATION_PROVIDERS", {})
+    return providers.get("default_provider")
+
+
+def get_default_model_for_provider(provider: str) -> str | None:
+    """Get default model for a provider from TRANSLATION_PROVIDERS."""
+    providers = getattr(settings, "TRANSLATION_PROVIDERS", {})
+    provider_config = providers.get(provider, {})
+    return provider_config.get("default_model")
+
+
 # ============================================================================
 # Error Handling Utilities
 # ============================================================================

@@ -29,6 +29,8 @@ import ol_openedx_course_translations.utils.translation_sync as utils_module
 from ol_openedx_course_translations.utils.command_utils import (
     create_branch_name,
     get_config_value,
+    get_default_model_for_provider,
+    get_default_provider,
     is_retryable_error,
     sanitize_for_git,
     validate_branch_name,
@@ -53,9 +55,6 @@ from ol_openedx_course_translations.utils.translation_sync import (
     sync_all_translations,
 )
 
-# ============================================================================
-# Git Repository Helper Class
-# ============================================================================
 logger = logging.getLogger(__name__)
 
 
@@ -294,11 +293,6 @@ class GitRepository:
             raise CommandError(msg) from e
 
 
-# ============================================================================
-# GitHub API Client
-# ============================================================================
-
-
 class GitHubAPIClient:
     """Helper class for GitHub API operations."""
 
@@ -306,11 +300,11 @@ class GitHubAPIClient:
         """Initialize with optional token."""
         self.token = (
             token
-            or getattr(settings, "GITHUB_TOKEN", None)
-            or os.environ.get("GITHUB_TOKEN")
+            or getattr(settings, "TRANSLATIONS_GITHUB_TOKEN", None)
+            or os.environ.get("TRANSLATIONS_GITHUB_TOKEN")
         )
         if not self.token:
-            msg = "GITHUB_TOKEN not set in settings or environment"
+            msg = "TRANSLATIONS_GITHUB_TOKEN not set in settings or environment"
             raise CommandError(msg)
 
     def _get_headers(self) -> dict:
@@ -485,13 +479,8 @@ class GitHubAPIClient:
         raise CommandError(msg)
 
 
-# ============================================================================
-# Main Command Class
-# ============================================================================
-
-
-class PRData(TypedDict):
-    """Data structure for PR creation."""
+class PullRequestData(TypedDict):
+    """Data structure for pull request creation."""
 
     lang_code: str
     iso_code: str
@@ -535,18 +524,31 @@ class Command(BaseCommand):
                 "or environment variable."
             ),
         )
+        default_provider = get_default_provider()
+        parser.add_argument(
+            "--provider",
+            type=str,
+            default=default_provider,
+            choices=["openai", "gemini", "mistral"],
+            help=(
+                "Translation provider (openai, gemini, mistral). "
+                "Default is taken from TRANSLATION_PROVIDERS['default_provider']"
+                + (
+                    f" (currently: {default_provider})"
+                    if default_provider
+                    else " (not configured)"
+                )
+            ),
+        )
         parser.add_argument(
             "--model",
             type=str,
-            default=getattr(
-                settings, "TRANSLATIONS_DEFAULT_MODEL", "mistral/mistral-large-latest"
-            ),
+            default=None,
             help=(
-                "Model name (e.g., gpt-4, claude-3-opus-20240229, "
-                "mistral/mistral-large-latest). "
-                "LiteLLM automatically detects provider from model name. "
-                "Mistral models: mistral/mistral-small-latest, "
-                "mistral/mistral-medium-latest, "
+                "Model name (e.g., gpt-4, gemini-pro, mistral/mistral-large-latest). "
+                "If not specified, uses the default_model for the selected provider "
+                "from TRANSLATION_PROVIDERS. "
+                "LiteLLM automatically detects provider from model name."
             ),
         )
         parser.add_argument(
@@ -591,7 +593,7 @@ class Command(BaseCommand):
             ),
         )
 
-    def handle(self, *args, **options):  # noqa: ARG002
+    def handle(self, *args, **options):  # noqa: ARG002, PLR0915
         """Handle the command execution."""
         lang_code = options["lang"]
         iso_code = options.get("iso_code") or lang_code
@@ -649,11 +651,26 @@ class Command(BaseCommand):
         # Load glossary if enabled
         glossary = self._load_glossary(options, lang_code)
 
-        # Translate keys
-        self.stdout.write(f"\nTranslating using {options['model']}...")
+        provider = options.get("provider") or get_default_provider()
+        if not provider:
+            msg = (
+                "Provider not specified and "
+                "TRANSLATION_PROVIDERS['default_provider'] is not set"
+            )
+            raise CommandError(msg)
+
+        model = options.get("model") or get_default_model_for_provider(provider)
+        if not model:
+            msg = (
+                f"Model not specified and provider '{provider}' "
+                "does not have default_model in TRANSLATION_PROVIDERS"
+            )
+            raise CommandError(msg)
+
+        self.stdout.write(f"\nTranslating using {provider}/{model}...")
         params = TranslationParams(
             lang_code=lang_code,
-            model=options["model"],
+            model=model,
             glossary=glossary,
             batch_size=options.get("batch_size", 200),
             max_retries=MAX_RETRIES,
@@ -681,7 +698,7 @@ class Command(BaseCommand):
 
         self.stdout.write("\nCreating pull request...")
         try:
-            pr_data = PRData(
+            pr_data = PullRequestData(
                 lang_code=lang_code,
                 iso_code=iso_code,
                 sync_stats=sync_stats,
@@ -1324,8 +1341,9 @@ Return ONLY valid JSON in this format:
                 f"LLM batch API call failed: {e!s}\n"
                 f"Model: {model}\n"
                 f"Batch size: {len(key_batch)}\n"
-                f"Make sure the appropriate API key is set "
-                f"(e.g., OPENAI_API_KEY, ANTHROPIC_API_KEY, MISTRAL_API_KEY)"
+                f"Make sure TRANSLATION_PROVIDERS is configured in settings "
+                f"with the appropriate api_key, or set the environment variable "
+                f"(OPENAI_API_KEY, GEMINI_API_KEY, or MISTRAL_API_KEY)"
             )
             raise CommandError(msg) from e
 
@@ -1388,28 +1406,37 @@ Return ONLY valid JSON in this format:
         return cast("list[str | dict[str, str]]", cleaned_lines[: len(key_batch)])
 
     def _get_llm_api_key(self, model: str) -> str | None:
-        """Get API key for the model from environment or settings."""
+        """Get API key from TRANSLATION_PROVIDERS or environment variables."""
         model_lower = model.lower()
-        key_name = (
-            "ANTHROPIC_API_KEY"
-            if "claude" in model_lower or "anthropic" in model_lower
-            else "GOOGLE_API_KEY"
-            if "gemini" in model_lower or "google" in model_lower
+
+        provider_name = None
+        if "gemini" in model_lower or "google" in model_lower:
+            provider_name = "gemini"
+        elif "mistral" in model_lower:
+            provider_name = "mistral"
+        else:
+            provider_name = "openai"
+
+        try:
+            if hasattr(settings, "TRANSLATION_PROVIDERS"):
+                providers = getattr(settings, "TRANSLATION_PROVIDERS", {})
+                if isinstance(providers, dict) and provider_name in providers:
+                    provider_config = providers[provider_name]
+                    if isinstance(provider_config, dict):
+                        api_key = provider_config.get("api_key")
+                        if api_key:
+                            return api_key
+        except (AttributeError, TypeError) as e:
+            logger.debug("Error accessing TRANSLATION_PROVIDERS: %s", e)
+
+        env_key_name = (
+            "GEMINI_API_KEY"
+            if provider_name == "gemini"
             else "MISTRAL_API_KEY"
-            if "mistral" in model_lower
-            else None
-            if "ollama" in model_lower
+            if provider_name == "mistral"
             else "OPENAI_API_KEY"
         )
-        if not key_name:
-            return None
-        try:
-            if hasattr(settings, key_name):
-                return getattr(settings, key_name)
-        except (AttributeError, TypeError) as e:
-            # Log but continue to try environment variable
-            logger.debug("Error accessing settings.%s: %s", key_name, e)
-        return os.environ.get(key_name)
+        return os.environ.get(env_key_name)
 
     def _group_translations_by_file(
         self, translations: dict[str, Any], empty_keys: list[dict]
@@ -1565,9 +1592,9 @@ Return ONLY valid JSON in this format:
 
         repo.commit(commit_message)
 
-        github_token = getattr(settings, "GITHUB_TOKEN", None) or os.environ.get(
-            "GITHUB_TOKEN"
-        )
+        github_token = getattr(
+            settings, "TRANSLATIONS_GITHUB_TOKEN", None
+        ) or os.environ.get("TRANSLATIONS_GITHUB_TOKEN")
         repo.push_branch(branch_name, github_token)
         self.stdout.write("   Pushed branch to remote")
 
@@ -1577,7 +1604,7 @@ Return ONLY valid JSON in this format:
         self,
         repo_path: str,
         branch_name: str,
-        pr_data: PRData,
+        pr_data: PullRequestData,
         repo_url: str,
     ) -> str:
         """Create pull request using GitHub CLI or API."""
@@ -1677,7 +1704,7 @@ limits, or parsing issues.
             )
         return f"Summary - LLM translations: {llm_translations}, Errors: {errors}"
 
-    def _generate_pr_body(self, pr_data: PRData) -> str:
+    def _generate_pr_body(self, pr_data: PullRequestData) -> str:
         """Generate PR description."""
         lang_code = pr_data["lang_code"]
         iso_code = pr_data["iso_code"]
@@ -1778,7 +1805,7 @@ This PR adds {lang_code} translations via LLM automation.
         self,
         repo_path: str,
         branch_name: str,
-        pr_data: PRData,
+        pr_data: PullRequestData,
         repo_url: str,
     ) -> str:
         """Create PR using GitHub API."""
