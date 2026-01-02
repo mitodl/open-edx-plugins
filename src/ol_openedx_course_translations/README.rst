@@ -28,7 +28,7 @@ Configuration
        DEEPL_API_KEY: <YOUR_DEEPL_API_KEY_HERE>
        ENABLE_AUTO_LANGUAGE_SELECTION: true  # Enable auto language selection based on course language
 
-       TRANSLATION_PROVIDERS: {
+       TRANSLATIONS_PROVIDERS: {
            "default_provider": "mistral",  # Default provider to use
            "openai": {
                "api_key": "<YOUR_OPENAI_API_KEY>",
@@ -132,8 +132,8 @@ This command synchronizes translation keys from edx-platform and MFE's, translat
 **Optional arguments:**
 
 - ``--iso-code``: ISO code for JSON files (default: same as language code)
-- ``--provider``: Translation provider (``openai``, ``gemini``, ``mistral``). Default is taken from ``TRANSLATION_PROVIDERS['default_provider']`` setting
-- ``--model``: LLM model name. If not specified, uses the ``default_model`` for the selected provider from ``TRANSLATION_PROVIDERS``. Examples: ``gpt-4``, ``gemini-pro``, ``mistral/mistral-large-latest``
+- ``--provider``: Translation provider (``openai``, ``gemini``, ``mistral``). Default is taken from ``TRANSLATIONS_PROVIDERS['default_provider']`` setting
+- ``--model``: LLM model name. If not specified, uses the ``default_model`` for the selected provider from ``TRANSLATIONS_PROVIDERS``. Examples: ``gpt-4``, ``gemini-pro``, ``mistral/mistral-large-latest``
 - ``--repo-path``: Path to mitxonline-translations repository (can also be set via ``TRANSLATIONS_REPO_PATH`` setting or environment variable)
 - ``--repo-url``: GitHub repository URL (default: ``https://github.com/mitodl/mitxonline-translations.git``, can also be set via ``TRANSLATIONS_REPO_URL`` setting or environment variable)
 - ``--glossary``: Use glossary from plugin glossaries folder (looks for ``{plugin_dir}/glossaries/machine_learning/{lang_code}.txt``)
@@ -145,7 +145,7 @@ This command synchronizes translation keys from edx-platform and MFE's, translat
 
    .. code-block:: bash
 
-        # Use default provider (from TRANSLATION_PROVIDERS['default_provider']) with its default model
+        # Use default provider (from TRANSLATIONS_PROVIDERS['default_provider']) with its default model
         ./manage.py cms sync_and_translate_language el
 
         # Use OpenAI provider with its default model (gpt-4)

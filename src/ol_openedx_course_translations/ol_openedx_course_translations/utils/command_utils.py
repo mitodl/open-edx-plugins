@@ -83,15 +83,21 @@ def get_config_value(key: str, options: dict, default: Any = None) -> Any:
 
 
 def get_default_provider() -> str | None:
-    """Get default provider from TRANSLATION_PROVIDERS."""
-    providers = getattr(settings, "TRANSLATION_PROVIDERS", {})
+    """Get default provider from TRANSLATIONS_PROVIDERS."""
+    providers = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
+    if not isinstance(providers, dict):
+        return None
     return providers.get("default_provider")
 
 
 def get_default_model_for_provider(provider: str) -> str | None:
-    """Get default model for a provider from TRANSLATION_PROVIDERS."""
-    providers = getattr(settings, "TRANSLATION_PROVIDERS", {})
+    """Get default model for a provider from TRANSLATIONS_PROVIDERS."""
+    providers = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
+    if not isinstance(providers, dict):
+        return None
     provider_config = providers.get(provider, {})
+    if not isinstance(provider_config, dict):
+        return None
     return provider_config.get("default_model")
 
 

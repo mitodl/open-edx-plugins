@@ -3,7 +3,8 @@ Django management command to sync translation keys, translate using LLM, and cre
 
 Usage:
     ./manage.py cms sync_and_translate_language el
-    ./manage.py cms sync_and_translate_language el --provider openai --model gpt-4-turbo --glossary
+    ./manage.py cms sync_and_translate_language el \\
+        --provider openai --model gpt-4-turbo --glossary
 """
 
 import json
@@ -493,6 +494,7 @@ class TranslationParams(TypedDict):
     """Parameters for translation operations."""
 
     lang_code: str
+    provider: str
     model: str
     glossary: dict[str, Any] | None
     batch_size: int
@@ -531,7 +533,7 @@ class Command(BaseCommand):
             choices=["openai", "gemini", "mistral"],
             help=(
                 "Translation provider (openai, gemini, mistral). "
-                "Default is taken from TRANSLATION_PROVIDERS['default_provider']"
+                "Default is taken from TRANSLATIONS_PROVIDERS['default_provider']"
                 + (
                     f" (currently: {default_provider})"
                     if default_provider
@@ -546,7 +548,7 @@ class Command(BaseCommand):
             help=(
                 "Model name (e.g., gpt-4, gemini-pro, mistral/mistral-large-latest). "
                 "If not specified, uses the default_model for the selected provider "
-                "from TRANSLATION_PROVIDERS. "
+                "from TRANSLATIONS_PROVIDERS. "
                 "LiteLLM automatically detects provider from model name."
             ),
         )
@@ -650,7 +652,7 @@ class Command(BaseCommand):
         if not provider:
             msg = (
                 "Provider not specified and "
-                "TRANSLATION_PROVIDERS['default_provider'] is not set"
+                "TRANSLATIONS_PROVIDERS['default_provider'] is not set"
             )
             raise CommandError(msg)
 
@@ -658,13 +660,14 @@ class Command(BaseCommand):
         if not model:
             msg = (
                 f"Model not specified and provider '{provider}' "
-                "does not have default_model in TRANSLATION_PROVIDERS"
+                "does not have default_model in TRANSLATIONS_PROVIDERS"
             )
             raise CommandError(msg)
 
         self.stdout.write(f"\nTranslating using {provider}/{model}...")
         params = TranslationParams(
             lang_code=lang_code,
+            provider=provider,
             model=model,
             glossary=glossary,
             batch_size=options.get("batch_size", 200),
@@ -880,6 +883,7 @@ class Command(BaseCommand):
         keys_needing_llm: list[dict],
         translations: dict[str, Any],
         lang_code: str,
+        provider: str,
         model: str,
         glossary: dict[str, Any] | None,
         batch_size: int,
@@ -914,7 +918,7 @@ class Command(BaseCommand):
             for attempt in range(max_retries + 1):  # +1 for initial attempt
                 try:
                     batch_translations = self._call_llm_batch(
-                        batch, lang_code, model, glossary
+                        batch, lang_code, provider, model, glossary
                     )
                     batch_successes, batch_errors, batch_errors_by_app = (
                         self._process_batch_results(
@@ -1076,6 +1080,7 @@ class Command(BaseCommand):
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Translate empty keys using LLM with batch processing."""
         lang_code = params["lang_code"]
+        provider = params["provider"]
         model = params["model"]
         glossary = params["glossary"]
         batch_size = params["batch_size"]
@@ -1099,6 +1104,7 @@ class Command(BaseCommand):
             keys_needing_llm,
             translations,
             lang_code,
+            provider,
             model,
             glossary,
             batch_size,
@@ -1225,10 +1231,11 @@ appears in longer sentences like "The course completion certificate is
 available".
 """
 
-    def _call_llm_batch(
+    def _call_llm_batch(  # noqa: PLR0913
         self,
         key_batch: list[dict],
         lang_code: str,
+        provider: str,
         model: str,
         glossary: dict[str, Any] | None = None,
         timeout: int = 120,
@@ -1238,11 +1245,12 @@ available".
         Args:
             key_batch: List of key information dictionaries to translate
             lang_code: Target language code
+            provider: Translation provider name (openai, gemini, mistral)
             model: LLM model name
             glossary: Optional glossary dictionary
             timeout: Request timeout in seconds (default: 120)
         """
-        api_key = self._get_llm_api_key(model)
+        api_key = self._get_llm_api_key(provider)
 
         texts_dict = {}
         plural_entries = {}
@@ -1334,7 +1342,7 @@ Return ONLY valid JSON in this format:
                 f"LLM batch API call failed: {e!s}\n"
                 f"Model: {model}\n"
                 f"Batch size: {len(key_batch)}\n"
-                f"Make sure TRANSLATION_PROVIDERS is configured in settings "
+                f"Make sure TRANSLATIONS_PROVIDERS is configured in settings "
                 f"with the appropriate api_key, or set the environment variable "
                 f"(OPENAI_API_KEY, GEMINI_API_KEY, or MISTRAL_API_KEY)"
             )
@@ -1398,35 +1406,29 @@ Return ONLY valid JSON in this format:
         # Return as list[str | dict[str, str]] - all strings in this fallback
         return cast("list[str | dict[str, str]]", cleaned_lines[: len(key_batch)])
 
-    def _get_llm_api_key(self, model: str) -> str | None:
-        """Get API key from TRANSLATION_PROVIDERS or environment variables."""
-        model_lower = model.lower()
+    def _get_llm_api_key(self, provider: str) -> str | None:
+        """Get API key from TRANSLATIONS_PROVIDERS or environment variables.
 
-        provider_name = None
-        if "gemini" in model_lower or "google" in model_lower:
-            provider_name = "gemini"
-        elif "mistral" in model_lower:
-            provider_name = "mistral"
-        else:
-            provider_name = "openai"
-
+        Args:
+            provider: Translation provider name (openai, gemini, mistral)
+        """
         try:
-            if hasattr(settings, "TRANSLATION_PROVIDERS"):
-                providers = getattr(settings, "TRANSLATION_PROVIDERS", {})
-                if isinstance(providers, dict) and provider_name in providers:
-                    provider_config = providers[provider_name]
+            if hasattr(settings, "TRANSLATIONS_PROVIDERS"):
+                providers = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
+                if isinstance(providers, dict) and provider in providers:
+                    provider_config = providers[provider]
                     if isinstance(provider_config, dict):
                         api_key = provider_config.get("api_key")
                         if api_key:
                             return api_key
         except (AttributeError, TypeError) as e:
-            logger.debug("Error accessing TRANSLATION_PROVIDERS: %s", e)
+            logger.debug("Error accessing TRANSLATIONS_PROVIDERS: %s", e)
 
         env_key_name = (
             "GEMINI_API_KEY"
-            if provider_name == "gemini"
+            if provider == "gemini"
             else "MISTRAL_API_KEY"
-            if provider_name == "mistral"
+            if provider == "mistral"
             else "OPENAI_API_KEY"
         )
         return os.environ.get(env_key_name)
