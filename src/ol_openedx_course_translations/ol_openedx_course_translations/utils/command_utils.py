@@ -110,8 +110,12 @@ def configure_litellm_for_provider(
 
     if api_key:
         completion_kwargs["api_key"] = api_key
-        if provider == "gemini" and not model.startswith(("gemini/", "vertex_ai/")):
-            completion_kwargs["model"] = f"gemini/{model}"
+        if provider == "gemini":
+            if not model.startswith(("gemini/", "vertex_ai/")):
+                completion_kwargs["model"] = f"gemini/{model}"
+            # Gemini 3 models require temperature = 1.0 to avoid issues
+            if "gemini-3" in model.lower():
+                completion_kwargs["temperature"] = 1.0
         elif provider == "mistral" and not model.startswith("mistral/"):
             completion_kwargs["model"] = f"mistral/{model}"
 
