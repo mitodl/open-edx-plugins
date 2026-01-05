@@ -40,7 +40,7 @@ Configuration
            },
            "mistral": {
                "api_key": "<YOUR_MISTRAL_API_KEY>",
-               "default_model": "mistral/mistral-large-latest",
+               "default_model": "mistral-large-latest",
            },
        }
        TRANSLATIONS_GITHUB_TOKEN: <YOUR_GITHUB_TOKEN>
@@ -133,7 +133,7 @@ This command synchronizes translation keys from edx-platform and MFE's, translat
 
 - ``--iso-code``: ISO code for JSON files (default: same as language code)
 - ``--provider``: Translation provider (``openai``, ``gemini``, ``mistral``). Default is taken from ``TRANSLATIONS_PROVIDERS['default_provider']`` setting
-- ``--model``: LLM model name. If not specified, uses the ``default_model`` for the selected provider from ``TRANSLATIONS_PROVIDERS``. Examples: ``gpt-4``, ``gemini-pro``, ``mistral/mistral-large-latest``
+- ``--model``: LLM model name. If not specified, uses the ``default_model`` for the selected provider from ``TRANSLATIONS_PROVIDERS``. Examples: ``gpt-4``, ``gemini-pro``, ``mistral-large-latest``
 - ``--repo-path``: Path to mitxonline-translations repository (can also be set via ``TRANSLATIONS_REPO_PATH`` setting or environment variable)
 - ``--repo-url``: GitHub repository URL (default: ``https://github.com/mitodl/mitxonline-translations.git``, can also be set via ``TRANSLATIONS_REPO_URL`` setting or environment variable)
 - ``--glossary``: Use glossary from plugin glossaries folder (looks for ``{plugin_dir}/glossaries/machine_learning/{lang_code}.txt``)
@@ -155,7 +155,7 @@ This command synchronizes translation keys from edx-platform and MFE's, translat
         ./manage.py cms sync_and_translate_language el --provider openai --model gpt-4-turbo
 
         # Use Mistral provider with a specific model and glossary
-        ./manage.py cms sync_and_translate_language el --provider mistral --model mistral/mistral-small-latest --glossary --batch-size 250
+        ./manage.py cms sync_and_translate_language el --provider mistral --model mistral-small-latest --glossary --batch-size 250
 
 License
 *******

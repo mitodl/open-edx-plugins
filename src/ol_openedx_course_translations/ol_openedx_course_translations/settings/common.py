@@ -14,15 +14,15 @@ def apply_common_settings(settings):
         "default_provider": "mistral",
         "openai": {
             "api_key": "",
-            "default_model": "gpt-4",
+            "default_model": "gpt-5.2",
         },
         "gemini": {
             "api_key": "",
-            "default_model": "gemini-pro",
+            "default_model": "gemini-3-pro-preview",
         },
         "mistral": {
             "api_key": "",
-            "default_model": "mistral/mistral-large-latest",
+            "default_model": "mistral-large-latest",
         },
     }
     settings.TRANSLATIONS_GITHUB_TOKEN = ""

@@ -101,6 +101,23 @@ def get_default_model_for_provider(provider: str) -> str | None:
     return provider_config.get("default_model")
 
 
+def configure_litellm_for_provider(
+    provider: str, model: str, api_key: str | None, **base_kwargs
+) -> dict[str, Any]:
+    """Configure LiteLLM completion kwargs for a specific provider."""
+    completion_kwargs = dict(base_kwargs)
+    completion_kwargs["model"] = model
+
+    if api_key:
+        completion_kwargs["api_key"] = api_key
+        if provider == "gemini" and not model.startswith(("gemini/", "vertex_ai/")):
+            completion_kwargs["model"] = f"gemini/{model}"
+        elif provider == "mistral" and not model.startswith("mistral/"):
+            completion_kwargs["model"] = f"mistral/{model}"
+
+    return completion_kwargs
+
+
 # ============================================================================
 # Error Handling Utilities
 # ============================================================================

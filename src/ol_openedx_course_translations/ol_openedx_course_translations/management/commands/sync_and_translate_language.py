@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import subprocess
+import textwrap
 import time
 import urllib.parse
 from configparser import NoSectionError
@@ -28,6 +29,7 @@ from litellm import completion
 
 import ol_openedx_course_translations.utils.translation_sync as utils_module
 from ol_openedx_course_translations.utils.command_utils import (
+    configure_litellm_for_provider,
     create_branch_name,
     get_config_value,
     get_default_model_for_provider,
@@ -546,7 +548,7 @@ class Command(BaseCommand):
             type=str,
             default=None,
             help=(
-                "Model name (e.g., gpt-4, gemini-pro, mistral/mistral-large-latest). "
+                "Model name (e.g., gpt-4, gemini-pro, mistral-large-latest). "
                 "If not specified, uses the default_model for the selected provider "
                 "from TRANSLATIONS_PROVIDERS. "
                 "LiteLLM automatically detects provider from model name."
@@ -1215,21 +1217,21 @@ class Command(BaseCommand):
                 )
             )
             return ""
-        return f"""
+        glossary_template = f"""
+            IMPORTANT - Use these glossary terms when translating. If any English terms
+            from the glossary appear in the texts to translate, use the corresponding
+            translation from the glossary:
 
-IMPORTANT - Use these glossary terms when translating. If any English terms
-from the glossary appear in the texts to translate, use the corresponding
-translation from the glossary:
+            {glossary_json}
 
-{glossary_json}
-
-When translating sentences, ensure that glossary terms are translated
-consistently according to the glossary above, even if they appear within longer
-sentences. For example, if the glossary specifies "certificate" ->
-"Πιστοποιητικό", then translate "certificate" as "Πιστοποιητικό" even when it
-appears in longer sentences like "The course completion certificate is
-available".
-"""
+            When translating sentences, ensure that glossary terms are translated
+            consistently according to the glossary above, even if they appear
+            within longer sentences. For example, if the glossary specifies
+            "certificate" -> "Πιστοποιητικό", then translate "certificate" as
+            "Πιστοποιητικό" even when it appears in longer sentences like
+            "The course completion certificate is available".
+            """
+        return textwrap.dedent(glossary_template)
 
     def _call_llm_batch(  # noqa: PLR0913
         self,
@@ -1273,14 +1275,14 @@ available".
         # Build glossary section if glossary is provided
         glossary_section = self._format_glossary_for_prompt(glossary)
 
-        prompt = (
+        prompt_template = (
             f"""Translate the following {len(key_batch)} text(s) to {lang_name} """
             f"""(language code: {lang_code}).
-Context: These are from an educational platform.
-Preserve any placeholders like {{variable}}, {{0}}, %s, etc.
-Preserve HTML tags and formatting.
-{glossary_section}
-{
+            Context: These are from an educational platform.
+            Preserve any placeholders like {{variable}}, {{0}}, %s, etc.
+            Preserve HTML tags and formatting.
+            {glossary_section}
+            {
                 (
                     "IMPORTANT: "
                     + str(plural_count)
@@ -1293,32 +1295,34 @@ Preserve HTML tags and formatting.
                 else ""
             }
 
-Return a JSON object where each key is the number (1, 2, 3, etc.).
-- For singular entries: value is the translation string.
-- For plural entries: value is an object with "singular" and "plural" keys,
-  each containing the translation.
+            Return a JSON object where each key is the number (1, 2, 3, etc.).
+            - For singular entries: value is the translation string.
+            - For plural entries: value is an object with "singular" and "plural" keys,
+              each containing the translation.
 
-Input texts (numbered):
-{texts_block}
+            Input texts (numbered):
+            {texts_block}
 
-Return ONLY valid JSON in this format:
-{{
-  "1": "translation of first text",
-  "2": {{"singular": "singular translation", "plural": "plural translation"}},
-  "3": "translation of third text",
-  ...
-}}"""
+            Return ONLY valid JSON in this format:
+            {{
+              "1": "translation of first text",
+              "2": {{"singular": "singular translation",
+                    "plural": "plural translation"}},
+              "3": "translation of third text",
+              ...
+            }}"""
         )
+        prompt = textwrap.dedent(prompt_template)
 
         try:
-            completion_kwargs = {
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.3,
-                "timeout": timeout,
-            }
-            if api_key:
-                completion_kwargs["api_key"] = api_key
+            completion_kwargs = configure_litellm_for_provider(
+                provider=provider,
+                model=model,
+                api_key=api_key,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                timeout=timeout,
+            )
 
             response = completion(**completion_kwargs)
             response_text = response.choices[0].message.content.strip()
@@ -1661,23 +1665,25 @@ Return ONLY valid JSON in this format:
                 "\n**Errors by app/MFE:**\n\n" + "\n".join(error_lines) + "\n"
             )
 
-        return f"""
-### Translation Errors
+        error_template = f"""
+            ### Translation Errors
 
-**{errors} translation key(s) failed to translate** due to API errors, rate
-limits, or parsing issues.
-{error_details}
-**Impact:**
-- These keys remain untranslated in the target language files
-- They will need to be translated manually or re-run the command
-- The translation process continued and completed successfully for the remaining keys
+            **{errors} translation key(s) failed to translate** due to API errors, rate
+            limits, or parsing issues.
+            {error_details}
+            **Impact:**
+            - These keys remain untranslated in the target language files
+            - They will need to be translated manually or re-run the command
+            - The translation process continued and completed successfully
+              for the remaining keys
 
-**Recommendation:**
-- Review the command output logs for specific error details
-- Consider re-running the command to retry failed batches
-- Check API key permissions and rate limits if errors persist
+            **Recommendation:**
+            - Review the command output logs for specific error details
+            - Consider re-running the command to retry failed batches
+            - Check API key permissions and rate limits if errors persist
 
-"""
+            """
+        return textwrap.dedent(error_template)
 
     def _generate_translation_summary(
         self, glossary_matches: int, llm_translations: int, errors: int
@@ -1763,38 +1769,45 @@ limits, or parsing issues.
             ]
         )
 
-        return f"""## Summary
+        pr_template = (
+            f"""## Summary
 
-This PR adds {lang_code} translations via LLM automation.
-{error_section}
-### Changes
+            This PR adds {lang_code} translations via LLM automation.
+            {error_section}
+            ### Changes
 
-{chr(10).join(changes_lines)}
+            {chr(10).join(changes_lines)}
 
-### Translation Statistics
+            ### Translation Statistics
 
-{chr(10).join(statistics_lines)}
+            {chr(10).join(statistics_lines)}
 
-### Applied Translations
+            ### Applied Translations
 
-{chr(10).join(breakdown_lines) if breakdown_lines else "   No translations applied"}
+            {
+                chr(10).join(breakdown_lines)
+                if breakdown_lines
+                else "   No translations applied"
+            }
 
-   Applied {applied_count} translations
+               Applied {applied_count} translations
 
-### Files Modified
+            ### Files Modified
 
-- Frontend apps: {sync_stats["frontend"]["created"]} created, "
-            f"{sync_stats["frontend"]["synced"]} synced"
-- Backend: PO files updated
+            - Frontend apps: {sync_stats["frontend"]["created"]} created, """
+            f"""{sync_stats["frontend"]["synced"]} synced
+            - Backend: PO files updated
 
-### Next Steps
+            ### Next Steps
 
-{chr(10).join(next_steps_lines)}
+            {chr(10).join(next_steps_lines)}
 
----
-*This PR was automatically generated by the sync_and_translate_language "
-            f"management command.*"
-"""
+            ---
+            *This PR was automatically generated by the sync_and_translate_language """
+            f"""management command.*
+            """
+        )
+        return textwrap.dedent(pr_template)
 
     def _create_pr_via_api(
         self,
