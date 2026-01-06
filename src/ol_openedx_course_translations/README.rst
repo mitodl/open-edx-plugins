@@ -28,6 +28,25 @@ Configuration
        DEEPL_API_KEY: <YOUR_DEEPL_API_KEY_HERE>
        ENABLE_AUTO_LANGUAGE_SELECTION: true  # Enable auto language selection based on course language
 
+       TRANSLATIONS_PROVIDERS: {
+           "default_provider": "mistral",  # Default provider to use
+           "openai": {
+               "api_key": "<YOUR_OPENAI_API_KEY>",
+               "default_model": "gpt-4",
+           },
+           "gemini": {
+               "api_key": "<YOUR_GEMINI_API_KEY>",
+               "default_model": "gemini-pro",
+           },
+           "mistral": {
+               "api_key": "<YOUR_MISTRAL_API_KEY>",
+               "default_model": "mistral-large-latest",
+           },
+       }
+       TRANSLATIONS_GITHUB_TOKEN: <YOUR_GITHUB_TOKEN>
+       TRANSLATIONS_REPO_PATH: ""
+       TRANSLATIONS_REPO_URL: "https://github.com/mitodl/mitxonline-translations.git"
+
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
 Auto Language Selection
@@ -82,6 +101,61 @@ Translating a Course
    .. code-block:: bash
 
         ./manage.py cms translate_course --source-language <SOURCE_LANGUAGE_CODE, defaults to `EN`> --translation-language <TRANSLATION_LANGUAGE_CODE i.e. AR> --course-dir <PATH_TO_EXPORTED_COURSE_TAR_GZ>
+
+Generating static content translations
+======================================
+
+This command synchronizes translation keys from edx-platform and MFE's, translates empty keys using LLM, and automatically creates a pull request in the translations repository.
+
+**What it does:**
+
+1. Syncs translation keys from edx-platform and MFE's to the translations repository
+2. Extracts empty translation keys that need translation
+3. Translates empty keys using the specified LLM provider and model
+4. Applies translations to JSON and PO files
+5. Commits changes to a new branch
+6. Creates a pull request with translation statistics
+
+**Usage:**
+
+1. Go to the CMS shell
+2. Run the management command:
+
+   .. code-block:: bash
+
+        ./manage.py cms sync_and_translate_language <LANGUAGE_CODE> [OPTIONS]
+
+**Required arguments:**
+
+- ``LANGUAGE_CODE``: Language code (e.g., ``el``, ``fr``, ``es_ES``)
+
+**Optional arguments:**
+
+- ``--iso-code``: ISO code for JSON files (default: same as language code)
+- ``--provider``: Translation provider (``openai``, ``gemini``, ``mistral``). Default is taken from ``TRANSLATIONS_PROVIDERS['default_provider']`` setting
+- ``--model``: LLM model name. If not specified, uses the ``default_model`` for the selected provider from ``TRANSLATIONS_PROVIDERS``. Examples: ``gpt-4``, ``gemini-pro``, ``mistral-large-latest``
+- ``--repo-path``: Path to mitxonline-translations repository (can also be set via ``TRANSLATIONS_REPO_PATH`` setting or environment variable)
+- ``--repo-url``: GitHub repository URL (default: ``https://github.com/mitodl/mitxonline-translations.git``, can also be set via ``TRANSLATIONS_REPO_URL`` setting or environment variable)
+- ``--glossary``: Use glossary from plugin glossaries folder (looks for ``{plugin_dir}/glossaries/machine_learning/{lang_code}.txt``)
+- ``--batch-size``: Number of keys to translate per API request (default: 200, recommended: 200-300 for most models)
+- ``--mfe``: Filter by specific MFE(s). Use ``edx-platform`` for backend translations
+- ``--dry-run``: Run without committing or creating PR
+
+**Examples:**
+
+   .. code-block:: bash
+
+        # Use default provider (from TRANSLATIONS_PROVIDERS['default_provider']) with its default model
+        ./manage.py cms sync_and_translate_language el
+
+        # Use OpenAI provider with its default model (gpt-4)
+        ./manage.py cms sync_and_translate_language el --provider openai
+
+        # Use OpenAI provider with a specific model
+        ./manage.py cms sync_and_translate_language el --provider openai --model gpt-4-turbo
+
+        # Use Mistral provider with a specific model and glossary
+        ./manage.py cms sync_and_translate_language el --provider mistral --model mistral-small-latest --glossary --batch-size 250
 
 License
 *******
