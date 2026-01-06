@@ -13,7 +13,7 @@ from django.conf import settings
 from django.core.management.base import CommandError
 
 from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
-from ol_openedx_course_translations.providers.llm_provider import (
+from ol_openedx_course_translations.providers.llm_providers import (
     GeminiProvider,
     MistralProvider,
     OpenAIProvider,
@@ -23,10 +23,12 @@ from ol_openedx_course_translations.utils.constants import (
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
     PROVIDER_OPENAI,
-    TAR_FILE_SIZE_LIMIT,
 )
 
 logger = logging.getLogger(__name__)
+
+# Archive and file size limits
+TAR_FILE_SIZE_LIMIT = 512 * 1024 * 1024  # 512MB
 
 
 def get_translation_provider(  # noqa: C901
@@ -129,7 +131,7 @@ def translate_xml_display_name(
             translated_name = provider.translate_text(
                 display_name,
                 target_language.lower(),
-                glossary_file=glossary_directory,
+                glossary_directory=glossary_directory,
             )
             xml_root.set("display_name", translated_name)
             return ElementTree.tostring(xml_root, encoding="unicode")
@@ -229,7 +231,7 @@ def translate_policy_fields(  # noqa: C901
             translated = provider.translate_text(
                 course_policy_obj[field],
                 target_language.lower(),
-                glossary_file=glossary_directory,
+                glossary_directory=glossary_directory,
             )
             course_policy_obj[field] = translated
 
@@ -243,7 +245,7 @@ def translate_policy_fields(  # noqa: C901
             translated_topics = {}
             for key, value in topics.items():
                 translated_key = provider.translate_text(
-                    key, target_language.lower(), glossary_file=glossary_directory
+                    key, target_language.lower(), glossary_directory=glossary_directory
                 )
                 translated_topics[translated_key] = value
             course_policy_obj["discussion_topics"] = translated_topics
@@ -254,7 +256,7 @@ def translate_policy_fields(  # noqa: C901
     ):
         translated_info = [
             provider.translate_text(
-                item, target_language.lower(), glossary_file=glossary_directory
+                item, target_language.lower(), glossary_directory=glossary_directory
             )
             for item in course_policy_obj["learning_info"]
         ]
@@ -267,7 +269,7 @@ def translate_policy_fields(  # noqa: C901
                 tab["name"] = provider.translate_text(
                     tab["name"],
                     target_language.lower(),
-                    glossary_file=glossary_directory,
+                    glossary_directory=glossary_directory,
                 )
 
     # Translate XML attributes
@@ -281,7 +283,7 @@ def translate_policy_fields(  # noqa: C901
                 translated_value = provider.translate_text(
                     xml_attributes_dict[xml_field_name],
                     target_language.lower(),
-                    glossary_file=glossary_directory,
+                    glossary_directory=glossary_directory,
                 )
                 xml_attributes_dict[xml_field_name] = translated_value
 

@@ -15,10 +15,6 @@ from ol_openedx_course_translations.tasks import (
     translate_grading_policy_task,
     translate_policy_json_task,
 )
-from ol_openedx_course_translations.utils.constants import (
-    TASK_POLL_INTERVAL_SECONDS,
-    TASK_TIMEOUT_SECONDS,
-)
 from ol_openedx_course_translations.utils.course_translations import (
     create_translated_archive,
     create_translated_copy,
@@ -31,6 +27,10 @@ from ol_openedx_course_translations.utils.course_translations import (
 
 logger = logging.getLogger(__name__)
 
+# Task configuration
+TASK_TIMEOUT_SECONDS = 600  # 10 minutes
+TASK_POLL_INTERVAL_SECONDS = 2
+
 
 class Command(BaseCommand):
     """Translate given course content to the specified language."""
@@ -38,6 +38,7 @@ class Command(BaseCommand):
     help = "Translate course content to the specified language."
 
     def __init__(self, *args, **kwargs):
+        """Initialize the command with empty task results list."""
         super().__init__(*args, **kwargs)
         self.task_results = []
 
@@ -198,7 +199,17 @@ class Command(BaseCommand):
     def _translate_course_content_async(
         self, course_dir: Path, source_language: str, target_language: str
     ) -> None:
-        """Translate all course content using Celery tasks."""
+        """
+        Translate all course content using Celery tasks.
+
+        Args:
+            course_dir: Path to the course directory
+            source_language: Source language code
+            target_language: Target language code
+
+        Raises:
+            CommandError: If course directory is not found
+        """
         course_directory = course_dir / "course"
 
         if not course_directory.exists() or not course_directory.is_dir():
@@ -234,7 +245,15 @@ class Command(BaseCommand):
         *,
         recursive: bool = False,
     ) -> None:
-        """Dispatch Celery tasks for file translation."""
+        """
+        Dispatch Celery tasks for file translation.
+
+        Args:
+            directory_path: Path to directory containing files to translate
+            source_language: Source language code
+            target_language: Target language code
+            recursive: Whether to search for files recursively
+        """
         translatable_file_paths = get_translatable_file_paths(
             directory_path, recursive=recursive
         )
@@ -256,7 +275,13 @@ class Command(BaseCommand):
     def _dispatch_grading_policy_tasks(
         self, course_dir: Path, target_language: str
     ) -> None:
-        """Dispatch Celery tasks for grading_policy.json translation."""
+        """
+        Dispatch Celery tasks for grading_policy.json translation.
+
+        Args:
+            course_dir: Path to the course directory
+            target_language: Target language code
+        """
         course_policies_dir = course_dir / "course" / "policies"
 
         if not course_policies_dir.exists():
@@ -285,7 +310,13 @@ class Command(BaseCommand):
     def _dispatch_policy_json_tasks(
         self, course_dir: Path, target_language: str
     ) -> None:
-        """Dispatch Celery tasks for policy.json translation."""
+        """
+        Dispatch Celery tasks for policy.json translation.
+
+        Args:
+            course_dir: Path to the course directory
+            target_language: Target language code
+        """
         course_policies_dir = course_dir / "course" / "policies"
 
         if not course_policies_dir.exists():
@@ -308,7 +339,14 @@ class Command(BaseCommand):
                 logger.info("Dispatched policy.json task for: %s", policy_file)
 
     def _wait_and_report_tasks(self) -> None:  # noqa: C901, PLR0912, PLR0915
-        """Wait for all Celery tasks to complete and report their status."""
+        """
+        Wait for all Celery tasks to complete and report their status.
+
+        Monitors task progress, handles timeouts, and provides detailed status reports.
+
+        Raises:
+            CommandError: If any tasks fail or timeout occurs
+        """
         if not self.task_results:
             self.stdout.write("No tasks to wait for.")
             return

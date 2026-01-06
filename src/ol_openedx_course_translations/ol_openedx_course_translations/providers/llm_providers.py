@@ -8,17 +8,54 @@ from typing import Any
 import srt
 from litellm import completion
 
-from ol_openedx_course_translations.utils.constants import (
-    LANGUAGE_DISPLAY_NAMES,
-    LLM_ERROR_KEYWORDS,
-    LLM_EXPLANATION_KEYWORDS,
-    TRANSLATION_MARKER_END,
-    TRANSLATION_MARKER_START,
-)
-
 from .base import TranslationProvider, load_glossary
 
 logger = logging.getLogger(__name__)
+
+# Human-readable language names for LLM prompts
+LANGUAGE_DISPLAY_NAMES = {
+    "en": "English",
+    "de": "Deutsch",
+    "es": "Español",
+    "fr": "Français",
+    "pt-br": "Português - Brasil",
+    "ru": "Русский",
+    "hi": "हिंदी",
+    "el": "ελληνικά",
+    "ja": "日本語",
+    "ar": "العربية",
+    "zh": "中文",
+    "tr": "Türkçe",
+    "sq": "Shqip",
+    "kr": "한국어",
+    "id": "Bahasa Indonesia",
+}
+
+# LLM error detection keywords
+LLM_ERROR_KEYWORDS = [
+    "token",
+    "quota",
+    "limit",
+    "too large",
+    "context_length_exceeded",
+    "503",
+    "timeout",
+]
+
+# LLM explanation phrases to filter from responses
+LLM_EXPLANATION_KEYWORDS = [
+    "here is",
+    "here's",
+    "translation:",
+    "translated text:",
+    "note:",
+    "explanation:",
+    "i have translated",
+    "i've translated",
+]
+# Translation markers for structured responses
+TRANSLATION_MARKER_START = ":::TRANSLATION_START:::"
+TRANSLATION_MARKER_END = ":::TRANSLATION_END:::"
 
 
 class LLMProvider(TranslationProvider):
@@ -32,6 +69,14 @@ class LLMProvider(TranslationProvider):
         repair_api_key: str | None = None,
         model_name: str | None = None,
     ):
+        """
+        Initialize LLM provider with API keys and model name.
+
+        Args:
+            primary_api_key: API key for the LLM service
+            repair_api_key: API key for repair service (optional)
+            model_name: Name of the LLM model to use
+        """
         super().__init__(primary_api_key, repair_api_key)
         self.model_name = model_name
 
@@ -39,8 +84,22 @@ class LLMProvider(TranslationProvider):
         self,
         target_language: str,
         content_type: str = "subtitle",
-        glossary_file: str | None = None,
+        glossary_directory: str | None = None,
     ) -> str:
+        """
+        Generate system prompt for LLM translation.
+
+        Creates detailed prompts with rules for subtitle or text translation,
+        including glossary terms if provided.
+
+        Args:
+            target_language: Target language code
+            content_type: Type of content ("subtitle" or "text")
+            glossary_directory: Path to glossary directory (optional)
+
+        Returns:
+            System prompt string for the LLM
+        """
         target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
             target_language, target_language
         )
@@ -91,8 +150,8 @@ class LLMProvider(TranslationProvider):
                 "5. Preserve spacing, line breaks, and indentation.\n"
             )
 
-        if glossary_file:
-            glossary_terms = load_glossary(target_language, glossary_file)
+        if glossary_directory:
+            glossary_terms = load_glossary(target_language, glossary_directory)
             if glossary_terms:
                 system_prompt_template += (
                     f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
@@ -103,7 +162,19 @@ class LLMProvider(TranslationProvider):
     def _parse_structured_response(
         self, llm_response_text: str, original_subtitle_batch: list[srt.Subtitle]
     ) -> list[srt.Subtitle]:
-        """Parse the structured response and map back to original blocks."""
+        """
+        Parse the structured response and map back to original blocks.
+
+        Extracts translated content from LLM response using ID markers and maps
+        back to original subtitle objects preserving timestamps.
+
+        Args:
+            llm_response_text: Raw response text from LLM
+            original_subtitle_batch: Original subtitle batch for reference
+
+        Returns:
+            List of parsed subtitle objects with translations
+        """
         parsed_subtitle_list = []
 
         subtitle_id_pattern = re.compile(
@@ -144,7 +215,18 @@ class LLMProvider(TranslationProvider):
         return parsed_subtitle_list
 
     def _parse_text_response(self, llm_response_text: str) -> str:
-        """Parse the structured text translation response."""
+        """
+        Parse the structured text translation response.
+
+        Extracts translated content between translation markers, filtering out
+        explanations and metadata.
+
+        Args:
+            llm_response_text: Raw response text from LLM
+
+        Returns:
+            Cleaned translated text
+        """
         # Try to extract content between markers
         start_idx = llm_response_text.find(TRANSLATION_MARKER_START)
         end_idx = llm_response_text.find(TRANSLATION_MARKER_END)
@@ -187,6 +269,17 @@ class LLMProvider(TranslationProvider):
     def _call_llm(
         self, system_prompt: str, user_content: str, **additional_kwargs: Any
     ) -> str:
+        """
+        Call the LLM API with system and user prompts.
+
+        Args:
+            system_prompt: System prompt defining LLM behavior
+            user_content: User content to translate
+            **additional_kwargs: Additional arguments for the API call
+
+        Returns:
+            LLM response content as string
+        """
         llm_messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
@@ -203,11 +296,23 @@ class LLMProvider(TranslationProvider):
         self,
         subtitle_list: list[srt.Subtitle],
         target_language: str,
-        glossary_file: str | None = None,
+        glossary_directory: str | None = None,
     ) -> list[srt.Subtitle]:
-        """Translate subtitles using LLM."""
+        """
+        Translate subtitles using LLM.
+
+        Processes subtitles in batches with dynamic batch sizing to handle API limits.
+
+        Args:
+            subtitle_list: List of subtitle objects to translate
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+
+        Returns:
+            List of translated subtitle objects
+        """
         system_prompt = self._get_system_prompt(
-            target_language, "subtitle", glossary_file
+            target_language, "subtitle", glossary_directory
         )
 
         translated_subtitle_list = []
@@ -262,13 +367,28 @@ class LLMProvider(TranslationProvider):
         source_text: str,
         target_language: str,
         tag_handling: str | None = None,  # noqa: ARG002
-        glossary_file: str | None = None,
+        glossary_directory: str | None = None,
     ) -> str:
-        """Translate text using LLM."""
+        """
+        Translate text using LLM.
+
+        Handles plain text, HTML, and XML content with appropriate prompting.
+
+        Args:
+            source_text: Text to translate
+            target_language: Target language code
+            tag_handling: How to handle XML/HTML tags (not used for LLM)
+            glossary_directory: Path to glossary directory (optional)
+
+        Returns:
+            Translated text
+        """
         if not source_text or not source_text.strip():
             return source_text
 
-        system_prompt = self._get_system_prompt(target_language, "text", glossary_file)
+        system_prompt = self._get_system_prompt(
+            target_language, "text", glossary_directory
+        )
 
         try:
             llm_response = self._call_llm(system_prompt, source_text)
@@ -288,15 +408,27 @@ class LLMProvider(TranslationProvider):
         output_file_path: Path,
         source_language: str,  # noqa: ARG002
         target_language: str,
+        glossary_directory: str | None = None,
     ) -> None:
-        """Translate document by reading and translating content."""
+        """
+        Translate document by reading and translating content.
+
+        Handles SRT files using subtitle translation and other files as text.
+
+        Args:
+            input_file_path: Path to input file
+            output_file_path: Path to output file
+            source_language: Source language code (not used)
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+        """
         # For SRT files, use subtitle translation
         if input_file_path.suffix == ".srt":
             srt_content = input_file_path.read_text(encoding="utf-8")
             subtitle_list = list(srt.parse(srt_content))
 
-            translated_subtitle_list = self.translate_subtitles(
-                subtitle_list, target_language
+            translated_subtitle_list = self.translate_srt_with_validation(
+                subtitle_list, target_language, glossary_directory
             )
 
             translated_srt_content = srt.compose(translated_subtitle_list)
@@ -304,7 +436,9 @@ class LLMProvider(TranslationProvider):
         else:
             # For other files, treat as text
             file_content = input_file_path.read_text(encoding="utf-8")
-            translated_file_content = self.translate_text(file_content, target_language)
+            translated_file_content = self.translate_text(
+                file_content, target_language, glossary_directory=glossary_directory
+            )
             output_file_path.write_text(translated_file_content, encoding="utf-8")
 
 
@@ -317,6 +451,17 @@ class OpenAIProvider(LLMProvider):
         repair_api_key: str | None = None,
         model_name: str | None = None,
     ):
+        """
+        Initialize OpenAI provider.
+
+        Args:
+            primary_api_key: OpenAI API key
+            repair_api_key: API key for repair service (optional)
+            model_name: OpenAI model name (e.g., "gpt-5.2")
+
+        Raises:
+            ValueError: If model_name is not provided
+        """
         if not model_name:
             msg = "model_name is required for OpenAIProvider"
             raise ValueError(msg)
@@ -325,6 +470,17 @@ class OpenAIProvider(LLMProvider):
     def _call_llm(
         self, system_prompt: str, user_content: str, **additional_kwargs: Any
     ) -> str:
+        """
+        Call OpenAI API with prompts.
+
+        Args:
+            system_prompt: System prompt defining behavior
+            user_content: User content to translate
+            **additional_kwargs: Additional arguments for the API
+
+        Returns:
+            OpenAI response content
+        """
         return super()._call_llm(system_prompt, user_content, **additional_kwargs)
 
 
@@ -337,6 +493,17 @@ class GeminiProvider(LLMProvider):
         repair_api_key: str | None = None,
         model_name: str | None = None,
     ):
+        """
+        Initialize Gemini provider.
+
+        Args:
+            primary_api_key: Gemini API key
+            repair_api_key: API key for repair service (optional)
+            model_name: Gemini model name (e.g., "gemini-3-pro-preview")
+
+        Raises:
+            ValueError: If model_name is not provided
+        """
         if not model_name:
             msg = "model_name is required for GeminiProvider"
             raise ValueError(msg)
@@ -352,6 +519,17 @@ class MistralProvider(LLMProvider):
         repair_api_key: str | None = None,
         model_name: str | None = None,
     ):
+        """
+        Initialize Mistral provider.
+
+        Args:
+            primary_api_key: Mistral API key
+            repair_api_key: API key for repair service (optional)
+            model_name: Mistral model name (e.g., "mistral-large-latest")
+
+        Raises:
+            ValueError: If model_name is not provided
+        """
         if not model_name:
             msg = "model_name is required for MistralProvider"
             raise ValueError(msg)

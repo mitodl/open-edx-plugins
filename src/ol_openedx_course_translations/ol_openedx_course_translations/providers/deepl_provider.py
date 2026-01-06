@@ -7,26 +7,59 @@ from pathlib import Path
 import deepl
 import srt
 
-from ol_openedx_course_translations.utils.constants import (
-    DEEPL_ENABLE_BETA_LANGUAGES,
-    DEEPL_LANGUAGE_CODES,
-    DEEPL_MAX_PAYLOAD_SIZE,
-)
-
 from .base import TranslationProvider
 
 logger = logging.getLogger(__name__)
 
+# DeepL API constants
+DEEPL_MAX_PAYLOAD_SIZE = 128000  # 128KB limit
+DEEPL_ENABLE_BETA_LANGUAGES = True
+# Language code mappings for DeepL API
+DEEPL_LANGUAGE_CODES = {
+    "fr": "FR",
+    "de": "DE",
+    "es": "ES",
+    "pt": "PT-PT",
+    "pt-br": "PT-BR",
+    "hi": "HI",
+    "ar": "AR",
+    "zh": "ZH",
+    "kr": "KO",
+    "ja": "JA",
+    "id": "ID",
+    "ru": "RU",
+    "el": "EL",
+    "tr": "TR",
+    "sq": "SQ",
+}
+
 
 def _check_payload_size(payload: str) -> None:
-    """Check if payload size exceeds DeepL API limits."""
+    """
+    Check if payload size exceeds DeepL API limits.
+
+    Args:
+        payload: Payload string to check
+
+    Raises:
+        ValueError: If payload exceeds 128KB limit
+    """
     if len(payload.encode("utf-8")) > DEEPL_MAX_PAYLOAD_SIZE:
         msg = "Payload too large for DeepL API"
         raise ValueError(msg)
 
 
 def _validate_batch_response(xml_matches: list, subtitle_batch: list) -> None:
-    """Validate that DeepL returned the expected number of items."""
+    """
+    Validate that DeepL returned the expected number of items.
+
+    Args:
+        xml_matches: List of XML matches from DeepL response
+        subtitle_batch: Original subtitle batch
+
+    Raises:
+        ValueError: If counts don't match
+    """
     if len(xml_matches) != len(subtitle_batch):
         logger.warning(
             "DeepL returned %d items, expected %d. Retrying with smaller batch.",
@@ -41,6 +74,13 @@ class DeepLProvider(TranslationProvider):
     """DeepL translation provider."""
 
     def __init__(self, primary_api_key: str, repair_api_key: str | None = None):
+        """
+        Initialize DeepL provider.
+
+        Args:
+            primary_api_key: DeepL API key
+            repair_api_key: API key for repair service (optional)
+        """
         super().__init__(primary_api_key, repair_api_key)
         self.deepl_translator = deepl.Translator(auth_key=primary_api_key)
 
@@ -48,9 +88,25 @@ class DeepLProvider(TranslationProvider):
         self,
         subtitle_list: list[srt.Subtitle],
         target_language: str,
-        glossary_file: str | None = None,  # noqa: ARG002
+        glossary_directory: str | None = None,  # noqa: ARG002
     ) -> list[srt.Subtitle]:
-        """Translate SRT subtitles using DeepL."""
+        """
+        Translate SRT subtitles using DeepL.
+
+        Uses XML tag handling to preserve subtitle structure and timestamps.
+        Implements dynamic batch sizing to handle API limits.
+
+        Args:
+            subtitle_list: List of subtitle objects to translate
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (not used by DeepL)
+
+        Returns:
+            List of translated subtitle objects
+
+        Raises:
+            ValueError: If target language is not supported by DeepL
+        """
         deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language.lower())
         if not deepl_target_code:
             error_msg = f"DeepL does not support language '{target_language}'."
@@ -146,9 +202,23 @@ class DeepLProvider(TranslationProvider):
         source_text: str,
         target_language: str,
         tag_handling: str | None = None,
-        glossary_file: str | None = None,  # noqa: ARG002
+        glossary_directory: str | None = None,  # noqa: ARG002
     ) -> str:
-        """Translate text using DeepL."""
+        """
+        Translate text using DeepL.
+
+        Args:
+            source_text: Text to translate
+            target_language: Target language code
+            tag_handling: How to handle XML/HTML tags ("xml" or "html")
+            glossary_directory: Path to glossary directory (not used by DeepL)
+
+        Returns:
+            Translated text, or original text if translation fails
+
+        Raises:
+            ValueError: If target language is not supported by DeepL
+        """
         if not source_text or not source_text.strip():
             return source_text
 
@@ -176,19 +246,47 @@ class DeepLProvider(TranslationProvider):
         output_file_path: Path,
         source_language: str,
         target_language: str,
+        glossary_directory: str | None = None,
     ) -> None:
-        """Translate document using DeepL."""
+        """
+        Translate document using DeepL.
+
+        For SRT files, uses subtitle translation. For other files, uses DeepL's
+        document translation API.
+
+        Args:
+            input_file_path: Path to input file
+            output_file_path: Path to output file
+            source_language: Source language code
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+
+        Raises:
+            ValueError: If target language is not supported by DeepL
+        """
         deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language.lower())
         if not deepl_target_code:
             error_msg = f"DeepL does not support language '{target_language}'."
             raise ValueError(error_msg)
 
         try:
-            self.deepl_translator.translate_document_from_filepath(
-                input_file_path,
-                output_file_path,
-                source_lang=source_language,
-                target_lang=deepl_target_code,
-            )
+            # For SRT files, use subtitle translation
+            if input_file_path.suffix == ".srt":
+                srt_content = input_file_path.read_text(encoding="utf-8")
+                subtitle_list = list(srt.parse(srt_content))
+
+                translated_subtitle_list = self.translate_srt_with_validation(
+                    subtitle_list, target_language, glossary_directory
+                )
+
+                translated_srt_content = srt.compose(translated_subtitle_list)
+                output_file_path.write_text(translated_srt_content, encoding="utf-8")
+            else:
+                self.deepl_translator.translate_document_from_filepath(
+                    input_file_path,
+                    output_file_path,
+                    source_lang=source_language,
+                    target_lang=deepl_target_code,
+                )
         except deepl.exceptions.DeepLException as deepl_error:
             logger.warning("DeepL document translation failed: %s", deepl_error)

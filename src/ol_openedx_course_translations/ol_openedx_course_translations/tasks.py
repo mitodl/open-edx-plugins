@@ -30,7 +30,26 @@ def translate_file_task(  # noqa: PLR0913
     srt_model: str | None,
     glossary_directory: str | None = None,
 ):
-    """Translate a single file asynchronously."""
+    """
+    Translate a single file asynchronously.
+
+    Handles translation of various file types including SRT subtitles,
+    XML, and HTML files. Uses appropriate translation provider based on file type.
+
+    Args:
+        _self: Celery task instance (bound)
+        file_path_str: Path to the file to translate
+        source_language: Source language code
+        target_language: Target language code
+        content_provider_name: Provider name for content translation
+        content_model: Model name for content provider (optional)
+        srt_provider_name: Provider name for SRT translation
+        srt_model: Model name for SRT provider (optional)
+        glossary_directory: Path to glossary directory (optional)
+
+    Returns:
+        Dict with status, file path, and optional error or output information
+    """
     try:
         file_path = Path(file_path_str)
 
@@ -54,7 +73,11 @@ def translate_file_task(  # noqa: PLR0913
             output_file_path = file_path.parent / output_filename
 
             provider.translate_document(
-                file_path, output_file_path, source_language, target_language
+                file_path,
+                output_file_path,
+                source_language,
+                target_language,
+                glossary_directory,
             )
 
             return {
@@ -74,7 +97,7 @@ def translate_file_task(  # noqa: PLR0913
             file_content,
             target_language.lower(),
             tag_handling=tag_handling_mode,
-            glossary_file=glossary_directory,
+            glossary_directory=glossary_directory,
         )
 
         # Handle XML display_name translation only for DeepL provider
@@ -107,7 +130,22 @@ def translate_grading_policy_task(
     content_model: str | None,
     glossary_directory: str | None = None,
 ):
-    """Translate grading_policy.json file."""
+    """
+    Translate grading_policy.json file.
+
+    Translates the short_label fields within the GRADER section of grading policy files.
+
+    Args:
+        _self: Celery task instance (bound)
+        policy_file_path_str: Path to the grading_policy.json file
+        target_language: Target language code
+        content_provider_name: Provider name for content translation
+        content_model: Model name for content provider (optional)
+        glossary_directory: Path to glossary directory (optional)
+
+    Returns:
+        Dict with status, file path, and optional error information
+    """
     try:
         policy_file_path = Path(policy_file_path_str)
         provider = get_translation_provider(content_provider_name, content_model)
@@ -120,7 +158,7 @@ def translate_grading_policy_task(
                 translated_label = provider.translate_text(
                     grader_item["short_label"],
                     target_language.lower(),
-                    glossary_file=glossary_directory,
+                    glossary_directory=glossary_directory,
                 )
                 grader_item["short_label"] = translated_label
                 policy_updated = True
@@ -146,7 +184,23 @@ def translate_policy_json_task(
     content_model: str | None,
     glossary_directory: str | None = None,
 ):
-    """Translate policy.json file."""
+    """
+    Translate policy.json file.
+
+    Translates various policy fields including display names, discussion topics,
+    learning info, tabs, and XML attributes.
+
+    Args:
+        _self: Celery task instance (bound)
+        policy_file_path_str: Path to the policy.json file
+        target_language: Target language code
+        content_provider_name: Provider name for content translation
+        content_model: Model name for content provider (optional)
+        glossary_directory: Path to glossary directory (optional)
+
+    Returns:
+        Dict with status, file path, and optional error information
+    """
     try:
         policy_file_path = Path(policy_file_path_str)
         provider = get_translation_provider(content_provider_name, content_model)
