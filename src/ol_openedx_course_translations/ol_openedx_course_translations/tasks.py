@@ -7,7 +7,7 @@ from pathlib import Path
 from celery import shared_task
 
 from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
-from ol_openedx_course_translations.utils import (
+from ol_openedx_course_translations.utils.course_translations import (
     get_srt_output_filename,
     get_translation_provider,
     translate_policy_fields,

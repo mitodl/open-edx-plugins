@@ -12,18 +12,18 @@ from defusedxml import ElementTree
 from django.conf import settings
 from django.core.management.base import CommandError
 
+from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
+from ol_openedx_course_translations.providers.llm_provider import (
+    GeminiProvider,
+    MistralProvider,
+    OpenAIProvider,
+)
 from ol_openedx_course_translations.utils.constants import (
     PROVIDER_DEEPL,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
     PROVIDER_OPENAI,
     TAR_FILE_SIZE_LIMIT,
-)
-from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
-from ol_openedx_course_translations.providers.llm_provider import (
-    GeminiProvider,
-    MistralProvider,
-    OpenAIProvider,
 )
 
 logger = logging.getLogger(__name__)
