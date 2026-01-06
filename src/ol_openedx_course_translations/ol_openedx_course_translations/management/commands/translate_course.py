@@ -20,9 +20,9 @@ from ol_openedx_course_translations.utils.course_translations import (
     create_translated_copy,
     extract_course_archive,
     get_translatable_file_paths,
-    get_translation_provider,
     update_course_language_attribute,
     validate_course_inputs,
+    validate_translation_provider,
 )
 
 logger = logging.getLogger(__name__)
@@ -140,25 +140,19 @@ class Command(BaseCommand):
             # Validate inputs
             validate_course_inputs(course_archive_path)
 
+            # Validate providers before proceeding
+            try:
+                validate_translation_provider(content_provider_name, content_model)
+                validate_translation_provider(srt_provider_name, srt_model)
+            except ValueError as e:
+                raise CommandError(str(e)) from e
+
             # Store provider names and models
             self.content_provider_name = content_provider_name
             self.content_model = content_model
             self.srt_provider_name = srt_provider_name
             self.srt_model = srt_model
             self.glossary_directory = glossary_directory
-
-            # Validate providers by attempting to instantiate them
-            try:
-                get_translation_provider(
-                    content_provider_name,
-                    content_model,
-                )
-                get_translation_provider(
-                    srt_provider_name,
-                    srt_model,
-                )
-            except ValueError as e:
-                raise CommandError(str(e)) from e
 
             # Extract course archive
             extracted_course_dir = extract_course_archive(course_archive_path)

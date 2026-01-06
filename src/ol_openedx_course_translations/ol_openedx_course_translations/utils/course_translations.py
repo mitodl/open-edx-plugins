@@ -31,12 +31,63 @@ logger = logging.getLogger(__name__)
 TAR_FILE_SIZE_LIMIT = 512 * 1024 * 1024  # 512MB
 
 
+def validate_translation_provider(
+    provider_name: str,
+    model_name: str | None = None,
+) -> None:
+    """
+    Validate translation provider configuration.
+
+    Checks that the provider exists, has required API keys, and has a valid model
+    if required.
+
+    Args:
+        provider_name: Name of the provider (deepl, openai, gemini, mistral)
+        model_name: Model name to use (required for LLM providers, not used for DeepL)
+
+    Raises:
+        ValueError: If provider configuration is invalid or missing
+    """
+    # Handle DeepL separately (uses DEEPL_API_KEY setting)
+    if provider_name == PROVIDER_DEEPL:
+        deepl_api_key = getattr(settings, "DEEPL_API_KEY", "")
+        if not deepl_api_key:
+            msg = "DEEPL_API_KEY is required for DeepL provider"
+            raise ValueError(msg)
+        return
+
+    # Handle LLM providers (use TRANSLATIONS_PROVIDERS dict)
+    providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
+
+    if provider_name not in providers_config:
+        msg = f"Unknown provider: {provider_name}"
+        raise ValueError(msg)
+
+    provider_config = providers_config[provider_name]
+    api_key = provider_config.get("api_key", "")
+
+    if not api_key:
+        msg = f"API key is required for {provider_name} provider"
+        raise ValueError(msg)
+
+    # Get model (provided or default)
+    model = model_name or provider_config.get("default_model")
+
+    if not model:
+        msg = f"Model name is required for {provider_name} provider"
+        raise ValueError(msg)
+
+
 def get_translation_provider(  # noqa: C901
     provider_name: str,
     model_name: str | None = None,
 ):
     """
     Get translation provider instance based on provider name.
+
+    Note: This function assumes validation has already been done via
+    validate_translation_provider(). It will still raise ValueError for
+    invalid configurations, but validation should be done upfront.
 
     Args:
         provider_name: Name of the provider (deepl, openai, gemini, mistral)
@@ -56,7 +107,8 @@ def get_translation_provider(  # noqa: C901
             raise ValueError(msg)
 
         # Get OpenAI API key for repair functionality
-        openai_api_key = getattr(settings, "OPENAI_API_KEY", "")
+        providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
+        openai_api_key = providers_config.get("openai", {}).get("api_key", "")
         return DeepLProvider(deepl_api_key, openai_api_key)
 
     # Handle LLM providers (use TRANSLATIONS_PROVIDERS dict)
