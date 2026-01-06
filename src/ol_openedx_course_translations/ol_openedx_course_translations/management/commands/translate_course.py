@@ -43,18 +43,6 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser) -> None:
         """Entry point for subclassed commands to add custom arguments."""
-        # Get default models from settings
-        providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
-        default_openai_model = providers_config.get("openai", {}).get(
-            "default_model", "gpt-5.2"
-        )
-        default_gemini_model = providers_config.get("gemini", {}).get(
-            "default_model", "gemini-3-pro-preview"
-        )
-        default_mistral_model = providers_config.get("mistral", {}).get(
-            "default_model", "mistral-large-latest"
-        )
-
         parser.add_argument(
             "--source-language",
             dest="source_language",
@@ -65,7 +53,7 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
-            "--translation-language",
+            "--target-language",
             dest="target_language",
             required=True,
             help=(
@@ -80,18 +68,24 @@ class Command(BaseCommand):
             help="Specify the course directory (tar archive).",
         )
         parser.add_argument(
-            "--contenttranslations",
+            "--content-translation-provider",
             dest="content_translation_provider",
             required=True,
-            choices=["deepl", "gemini", "mistral", "openai"],
-            help="AI provider to use for content (XML/HTML and text) translation.",
+            help=(
+                "Translation provider for content (XML/HTML and text). "
+                "Format: 'deepl' or 'PROVIDER/MODEL' "
+                "(e.g., 'openai/gpt-5.2', 'gemini/gemini-3-pro-preview')"
+            ),
         )
         parser.add_argument(
-            "--srttranslations",
+            "--srt-translation-provider",
             dest="srt_translation_provider",
             required=True,
-            choices=["deepl", "gemini", "mistral", "openai"],
-            help="AI provider to use for SRT subtitle translation.",
+            help=(
+                "Translation provider for SRT subtitles. "
+                "Format: 'deepl' or 'PROVIDER/MODEL' "
+                "(e.g., 'openai/gpt-5.2', 'gemini/gemini-3-pro-preview')"
+            ),
         )
         parser.add_argument(
             "--glossary-dir",
@@ -102,24 +96,29 @@ class Command(BaseCommand):
                 "language-specific glossary files."
             ),
         )
-        parser.add_argument(
-            "--openai-model",
-            dest="openai_model",
-            default=default_openai_model,
-            help=f"OpenAI model name to use (default: {default_openai_model})",
-        )
-        parser.add_argument(
-            "--gemini-model",
-            dest="gemini_model",
-            default=default_gemini_model,
-            help=f"Gemini model name to use (default: {default_gemini_model})",
-        )
-        parser.add_argument(
-            "--mistral-model",
-            dest="mistral_model",
-            default=default_mistral_model,
-            help=f"Mistral model name to use (default: {default_mistral_model})",
-        )
+
+    def _parse_provider_spec(self, provider_spec: str) -> tuple[str, str | None]:
+        """
+        Parse provider specification into provider name and model.
+
+        Args:
+            provider_spec: Provider specification (e.g., 'deepl', 'openai/gpt-5.2')
+
+        Returns:
+            Tuple of (provider_name, model_name)
+        """
+        if "/" in provider_spec:
+            parts = provider_spec.split("/", 1)
+            if len(parts) != 2 or not parts[0] or not parts[1]:  # noqa: PLR2004
+                error_msg = (
+                    f"Invalid provider specification: {provider_spec}. "
+                    "Use format 'PROVIDER/MODEL' (e.g., 'openai/gpt-5.2')"
+                )
+                raise CommandError(error_msg)
+            return parts[0].lower(), parts[1]
+        else:
+            # For deepl, no model is needed
+            return provider_spec.lower(), None
 
     def handle(self, **options) -> None:
         """Handle the translate_course command."""
@@ -127,34 +126,35 @@ class Command(BaseCommand):
             course_archive_path = Path(options["course_archive_path"])
             source_language = options["source_language"]
             target_language = options["target_language"]
-            content_translation_provider = options["content_translation_provider"]
-            srt_provider_name = options["srt_translation_provider"]
+            content_provider_spec = options["content_translation_provider"]
+            srt_provider_spec = options["srt_translation_provider"]
             glossary_directory = options.get("glossary_directory")
-            openai_model = options["openai_model"]
-            gemini_model = options["gemini_model"]
-            mistral_model = options["mistral_model"]
+
+            # Parse provider specifications
+            content_provider_name, content_model = self._parse_provider_spec(
+                content_provider_spec
+            )
+            srt_provider_name, srt_model = self._parse_provider_spec(srt_provider_spec)
 
             # Validate inputs
             validate_course_inputs(course_archive_path)
 
-            # Store provider names and model names
-            self.content_provider_name = content_translation_provider
+            # Store provider names and models
+            self.content_provider_name = content_provider_name
+            self.content_model = content_model
             self.srt_provider_name = srt_provider_name
+            self.srt_model = srt_model
             self.glossary_directory = glossary_directory
-            self.openai_model = openai_model
-            self.gemini_model = gemini_model
-            self.mistral_model = mistral_model
 
             # Validate providers by attempting to instantiate them
             try:
                 get_translation_provider(
-                    content_translation_provider,
-                    openai_model,
-                    gemini_model,
-                    mistral_model,
+                    content_provider_name,
+                    content_model,
                 )
                 get_translation_provider(
-                    srt_provider_name, openai_model, gemini_model, mistral_model
+                    srt_provider_name,
+                    srt_model,
                 )
             except ValueError as e:
                 raise CommandError(str(e)) from e
@@ -245,11 +245,10 @@ class Command(BaseCommand):
                 source_language,
                 target_language,
                 self.content_provider_name,
+                self.content_model,
                 self.srt_provider_name,
+                self.srt_model,
                 self.glossary_directory,
-                self.openai_model,
-                self.gemini_model,
-                self.mistral_model,
             )
             self.task_results.append(("file", str(file_path), task_result))
             logger.info("Dispatched translation task for: %s", file_path)
@@ -273,10 +272,8 @@ class Command(BaseCommand):
                     str(grading_policy_file),
                     target_language,
                     self.content_provider_name,
+                    self.content_model,
                     self.glossary_directory,
-                    self.openai_model,
-                    self.gemini_model,
-                    self.mistral_model,
                 )
                 self.task_results.append(
                     ("grading_policy", str(grading_policy_file), task_result)
@@ -304,10 +301,8 @@ class Command(BaseCommand):
                     str(policy_file),
                     target_language,
                     self.content_provider_name,
+                    self.content_model,
                     self.glossary_directory,
-                    self.openai_model,
-                    self.gemini_model,
-                    self.mistral_model,
                 )
                 self.task_results.append(("policy", str(policy_file), task_result))
                 logger.info("Dispatched policy.json task for: %s", policy_file)

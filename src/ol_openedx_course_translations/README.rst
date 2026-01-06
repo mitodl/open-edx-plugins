@@ -36,11 +36,11 @@ Configuration
            "default_provider": "mistral",  # Default provider to use
            "openai": {
                "api_key": "<YOUR_OPENAI_API_KEY>",
-               "default_model": "gpt-4",
+               "default_model": "gpt-5.2",
            },
            "gemini": {
                "api_key": "<YOUR_GEMINI_API_KEY>",
-               "default_model": "gemini-pro",
+               "default_model": "gemini-3-pro-preview",
            },
            "mistral": {
                "api_key": "<YOUR_MISTRAL_API_KEY>",
@@ -67,16 +67,25 @@ The plugin supports multiple translation providers:
 
 **Provider Selection**
 
-You can specify different providers for content and SRT subtitle translation:
+You can specify different providers for content and SRT subtitle translation using the format ``PROVIDER/MODEL``:
 
 .. code-block:: bash
 
     ./manage.py cms translate_course \
-        --translation-language AR \
+        --target-language AR \
         --course-dir /path/to/course.tar.gz \
-        --contenttranslations deepl \
-        --srttranslations openai \
-        --openai-model gpt-5.2
+        --content-translation-provider openai/gpt-5.2 \
+        --srt-translation-provider gemini/gemini-3-pro-preview
+
+For DeepL, just specify ``deepl`` without a model:
+
+.. code-block:: bash
+
+    ./manage.py cms translate_course \
+        --target-language AR \
+        --course-dir /path/to/course.tar.gz \
+        --content-translation-provider deepl \
+        --srt-translation-provider deepl
 
 Translating a Course
 ====================
@@ -90,24 +99,46 @@ Translating a Course
 
         ./manage.py cms translate_course \
             --source-language EN \
-            --translation-language AR \
+            --target-language AR \
             --course-dir /path/to/course.tar.gz \
-            --contenttranslations deepl \
-            --srttranslations openai \
-            --openai-model gpt-5.2 \
+            --content-translation-provider openai/gpt-5.2 \
+            --srt-translation-provider gemini/gemini-3-pro-preview \
             --glossary-dir /path/to/glossary
 
 **Command Options:**
 
 - ``--source-language``: Source language code (default: EN)
-- ``--translation-language``: Target language code (required)
+- ``--target-language``: Target language code (required)
 - ``--course-dir``: Path to exported course tar.gz file (required)
-- ``--contenttranslations``: AI provider for content translation (required): deepl, openai, gemini, mistral
-- ``--srttranslations``: AI provider for SRT subtitle translation (required): deepl, openai, gemini, mistral
+- ``--content-translation-provider``: Translation provider for content (XML/HTML and text) (required). Format: ``deepl`` or ``PROVIDER/MODEL`` (e.g., ``openai/gpt-5.2``, ``gemini/gemini-3-pro-preview``, ``mistral/mistral-large-latest``)
+- ``--srt-translation-provider``: Translation provider for SRT subtitles (required). Format: ``deepl`` or ``PROVIDER/MODEL`` (e.g., ``openai/gpt-5.2``, ``gemini/gemini-3-pro-preview``, ``mistral/mistral-large-latest``)
 - ``--glossary-dir``: Path to glossary directory (optional)
-- ``--openai-model``: OpenAI model name (default: from TRANSLATIONS_PROVIDERS or gpt-5.2)
-- ``--gemini-model``: Gemini model name (default: from TRANSLATIONS_PROVIDERS or gemini-3-pro-preview)
-- ``--mistral-model``: Mistral model name (default: from TRANSLATIONS_PROVIDERS or mistral-large-latest)
+
+**Examples:**
+
+.. code-block:: bash
+
+    # Use DeepL for both content and subtitles
+    ./manage.py cms translate_course \
+        --target-language AR \
+        --course-dir /path/to/course.tar.gz \
+        --content-translation-provider deepl \
+        --srt-translation-provider deepl
+
+    # Use OpenAI GPT-5.2 for content and Gemini for subtitles
+    ./manage.py cms translate_course \
+        --target-language FR \
+        --course-dir /path/to/course.tar.gz \
+        --content-translation-provider openai/gpt-5.2 \
+        --srt-translation-provider gemini/gemini-3-pro-preview
+
+    # Use Mistral with glossary
+    ./manage.py cms translate_course \
+        --target-language ES \
+        --course-dir /path/to/course.tar.gz \
+        --content-translation-provider mistral/mistral-large-latest \
+        --srt-translation-provider mistral/mistral-large-latest \
+        --glossary-dir /path/to/glossary
 
 **Glossary Support:**
 
@@ -194,7 +225,7 @@ This command synchronizes translation keys from edx-platform and MFE's, translat
 
 - ``--iso-code``: ISO code for JSON files (default: same as language code)
 - ``--provider``: Translation provider (``openai``, ``gemini``, ``mistral``). Default is taken from ``TRANSLATIONS_PROVIDERS['default_provider']`` setting
-- ``--model``: LLM model name. If not specified, uses the ``default_model`` for the selected provider from ``TRANSLATIONS_PROVIDERS``. Examples: ``gpt-4``, ``gemini-pro``, ``mistral-large-latest``
+- ``--model``: LLM model name. If not specified, uses the ``default_model`` for the selected provider from ``TRANSLATIONS_PROVIDERS``. Examples: ``gpt-5.2``, ``gemini-3-pro-preview``, ``mistral-large-latest``
 - ``--repo-path``: Path to mitxonline-translations repository (can also be set via ``TRANSLATIONS_REPO_PATH`` setting or environment variable)
 - ``--repo-url``: GitHub repository URL (default: ``https://github.com/mitodl/mitxonline-translations.git``, can also be set via ``TRANSLATIONS_REPO_URL`` setting or environment variable)
 - ``--glossary``: Use glossary from plugin glossaries folder (looks for ``{plugin_dir}/glossaries/machine_learning/{lang_code}.txt``)
@@ -209,14 +240,14 @@ This command synchronizes translation keys from edx-platform and MFE's, translat
         # Use default provider (from TRANSLATIONS_PROVIDERS['default_provider']) with its default model
         ./manage.py cms sync_and_translate_language el
 
-        # Use OpenAI provider with its default model (gpt-4)
+        # Use OpenAI provider with its default model (gpt-5.2)
         ./manage.py cms sync_and_translate_language el --provider openai
 
         # Use OpenAI provider with a specific model
-        ./manage.py cms sync_and_translate_language el --provider openai --model gpt-4-turbo
+        ./manage.py cms sync_and_translate_language el --provider openai --model gpt-5.2
 
         # Use Mistral provider with a specific model and glossary
-        ./manage.py cms sync_and_translate_language el --provider mistral --model mistral-small-latest --glossary --batch-size 250
+        ./manage.py cms sync_and_translate_language el --provider mistral --model mistral-large-latest --glossary --batch-size 250
 
 License
 *******

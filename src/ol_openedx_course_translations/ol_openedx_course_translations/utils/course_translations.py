@@ -31,18 +31,14 @@ logger = logging.getLogger(__name__)
 
 def get_translation_provider(  # noqa: C901
     provider_name: str,
-    openai_model: str | None = None,
-    gemini_model: str | None = None,
-    mistral_model: str | None = None,
+    model_name: str | None = None,
 ):
     """
     Get translation provider instance based on provider name.
 
     Args:
         provider_name: Name of the provider (deepl, openai, gemini, mistral)
-        openai_model: OpenAI model name to use
-        gemini_model: Gemini model name to use
-        mistral_model: Mistral model name to use
+        model_name: Model name to use (required for LLM providers, not used for DeepL)
 
     Returns:
         Translation provider instance
@@ -78,22 +74,22 @@ def get_translation_provider(  # noqa: C901
     # Get OpenAI API key for repair functionality
     openai_api_key = providers_config.get("openai", {}).get("api_key", "")
 
+    # Use provided model or fall back to default from config
+    model = model_name or provider_config.get("default_model")
+
     if provider_name == PROVIDER_OPENAI:
-        model = openai_model or provider_config.get("default_model")
         if not model:
             msg = "Model name is required for OpenAI provider"
             raise ValueError(msg)
         return OpenAIProvider(api_key, openai_api_key, model)
 
     elif provider_name == PROVIDER_GEMINI:
-        model = gemini_model or provider_config.get("default_model")
         if not model:
             msg = "Model name is required for Gemini provider"
             raise ValueError(msg)
         return GeminiProvider(api_key, openai_api_key, model)
 
     elif provider_name == PROVIDER_MISTRAL:
-        model = mistral_model or provider_config.get("default_model")
         if not model:
             msg = "Model name is required for Mistral provider"
             raise ValueError(msg)
