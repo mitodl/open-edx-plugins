@@ -53,14 +53,10 @@ def translate_file_task(  # noqa: PLR0913
     try:
         file_path = Path(file_path_str)
 
-        # Determine which provider to use
-        if file_path.suffix == ".srt":
-            provider = get_translation_provider(srt_provider_name, srt_model)
-        else:
-            provider = get_translation_provider(content_provider_name, content_model)
-
         # Handle SRT files
         if file_path.suffix == ".srt":
+            provider = get_translation_provider(srt_provider_name, srt_model)
+
             source_lang_pattern = f"-{source_language.lower()}.srt"
             if not file_path.name.lower().endswith(source_lang_pattern):
                 return {
@@ -93,6 +89,7 @@ def translate_file_task(  # noqa: PLR0913
         if file_path.suffix in [".xml", ".html"]:
             tag_handling_mode = file_path.suffix.lstrip(".")
 
+        provider = get_translation_provider(content_provider_name, content_model)
         translated_content = provider.translate_text(
             file_content,
             target_language.lower(),

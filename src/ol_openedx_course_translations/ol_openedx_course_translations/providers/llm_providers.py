@@ -80,84 +80,112 @@ class LLMProvider(TranslationProvider):
         super().__init__(primary_api_key, repair_api_key)
         self.model_name = model_name
 
-    def _get_system_prompt(
+    def _get_subtitle_system_prompt(
         self,
         target_language: str,
-        content_type: str = "subtitle",
         glossary_directory: str | None = None,
     ) -> str:
         """
-        Generate system prompt for LLM translation.
+        Generate system prompt for subtitle translation.
 
-        Creates detailed prompts with rules for subtitle or text translation,
+        Creates detailed prompts with rules for subtitle translation,
         including glossary terms if provided.
 
         Args:
             target_language: Target language code
-            content_type: Type of content ("subtitle" or "text")
             glossary_directory: Path to glossary directory (optional)
 
         Returns:
-            System prompt string for the LLM
+            System prompt string for subtitle translation
         """
         target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
             target_language, target_language
         )
 
-        if content_type == "subtitle":
-            system_prompt_template = (
-                f"You are a professional subtitle translator. "
-                f"Translate the following English subtitles to "
-                f"{target_language_display_name}.\n\n"
-                "INPUT FORMAT:\n"
-                ":::ID:::\n"
-                "Text to translate\n\n"
-                "OUTPUT FORMAT (exactly):\n"
-                ":::ID:::\n"
-                "Translated text\n\n"
-                "RULES:\n"
-                "1. Preserve ALL :::ID::: markers exactly as given.\n"
-                "2. Every input ID MUST appear in output with its translation.\n"
-                "3. One ID = one translation. "
-                "NEVER merge or split content across IDs.\n"
-                "4. Keep proper nouns, brand names, and acronyms unchanged.\n"
-                "5. Use natural phrasing appropriate for subtitles.\n"
-            )
-        else:
-            system_prompt_template = (
-                f"You are a professional translator. "
-                f"Translate the following English text to "
-                f"{target_language_display_name}.\n\n"
-                f"OUTPUT FORMAT (exactly):\n"
-                f"{TRANSLATION_MARKER_START}\n"
-                "Your translated text here\n"
-                f"{TRANSLATION_MARKER_END}\n\n"
-                "CRITICAL RULES FOR XML/HTML TAGS:\n"
-                "1. NEVER translate or modify XML/HTML tags, tag names, or attributes except display_name.\n"  # noqa: E501
-                "2. XML/HTML tags include anything within angle brackets: < >.\n"
-                '3. Tag attributes (name="value") must remain in English.\n'
-                "4. Only translate the TEXT CONTENT between tags.\n"
-                "5. Preserve ALL tags exactly as they appear in the input.\n"
-                "6. Examples of what NOT to translate:\n"
-                "   - <video>, <problem>, <html>, <div>, <p>, etc.\n"
-                "   - Attributes: url_name, filename, src, etc.\n"
-                "   - Self-closing tags: <vertical />, <sequential />\n\n"
-                "GENERAL TRANSLATION RULES:\n"
-                "1. Output ONLY the translation between the markers.\n"
-                "2. Maintain the original formatting and structure.\n"
-                "3. Keep proper nouns, brand names, and acronyms unchanged.\n"
-                "4. Do NOT include explanations, notes, or commentary.\n"
-                "5. Preserve spacing, line breaks, and indentation.\n"
-            )
+        system_prompt = (
+            f"You are a professional subtitle translator. "
+            f"Translate the following English subtitles to "
+            f"{target_language_display_name}.\n\n"
+            "INPUT FORMAT:\n"
+            ":::ID:::\n"
+            "Text to translate\n\n"
+            "OUTPUT FORMAT (exactly):\n"
+            ":::ID:::\n"
+            "Translated text\n\n"
+            "RULES:\n"
+            "1. Preserve ALL :::ID::: markers exactly as given.\n"
+            "2. Every input ID MUST appear in output with its translation.\n"
+            "3. One ID = one translation. "
+            "NEVER merge or split content across IDs.\n"
+            "4. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "5. Use natural phrasing appropriate for subtitles.\n"
+        )
 
         if glossary_directory:
             glossary_terms = load_glossary(target_language, glossary_directory)
             if glossary_terms:
-                system_prompt_template += (
+                system_prompt += (
                     f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
                 )
 
-        return system_prompt_template
+        return system_prompt
+
+    def _get_text_system_prompt(
+        self,
+        target_language: str,
+        glossary_directory: str | None = None,
+    ) -> str:
+        """
+        Generate system prompt for text/HTML/XML translation.
+
+        Creates detailed prompts with rules for text translation,
+        including glossary terms if provided.
+
+        Args:
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+
+        Returns:
+            System prompt string for text translation
+        """
+        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+            target_language, target_language
+        )
+
+        system_prompt = (
+            f"You are a professional translator. "
+            f"Translate the following English text to "
+            f"{target_language_display_name}.\n\n"
+            f"OUTPUT FORMAT (exactly):\n"
+            f"{TRANSLATION_MARKER_START}\n"
+            "Your translated text here\n"
+            f"{TRANSLATION_MARKER_END}\n\n"
+            "CRITICAL RULES FOR XML/HTML TAGS:\n"
+            "1. NEVER translate or modify XML/HTML tags, tag names, or attributes except display_name.\n"  # noqa: E501
+            "2. XML/HTML tags include anything within angle brackets: < >.\n"
+            '3. Tag attributes (name="value") must remain in English.\n'
+            "4. Only translate the TEXT CONTENT between tags.\n"
+            "5. Preserve ALL tags exactly as they appear in the input.\n"
+            "6. Examples of what NOT to translate:\n"
+            "   - <video>, <problem>, <html>, <div>, <p>, etc.\n"
+            "   - Attributes: url_name, filename, src, etc.\n"
+            "   - Self-closing tags: <vertical />, <sequential />\n\n"
+            "GENERAL TRANSLATION RULES:\n"
+            "1. Output ONLY the translation between the markers.\n"
+            "2. Maintain the original formatting and structure.\n"
+            "3. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "4. Do NOT include explanations, notes, or commentary.\n"
+            "5. Preserve spacing, line breaks, and indentation.\n"
+        )
+
+        if glossary_directory:
+            glossary_terms = load_glossary(target_language, glossary_directory)
+            if glossary_terms:
+                system_prompt += (
+                    f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
+                )
+
+        return system_prompt
 
     def _parse_structured_response(
         self, llm_response_text: str, original_subtitle_batch: list[srt.Subtitle]
@@ -311,8 +339,8 @@ class LLMProvider(TranslationProvider):
         Returns:
             List of translated subtitle objects
         """
-        system_prompt = self._get_system_prompt(
-            target_language, "subtitle", glossary_directory
+        system_prompt = self._get_subtitle_system_prompt(
+            target_language, glossary_directory
         )
 
         translated_subtitle_list = []
@@ -386,8 +414,8 @@ class LLMProvider(TranslationProvider):
         if not source_text or not source_text.strip():
             return source_text
 
-        system_prompt = self._get_system_prompt(
-            target_language, "text", glossary_directory
+        system_prompt = self._get_text_system_prompt(
+            target_language, glossary_directory
         )
 
         try:

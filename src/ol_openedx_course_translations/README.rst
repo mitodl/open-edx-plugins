@@ -151,7 +151,7 @@ Create language-specific glossary files in the glossary directory:
     ├── fr.txt  # French glossary
     └── es.txt  # Spanish glossary
 
-Format: One term per line as "source_term -> translated_term"
+Format: One term per line as "source_term : translated_term"
 
 .. code-block:: text
 
@@ -159,10 +159,10 @@ Format: One term per line as "source_term -> translated_term"
     ## TERM MAPPINGS
     These are preferred terminology choices for this language. Use them whenever they sound natural; adapt freely if context requires.
 
-    - 'accuracy' -> 'exactitud'
-    - 'activation function' -> 'función de activación'
-    - 'artificial intelligence' -> 'inteligencia artificial'
-    - 'AUC' -> 'AUC'
+    - 'accuracy' : 'exactitud'
+    - 'activation function' : 'función de activación'
+    - 'artificial intelligence' : 'inteligencia artificial'
+    - 'AUC' : 'AUC'
 
 Auto Language Selection
 =======================
