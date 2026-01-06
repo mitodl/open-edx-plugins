@@ -161,6 +161,13 @@ class GitRepository:
         except git.exc.GitCommandError as e:
             self._handle_git_error("updating repository", e)
 
+    def get_remote_url(self) -> str | None:
+        """Get the current remote URL."""
+        try:
+            return self.repo.remotes.origin.url
+        except (git.exc.GitCommandError, AttributeError):
+            return None
+
     def configure_user(
         self,
         email: str = "translations@mitodl.org",
@@ -725,9 +732,31 @@ class Command(BaseCommand):
         is_git_repo = repo_path_obj.exists() and (repo_path_obj / ".git").exists()
 
         if is_git_repo:
-            self.stdout.write(f"   Repository found at {repo_path}")
             repo = GitRepository(repo_path)
+            current_url = repo.get_remote_url()
 
+            # Normalize URLs for comparison (remove .git suffix, trailing slashes)
+            normalized_current = (current_url or "").rstrip(".git").rstrip("/")
+            normalized_new = repo_url.rstrip(".git").rstrip("/")
+
+            # If URL changed, delete and re-clone
+            if normalized_current != normalized_new:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"   Repository URL changed from {current_url} to {repo_url}"
+                    )
+                )
+                self.stdout.write("   Removing old repository and cloning new one...")
+                shutil.rmtree(repo_path)
+                self.stdout.write(f"   Cloning repository to {repo_path}...")
+                repo = GitRepository.clone(repo_url, repo_path)
+                self.stdout.write(
+                    self.style.SUCCESS("   Repository cloned successfully")
+                )
+                return repo
+
+            # URL matches, use existing repo
+            self.stdout.write(f"   Repository found at {repo_path}")
             if repo.ensure_clean():
                 self.stdout.write(
                     self.style.WARNING(
