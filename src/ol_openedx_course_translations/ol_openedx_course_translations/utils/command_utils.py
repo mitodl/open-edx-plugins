@@ -13,6 +13,11 @@ from typing import Any
 from django.conf import settings
 from django.core.management.base import CommandError
 
+from ol_openedx_course_translations.utils.constants import (
+    PROVIDER_GEMINI,
+    PROVIDER_MISTRAL,
+)
+
 # ============================================================================
 # Validation Utilities
 # ============================================================================
@@ -110,13 +115,19 @@ def configure_litellm_for_provider(
 
     if api_key:
         completion_kwargs["api_key"] = api_key
-        if provider == "gemini":
+        if provider == PROVIDER_GEMINI:
+            # If no prefix, add gemini/ to force Gemini API usage (not Vertex AI)
+            # If vertex_ai/ or gemini/ prefix already exists, respect it
             if not model.startswith(("gemini/", "vertex_ai/")):
                 completion_kwargs["model"] = f"gemini/{model}"
-            # Gemini 3 models require temperature = 1.0 to avoid issues
+            # Gemini 3 models require temperature = 1.0 to avoid issues:
+            # - Infinite loops in response generation
+            # - Degraded reasoning performance
+            # - Failure on complex tasks
+            # See: https://docs.litellm.ai/docs/providers/gemini
             if "gemini-3" in model.lower():
                 completion_kwargs["temperature"] = 1.0
-        elif provider == "mistral" and not model.startswith("mistral/"):
+        elif provider == PROVIDER_MISTRAL and not model.startswith("mistral/"):
             completion_kwargs["model"] = f"mistral/{model}"
 
     return completion_kwargs

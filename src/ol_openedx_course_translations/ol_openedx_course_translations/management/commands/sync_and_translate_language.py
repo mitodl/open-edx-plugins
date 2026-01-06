@@ -48,6 +48,8 @@ from ol_openedx_course_translations.utils.constants import (
     LANGUAGE_MAPPING,
     MAX_ERROR_MESSAGE_LENGTH,
     MAX_RETRIES,
+    PROVIDER_GEMINI,
+    PROVIDER_MISTRAL,
 )
 from ol_openedx_course_translations.utils.translation_sync import (
     apply_json_translations,
@@ -1459,9 +1461,9 @@ class Command(BaseCommand):
 
         env_key_name = (
             "GEMINI_API_KEY"
-            if provider == "gemini"
+            if provider == PROVIDER_GEMINI
             else "MISTRAL_API_KEY"
-            if provider == "mistral"
+            if provider == PROVIDER_MISTRAL
             else "OPENAI_API_KEY"
         )
         return os.environ.get(env_key_name)

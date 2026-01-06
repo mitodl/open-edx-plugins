@@ -1,5 +1,10 @@
 """Constants for translation synchronization."""
 
+# LLM Provider names
+PROVIDER_GEMINI = "gemini"
+PROVIDER_MISTRAL = "mistral"
+PROVIDER_OPENAI = "openai"
+
 # Learner-facing frontend applications that require translation
 LEARNER_FACING_APPS = [
     "frontend-app-learning",
