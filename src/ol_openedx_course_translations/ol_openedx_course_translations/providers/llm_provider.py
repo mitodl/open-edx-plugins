@@ -8,7 +8,7 @@ from typing import Any
 import srt
 from litellm import completion
 
-from ol_openedx_course_translations.constants import (
+from ol_openedx_course_translations.utils.constants import (
     LANGUAGE_DISPLAY_NAMES,
     LLM_ERROR_KEYWORDS,
     LLM_EXPLANATION_KEYWORDS,

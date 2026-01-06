@@ -10,7 +10,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from ol_openedx_course_translations.constants import (
+from ol_openedx_course_translations.utils.constants import (
     TASK_POLL_INTERVAL_SECONDS,
     TASK_TIMEOUT_SECONDS,
 )
@@ -19,7 +19,7 @@ from ol_openedx_course_translations.tasks import (
     translate_grading_policy_task,
     translate_policy_json_task,
 )
-from ol_openedx_course_translations.utils import (
+from ol_openedx_course_translations.utils.course_translations import (
     create_translated_archive,
     create_translated_copy,
     extract_course_archive,

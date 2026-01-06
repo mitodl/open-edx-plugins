@@ -12,7 +12,7 @@ from defusedxml import ElementTree
 from django.conf import settings
 from django.core.management.base import CommandError
 
-from ol_openedx_course_translations.constants import (
+from ol_openedx_course_translations.utils.constants import (
     PROVIDER_DEEPL,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,

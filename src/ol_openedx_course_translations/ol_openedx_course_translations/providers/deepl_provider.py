@@ -7,7 +7,7 @@ from pathlib import Path
 import deepl
 import srt
 
-from ol_openedx_course_translations.constants import (
+from ol_openedx_course_translations.utils.constants import (
     DEEPL_ENABLE_BETA_LANGUAGES,
     DEEPL_LANGUAGE_CODES,
     DEEPL_MAX_PAYLOAD_SIZE,
