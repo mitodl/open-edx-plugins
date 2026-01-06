@@ -4,9 +4,9 @@ Management command to translate course content to a specified language.
 
 import logging
 import shutil
-import time
 from pathlib import Path
 
+from celery import group
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
@@ -28,8 +28,8 @@ from ol_openedx_course_translations.utils.course_translations import (
 logger = logging.getLogger(__name__)
 
 # Task configuration
-TASK_TIMEOUT_SECONDS = 600  # 10 minutes
-TASK_POLL_INTERVAL_SECONDS = 2
+TASK_TIMEOUT_SECONDS = 3600  # 1 hour total timeout for all tasks
+TASK_POLL_INTERVAL_SECONDS = 2  # Poll every 2 seconds for task completion
 
 
 class Command(BaseCommand):
@@ -38,9 +38,9 @@ class Command(BaseCommand):
     help = "Translate course content to the specified language."
 
     def __init__(self, *args, **kwargs):
-        """Initialize the command with empty task results list."""
+        """Initialize the command with empty task list."""
         super().__init__(*args, **kwargs)
-        self.task_results = []
+        self.tasks = []
 
     def add_arguments(self, parser) -> None:
         """Entry point for subclassed commands to add custom arguments."""
@@ -214,24 +214,27 @@ class Command(BaseCommand):
         # because tasks can override the XML files
         update_course_language_attribute(course_directory, target_language)
 
-        # Dispatch translation tasks for files in course directory
-        self._dispatch_file_translation_tasks(
+        # Collect all tasks
+        self.tasks = []
+
+        # Add translation tasks for files in course directory
+        self._add_file_translation_tasks(
             course_directory, source_language, target_language, recursive=False
         )
 
-        # Dispatch translation tasks for target subdirectories
+        # Add translation tasks for target subdirectories
         for target_dir_name in settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES:
             target_directory = course_directory / target_dir_name
             if target_directory.exists() and target_directory.is_dir():
-                self._dispatch_file_translation_tasks(
+                self._add_file_translation_tasks(
                     target_directory, source_language, target_language, recursive=True
                 )
 
-        # Dispatch tasks for special JSON files
-        self._dispatch_grading_policy_tasks(course_dir, target_language)
-        self._dispatch_policy_json_tasks(course_dir, target_language)
+        # Add tasks for special JSON files
+        self._add_grading_policy_tasks(course_dir, target_language)
+        self._add_policy_json_tasks(course_dir, target_language)
 
-    def _dispatch_file_translation_tasks(
+    def _add_file_translation_tasks(
         self,
         directory_path: Path,
         source_language: str,
@@ -240,7 +243,7 @@ class Command(BaseCommand):
         recursive: bool = False,
     ) -> None:
         """
-        Dispatch Celery tasks for file translation.
+        Add Celery tasks for file translation to the task list.
 
         Args:
             directory_path: Path to directory containing files to translate
@@ -253,7 +256,7 @@ class Command(BaseCommand):
         )
 
         for file_path in translatable_file_paths:
-            task_result = translate_file_task.delay(
+            task = translate_file_task.s(
                 str(file_path),
                 source_language,
                 target_language,
@@ -263,14 +266,12 @@ class Command(BaseCommand):
                 self.srt_model,
                 self.glossary_directory,
             )
-            self.task_results.append(("file", str(file_path), task_result))
-            logger.info("Dispatched translation task for: %s", file_path)
+            self.tasks.append(("file", str(file_path), task))
+            logger.info("Added translation task for: %s", file_path)
 
-    def _dispatch_grading_policy_tasks(
-        self, course_dir: Path, target_language: str
-    ) -> None:
+    def _add_grading_policy_tasks(self, course_dir: Path, target_language: str) -> None:
         """
-        Dispatch Celery tasks for grading_policy.json translation.
+        Add Celery tasks for grading_policy.json translation to the task list.
 
         Args:
             course_dir: Path to the course directory
@@ -287,25 +288,19 @@ class Command(BaseCommand):
 
             grading_policy_file = policy_child_dir / "grading_policy.json"
             if grading_policy_file.exists():
-                task_result = translate_grading_policy_task.delay(
+                task = translate_grading_policy_task.s(
                     str(grading_policy_file),
                     target_language,
                     self.content_provider_name,
                     self.content_model,
                     self.glossary_directory,
                 )
-                self.task_results.append(
-                    ("grading_policy", str(grading_policy_file), task_result)
-                )
-                logger.info(
-                    "Dispatched grading policy task for: %s", grading_policy_file
-                )
+                self.tasks.append(("grading_policy", str(grading_policy_file), task))
+                logger.info("Added grading policy task for: %s", grading_policy_file)
 
-    def _dispatch_policy_json_tasks(
-        self, course_dir: Path, target_language: str
-    ) -> None:
+    def _add_policy_json_tasks(self, course_dir: Path, target_language: str) -> None:
         """
-        Dispatch Celery tasks for policy.json translation.
+        Add Celery tasks for policy.json translation to the task list.
 
         Args:
             course_dir: Path to the course directory
@@ -322,117 +317,98 @@ class Command(BaseCommand):
 
             policy_file = policy_child_dir / "policy.json"
             if policy_file.exists():
-                task_result = translate_policy_json_task.delay(
+                task = translate_policy_json_task.s(
                     str(policy_file),
                     target_language,
                     self.content_provider_name,
                     self.content_model,
                     self.glossary_directory,
                 )
-                self.task_results.append(("policy", str(policy_file), task_result))
-                logger.info("Dispatched policy.json task for: %s", policy_file)
+                self.tasks.append(("policy", str(policy_file), task))
+                logger.info("Added policy.json task for: %s", policy_file)
 
-    def _wait_and_report_tasks(self) -> None:  # noqa: C901, PLR0912, PLR0915
+    def _wait_and_report_tasks(self) -> None:  # noqa: C901
         """
-        Wait for all Celery tasks to complete and report their status.
+        Execute all tasks as a Celery group and wait for completion.
 
-        Monitors task progress, handles timeouts, and provides detailed status reports.
+        Uses Celery's group primitive to execute tasks in parallel and
+        provides detailed status reporting.
 
         Raises:
-            CommandError: If any tasks fail or timeout occurs
+            CommandError: If any tasks fail
         """
-        if not self.task_results:
-            self.stdout.write("No tasks to wait for.")
+        if not self.tasks:
+            self.stdout.write("No tasks to execute.")
             return
 
+        total_tasks = len(self.tasks)
         self.stdout.write(
-            f"\nDispatched {len(self.task_results)} tasks. Waiting for completion...\n"
+            f"\nExecuting {total_tasks} translation tasks in parallel...\n"
         )
 
-        total_tasks = len(self.task_results)
+        # Extract task signatures and create mappings
+        task_signatures = [task_sig for _, _, task_sig in self.tasks]
+        task_metadata = {
+            i: (task_type, file_path)
+            for i, (task_type, file_path, _) in enumerate(self.tasks)
+        }
+
+        # Create and execute group
+        job = group(task_signatures)
+        result = job.apply_async()
+
+        # Wait for all tasks to complete with timeout
+        try:
+            results = result.get(
+                timeout=TASK_TIMEOUT_SECONDS,
+                interval=TASK_POLL_INTERVAL_SECONDS,
+                propagate=False,
+            )
+        except Exception as e:
+            logger.exception("Task execution failed")
+            error_msg = f"Task execution timeout or error: {e}"
+            raise CommandError(error_msg) from e
+
+        # Process results
         completed_tasks = 0
         failed_tasks = 0
         skipped_tasks = 0
 
-        # Create a mapping of task_id to task info for quick lookup
-        task_info = {
-            task_result.id: (task_type, file_path)
-            for task_type, file_path, task_result in self.task_results
-        }
+        for i, task_result in enumerate(results):
+            task_type, file_path = task_metadata[i]
 
-        # Get all AsyncResult objects
-        pending_tasks = {
-            task_result.id: task_result for _, _, task_result in self.task_results
-        }
+            if isinstance(task_result, dict):
+                status = task_result.get("status", "unknown")
 
-        # Poll for task completion
-        start_time = time.time()
-
-        while pending_tasks:
-            completed_in_iteration = []
-
-            for task_id, task_result in list(pending_tasks.items()):
-                if task_result.ready():
-                    completed_in_iteration.append(task_id)
-                    task_type, file_path = task_info[task_id]
-
-                    try:
-                        result = task_result.get(timeout=1)
-
-                        if result["status"] == "success":
-                            completed_tasks += 1
-                            self.stdout.write(
-                                self.style.SUCCESS(f"✓ {task_type}: {file_path}")
-                            )
-                        elif result["status"] == "skipped":
-                            skipped_tasks += 1
-                            self.stdout.write(
-                                self.style.WARNING(
-                                    f"⊘ {task_type}: {file_path} - "
-                                    f"{result.get('reason', 'Skipped')}"
-                                )
-                            )
-                        else:
-                            failed_tasks += 1
-                            error = result.get("error", "Unknown error")
-                            self.stdout.write(
-                                self.style.ERROR(
-                                    f"✗ {task_type}: {file_path} - {error}"
-                                )
-                            )
-                    except (TimeoutError, KeyError, TypeError) as e:
-                        failed_tasks += 1
-                        self.stdout.write(
-                            self.style.ERROR(
-                                f"✗ {task_type}: {file_path} - Task failed: {e}"
-                            )
-                        )
-
-            # Remove completed tasks from pending
-            for task_id in completed_in_iteration:
-                del pending_tasks[task_id]
-
-            # Check for timeout
-            if time.time() - start_time > TASK_TIMEOUT_SECONDS * total_tasks:
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"\nTimeout: {len(pending_tasks)} tasks did not complete"
+                if status == "success":
+                    completed_tasks += 1
+                    self.stdout.write(self.style.SUCCESS(f"✓ {task_type}: {file_path}"))
+                elif status == "skipped":
+                    skipped_tasks += 1
+                    reason = task_result.get("reason", "Skipped")
+                    self.stdout.write(
+                        self.style.WARNING(f"⊘ {task_type}: {file_path} - {reason}")
                     )
-                )
-                failed_tasks += len(pending_tasks)
-                break
-
-            # Sleep before next poll if there are still pending tasks
-            if pending_tasks:
-                time.sleep(TASK_POLL_INTERVAL_SECONDS)
-
-                # Show progress
-                completed_count = total_tasks - len(pending_tasks)
+                elif status == "error":
+                    failed_tasks += 1
+                    error = task_result.get("error", "Unknown error")
+                    self.stdout.write(
+                        self.style.ERROR(f"✗ {task_type}: {file_path} - {error}")
+                    )
+                else:
+                    failed_tasks += 1
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"✗ {task_type}: {file_path} - Unknown status: {status}"
+                        )
+                    )
+            else:
+                # Task raised an exception
+                failed_tasks += 1
+                error_msg = str(task_result) if task_result else "Task failed"
                 self.stdout.write(
-                    f"Progress: {completed_count}/{total_tasks} tasks completed\r",
-                    ending="",
+                    self.style.ERROR(f"✗ {task_type}: {file_path} - {error_msg}")
                 )
-                self.stdout.flush()
 
         # Print summary
         self.stdout.write("\n" + "=" * 60)
