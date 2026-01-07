@@ -6,9 +6,12 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import srt
+from django.conf import settings
 from litellm import completion
 
 logger = logging.getLogger(__name__)
+
+MAX_SUBTITLE_TRANSLATION_RETRIES = 1
 
 
 def load_glossary(target_language: str, glossary_directory: str | None = None) -> str:
@@ -76,20 +79,39 @@ class TranslationProvider(ABC):
 
         Returns:
             List of translated subtitle objects with validated timestamps
+
+        Raises:
+            ValueError: If timestamp repair fails after validation
         """
         log = logger.getChild("TranslationProvider")
         log.info("  🌐 Translating subtitles to %s...", target_language)
 
-        translated_subtitles = self.translate_subtitles(
-            subtitle_list, target_language, glossary_file
-        )
+        # Try translation with retries
+        translated_subtitles = []
+        for attempt in range(MAX_SUBTITLE_TRANSLATION_RETRIES + 1):
+            if attempt > 0:
+                log.info("  🔧 Retrying subtitle translations...")
 
-        log.info("  🔍 Validating translated subtitles...")
-        if self._validate_timestamps(subtitle_list, translated_subtitles):
-            log.info("  ✅ Timestamps validated successfully.")
-            return translated_subtitles
+            translated_subtitles = self.translate_subtitles(
+                subtitle_list, target_language, glossary_file
+            )
 
-        log.warning("  ❌ Timestamp validation failed.")
+            log.info(
+                "  🔍 %sValidating translated subtitles...",
+                "Re-" if attempt > 0 else "",
+            )
+
+            if self._validate_timestamps(subtitle_list, translated_subtitles):
+                log.info(
+                    "  ✅ Timestamps validated successfully%s.",
+                    " on retry" if attempt > 0 else "",
+                )
+                return translated_subtitles
+
+            log.warning(
+                "  ❌ Timestamp %svalidation failed.", "re-" if attempt > 0 else ""
+            )
+
         repaired_subtitles = self._repair_timestamps_with_llm(
             subtitle_list, translated_subtitles, target_language
         )
@@ -99,8 +121,10 @@ class TranslationProvider(ABC):
             log.info("  ✅ Timestamps repaired and validated successfully.")
             return repaired_subtitles
 
-        log.error("  ❌ Timestamp repair failed. Returning original translation.")
-        return translated_subtitles
+        log.error("  ❌ Timestamp repair failed. Translation cannot proceed.")
+        raise ValueError(  # noqa: TRY003
+            "Subtitle timestamp repair failed - timestamps could not be validated"  # noqa: EM101
+        )
 
     def _validate_timestamps(
         self, original: list[srt.Subtitle], translated: list[srt.Subtitle]
@@ -218,7 +242,7 @@ class TranslationProvider(ABC):
 
             try:
                 response = completion(
-                    model="openai/gpt-4o",
+                    model=f"openai/{settings.TRANSLATIONS_PROVIDERS['openai']['default_model']}",
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},

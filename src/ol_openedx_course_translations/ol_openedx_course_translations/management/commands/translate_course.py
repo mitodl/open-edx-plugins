@@ -4,6 +4,7 @@ Management command to translate course content to a specified language.
 
 import logging
 import shutil
+import time
 from pathlib import Path
 
 from celery import group
@@ -41,6 +42,7 @@ class Command(BaseCommand):
         """Initialize the command with empty task list."""
         super().__init__(*args, **kwargs)
         self.tasks = []
+        self.translated_course_dir = None
 
     def add_arguments(self, parser) -> None:
         """Entry point for subclassed commands to add custom arguments."""
@@ -162,6 +164,9 @@ class Command(BaseCommand):
                 extracted_course_dir, target_language
             )
 
+            # Store for cleanup on failure
+            self.translated_course_dir = translated_course_dir
+
             # Delete extracted directory after copying
             if extracted_course_dir.exists():
                 shutil.rmtree(extracted_course_dir)
@@ -187,6 +192,16 @@ class Command(BaseCommand):
 
         except Exception as e:
             logger.exception("Translation failed")
+
+            # Cleanup translated course directory on failure
+            if self.translated_course_dir and self.translated_course_dir.exists():
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Cleaning up translated course directory: {self.translated_course_dir}"  # noqa: E501
+                    )
+                )
+                shutil.rmtree(self.translated_course_dir)
+
             error_msg = f"Translation failed: {e}"
             raise CommandError(error_msg) from e
 
@@ -327,12 +342,12 @@ class Command(BaseCommand):
                 self.tasks.append(("policy", str(policy_file), task))
                 logger.info("Added policy.json task for: %s", policy_file)
 
-    def _wait_and_report_tasks(self) -> None:  # noqa: C901
+    def _wait_and_report_tasks(self) -> None:  # noqa: C901, PLR0915, PLR0912
         """
         Execute all tasks as a Celery group and wait for completion.
 
         Uses Celery's group primitive to execute tasks in parallel and
-        provides detailed status reporting.
+        provides detailed progress reporting.
 
         Raises:
             CommandError: If any tasks fail
@@ -357,13 +372,35 @@ class Command(BaseCommand):
         job = group(task_signatures)
         result = job.apply_async()
 
-        # Wait for all tasks to complete with timeout
+        # Wait for all tasks to complete with progress reporting
+        completed_count = 0
+        self.stdout.write(f"Progress: 0/{total_tasks} tasks completed")
+        self.stdout.flush()
+
         try:
-            results = result.get(
-                timeout=TASK_TIMEOUT_SECONDS,
-                interval=TASK_POLL_INTERVAL_SECONDS,
-                propagate=False,
+            # Poll for completion and show progress
+            while not result.ready():
+                # Count completed tasks
+                new_completed = sum(1 for r in result.results if r.ready())
+                if new_completed > completed_count:
+                    completed_count = new_completed
+                    self.stdout.write(
+                        f"\rProgress: {completed_count}/{total_tasks} tasks completed",
+                        ending="",
+                    )
+                    self.stdout.flush()
+
+                # Sleep before next poll (don't use join with timeout)
+                time.sleep(TASK_POLL_INTERVAL_SECONDS)
+
+            # Final update
+            self.stdout.write(
+                f"\rProgress: {total_tasks}/{total_tasks} tasks completed\n"
             )
+
+            # Get all results (this will raise exceptions if propagate=True)
+            results = result.get(timeout=TASK_TIMEOUT_SECONDS, propagate=False)
+
         except Exception as e:
             logger.exception("Task execution failed")
             error_msg = f"Task execution timeout or error: {e}"

@@ -166,7 +166,8 @@ class LLMProvider(TranslationProvider):
             '3. Tag attributes (name="value") must remain in English.\n'
             "4. Only translate the TEXT CONTENT between tags.\n"
             "5. Preserve ALL tags exactly as they appear in the input.\n"
-            "6. Examples of what NOT to translate:\n"
+            "6. DO NOT add display_name attribute if it is missing.\n"
+            "7. Examples of what NOT to translate:\n"
             "   - <video>, <problem>, <html>, <div>, <p>, etc.\n"
             "   - Attributes: url_name, filename, src, etc.\n"
             "   - Self-closing tags: <vertical />, <sequential />\n\n"
