@@ -164,6 +164,66 @@ Format: One term per line as "source_term : translated_term"
     - 'artificial intelligence' : 'inteligencia artificial'
     - 'AUC' : 'AUC'
 
+Subtitle Translation and Validation
+====================================
+
+The course translation system includes robust subtitle (SRT) translation with automatic validation and repair mechanisms to ensure high-quality translations with preserved timing information.
+
+**Translation Process**
+
+The subtitle translation follows a multi-stage process with built-in quality checks:
+
+1. **Initial Translation**: Subtitles are translated using your configured provider (DeepL or LLM)
+2. **Validation**: Timestamps, subtitle count, and content are validated to ensure integrity
+3. **Automatic Retry**: If validation fails, the system automatically retries translation (up to 1 additional attempt)
+4. **DeepL Repair Fallback**: If retries fail, the system automatically falls back to DeepL for repair
+
+**Why DeepL for Repair?**
+
+When subtitle translations fail validation (mismatched timestamps, incorrect subtitle counts, or blank translations), the system automatically uses **DeepL as a repair mechanism**, regardless of which provider was initially used. This design choice is based on extensive testing and production experience:
+
+- **Higher Reliability**: LLMs frequently fail to preserve subtitle structure and timestamps correctly, even with detailed prompting
+- **Consistent Formatting**: DeepL's specialized subtitle translation API maintains timing precision through XML tag handling
+- **Lower Failure Rate**: DeepL demonstrates significantly better success rates for subtitle translation compared to LLMs
+- **Timestamp Preservation**: DeepL's built-in XML tag handling ensures start and end times remain intact during translation
+
+
+**Validation Rules**
+
+The system validates subtitle translations against these criteria:
+
+- **Subtitle Count**: Translated file must have the same number of subtitle blocks as the original
+- **Index Matching**: Each subtitle block index must match the original (e.g., if original has blocks 1-100, translation must have blocks 1-100 in the same order)
+- **Timestamp Preservation**: Start and end times for each subtitle block must remain unchanged
+- **Content Validation**: Non-empty original subtitles must have non-empty translations (blank translations are flagged as errors)
+
+**Example Validation Process:**
+
+.. code-block:: text
+
+    1. Initial Translation (using OpenAI):
+       ✓ 150 subtitle blocks translated
+       ✗ Validation failed: 3 blocks have mismatched timestamps
+
+    2. Retry Attempt:
+       ✓ 150 subtitle blocks translated
+       ✗ Validation failed: 2 blocks still have issues
+
+    3. DeepL Repair:
+       ✓ 150 subtitle blocks retranslated using DeepL
+       ✓ Validation passed: All timestamps and content validated
+       ✅ Translation completed successfully
+
+**Failure Handling**
+
+If subtitle repair fails after all attempts (including DeepL fallback):
+
+- The translation task will fail with a ``ValueError``
+- The entire course translation will be aborted to prevent incomplete translations
+- The translated course directory will be automatically cleaned up
+- An error message will indicate which subtitle file caused the failure
+- No partial or corrupted translation files will be left behind
+
 Auto Language Selection
 =======================
 
