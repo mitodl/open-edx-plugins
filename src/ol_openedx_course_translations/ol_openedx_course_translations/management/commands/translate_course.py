@@ -29,7 +29,7 @@ from ol_openedx_course_translations.utils.course_translations import (
 logger = logging.getLogger(__name__)
 
 # Task configuration
-TASK_TIMEOUT_SECONDS = 3600  # 1 hour total timeout for all tasks
+TASK_TIMEOUT_SECONDS = 3600 * 2  # 2 hour total timeout for all tasks
 TASK_POLL_INTERVAL_SECONDS = 2  # Poll every 2 seconds for task completion
 
 
