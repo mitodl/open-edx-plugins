@@ -1,13 +1,10 @@
 """Base classes for translation providers."""
 
 import logging
-import math
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 import srt
-from django.conf import settings
-from litellm import completion
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +51,7 @@ class TranslationProvider(ABC):
 
         Args:
             primary_api_key: API key for primary translation service
-            repair_api_key: API key for repair service
-                (optional, used for subtitle repair)
+            repair_api_key: API key for repair service (DeepL API key)
         """
         self.primary_api_key = primary_api_key
         self.repair_api_key = repair_api_key
@@ -70,7 +66,7 @@ class TranslationProvider(ABC):
         Translate SRT subtitles with timestamp validation and repair.
 
         Performs translation, validates timestamps, and attempts repair
-        if validation fails.
+        if validation fails using DeepL.
 
         Args:
             subtitle_list: List of subtitle objects to translate
@@ -112,8 +108,8 @@ class TranslationProvider(ABC):
                 "  ❌ Timestamp %svalidation failed.", "re-" if attempt > 0 else ""
             )
 
-        repaired_subtitles = self._repair_timestamps_with_llm(
-            subtitle_list, translated_subtitles, target_language
+        repaired_subtitles = self._repair_timestamps_with_deepl(
+            subtitle_list, target_language
         )
 
         log.info("  🔍 Re-validating repaired subtitles...")
@@ -168,21 +164,18 @@ class TranslationProvider(ABC):
             return False
         return True
 
-    def _repair_timestamps_with_llm(
+    def _repair_timestamps_with_deepl(
         self,
         original: list[srt.Subtitle],
-        misaligned: list[srt.Subtitle],
         target_lang: str,
     ) -> list[srt.Subtitle]:
         """
-        Repair misaligned timestamps using LLM via litellm.
+        Repair misaligned timestamps using DeepL translation.
 
-        Processes subtitles in batches, using an LLM to realign translated content
-        with original timestamps.
+        Uses DeepL to retranslate subtitles with proper timestamp preservation.
 
         Args:
             original: Original subtitle list with correct timestamps
-            misaligned: Translated subtitle list with incorrect timestamps
             target_lang: Target language code
 
         Returns:
@@ -190,95 +183,39 @@ class TranslationProvider(ABC):
         """
         if not self.repair_api_key:
             logger.warning("   No repair API key available, skipping repair.")
-            return misaligned
+            return original
 
-        logger.info("  🔧 Repairing timestamps using LLM...")
+        logger.info("  🔧 Repairing timestamps using DeepL...")
 
-        repaired_subtitles = []
-        batch_size = 50
-        total_batches = math.ceil(len(original) / batch_size)
-
-        for i in range(total_batches):
-            start = i * batch_size
-            end = min(len(original), start + batch_size)
-            original_batch = original[start:end]
-
-            # Get corresponding translated batch with overlap
-            overlap = 5
-            t_start = max(0, start - overlap)
-            t_end = min(len(misaligned), end + overlap)
-            misaligned_batch = misaligned[t_start:t_end]
-
-            original_text = srt.compose(original_batch)
-            misaligned_text = srt.compose(misaligned_batch)
-
-            logger.info("  Repairing chunk %s/%s...", i + 1, total_batches)
-
-            system_prompt = (
-                f"You repair timestamp alignment problems in SRT subtitles "
-                f"translated to {target_lang}.\n"
-                "Each request contains a subset of the original SRT and the "
-                "corresponding translated output.\n"
-                "For the cues shown, copy the cue numbers and timestamps EXACTLY "
-                "from the original section\n"
-                "and rewrite the translated text so it aligns 1:1 with those cues.\n"
-                "Return only a valid SRT segment for the provided cues."
+        try:
+            # Import DeepL provider for repair
+            from ol_openedx_course_translations.providers.deepl_provider import (  # noqa: PLC0415
+                DeepLProvider,
             )
 
-            user_prompt = (
-                f"You are fixing cues {original_batch[0].index}-"
-                f"{original_batch[-1].index}.\n\n"
-                "ORIGINAL ENGLISH SRT WITH CORRECT TIMESTAMPS:\n"
-                "```\n"
-                f"{original_text}\n"
-                "```\n\n"
-                "TRANSLATED SRT WITH INCORRECT TIMESTAMPS:\n"
-                "```\n"
-                f"{misaligned_text}\n"
-                "```\n\n"
-                "Return ONLY the corrected SRT for the cues shown in the "
-                "original section."
+            # Create DeepL provider instance for repair
+            deepl_provider = DeepLProvider(self.repair_api_key, None)
+
+            # Use DeepL to translate with proper timestamp preservation
+            repaired_subtitles = deepl_provider.translate_subtitles(
+                original, target_lang, None
             )
 
-            try:
-                response = completion(
-                    model=f"openai/{settings.TRANSLATIONS_PROVIDERS['openai']['default_model']}",
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    api_key=self.repair_api_key,
-                    temperature=0.0,
+            logger.info("  ✅ DeepL repair completed.")
+            return repaired_subtitles  # noqa: TRY300
+
+        except Exception as e:  # noqa: BLE001
+            logger.error("  ❌ DeepL repair failed: %s", e)  # noqa: TRY400
+            # Fallback: return original with empty content to preserve structure
+            return [
+                srt.Subtitle(
+                    index=sub.index,
+                    start=sub.start,
+                    end=sub.end,
+                    content="",
                 )
-
-                content = response.choices[0].message.content.strip()
-
-                # Remove markdown code blocks if present
-                if content.startswith("```"):
-                    lines = content.splitlines()
-                    if lines[0].startswith("```"):
-                        lines.pop(0)
-                    if lines and lines[-1].startswith("```"):
-                        lines.pop()
-                    content = "\n".join(lines)
-
-                repaired_batch = list(srt.parse(content))
-                repaired_subtitles.extend(repaired_batch)
-
-            except Exception as e:  # noqa: BLE001
-                logger.error("  Failed to repair batch %s: %s", i + 1, e)  # noqa: TRY400
-                # Fallback: use original timestamps with empty text to preserve structure  # noqa: E501
-                for sub in original_batch:
-                    repaired_subtitles.append(  # noqa: PERF401
-                        srt.Subtitle(
-                            index=sub.index,
-                            start=sub.start,
-                            end=sub.end,
-                            content="",
-                        )
-                    )
-
-        return repaired_subtitles
+                for sub in original
+            ]
 
     @abstractmethod
     def translate_subtitles(

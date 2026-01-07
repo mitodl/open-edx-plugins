@@ -106,10 +106,8 @@ def get_translation_provider(  # noqa: C901
             msg = "DEEPL_API_KEY is required for DeepL provider"
             raise ValueError(msg)
 
-        # Get OpenAI API key for repair functionality
-        providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
-        openai_api_key = providers_config.get("openai", {}).get("api_key", "")
-        return DeepLProvider(deepl_api_key, openai_api_key)
+        # DeepL doesn't need a separate repair key
+        return DeepLProvider(deepl_api_key, None)
 
     # Handle LLM providers (use TRANSLATIONS_PROVIDERS dict)
     providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
@@ -125,8 +123,8 @@ def get_translation_provider(  # noqa: C901
         msg = f"API key is required for {provider_name} provider"
         raise ValueError(msg)
 
-    # Get OpenAI API key for repair functionality
-    openai_api_key = providers_config.get("openai", {}).get("api_key", "")
+    # Get DeepL API key for repair functionality
+    deepl_api_key = getattr(settings, "DEEPL_API_KEY", "")
 
     # Use provided model or fall back to default from config
     model = model_name or provider_config.get("default_model")
@@ -135,19 +133,19 @@ def get_translation_provider(  # noqa: C901
         if not model:
             msg = "Model name is required for OpenAI provider"
             raise ValueError(msg)
-        return OpenAIProvider(api_key, openai_api_key, model)
+        return OpenAIProvider(api_key, deepl_api_key, model)
 
     elif provider_name == PROVIDER_GEMINI:
         if not model:
             msg = "Model name is required for Gemini provider"
             raise ValueError(msg)
-        return GeminiProvider(api_key, openai_api_key, model)
+        return GeminiProvider(api_key, deepl_api_key, model)
 
     elif provider_name == PROVIDER_MISTRAL:
         if not model:
             msg = "Model name is required for Mistral provider"
             raise ValueError(msg)
-        return MistralProvider(api_key, openai_api_key, model)
+        return MistralProvider(api_key, deepl_api_key, model)
 
     else:
         msg = f"Unknown provider: {provider_name}"
