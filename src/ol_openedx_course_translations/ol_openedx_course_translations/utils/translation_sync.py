@@ -1,11 +1,14 @@
 """Translation synchronization module for syncing and managing translation files."""
 
 import json
+import logging
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
 import polib  # type: ignore[import-untyped]
+
+logger = logging.getLogger(__name__)
 
 from ol_openedx_course_translations.utils.constants import (
     BACKEND_PO_FILES,
@@ -333,6 +336,8 @@ def sync_or_create_po_file(
 
 
 def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dict]:
+    """Extract empty translation keys from frontend JSON files."""
+    logger.debug("Extracting empty keys from frontend apps for language: %s", iso_code)
     """Extract empty keys from frontend JSON files."""
     empty_keys = []
 
@@ -363,30 +368,67 @@ def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dic
             )
 
         if not target_file.exists() or not en_file.exists():
+            logger.debug(
+                "Skipping %s: target file or English file missing (target: %s, en: %s)",
+                app,
+                target_file.exists(),
+                en_file.exists(),
+            )
             continue
 
         try:
             target_data = load_json_file(target_file)
             en_data = load_json_file(en_file)
+            logger.debug("Processing %s: found %d keys in English file", app, len(en_data))
 
             for key in en_data:
                 target_value = target_data.get(key, "")
                 if not target_value or (
                     isinstance(target_value, str) and not target_value.strip()
                 ):
+                    english_value = en_data[key]
+                    # Skip non-string values (numbers, booleans, objects, arrays)
+                    # These shouldn't be translated as they would break JSON structure
+                    if not isinstance(english_value, str):
+                        logger.debug(
+                            "Skipping non-string value for key '%s' in %s: %s (type: %s). "
+                            "Only string values are translatable.",
+                            key,
+                            app,
+                            english_value,
+                            type(english_value).__name__,
+                        )
+                        continue
+                    # Check if English value is already in ICU MessageFormat
+                    is_icu_plural = (
+                        isinstance(english_value, str) and ", plural," in english_value
+                    )
+
                     empty_keys.append(
                         {
                             "app": app,
                             "key": key,
-                            "english": en_data[key],
+                            "english": english_value,
                             "translation": "",
                             "file_type": "json",
                             "file_path": str(target_file.resolve()),
+                            "is_plural": is_icu_plural,
                         }
                     )
-        except (OSError, ValueError, json.JSONDecodeError):
+            logger.debug(
+                "Extracted %d empty key(s) from %s", len(empty_keys), app
+            )
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Skipping %s due to error loading translation files: %s", app, e
+            )
             continue
 
+    logger.info(
+        "Extracted %d total empty key(s) from frontend apps for language: %s",
+        len(empty_keys),
+        iso_code,
+    )
     return empty_keys
 
 
@@ -464,7 +506,10 @@ def _extract_empty_keys_from_backend(base_dir: Path, backend_locale: str) -> lis
                             else None,
                         }
                     )
-        except (OSError, polib.POFileError, ValueError):
+        except (OSError, polib.POFileError, ValueError) as e:
+            logger.warning(
+                "Skipping %s due to error loading PO file: %s", po_file_path, e
+            )
             continue
 
     return empty_keys
@@ -501,6 +546,7 @@ def apply_json_translations(file_path: Path, translations: dict[str, str]) -> in
     """
     data = load_json_file(file_path)
     applied = 0
+    skipped = 0
 
     for key, translation in translations.items():
         if key in data:
@@ -511,9 +557,37 @@ def apply_json_translations(file_path: Path, translations: dict[str, str]) -> in
             ):
                 data[key] = translation
                 applied += 1
+                logger.debug(
+                    "Applied translation for key '%s' in %s", key, file_path.name
+                )
+            else:
+                skipped += 1
+                logger.debug(
+                    "Skipped key '%s' in %s (already has value: %s)",
+                    key,
+                    file_path.name,
+                    current_value[:50] if isinstance(current_value, str) else current_value,
+                )
+        else:
+            skipped += 1
+            logger.debug(
+                "Skipped key '%s' in %s (key not found in target file)", key, file_path.name
+            )
 
     if applied > 0:
         save_json_file(file_path, data)
+        logger.info(
+            "Applied %d translation(s) to %s (%d skipped)",
+            applied,
+            file_path.name,
+            skipped,
+        )
+    elif skipped > 0:
+        logger.debug(
+            "No translations applied to %s (%d keys skipped - already have values)",
+            file_path.name,
+            skipped,
+        )
 
     return applied
 
@@ -626,12 +700,15 @@ def _apply_plural_dict_translation(
 ) -> bool:
     """Apply plural translation from dict. Returns True if applied."""
     plural_applied = False
+    # Apply singular to form 0
     if not entry.msgstr_plural.get(0, "").strip():
         entry.msgstr_plural[0] = translation["singular"]
         plural_applied = True
-    if len(entry.msgstr_plural) > 1 and not entry.msgstr_plural.get(1, "").strip():
-        entry.msgstr_plural[1] = translation["plural"]
-        plural_applied = True
+    # Apply plural to all remaining empty forms (for languages with >2 forms)
+    for i in range(1, len(entry.msgstr_plural)):
+        if not entry.msgstr_plural.get(i, "").strip():
+            entry.msgstr_plural[i] = translation["plural"]
+            plural_applied = True
     return plural_applied
 
 
@@ -691,6 +768,7 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
     """
     po = polib.pofile(str(file_path))
     applied = 0
+    skipped = 0
 
     for entry in po:
         if not entry.msgid:
@@ -700,9 +778,35 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
             translation = translations[entry.msgid]
             if _apply_translation_to_entry(entry, translation):
                 applied += 1
+                logger.debug(
+                    "Applied translation for msgid '%s' in %s",
+                    entry.msgid[:50] + "..." if len(entry.msgid) > 50 else entry.msgid,
+                    file_path.name,
+                )
+            else:
+                skipped += 1
+                logger.debug(
+                    "Skipped msgid '%s' in %s (already has translation)",
+                    entry.msgid[:50] + "..." if len(entry.msgid) > 50 else entry.msgid,
+                    file_path.name,
+                )
+        else:
+            skipped += 1
 
     if applied > 0:
         po.save(str(file_path))
+        logger.info(
+            "Applied %d translation(s) to %s (%d skipped)",
+            applied,
+            file_path.name,
+            skipped,
+        )
+    elif skipped > 0:
+        logger.debug(
+            "No translations applied to %s (%d entries skipped - already have translations)",
+            file_path.name,
+            skipped,
+        )
 
     return applied
 
@@ -734,7 +838,10 @@ def _sync_frontend_translations(base_dir: Path, iso_code: str) -> dict[str, int]
             frontend_stats["added"] += stats.get("added", 0)
             frontend_stats["fixed"] += stats.get("fixed", 0)
             frontend_stats["removed"] += stats.get("removed", 0)
-        except (OSError, ValueError, json.JSONDecodeError):
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Skipping %s due to error syncing translation file: %s", app, e
+            )
             continue
 
     return frontend_stats
