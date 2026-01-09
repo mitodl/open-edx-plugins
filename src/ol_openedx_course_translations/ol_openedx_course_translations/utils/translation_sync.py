@@ -379,7 +379,9 @@ def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dic
         try:
             target_data = load_json_file(target_file)
             en_data = load_json_file(en_file)
-            logger.debug("Processing %s: found %d keys in English file", app, len(en_data))
+            logger.debug(
+                "Processing %s: found %d keys in English file", app, len(en_data)
+            )
 
             for key in en_data:
                 target_value = target_data.get(key, "")
@@ -415,9 +417,7 @@ def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dic
                             "is_plural": is_icu_plural,
                         }
                     )
-            logger.debug(
-                "Extracted %d empty key(s) from %s", len(empty_keys), app
-            )
+            logger.debug("Extracted %d empty key(s) from %s", len(empty_keys), app)
         except (OSError, ValueError, json.JSONDecodeError) as e:
             logger.warning(
                 "Skipping %s due to error loading translation files: %s", app, e
@@ -566,12 +566,16 @@ def apply_json_translations(file_path: Path, translations: dict[str, str]) -> in
                     "Skipped key '%s' in %s (already has value: %s)",
                     key,
                     file_path.name,
-                    current_value[:50] if isinstance(current_value, str) else current_value,
+                    current_value[:50]
+                    if isinstance(current_value, str)
+                    else current_value,
                 )
         else:
             skipped += 1
             logger.debug(
-                "Skipped key '%s' in %s (key not found in target file)", key, file_path.name
+                "Skipped key '%s' in %s (key not found in target file)",
+                key,
+                file_path.name,
             )
 
     if applied > 0:

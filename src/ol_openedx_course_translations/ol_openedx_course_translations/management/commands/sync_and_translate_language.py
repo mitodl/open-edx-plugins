@@ -1245,11 +1245,17 @@ class Command(BaseCommand):
             )
             return None
 
-        translation = match.get("translation", match.get("singular", "")) if isinstance(match, dict) else match
+        translation = (
+            match.get("translation", match.get("singular", ""))
+            if isinstance(match, dict)
+            else match
+        )
         logger.debug(
             "Found glossary match for key: %s -> %s",
             key_info.get("key", "unknown"),
-            str(translation)[:50] + "..." if len(str(translation)) > 50 else str(translation),
+            str(translation)[:50] + "..."
+            if len(str(translation)) > 50
+            else str(translation),
         )
         return translation
 
@@ -1584,7 +1590,9 @@ class Command(BaseCommand):
                     logger.debug(
                         "Parsed translation for key %s: %s",
                         key_info.get("key", "unknown"),
-                        str(translation)[:50] + "..." if len(str(translation)) > 50 else str(translation),
+                        str(translation)[:50] + "..."
+                        if len(str(translation)) > 50
+                        else str(translation),
                     )
                 else:
                     missing_keys.append(key_info.get("key", "unknown"))
@@ -1601,10 +1609,12 @@ class Command(BaseCommand):
                         key_info.get("file_path", "unknown"),
                     )
                     translations.append(None)
-            
+
             if missing_keys:
                 logger.warning(
-                    "LLM response missing %d key(s): %s", len(missing_keys), missing_keys
+                    "LLM response missing %d key(s): %s",
+                    len(missing_keys),
+                    missing_keys,
                 )
         except (json.JSONDecodeError, KeyError, ValueError) as e:
             logger.error("Failed to parse JSON response: %s", e, exc_info=True)
@@ -1744,7 +1754,7 @@ class Command(BaseCommand):
                 "Unknown file type '%s' for file: %s", key_info["file_type"], file_path
             )
             return 0, app
-        
+
         if count > 0:
             logger.info(
                 "Applied %d translation(s) to %s (app: %s)", count, file_path.name, app
