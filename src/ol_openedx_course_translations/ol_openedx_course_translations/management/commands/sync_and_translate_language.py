@@ -48,10 +48,12 @@ from ol_openedx_course_translations.utils.constants import (
     LANGUAGE_MAPPING,
     MAX_ERROR_MESSAGE_LENGTH,
     MAX_RETRIES,
+    PLURAL_FORMS,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
 )
 from ol_openedx_course_translations.utils.translation_sync import (
+    _get_base_lang,
     apply_json_translations,
     apply_po_translations,
     extract_empty_keys,
@@ -61,6 +63,16 @@ from ol_openedx_course_translations.utils.translation_sync import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Constants for string truncation in logging
+MAX_LOG_STRING_LENGTH = 50
+MAX_LOG_ICU_STRING_LENGTH = 100
+
+# Constants for plural category counts
+PLURAL_CATEGORIES_ARABIC = 6  # zero, one, two, few, many, other
+PLURAL_CATEGORIES_FOUR = 4  # one, two, few, other
+PLURAL_CATEGORIES_THREE = 3  # one, few, other
+PLURAL_CATEGORIES_TWO = 2  # one, other (most languages)
 
 
 class GitRepository:
@@ -829,11 +841,6 @@ class Command(BaseCommand):
 
     def _get_icu_plural_categories(self, lang_code: str) -> list[str]:
         """Get ICU MessageFormat plural categories for a language."""
-        import re
-
-        from ol_openedx_course_translations.utils.constants import PLURAL_FORMS
-        from ol_openedx_course_translations.utils.translation_sync import _get_base_lang
-
         base_lang = _get_base_lang(lang_code)
         plural_form = PLURAL_FORMS.get(base_lang, "nplurals=2; plural=(n != 1);")
 
@@ -853,6 +860,49 @@ class Command(BaseCommand):
         }
 
         return nplurals_to_categories.get(nplurals, ["one", "other"])
+
+    def _build_icu_example(self, categories_list: list[str]) -> str:
+        """Build an ICU MessageFormat example string based on categories."""
+        num_categories = len(categories_list)
+
+        if num_categories == PLURAL_CATEGORIES_ARABIC:
+            # Arabic: zero, one, two, few, many, other
+            return (
+                "{activityCount, plural, "
+                "zero {# activities} "
+                "one {# activity} "
+                "two {# activities} "
+                "few {# activities} "
+                "many {# activities} "
+                "other {# activities}}"
+            )
+        elif num_categories == PLURAL_CATEGORIES_FOUR:
+            # Languages with 4 forms: one, two, few, other
+            return (
+                "{activityCount, plural, "
+                "one {# activity} "
+                "two {# activities} "
+                "few {# activities} "
+                "other {# activities}}"
+            )
+        elif num_categories == PLURAL_CATEGORIES_THREE:
+            # Languages with 3 forms: one, few, other (e.g., Russian, Polish)
+            return (
+                "{activityCount, plural, "
+                "one {# activity} "
+                "few {# activities} "
+                "other {# activities}}"
+            )
+        elif num_categories == PLURAL_CATEGORIES_TWO:
+            # Languages with 2 forms: one, other (most languages)
+            return "{activityCount, plural, one {# activity} other {# activities}}"
+        else:
+            # Fallback for other multi-category languages
+            example_categories = " ".join(
+                f"{cat} {{# {'activity' if cat == 'one' else 'activities'}}}"
+                for cat in categories_list
+            )
+            return f"{{activityCount, plural, {example_categories}}}"
 
     def _load_glossary(self, options: dict, lang_code: str) -> dict[str, Any]:
         """Load glossary if enabled."""
@@ -1253,8 +1303,8 @@ class Command(BaseCommand):
         logger.debug(
             "Found glossary match for key: %s -> %s",
             key_info.get("key", "unknown"),
-            str(translation)[:50] + "..."
-            if len(str(translation)) > 50
+            str(translation)[:MAX_LOG_STRING_LENGTH] + "..."
+            if len(str(translation)) > MAX_LOG_STRING_LENGTH
             else str(translation),
         )
         return translation
@@ -1283,7 +1333,11 @@ class Command(BaseCommand):
         logger.debug(
             "Converted singular/plural to ICU format for %s: %s (categories: %s)",
             lang_code,
-            icu_string[:100] + "..." if len(icu_string) > 100 else icu_string,
+            (
+                icu_string[:MAX_LOG_ICU_STRING_LENGTH] + "..."
+                if len(icu_string) > MAX_LOG_ICU_STRING_LENGTH
+                else icu_string
+            ),
             categories,
         )
         return icu_string
@@ -1376,6 +1430,8 @@ class Command(BaseCommand):
         instructions = []
 
         if json_plural_count > 0:
+            categories_list = icu_categories_str.split(", ")
+            num_categories = len(categories_list)
             has_existing_icu = any(
                 self._is_icu_format(key_batch[i].get("english", ""))
                 for i in range(len(key_batch))
@@ -1383,27 +1439,74 @@ class Command(BaseCommand):
             )
 
             if has_existing_icu:
-                instructions.append(
-                    f"IMPORTANT: {json_plural_count} entry/entries are JSON strings with ICU MessageFormat plural forms. "
-                    f"These already have the ICU structure (e.g., {{activityCount, plural, one {{# activity}} other {{# activities}}}}). "
-                    f"Translate the content inside the plural forms while preserving the exact ICU structure and variable names. "
-                    f"Return the complete ICU MessageFormat string with translated content."
-                )
+                if num_categories > PLURAL_CATEGORIES_TWO:
+                    # For languages with multiple plural forms (e.g., Arabic with 6),
+                    # expand the ICU structure to include ALL required categories
+                    instructions.append(
+                        f"IMPORTANT: {json_plural_count} entry/entries are JSON "
+                        f"strings with ICU MessageFormat plural forms. "
+                        f"These may currently have only 'one' and 'other' "
+                        f"categories, but for this language ({icu_categories_str}), "
+                        f"you MUST expand them to include ALL {num_categories} "
+                        f"categories: {icu_categories_str}. "
+                        f"Translate the content and return a complete ICU "
+                        f"MessageFormat string with ALL categories. "
+                        f"Example format: {{count, plural, {icu_categories_str} "
+                        f"{{translation}} ... other {{translation}}}}. "
+                        f"CRITICAL: Do not preserve the existing 2-category "
+                        f"structure. Expand it to include all {num_categories} "
+                        f"required categories for this language."
+                    )
+                else:
+                    # For languages with 2 forms, preserve existing structure
+                    instructions.append(
+                        f"IMPORTANT: {json_plural_count} entry/entries are JSON "
+                        f"strings with ICU MessageFormat plural forms. "
+                        f"These already have the ICU structure "
+                        f"(e.g., {{activityCount, plural, one {{# activity}} "
+                        f"other {{# activities}}}}). "
+                        f"Translate the content inside the plural forms while "
+                        f"preserving the exact ICU structure and variable names. "
+                        f"Return the complete ICU MessageFormat string with "
+                        f"translated content."
+                    )
             else:
-                instructions.append(
-                    f"IMPORTANT: {json_plural_count} entry/entries are for JSON files with plural forms. "
-                    f"For these, return ICU MessageFormat strings with plural categories: {icu_categories_str}. "
-                    f"Format: {{count, plural, {icu_categories_str} {{translation}} ... other {{translation}}}}. "
-                    f"Example: {{activityCount, plural, one {{# activity}} other {{# activities}}}}."
-                )
+                # Build language-specific example based on categories
+                example = self._build_icu_example(categories_list)
+
+                if num_categories > PLURAL_CATEGORIES_TWO:
+                    instructions.append(
+                        f"IMPORTANT: {json_plural_count} entry/entries are for "
+                        f"JSON files with plural forms. "
+                        f"For these, return ICU MessageFormat strings with ALL "
+                        f"plural categories: {icu_categories_str}. "
+                        f"Format: {{count, plural, {icu_categories_str} "
+                        f"{{translation}} ... other {{translation}}}}. "
+                        f"Example: {example}. "
+                        f"IMPORTANT: Include ALL {num_categories} categories in "
+                        f"your response, not just 'one' and 'other'. Each category "
+                        f"may require different word forms in this language."
+                    )
+                else:
+                    instructions.append(
+                        f"IMPORTANT: {json_plural_count} entry/entries are for "
+                        f"JSON files with plural forms. "
+                        f"For these, return ICU MessageFormat strings with plural "
+                        f"categories: {icu_categories_str}. "
+                        f"Format: {{count, plural, {icu_categories_str} "
+                        f"{{translation}} ... other {{translation}}}}. "
+                        f"Example: {example}."
+                    )
 
         if plural_count > 0:
             instructions.append(
-                f"IMPORTANT: {plural_count} entry/entries are for PO files with plural forms. "
-                f"For these, return an object with 'singular' and 'plural' keys, each containing the translation."
+                f"IMPORTANT: {plural_count} entry/entries are for PO files with "
+                f"plural forms. "
+                f"For these, return an object with 'singular' and 'plural' keys, "
+                f"each containing the translation."
             )
 
-        return " ".join(instructions)
+        return "\n".join(instructions)
 
     def _call_llm_batch(  # noqa: PLR0913
         self,
@@ -1413,7 +1516,7 @@ class Command(BaseCommand):
         model: str,
         glossary: dict[str, Any] | None = None,
         timeout: int = 120,
-    ) -> list[str | dict]:
+    ) -> list[str | dict[str, str] | None]:
         """Call LLM API to translate multiple texts in a single request.
 
         Args:
@@ -1427,8 +1530,8 @@ class Command(BaseCommand):
         api_key = self._get_llm_api_key(provider)
 
         texts_dict = {}
-        plural_entries = {}
-        json_plural_entries = {}
+        plural_entries: dict[str, bool] = {}
+        json_plural_entries: dict[str, bool] = {}
 
         for i, key_info in enumerate(key_batch, 1):
             key_str = str(i)
@@ -1475,7 +1578,8 @@ class Command(BaseCommand):
             Return a JSON object where each key is the number (1, 2, 3, etc.).
             - For singular entries: value is the translation string.
             - For JSON plural entries: value is an ICU MessageFormat string.
-            - For PO plural entries: value is an object with "singular" and "plural" keys.
+            - For PO plural entries: value is an object with "singular" and "plural" "
+            "keys."
 
             Input texts (numbered):
             {texts_block}
@@ -1484,7 +1588,8 @@ class Command(BaseCommand):
             {{
               "1": "translation of first text",
               "2": "{{count, plural, one {{singular}} other {{plural}}}}",
-              "3": {{"singular": "singular translation", "plural": "plural translation"}},
+              "3": {{"singular": "singular translation", "
+            ""plural": "plural translation"}}
               ...
             }}"""
         )
@@ -1523,8 +1628,9 @@ class Command(BaseCommand):
             return self._parse_order_based_response(response_text, key_batch)
 
         except TimeoutError:
-            logger.error(
-                "LLM batch API call timed out after %d seconds (model: %s, batch size: %d)",
+            logger.exception(
+                "LLM batch API call timed out after %d seconds "
+                "(model: %s, batch size: %d)",
                 timeout,
                 model,
                 len(key_batch),
@@ -1537,12 +1643,10 @@ class Command(BaseCommand):
             )
             raise CommandError(msg) from None
         except (requests.RequestException, ValueError, KeyError, AttributeError) as e:
-            logger.error(
-                "LLM batch API call failed (model: %s, batch size: %d): %s",
+            logger.exception(
+                "LLM batch API call failed (model: %s, batch size: %d)",
                 model,
                 len(key_batch),
-                e,
-                exc_info=True,
             )
             msg = (
                 f"LLM batch API call failed: {e!s}\n"
@@ -1556,7 +1660,7 @@ class Command(BaseCommand):
 
     def _parse_json_response(
         self, response_text: str, key_batch: list[dict]
-    ) -> list[str | dict] | None:
+    ) -> list[str | dict[str, str] | None] | None:
         """Parse JSON response from LLM."""
         json_text = response_text
         if "```json" in response_text:
@@ -1572,7 +1676,7 @@ class Command(BaseCommand):
 
         try:
             data = json.loads(json_text)
-            translations: list[str | dict[str, str]] = []
+            translations: list[str | dict[str, str] | None] = []
             missing_keys = []
             for i in range(len(key_batch)):
                 key = str(i + 1)
@@ -1584,15 +1688,17 @@ class Command(BaseCommand):
                     value = data[key]
 
                     translation = self._process_llm_response_value(
-                        value, key_info, file_type, is_plural
+                        value, key_info, file_type, is_plural=is_plural
                     )
                     translations.append(translation)
                     logger.debug(
                         "Parsed translation for key %s: %s",
                         key_info.get("key", "unknown"),
-                        str(translation)[:50] + "..."
-                        if len(str(translation)) > 50
-                        else str(translation),
+                        (
+                            str(translation)[:MAX_LOG_STRING_LENGTH] + "..."
+                            if len(str(translation)) > MAX_LOG_STRING_LENGTH
+                            else str(translation)
+                        ),
                     )
                 else:
                     missing_keys.append(key_info.get("key", "unknown"))
@@ -1616,15 +1722,15 @@ class Command(BaseCommand):
                     len(missing_keys),
                     missing_keys,
                 )
-        except (json.JSONDecodeError, KeyError, ValueError) as e:
-            logger.error("Failed to parse JSON response: %s", e, exc_info=True)
+        except (json.JSONDecodeError, KeyError, ValueError):
+            logger.exception("Failed to parse JSON response")
             return None
         else:
             return translations
 
     def _parse_order_based_response(
         self, response_text: str, key_batch: list[dict]
-    ) -> list[str | dict[str, str]]:
+    ) -> list[str | dict[str, str] | None]:
         """Fallback: Parse response assuming translations are in order."""
         lines = [line.strip() for line in response_text.split("\n") if line.strip()]
         cleaned_lines = [
@@ -1634,8 +1740,10 @@ class Command(BaseCommand):
         ]
         if len(cleaned_lines) < len(key_batch):
             cleaned_lines.extend([""] * (len(key_batch) - len(cleaned_lines)))
-        # Return as list[str | dict[str, str]] - all strings in this fallback
-        return cast("list[str | dict[str, str]]", cleaned_lines[: len(key_batch)])
+        # Return as list[str | dict[str, str] | None] - all strings in this fallback
+        return cast(
+            "list[str | dict[str, str] | None]", cleaned_lines[: len(key_batch)]
+        )
 
     def _get_llm_api_key(self, provider: str) -> str | None:
         """Get API key from TRANSLATIONS_PROVIDERS or environment variables.
@@ -1665,7 +1773,7 @@ class Command(BaseCommand):
         return os.environ.get(env_key_name)
 
     def _process_llm_response_value(
-        self, value: Any, key_info: dict, file_type: str, is_plural: bool
+        self, value: Any, key_info: dict, file_type: str, *, is_plural: bool
     ) -> str | dict[str, str]:
         """Process a single value from LLM response, converting formats as needed."""
         if isinstance(value, str) and self._is_icu_format(value):
@@ -1706,7 +1814,7 @@ class Command(BaseCommand):
                 if file_type == "json" and isinstance(trans_value, dict):
                     if "singular" in trans_value and "plural" in trans_value:
                         trans_value = self._process_llm_response_value(
-                            trans_value, key_info, file_type, is_plural
+                            trans_value, key_info, file_type, is_plural=is_plural
                         )
                     else:
                         trans_value = trans_value.get("singular", str(trans_value))

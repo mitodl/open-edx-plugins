@@ -8,8 +8,6 @@ from typing import Any
 
 import polib  # type: ignore[import-untyped]
 
-logger = logging.getLogger(__name__)
-
 from ol_openedx_course_translations.utils.constants import (
     BACKEND_PO_FILES,
     DEFAULT_JSON_INDENT,
@@ -28,6 +26,11 @@ from ol_openedx_course_translations.utils.constants import (
     TRANSLATION_FILE_NAMES,
     TYPO_PATTERNS,
 )
+
+logger = logging.getLogger(__name__)
+
+# Constants for string truncation in logging
+MAX_LOG_STRING_LENGTH = 50
 
 
 def load_json_file(file_path: Path) -> dict:
@@ -393,8 +396,8 @@ def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dic
                     # These shouldn't be translated as they would break JSON structure
                     if not isinstance(english_value, str):
                         logger.debug(
-                            "Skipping non-string value for key '%s' in %s: %s (type: %s). "
-                            "Only string values are translatable.",
+                            "Skipping non-string value for key '%s' in %s: %s "
+                            "(type: %s). Only string values are translatable.",
                             key,
                             app,
                             english_value,
@@ -508,7 +511,7 @@ def _extract_empty_keys_from_backend(base_dir: Path, backend_locale: str) -> lis
                     )
         except (OSError, polib.POFileError, ValueError) as e:
             logger.warning(
-                "Skipping %s due to error loading PO file: %s", po_file_path, e
+                "Skipping %s due to error loading PO file: %s", target_file, e
             )
             continue
 
@@ -784,14 +787,22 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
                 applied += 1
                 logger.debug(
                     "Applied translation for msgid '%s' in %s",
-                    entry.msgid[:50] + "..." if len(entry.msgid) > 50 else entry.msgid,
+                    (
+                        entry.msgid[:MAX_LOG_STRING_LENGTH] + "..."
+                        if len(entry.msgid) > MAX_LOG_STRING_LENGTH
+                        else entry.msgid
+                    ),
                     file_path.name,
                 )
             else:
                 skipped += 1
                 logger.debug(
                     "Skipped msgid '%s' in %s (already has translation)",
-                    entry.msgid[:50] + "..." if len(entry.msgid) > 50 else entry.msgid,
+                    (
+                        entry.msgid[:MAX_LOG_STRING_LENGTH] + "..."
+                        if len(entry.msgid) > MAX_LOG_STRING_LENGTH
+                        else entry.msgid
+                    ),
                     file_path.name,
                 )
         else:
@@ -807,7 +818,8 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
         )
     elif skipped > 0:
         logger.debug(
-            "No translations applied to %s (%d entries skipped - already have translations)",
+            "No translations applied to %s (%d entries skipped - "
+            "already have translations)",
             file_path.name,
             skipped,
         )
