@@ -446,8 +446,8 @@ def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dic
                     # These shouldn't be translated as they would break JSON structure
                     if not isinstance(english_value, str):
                         logger.debug(
-                            "Skipping non-string value for key '%s' in %s: %s (type: %s). "
-                            "Only string values are translatable.",
+                            "Skipping non-string value for key '%s' in %s: %s "
+                            "(type: %s). Only string values are translatable.",
                             key,
                             app,
                             english_value,
@@ -1059,7 +1059,8 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
         )
     elif skipped > 0:
         logger.debug(
-            "No translations applied to %s (%d entries skipped - already have translations)",
+            "No translations applied to %s (%d entries skipped - "
+            "already have translations)",
             file_path.name,
             skipped,
         )
