@@ -31,54 +31,33 @@ logger = logging.getLogger(__name__)
 TAR_FILE_SIZE_LIMIT = 512 * 1024 * 1024  # 512MB
 
 
-def validate_translation_provider(
-    provider_name: str,
-    model_name: str | None = None,
-) -> None:
+def _get_deepl_api_key() -> str:
     """
-    Validate translation provider configuration.
+    Get DeepL API key from settings.
 
-    Checks that the provider exists, has required API keys, and has a valid model
-    if required.
-
-    Args:
-        provider_name: Name of the provider (deepl, openai, gemini, mistral)
-        model_name: Model name to use (required for LLM providers, not used for DeepL)
+    Returns:
+        DeepL API key
 
     Raises:
-        ValueError: If provider configuration is invalid or missing
+        ValueError: If DeepL API key is not configured
     """
-    # Handle DeepL separately (uses DEEPL_API_KEY setting)
-    if provider_name == PROVIDER_DEEPL:
-        deepl_api_key = getattr(settings, "DEEPL_API_KEY", "")
-        if not deepl_api_key:
-            msg = "DEEPL_API_KEY is required for DeepL provider"
-            raise ValueError(msg)
-        return
-
-    # Handle LLM providers (use TRANSLATIONS_PROVIDERS dict)
     providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
 
-    if provider_name not in providers_config:
-        msg = f"Unknown provider: {provider_name}"
-        raise ValueError(msg)
+    if PROVIDER_DEEPL in providers_config:
+        deepl_config = providers_config[PROVIDER_DEEPL]
+        if isinstance(deepl_config, dict):
+            api_key = deepl_config.get("api_key", "")
+            if api_key:
+                return api_key
 
-    provider_config = providers_config[provider_name]
-    api_key = provider_config.get("api_key", "")
-
-    if not api_key:
-        msg = f"API key is required for {provider_name} provider"
-        raise ValueError(msg)
-
-    # Get model (provided or default)
-    model = model_name or provider_config.get("default_model")
-
-    if not model:
-        msg = f"Model name is required for {provider_name} provider"
-        raise ValueError(msg)
+    msg = (
+        "DeepL API key is required. Configure it in "
+        "TRANSLATIONS_PROVIDERS['deepl']['api_key']"
+    )
+    raise ValueError(msg)
 
 
-def get_translation_provider(  # noqa: C901
+def get_translation_provider(
     provider_name: str,
     model_name: str | None = None,
 ):
@@ -86,70 +65,37 @@ def get_translation_provider(  # noqa: C901
     Get translation provider instance based on provider name.
 
     Note: This function assumes validation has already been done via
-    validate_translation_provider(). It will still raise ValueError for
-    invalid configurations, but validation should be done upfront.
+    _parse_and_validate_provider_spec() in the management command.
 
     Args:
         provider_name: Name of the provider (deepl, openai, gemini, mistral)
-        model_name: Model name to use (required for LLM providers, not used for DeepL)
+        model_name: Model name to use
 
     Returns:
         Translation provider instance
 
     Raises:
-        ValueError: If provider name is unknown or API key is missing
+        ValueError: If provider configuration is invalid
     """
-    # Handle DeepL separately (uses DEEPL_API_KEY setting)
+    # Handle DeepL
+    deepl_api_key = _get_deepl_api_key()
     if provider_name == PROVIDER_DEEPL:
-        deepl_api_key = getattr(settings, "DEEPL_API_KEY", "")
-        if not deepl_api_key:
-            msg = "DEEPL_API_KEY is required for DeepL provider"
-            raise ValueError(msg)
-
-        # DeepL doesn't need a separate repair key
         return DeepLProvider(deepl_api_key, None)
 
-    # Handle LLM providers (use TRANSLATIONS_PROVIDERS dict)
+    # Handle LLM providers
     providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
-
-    if provider_name not in providers_config:
-        msg = f"Unknown provider: {provider_name}"
-        raise ValueError(msg)
-
     provider_config = providers_config[provider_name]
-    api_key = provider_config.get("api_key", "")
-
-    if not api_key:
-        msg = f"API key is required for {provider_name} provider"
-        raise ValueError(msg)
-
-    # Get DeepL API key for repair functionality
-    deepl_api_key = getattr(settings, "DEEPL_API_KEY", "")
-
-    # Use provided model or fall back to default from config
-    model = model_name or provider_config.get("default_model")
+    api_key = provider_config["api_key"]
 
     if provider_name == PROVIDER_OPENAI:
-        if not model:
-            msg = "Model name is required for OpenAI provider"
-            raise ValueError(msg)
-        return OpenAIProvider(api_key, deepl_api_key, model)
-
+        return OpenAIProvider(api_key, deepl_api_key, model_name)
     elif provider_name == PROVIDER_GEMINI:
-        if not model:
-            msg = "Model name is required for Gemini provider"
-            raise ValueError(msg)
-        return GeminiProvider(api_key, deepl_api_key, model)
-
+        return GeminiProvider(api_key, deepl_api_key, model_name)
     elif provider_name == PROVIDER_MISTRAL:
-        if not model:
-            msg = "Model name is required for Mistral provider"
-            raise ValueError(msg)
-        return MistralProvider(api_key, deepl_api_key, model)
+        return MistralProvider(api_key, deepl_api_key, model_name)
 
-    else:
-        msg = f"Unknown provider: {provider_name}"
-        raise ValueError(msg)
+    msg = f"Unknown provider: {provider_name}"
+    raise ValueError(msg)
 
 
 def translate_xml_display_name(

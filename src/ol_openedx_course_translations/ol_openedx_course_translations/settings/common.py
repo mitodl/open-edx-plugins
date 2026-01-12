@@ -38,9 +38,11 @@ def apply_common_settings(settings):
         ".xml",
         ".srt",
     ]
-    settings.DEEPL_API_KEY = ""
     settings.TRANSLATIONS_PROVIDERS = {
         "default_provider": "mistral",
+        "deepl": {
+            "api_key": "",
+        },
         "openai": {
             "api_key": "",
             "default_model": "gpt-5.2",

@@ -25,15 +25,15 @@ Configuration
 
   .. code-block:: python
 
-       # Required API keys
-       DEEPL_API_KEY: <YOUR_DEEPL_API_KEY_HERE>
-
        # Enable auto language selection
        ENABLE_AUTO_LANGUAGE_SELECTION: true
 
        # Translation providers configuration
        TRANSLATIONS_PROVIDERS: {
            "default_provider": "mistral",  # Default provider to use
+           "deepl": {
+               "api_key": "<YOUR_DEEPL_API_KEY>",
+           },
            "openai": {
                "api_key": "<YOUR_OPENAI_API_KEY>",
                "default_model": "gpt-5.2",
@@ -51,8 +51,6 @@ Configuration
        TRANSLATIONS_REPO_PATH: ""
        TRANSLATIONS_REPO_URL: "https://github.com/mitodl/mitxonline-translations.git"
 
-       **Note:** DeepL uses the ``DEEPL_API_KEY`` setting directly. LLM providers (OpenAI, Gemini, Mistral) use the ``TRANSLATIONS_PROVIDERS`` dictionary for configuration.
-
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
 Translation Providers
@@ -65,9 +63,54 @@ The plugin supports multiple translation providers:
 - Gemini (Google)
 - Mistral
 
+**Configuration**
+
+All providers are configured through the ``TRANSLATIONS_PROVIDERS`` dictionary in your settings:
+
+.. code-block:: python
+
+    TRANSLATIONS_PROVIDERS = {
+        "default_provider": "mistral",  # Optional: default provider for commands
+        "deepl": {
+            "api_key": "<YOUR_DEEPL_API_KEY>",
+        },
+        "openai": {
+            "api_key": "<YOUR_OPENAI_API_KEY>",
+            "default_model": "gpt-5.2",  # Optional: used when model not specified
+        },
+        "gemini": {
+            "api_key": "<YOUR_GEMINI_API_KEY>",
+            "default_model": "gemini-3-pro-preview",
+        },
+        "mistral": {
+            "api_key": "<YOUR_MISTRAL_API_KEY>",
+            "default_model": "mistral-large-latest",
+        },
+    }
+
+**Important Notes:**
+
+1. **DeepL Configuration**: DeepL must be configured in ``TRANSLATIONS_PROVIDERS['deepl']['api_key']``.
+
+2. **DeepL for Subtitle Repair**: DeepL is used as a fallback repair mechanism for subtitle translations when LLM providers fail validation. Even if you use LLM providers for primary translation, you should configure DeepL to enable automatic repair.
+
+3. **Default Models**: The ``default_model`` in each provider's configuration is used when you specify a provider without a model (e.g., ``openai`` instead of ``openai/gpt-5.2``).
+
 **Provider Selection**
 
-You can specify different providers for content and SRT subtitle translation using the format ``PROVIDER/MODEL``:
+You can specify providers in three ways:
+
+1. **Provider only** (uses default model from settings):
+
+.. code-block:: bash
+
+    ./manage.py cms translate_course \
+        --target-language AR \
+        --course-dir /path/to/course.tar.gz \
+        --content-translation-provider openai \
+        --srt-translation-provider gemini
+
+2. **Provider with specific model**:
 
 .. code-block:: bash
 
@@ -77,7 +120,7 @@ You can specify different providers for content and SRT subtitle translation usi
         --content-translation-provider openai/gpt-5.2 \
         --srt-translation-provider gemini/gemini-3-pro-preview
 
-For DeepL, just specify ``deepl`` without a model:
+3. **DeepL** (no model needed):
 
 .. code-block:: bash
 
@@ -86,6 +129,8 @@ For DeepL, just specify ``deepl`` without a model:
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider deepl \
         --srt-translation-provider deepl
+
+**Note:** If you specify a provider without a model (e.g., ``openai`` instead of ``openai/gpt-5.2``), the system will use the ``default_model`` configured in ``TRANSLATIONS_PROVIDERS`` for that provider.
 
 Translating a Course
 ====================
@@ -101,8 +146,8 @@ Translating a Course
             --source-language EN \
             --target-language AR \
             --course-dir /path/to/course.tar.gz \
-            --content-translation-provider openai/gpt-5.2 \
-            --srt-translation-provider gemini/gemini-3-pro-preview \
+            --content-translation-provider openai \
+            --srt-translation-provider gemini \
             --glossary-dir /path/to/glossary
 
 **Command Options:**
@@ -110,8 +155,15 @@ Translating a Course
 - ``--source-language``: Source language code (default: EN)
 - ``--target-language``: Target language code (required)
 - ``--course-dir``: Path to exported course tar.gz file (required)
-- ``--content-translation-provider``: Translation provider for content (XML/HTML and text) (required). Format: ``deepl`` or ``PROVIDER/MODEL`` (e.g., ``openai/gpt-5.2``, ``gemini/gemini-3-pro-preview``, ``mistral/mistral-large-latest``)
-- ``--srt-translation-provider``: Translation provider for SRT subtitles (required). Format: ``deepl`` or ``PROVIDER/MODEL`` (e.g., ``openai/gpt-5.2``, ``gemini/gemini-3-pro-preview``, ``mistral/mistral-large-latest``)
+- ``--content-translation-provider``: Translation provider for content (XML/HTML and text) (required).
+
+  Format:
+
+  - ``deepl`` - uses DeepL (no model needed)
+  - ``PROVIDER`` - uses provider with default model from settings (e.g., ``openai``, ``gemini``, ``mistral``)
+  - ``PROVIDER/MODEL`` - uses provider with specific model (e.g., ``openai/gpt-5.2``, ``gemini/gemini-3-pro-preview``, ``mistral/mistral-large-latest``)
+
+- ``--srt-translation-provider``: Translation provider for SRT subtitles (required). Same format as ``--content-translation-provider``
 - ``--glossary-dir``: Path to glossary directory (optional)
 
 **Examples:**
@@ -125,14 +177,21 @@ Translating a Course
         --content-translation-provider deepl \
         --srt-translation-provider deepl
 
-    # Use OpenAI GPT-5.2 for content and Gemini for subtitles
+    # Use OpenAI and Gemini with default models from settings
+    ./manage.py cms translate_course \
+        --target-language FR \
+        --course-dir /path/to/course.tar.gz \
+        --content-translation-provider openai \
+        --srt-translation-provider gemini
+
+    # Use OpenAI with specific model for content, Gemini with default for subtitles
     ./manage.py cms translate_course \
         --target-language FR \
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai/gpt-5.2 \
-        --srt-translation-provider gemini/gemini-3-pro-preview
+        --srt-translation-provider gemini
 
-    # Use Mistral with glossary
+    # Use Mistral with specific model and glossary
     ./manage.py cms translate_course \
         --target-language ES \
         --course-dir /path/to/course.tar.gz \
