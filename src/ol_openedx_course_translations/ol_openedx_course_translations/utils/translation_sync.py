@@ -347,7 +347,7 @@ def _create_new_po_file(
         if not entry.msgid:  # Skip header
             continue
 
-        new_entry = _create_po_entry_from_en(entry)
+        new_entry = _create_po_entry_from_en(entry, lang_code)
         target_po.append(new_entry)
         added_count += 1
 
@@ -986,12 +986,50 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
     return False
 
 
+def _expand_plural_forms_if_needed(entry: polib.POEntry, po: polib.POFile) -> bool:
+    """Expand plural forms if entry has fewer forms than required by language.
+
+    Args:
+        entry: PO entry to potentially expand
+        po: PO file containing the entry (to read Plural-Forms metadata)
+
+    Returns:
+        True if entry was expanded, False otherwise
+    """
+    if not entry.msgid_plural:
+        return False
+
+    # Get required number of forms from PO file metadata
+    plural_forms_str = po.metadata.get("Plural-Forms", "")
+    if not plural_forms_str:
+        return False
+
+    nplurals_match = re.search(r"nplurals=(\d+)", plural_forms_str)
+    if not nplurals_match:
+        return False
+
+    required_forms = int(nplurals_match.group(1))
+    current_forms = len(entry.msgstr_plural) if entry.msgstr_plural else 0
+
+    # Expand if needed
+    if current_forms < required_forms:
+        if not entry.msgstr_plural:
+            entry.msgstr_plural = {}
+        # Add missing forms with empty strings
+        for i in range(current_forms, required_forms):
+            entry.msgstr_plural[i] = ""
+        return True
+
+    return False
+
+
 def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
     """
     Apply translations to a PO file. Returns number of translations applied.
     Handles both singular and plural forms.
     For plural forms, translations dict can contain:
     - Dict with 'singular' and 'plural' keys: {"singular": "...", "plural": "..."}
+    - Dict with numeric keys '0', '1', '2', etc. for multiple forms
     - String: applies same translation to all plural forms
 
     The translations dict is keyed by msgid. If entries have msgctxt, we try to match
@@ -1003,6 +1041,9 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
     skipped = 0
 
     for entry in po:
+        # Expand plural forms if entry has fewer than required
+        if entry.msgid_plural:
+            _expand_plural_forms_if_needed(entry, po)
         if not entry.msgid:
             continue
 
