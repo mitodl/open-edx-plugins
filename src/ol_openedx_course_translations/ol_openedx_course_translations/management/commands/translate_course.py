@@ -16,6 +16,7 @@ from ol_openedx_course_translations.tasks import (
     translate_grading_policy_task,
     translate_policy_json_task,
 )
+from ol_openedx_course_translations.utils.constants import PROVIDER_DEEPL
 from ol_openedx_course_translations.utils.course_translations import (
     create_translated_archive,
     create_translated_copy,
@@ -151,14 +152,6 @@ class Command(BaseCommand):
             provider_name = provider_spec.lower()
             model_name = None
 
-        # DeepL doesn't use models
-        if provider_name == "deepl":
-            return provider_name, None
-
-        # If model is explicitly provided, return it
-        if model_name:
-            return provider_name, model_name
-
         # Try to get default model from settings
         providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
         if provider_name not in providers_config:
@@ -169,22 +162,29 @@ class Command(BaseCommand):
             raise CommandError(error_msg)
 
         provider_config = providers_config[provider_name]
-        default_model = provider_config.get("default_model")
+        api_key = provider_config.get("api_key")
+        if not api_key:
+            error_msg = (
+                f"API key for provider '{provider_name}' is not configured in "
+                "TRANSLATIONS_PROVIDERS. Please set the 'api_key' in settings."
+            )
+            raise CommandError(error_msg)
 
+        # DeepL doesn't use models
+        if provider_name == PROVIDER_DEEPL:
+            return provider_name, None
+
+        # If model is explicitly provided, return it
+        if model_name:
+            return provider_name, model_name
+
+        default_model = provider_config.get("default_model")
         if not default_model:
             error_msg = (
                 f"No model specified for provider '{provider_name}' and no "
                 f"default_model found in TRANSLATIONS_PROVIDERS['{provider_name}']. "
                 f"Either specify a model (e.g., '{provider_name}/gpt-5.2') or "
                 f"configure a default_model in settings."
-            )
-            raise CommandError(error_msg)
-
-        api_key = provider_config.get("api_key")
-        if not api_key:
-            error_msg = (
-                f"API key for provider '{provider_name}' is not configured in "
-                "TRANSLATIONS_PROVIDERS. Please set the 'api_key' in settings."
             )
             raise CommandError(error_msg)
 
