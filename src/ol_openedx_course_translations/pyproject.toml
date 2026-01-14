@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-course-translations"
-version = "0.2.0"
+version = "0.3.0"
 description = "An Open edX plugin to translate courses"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -17,6 +17,7 @@ dependencies = [
   "GitPython>=3.1.40",
   "requests>=2.31.0",
   "polib>=1.2.0",
+  "srt>=3.5.3",
 ]
 
 [project.entry-points."cms.djangoapp"]

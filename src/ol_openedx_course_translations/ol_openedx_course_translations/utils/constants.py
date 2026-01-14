@@ -1,6 +1,7 @@
 """Constants for translation synchronization."""
 
 # LLM Provider names
+PROVIDER_DEEPL = "deepl"
 PROVIDER_GEMINI = "gemini"
 PROVIDER_MISTRAL = "mistral"
 PROVIDER_OPENAI = "openai"

@@ -6,31 +6,15 @@
 def apply_common_settings(settings):
     """
     Apply custom settings function for LMS and CMS settings.
+
+    Configures translation-related settings including language selection,
+    supported file types, translation providers, and repository settings.
+
+    Args:
+        settings: Django settings object to modify
     """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["admin", "sysadmin", "instructor"]
-    settings.DEEPL_API_KEY = ""
-    settings.TRANSLATIONS_PROVIDERS = {
-        "default_provider": "mistral",
-        "openai": {
-            "api_key": "",
-            "default_model": "gpt-5.2",
-        },
-        "gemini": {
-            "api_key": "",
-            "default_model": "gemini-3-pro-preview",
-        },
-        "mistral": {
-            "api_key": "",
-            "default_model": "mistral-large-latest",
-        },
-    }
-    settings.TRANSLATIONS_GITHUB_TOKEN = ""
-    # Translation repository settings
-    settings.TRANSLATIONS_REPO_PATH = ""
-    settings.TRANSLATIONS_REPO_URL = (
-        "https://github.com/mitodl/mitxonline-translations.git"
-    )
     settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES = [
         "about",
         "course",
@@ -54,3 +38,27 @@ def apply_common_settings(settings):
         ".xml",
         ".srt",
     ]
+    settings.TRANSLATIONS_PROVIDERS = {
+        "default_provider": "mistral",
+        "deepl": {
+            "api_key": "",
+        },
+        "openai": {
+            "api_key": "",
+            "default_model": "gpt-5.2",
+        },
+        "gemini": {
+            "api_key": "",
+            "default_model": "gemini-3-pro-preview",
+        },
+        "mistral": {
+            "api_key": "",
+            "default_model": "mistral-large-latest",
+        },
+    }
+    settings.TRANSLATIONS_GITHUB_TOKEN = ""
+    # Translation repository settings
+    settings.TRANSLATIONS_REPO_PATH = ""
+    settings.TRANSLATIONS_REPO_URL = (
+        "https://github.com/mitodl/mitxonline-translations.git"
+    )
