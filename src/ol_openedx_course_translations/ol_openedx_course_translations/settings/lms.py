@@ -15,7 +15,9 @@ def plugin_settings(settings):
     )
     VIDEO_TRANSCRIPT_LANGUAGE_FILTERS = {
         "org.openedx.learning.xblock.render.started.v1": {
-            "pipeline": ["ol_openedx_course_translations.filters.AddDestLangForVideoBlock"],
+            "pipeline": [
+                "ol_openedx_course_translations.filters.AddDestLangForVideoBlock"
+            ],
             "fail_silently": False,
         }
     }
