@@ -11,6 +11,7 @@ from xml.etree.ElementTree import Element
 from defusedxml import ElementTree
 from django.conf import settings
 from django.core.management.base import CommandError
+from opaque_keys.edx.locator import CourseLocator
 
 from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
 from ol_openedx_course_translations.providers.llm_providers import (
@@ -581,12 +582,12 @@ def get_translatable_file_paths(
     return translatable_file_paths
 
 
-def generate_course_id_from_xml(course_dir_path: Path) -> str:
+def generate_course_key_from_xml(course_dir_path: Path) -> str:
     """
     Generate the course id of the source course
     """
     try:
-        about_file_path = course_dir_path / "course/course.xml"
+        about_file_path = course_dir_path / "course" / "course.xml"
         xml_content = about_file_path.read_text(encoding="utf-8")
         xml_root = ElementTree.fromstring(xml_content)
 
@@ -604,4 +605,4 @@ def generate_course_id_from_xml(course_dir_path: Path) -> str:
         raise CommandError(error_msg) from e
     else:
         # URL name is the run ID of the course
-        return f"course-v1:{org}+{course}+{url_name}"
+        return CourseLocator(org=org, course=course, run=url_name)

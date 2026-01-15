@@ -22,7 +22,7 @@ from ol_openedx_course_translations.utils.course_translations import (
     create_translated_archive,
     create_translated_copy,
     extract_course_archive,
-    generate_course_id_from_xml,
+    generate_course_key_from_xml,
     get_translatable_file_paths,
     update_course_language_attribute,
     validate_course_inputs,
@@ -197,7 +197,7 @@ class Command(BaseCommand):
         try:
             start_time = time.perf_counter()
             course_archive_path = Path(options["course_archive_path"])
-            source_language = options["source_language"]
+            source_language = options["source_language"].upper()
             target_language = options["target_language"].upper()
             content_provider_spec = options["content_translation_provider"]
             srt_provider_spec = options["srt_translation_provider"]
@@ -568,7 +568,7 @@ class Command(BaseCommand):
             target_language: Target language code
             command_stats: List of command statistics/logs
         """
-        source_course_id = generate_course_id_from_xml(
+        source_course_id = generate_course_key_from_xml(
             course_dir_path=self.translated_course_dir
         )
         command_stats_str = "\n".join(command_stats) if command_stats else ""

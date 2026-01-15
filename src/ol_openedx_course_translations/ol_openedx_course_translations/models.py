@@ -18,7 +18,6 @@ class CourseTranslationLog(models.Model):
     )
     srt_provider_name = models.CharField(
         max_length=100,
-        blank=True,
         help_text="LLM Provider used for SRT translation",
     )
     srt_provider_model = models.CharField(
@@ -28,7 +27,6 @@ class CourseTranslationLog(models.Model):
     )
     content_provider_name = models.CharField(
         max_length=100,
-        blank=True,
         help_text="LLM Provider used for content translation",
     )
     content_provider_model = models.CharField(
