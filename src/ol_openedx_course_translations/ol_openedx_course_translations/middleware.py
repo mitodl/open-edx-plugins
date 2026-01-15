@@ -14,7 +14,7 @@ from openedx.core.djangoapps.lang_pref import LANGUAGE_KEY
 from openedx.core.djangoapps.lang_pref import helpers as lang_pref_helpers
 from openedx.core.djangoapps.user_api.preferences.api import set_user_preference
 
-ENGLISH_LANGUAGE_CODE = "en"
+from ol_openedx_course_translations.utils.constants import ENGLISH_LANGUAGE_CODE
 
 
 def should_process_request(request):
