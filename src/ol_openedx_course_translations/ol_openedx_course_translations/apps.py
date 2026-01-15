@@ -13,6 +13,7 @@ class OLOpenedXCourseTranslationsConfig(AppConfig):
     """
 
     name = "ol_openedx_course_translations"
+    verbose_name = "OL Course Translations"
 
     plugin_app = {
         PluginURLs.CONFIG: {
