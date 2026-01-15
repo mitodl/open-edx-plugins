@@ -11,6 +11,7 @@ from celery import group
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from ol_openedx_course_translations.models import CourseTranslationLog
 from ol_openedx_course_translations.tasks import (
     translate_file_task,
     translate_grading_policy_task,
@@ -21,6 +22,7 @@ from ol_openedx_course_translations.utils.course_translations import (
     create_translated_archive,
     create_translated_copy,
     extract_course_archive,
+    generate_course_id_from_xml,
     get_translatable_file_paths,
     update_course_language_attribute,
     validate_course_inputs,
@@ -193,9 +195,10 @@ class Command(BaseCommand):
     def handle(self, **options) -> None:
         """Handle the translate_course command."""
         try:
+            start_time = time.perf_counter()
             course_archive_path = Path(options["course_archive_path"])
             source_language = options["source_language"]
-            target_language = options["target_language"]
+            target_language = options["target_language"].upper()
             content_provider_spec = options["content_translation_provider"]
             srt_provider_spec = options["srt_translation_provider"]
             glossary_directory = options.get("glossary_directory")
@@ -252,18 +255,28 @@ class Command(BaseCommand):
             )
 
             # Wait for all tasks and report status
-            self._wait_and_report_tasks()
+            command_stats = self._wait_and_report_tasks()
+            total_time_taken_msg = (
+                f"Command finished in: {time.perf_counter() - start_time:.2f} seconds."
+            )
+            self.stdout.write(self.style.SUCCESS(total_time_taken_msg))
+            command_stats.append(total_time_taken_msg)
 
+            # Add translation log entry
+            self._add_translation_log_entry(
+                source_language=source_language,
+                target_language=target_language,
+                command_stats=command_stats,
+            )
             # Create final archive
             translated_archive_path = create_translated_archive(
                 translated_course_dir, target_language, course_archive_path.stem
             )
-
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"Translation completed. Archive created: {translated_archive_path}"
-                )
+            success_msg = (
+                f"Translation completed successfully. Translated archive created: "
+                f"{translated_archive_path}"
             )
+            self.stdout.write(self.style.SUCCESS(success_msg))
 
         except Exception as e:
             logger.exception("Translation failed")
@@ -417,7 +430,7 @@ class Command(BaseCommand):
                 self.tasks.append(("policy", str(policy_file), task))
                 logger.info("Added policy.json task for: %s", policy_file)
 
-    def _wait_and_report_tasks(self) -> None:  # noqa: C901, PLR0915, PLR0912
+    def _wait_and_report_tasks(self) -> list[str]:  # noqa: C901, PLR0915, PLR0912
         """
         Execute all tasks as a Celery group and wait for completion.
 
@@ -427,9 +440,10 @@ class Command(BaseCommand):
         Raises:
             CommandError: If any tasks fail
         """
+        stats = []
         if not self.tasks:
             self.stdout.write("No tasks to execute.")
-            return
+            return []
 
         total_tasks = len(self.tasks)
         self.stdout.write(
@@ -449,7 +463,6 @@ class Command(BaseCommand):
 
         # Wait for all tasks to complete with progress reporting
         completed_count = 0
-        self.stdout.write(f"Progress: 0/{total_tasks} tasks completed")
         self.stdout.flush()
 
         try:
@@ -491,47 +504,82 @@ class Command(BaseCommand):
 
             if isinstance(task_result, dict):
                 status = task_result.get("status", "unknown")
-
                 if status == "success":
                     completed_tasks += 1
-                    self.stdout.write(self.style.SUCCESS(f"✓ {task_type}: {file_path}"))
+                    msg = f"✓ {task_type}: {file_path}"
+                    stats.append(msg)
+                    self.stdout.write(self.style.SUCCESS(msg))
                 elif status == "skipped":
                     skipped_tasks += 1
                     reason = task_result.get("reason", "Skipped")
-                    self.stdout.write(
-                        self.style.WARNING(f"⊘ {task_type}: {file_path} - {reason}")
-                    )
+                    msg = f"⊘ {task_type}: {file_path} - {reason}"
+                    stats.append(msg)
+                    self.stdout.write(self.style.WARNING(msg))
                 elif status == "error":
                     failed_tasks += 1
                     error = task_result.get("error", "Unknown error")
-                    self.stdout.write(
-                        self.style.ERROR(f"✗ {task_type}: {file_path} - {error}")
-                    )
+                    msg = f"✗ {task_type}: {file_path} - {error}"
+                    stats.append(msg)
+                    self.stdout.write(self.style.ERROR(msg))
                 else:
                     failed_tasks += 1
-                    self.stdout.write(
-                        self.style.ERROR(
-                            f"✗ {task_type}: {file_path} - Unknown status: {status}"
-                        )
-                    )
+                    msg = f"✗ {task_type}: {file_path} - Unknown status: {status}"
+                    stats.append(msg)
+                    self.stdout.write(self.style.ERROR(msg))
             else:
                 # Task raised an exception
                 failed_tasks += 1
                 error_msg = str(task_result) if task_result else "Task failed"
-                self.stdout.write(
-                    self.style.ERROR(f"✗ {task_type}: {file_path} - {error_msg}")
-                )
+                msg = f"✗ {task_type}: {file_path} - {error_msg}"
+                stats.append(msg)
+                self.stdout.write(self.style.ERROR(msg))
 
         # Print summary
         self.stdout.write("\n" + "=" * 60)
-        self.stdout.write(self.style.SUCCESS(f"Total tasks: {total_tasks}"))
-        self.stdout.write(self.style.SUCCESS(f"Completed: {completed_tasks}"))
+        successful_tasks_stats = (
+            f"Total tasks: {total_tasks}\nCompleted: {completed_tasks}"
+        )
+        stats.append(successful_tasks_stats)
+        self.stdout.write(self.style.SUCCESS(successful_tasks_stats))
         if skipped_tasks > 0:
-            self.stdout.write(self.style.WARNING(f"Skipped: {skipped_tasks}"))
+            skipped_tasks_stats = f"Skipped: {skipped_tasks}"
+            stats.append(skipped_tasks_stats)
+            self.stdout.write(self.style.WARNING(skipped_tasks_stats))
         if failed_tasks > 0:
-            self.stdout.write(self.style.ERROR(f"Failed: {failed_tasks}"))
+            failed_tasks_stats = f"Failed: {failed_tasks}"
+            stats.append(failed_tasks_stats)
+            self.stdout.write(self.style.ERROR(failed_tasks_stats))
         self.stdout.write("=" * 60 + "\n")
 
         if failed_tasks > 0:
             error_msg = f"{failed_tasks} translation tasks failed"
             raise CommandError(error_msg)
+
+        return stats
+
+    def _add_translation_log_entry(
+        self, source_language, target_language, command_stats=None
+    ) -> None:
+        """
+        Add a log entry for the course translation operation.
+
+        Args:
+            source_language: Source language code
+            target_language: Target language code
+            command_stats: List of command statistics/logs
+        """
+        source_course_id = generate_course_id_from_xml(
+            course_dir_path=self.translated_course_dir
+        )
+        command_stats_str = "\n".join(command_stats) if command_stats else ""
+
+        CourseTranslationLog.objects.create(
+            source_course_id=source_course_id,
+            source_course_language=source_language,
+            target_course_language=target_language,
+            srt_provider_name=self.srt_provider_name,
+            srt_provider_model=self.srt_model or "",
+            content_provider_name=self.content_provider_name,
+            content_provider_model=self.content_model or "",
+            command_stats=command_stats_str,
+        )

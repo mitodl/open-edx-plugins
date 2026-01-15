@@ -126,7 +126,7 @@ def translate_xml_display_name(
         if display_name:
             translated_name = provider.translate_text(
                 display_name,
-                target_language.lower(),
+                target_language,
                 glossary_directory=glossary_directory,
             )
             xml_root.set("display_name", translated_name)
@@ -150,7 +150,7 @@ def update_video_xml_transcripts(xml_content: str, target_language: str) -> str:
     """
     try:
         xml_root = ElementTree.fromstring(xml_content)
-        target_lang_code = target_language.lower()
+        target_lang_code = target_language
 
         # Update transcripts attribute in <video> tag
         if xml_root.tag == "video" and "transcripts" in xml_root.attrib:
@@ -579,3 +579,29 @@ def get_translatable_file_paths(
         ]
 
     return translatable_file_paths
+
+
+def generate_course_id_from_xml(course_dir_path: Path) -> str:
+    """
+    Generate the course id of the source course
+    """
+    try:
+        about_file_path = course_dir_path / "course/course.xml"
+        xml_content = about_file_path.read_text(encoding="utf-8")
+        xml_root = ElementTree.fromstring(xml_content)
+
+        org = xml_root.get("org", "")
+        course = xml_root.get("course", "")
+        url_name = xml_root.get("url_name", "")
+
+        if not all([org, course, url_name]):
+            error_msg = (
+                "Missing required attributes in course.xml: org, course, url_name"
+            )
+            raise CommandError(error_msg)
+    except (OSError, ElementTree.ParseError) as e:
+        error_msg = f"Failed to read course id from about.xml: {e}"
+        raise CommandError(error_msg) from e
+    else:
+        # URL name is the run ID of the course
+        return f"course-v1:{org}+{course}+{url_name}"
