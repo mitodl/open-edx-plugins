@@ -1547,10 +1547,11 @@ class Command(BaseCommand):
                     f"({plural_count} entry/entries): "
                     f"These are for PO files (NOT JSON files). "
                     f"This language requires {po_plural_count} plural forms "
-                    f"(indices 0-{po_plural_count - 1}). "
+                    f"(indices 0, 1, 2, ..., {po_plural_count - 1}). "
                     f"For PO files, you MUST return an object with keys "
-                    f"'0', '1', '{po_plural_count - 1}' "
-                    f"(and all intermediate indices), where each value is a "
+                    f"'0', '1', '2', ..., '{po_plural_count - 1}', "
+                    f"covering all indices from 0 through "
+                    f"{po_plural_count - 1}, where each value is a "
                     f"PLAIN TRANSLATION STRING. "
                     f"\n"
                     f"WRONG (DO NOT DO THIS): "
@@ -1938,7 +1939,7 @@ class Command(BaseCommand):
             return self._parse_string_dict(stripped, file_type, is_plural=is_plural)
         if self._is_icu_format(stripped):
             if file_type == "po" and is_plural:
-                return None, False  # type: ignore[return-value]
+                return None, False
             return stripped, False
         return stripped, False
 
@@ -1952,11 +1953,12 @@ class Command(BaseCommand):
                 # Return dict to be processed further
                 return parsed, True
         except (json.JSONDecodeError, ValueError):
+            # Not valid JSON; fall through to ICU check and plain string handling.
             pass
 
         # Not a dict or parsing failed, check ICU format
         if self._is_icu_format(value) and file_type == "po" and is_plural:
-            return None, False  # type: ignore[return-value]
+            return None, False
         return value, False
 
     def _process_dict_numeric_keys(
@@ -1974,9 +1976,9 @@ class Command(BaseCommand):
             if isinstance(k, (int, str)) and str(k).isdigit():
                 v_str = str(v).strip()
                 if self._is_icu_format(v_str):
-                    return None  # type: ignore[return-value]
+                    return None
                 result[str(k)] = v_str
-        return result if result else None  # type: ignore[return-value]
+        return result if result else None
 
     def _process_dict_singular_plural(
         self, value: dict, key_info: dict, file_type: str, *, is_plural: bool
@@ -2006,7 +2008,7 @@ class Command(BaseCommand):
                 value, file_type, is_plural=is_plural
             )
             if result is None:
-                return None  # type: ignore[return-value]
+                return None
             if is_dict:
                 # Result is a dict, process it further
                 value = result
