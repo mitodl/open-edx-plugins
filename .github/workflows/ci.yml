@@ -57,7 +57,7 @@ jobs:
 
     - name: Launch Tutor
       run: |
-        tutor dev launch -I --skip-build
+        tutor dev launch -I
         tutor dev stop
 
     - name: Run tests on tutor
