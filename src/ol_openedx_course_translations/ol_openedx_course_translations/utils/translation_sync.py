@@ -369,7 +369,6 @@ def sync_or_create_po_file(
 def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dict]:
     """Extract empty translation keys from frontend JSON files."""
     logger.debug("Extracting empty keys from frontend apps for language: %s", iso_code)
-    """Extract empty keys from frontend JSON files."""
     empty_keys = []
 
     for app in LEARNER_FACING_APPS:
