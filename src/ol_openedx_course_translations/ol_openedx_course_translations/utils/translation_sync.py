@@ -1,6 +1,8 @@
 """Translation synchronization module for syncing and managing translation files."""
 
 import json
+import logging
+import re
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -25,6 +27,11 @@ from ol_openedx_course_translations.utils.constants import (
     TRANSLATION_FILE_NAMES,
     TYPO_PATTERNS,
 )
+
+logger = logging.getLogger(__name__)
+
+# Constants for string truncation in logging
+MAX_LOG_STRING_LENGTH = 50
 
 
 def load_json_file(file_path: Path) -> dict:
@@ -143,6 +150,15 @@ def _get_plural_form(lang_code: str) -> str:
     return PLURAL_FORMS.get(base_lang, DEFAULT_PLURAL_FORM)
 
 
+def _get_po_plural_count(lang_code: str) -> int:
+    """Get number of plural forms for a language (for PO files)."""
+    plural_form = _get_plural_form(lang_code)
+    nplurals_match = re.search(r"nplurals=(\d+)", plural_form)
+    if not nplurals_match:
+        return 2
+    return int(nplurals_match.group(1))
+
+
 def create_po_file_header(lang_code: str, iso_code: str | None = None) -> str:
     """Create PO file header for a language."""
     if iso_code is None:
@@ -225,8 +241,16 @@ def parse_po_file_with_metadata(po_file: Path) -> dict[str, dict]:
     return entries
 
 
-def _create_po_entry_from_en(entry: polib.POEntry) -> polib.POEntry:
-    """Create a new PO entry from an English entry with empty translation."""
+def _create_po_entry_from_en(
+    entry: polib.POEntry, lang_code: str | None = None
+) -> polib.POEntry:
+    """Create a new PO entry from an English entry with empty translation.
+
+    Args:
+        entry: English PO entry to copy from
+        lang_code: Target language code to determine number of plural forms.
+            If None, uses the number of forms from the English entry.
+    """
     new_entry = polib.POEntry(
         msgid=entry.msgid,
         msgid_plural=entry.msgid_plural,
@@ -234,8 +258,13 @@ def _create_po_entry_from_en(entry: polib.POEntry) -> polib.POEntry:
         flags=entry.flags,
     )
     if entry.msgid_plural:
-        # Initialize plural forms (at least 2)
-        num_forms = max(2, len(entry.msgstr_plural) if entry.msgstr_plural else 2)
+        # Determine number of plural forms needed
+        if lang_code:
+            # Use target language's plural form count
+            num_forms = _get_po_plural_count(lang_code)
+        else:
+            # Fallback to English entry's form count
+            num_forms = max(2, len(entry.msgstr_plural) if entry.msgstr_plural else 2)
         new_entry.msgstr_plural = dict.fromkeys(range(num_forms), "")
     else:
         new_entry.msgstr = ""
@@ -243,7 +272,10 @@ def _create_po_entry_from_en(entry: polib.POEntry) -> polib.POEntry:
 
 
 def _sync_existing_po_file(
-    en_po: polib.POFile, target_po: polib.POFile, target_file: Path
+    en_po: polib.POFile,
+    target_po: polib.POFile,
+    target_file: Path,
+    lang_code: str | None = None,
 ) -> int:
     """Sync existing PO file by adding missing entries. Returns count added."""
     # Create a set of existing entries (msgid + msgid_plural for plural entries)
@@ -261,7 +293,7 @@ def _sync_existing_po_file(
 
         entry_key = (entry.msgid, entry.msgid_plural if entry.msgid_plural else None)
         if entry_key not in existing_entries:
-            new_entry = _create_po_entry_from_en(entry)
+            new_entry = _create_po_entry_from_en(entry, lang_code)
             target_po.append(new_entry)
             added_count += 1
 
@@ -292,7 +324,7 @@ def _create_new_po_file(
         if not entry.msgid:  # Skip header
             continue
 
-        new_entry = _create_po_entry_from_en(entry)
+        new_entry = _create_po_entry_from_en(entry, lang_code)
         target_po.append(new_entry)
         added_count += 1
 
@@ -324,7 +356,9 @@ def sync_or_create_po_file(
     if file_exists:
         # File exists: sync entries
         target_po = polib.pofile(str(target_file))
-        stats["added"] = _sync_existing_po_file(en_po, target_po, target_file)
+        stats["added"] = _sync_existing_po_file(
+            en_po, target_po, target_file, lang_code
+        )
     else:
         # File doesn't exist: create new with all entries from English
         stats["added"] = _create_new_po_file(en_po, target_file, lang_code, iso_code)
@@ -333,7 +367,8 @@ def sync_or_create_po_file(
 
 
 def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dict]:
-    """Extract empty keys from frontend JSON files."""
+    """Extract empty translation keys from frontend JSON files."""
+    logger.debug("Extracting empty keys from frontend apps for language: %s", iso_code)
     empty_keys = []
 
     for app in LEARNER_FACING_APPS:
@@ -363,30 +398,67 @@ def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dic
             )
 
         if not target_file.exists() or not en_file.exists():
+            logger.debug(
+                "Skipping %s: target file or English file missing (target: %s, en: %s)",
+                app,
+                target_file.exists(),
+                en_file.exists(),
+            )
             continue
 
         try:
             target_data = load_json_file(target_file)
             en_data = load_json_file(en_file)
+            logger.debug(
+                "Processing %s: found %d keys in English file", app, len(en_data)
+            )
 
             for key in en_data:
                 target_value = target_data.get(key, "")
                 if not target_value or (
                     isinstance(target_value, str) and not target_value.strip()
                 ):
+                    english_value = en_data[key]
+                    # Skip non-string values (numbers, booleans, objects, arrays)
+                    # These shouldn't be translated as they would break JSON structure
+                    if not isinstance(english_value, str):
+                        logger.debug(
+                            "Skipping non-string value for key '%s' in %s: %s "
+                            "(type: %s). Only string values are translatable.",
+                            key,
+                            app,
+                            english_value,
+                            type(english_value).__name__,
+                        )
+                        continue
+                    # Check if English value is already in ICU MessageFormat
+                    is_icu_plural = (
+                        isinstance(english_value, str) and ", plural," in english_value
+                    )
+
                     empty_keys.append(
                         {
                             "app": app,
                             "key": key,
-                            "english": en_data[key],
+                            "english": english_value,
                             "translation": "",
                             "file_type": "json",
                             "file_path": str(target_file.resolve()),
+                            "is_plural": is_icu_plural,
                         }
                     )
-        except (OSError, ValueError, json.JSONDecodeError):
+            logger.debug("Extracted %d empty key(s) from %s", len(empty_keys), app)
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Skipping %s due to error loading translation files: %s", app, e
+            )
             continue
 
+    logger.info(
+        "Extracted %d total empty key(s) from frontend apps for language: %s",
+        len(empty_keys),
+        iso_code,
+    )
     return empty_keys
 
 
@@ -464,7 +536,10 @@ def _extract_empty_keys_from_backend(base_dir: Path, backend_locale: str) -> lis
                             else None,
                         }
                     )
-        except (OSError, polib.POFileError, ValueError):
+        except (OSError, polib.POFileError, ValueError) as e:
+            logger.warning(
+                "Skipping %s due to error loading PO file: %s", target_file, e
+            )
             continue
 
     return empty_keys
@@ -501,6 +576,7 @@ def apply_json_translations(file_path: Path, translations: dict[str, str]) -> in
     """
     data = load_json_file(file_path)
     applied = 0
+    skipped = 0
 
     for key, translation in translations.items():
         if key in data:
@@ -511,9 +587,41 @@ def apply_json_translations(file_path: Path, translations: dict[str, str]) -> in
             ):
                 data[key] = translation
                 applied += 1
+                logger.debug(
+                    "Applied translation for key '%s' in %s", key, file_path.name
+                )
+            else:
+                skipped += 1
+                logger.debug(
+                    "Skipped key '%s' in %s (already has value: %s)",
+                    key,
+                    file_path.name,
+                    current_value[:50]
+                    if isinstance(current_value, str)
+                    else current_value,
+                )
+        else:
+            skipped += 1
+            logger.debug(
+                "Skipped key '%s' in %s (key not found in target file)",
+                key,
+                file_path.name,
+            )
 
     if applied > 0:
         save_json_file(file_path, data)
+        logger.info(
+            "Applied %d translation(s) to %s (%d skipped)",
+            applied,
+            file_path.name,
+            skipped,
+        )
+    elif skipped > 0:
+        logger.debug(
+            "No translations applied to %s (%d keys skipped - already have values)",
+            file_path.name,
+            skipped,
+        )
 
     return applied
 
@@ -626,12 +734,33 @@ def _apply_plural_dict_translation(
 ) -> bool:
     """Apply plural translation from dict. Returns True if applied."""
     plural_applied = False
-    if not entry.msgstr_plural.get(0, "").strip():
-        entry.msgstr_plural[0] = translation["singular"]
-        plural_applied = True
-    if len(entry.msgstr_plural) > 1 and not entry.msgstr_plural.get(1, "").strip():
-        entry.msgstr_plural[1] = translation["plural"]
-        plural_applied = True
+
+    # Check if translation uses numeric keys (multiple forms: 0, 1, 2 or "0", "1", "2")
+    # Handle both integer and string keys
+    numeric_keys = [
+        k for k in translation if (isinstance(k, (int, str)) and str(k).isdigit())
+    ]
+    if numeric_keys:
+        # Multiple plural forms - apply each form to its corresponding index
+        for key in numeric_keys:
+            form_index = int(key) if isinstance(key, str) else key
+            if (
+                form_index < len(entry.msgstr_plural)
+                and not entry.msgstr_plural.get(form_index, "").strip()
+            ):
+                entry.msgstr_plural[form_index] = str(translation[key]).strip()
+                plural_applied = True
+    elif "singular" in translation and "plural" in translation:
+        # Traditional singular/plural format - apply to forms 0 and 1+
+        if not entry.msgstr_plural.get(0, "").strip():
+            entry.msgstr_plural[0] = translation["singular"]
+            plural_applied = True
+        # Apply plural to all remaining empty forms (for languages with >2 forms)
+        for i in range(1, len(entry.msgstr_plural)):
+            if not entry.msgstr_plural.get(i, "").strip():
+                entry.msgstr_plural[i] = translation["plural"]
+                plural_applied = True
+
     return plural_applied
 
 
@@ -651,19 +780,38 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
 
     Args:
         entry: The PO entry to apply translation to.
-        translation: Translation value (string or dict with 'singular'/'plural').
+        translation: Translation value (string or dict with 'singular'/'plural'
+            or numeric keys '0', '1', '2', etc. for multiple forms).
 
     Returns:
         True if translation was applied, False otherwise.
     """
     if entry.msgid_plural:
         # Plural entry
+        # Check if translation is a string representation of a dict
         if (
-            isinstance(translation, dict)
-            and "singular" in translation
-            and "plural" in translation
+            isinstance(translation, str)
+            and translation.strip().startswith("{")
+            and translation.strip().endswith("}")
         ):
-            return _apply_plural_dict_translation(entry, translation)
+            try:
+                translation = json.loads(translation.strip())
+            except (json.JSONDecodeError, ValueError):
+                # If parsing fails, treat as regular string
+                return bool(
+                    translation and _apply_plural_string_translation(entry, translation)
+                )
+
+        if isinstance(translation, dict):
+            # Check for numeric keys (multiple forms) or singular/plural keys
+            # Handle both integer and string keys
+            numeric_keys = [
+                k
+                for k in translation
+                if (isinstance(k, (int, str)) and str(k).isdigit())
+            ]
+            if numeric_keys or "singular" in translation:
+                return _apply_plural_dict_translation(entry, translation)
         if (
             isinstance(translation, str)
             and translation
@@ -681,18 +829,60 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
     return False
 
 
+def _expand_plural_forms_if_needed(entry: polib.POEntry, po: polib.POFile) -> bool:
+    """Expand plural forms if entry has fewer forms than required by language.
+
+    Args:
+        entry: PO entry to potentially expand
+        po: PO file containing the entry (to read Plural-Forms metadata)
+
+    Returns:
+        True if entry was expanded, False otherwise
+    """
+    if not entry.msgid_plural:
+        return False
+
+    # Get required number of forms from PO file metadata
+    plural_forms_str = po.metadata.get("Plural-Forms", "")
+    if not plural_forms_str:
+        return False
+
+    nplurals_match = re.search(r"nplurals=(\d+)", plural_forms_str)
+    if not nplurals_match:
+        return False
+
+    required_forms = int(nplurals_match.group(1))
+    current_forms = len(entry.msgstr_plural) if entry.msgstr_plural else 0
+
+    # Expand if needed
+    if current_forms < required_forms:
+        if not entry.msgstr_plural:
+            entry.msgstr_plural = {}
+        # Add missing forms with empty strings
+        for i in range(current_forms, required_forms):
+            entry.msgstr_plural[i] = ""
+        return True
+
+    return False
+
+
 def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
     """
     Apply translations to a PO file. Returns number of translations applied.
     Handles both singular and plural forms.
     For plural forms, translations dict can contain:
     - Dict with 'singular' and 'plural' keys: {"singular": "...", "plural": "..."}
+    - Dict with numeric keys '0', '1', '2', etc. for multiple forms
     - String: applies same translation to all plural forms
     """
     po = polib.pofile(str(file_path))
     applied = 0
+    skipped = 0
 
     for entry in po:
+        # Expand plural forms if entry has fewer than required
+        if entry.msgid_plural:
+            _expand_plural_forms_if_needed(entry, po)
         if not entry.msgid:
             continue
 
@@ -700,9 +890,44 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
             translation = translations[entry.msgid]
             if _apply_translation_to_entry(entry, translation):
                 applied += 1
+                logger.debug(
+                    "Applied translation for msgid '%s' in %s",
+                    (
+                        entry.msgid[:MAX_LOG_STRING_LENGTH] + "..."
+                        if len(entry.msgid) > MAX_LOG_STRING_LENGTH
+                        else entry.msgid
+                    ),
+                    file_path.name,
+                )
+            else:
+                skipped += 1
+                logger.debug(
+                    "Skipped msgid '%s' in %s (already has translation)",
+                    (
+                        entry.msgid[:MAX_LOG_STRING_LENGTH] + "..."
+                        if len(entry.msgid) > MAX_LOG_STRING_LENGTH
+                        else entry.msgid
+                    ),
+                    file_path.name,
+                )
+        else:
+            skipped += 1
 
     if applied > 0:
         po.save(str(file_path))
+        logger.info(
+            "Applied %d translation(s) to %s (%d skipped)",
+            applied,
+            file_path.name,
+            skipped,
+        )
+    elif skipped > 0:
+        logger.debug(
+            "No translations applied to %s (%d entries skipped - "
+            "already have translations)",
+            file_path.name,
+            skipped,
+        )
 
     return applied
 
@@ -734,7 +959,10 @@ def _sync_frontend_translations(base_dir: Path, iso_code: str) -> dict[str, int]
             frontend_stats["added"] += stats.get("added", 0)
             frontend_stats["fixed"] += stats.get("fixed", 0)
             frontend_stats["removed"] += stats.get("removed", 0)
-        except (OSError, ValueError, json.JSONDecodeError):
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Skipping %s due to error syncing translation file: %s", app, e
+            )
             continue
 
     return frontend_stats

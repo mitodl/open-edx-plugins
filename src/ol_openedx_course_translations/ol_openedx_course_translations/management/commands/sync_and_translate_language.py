@@ -48,10 +48,12 @@ from ol_openedx_course_translations.utils.constants import (
     LANGUAGE_MAPPING,
     MAX_ERROR_MESSAGE_LENGTH,
     MAX_RETRIES,
+    PLURAL_FORMS,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
 )
 from ol_openedx_course_translations.utils.translation_sync import (
+    _get_base_lang,
     apply_json_translations,
     apply_po_translations,
     extract_empty_keys,
@@ -61,6 +63,16 @@ from ol_openedx_course_translations.utils.translation_sync import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Constants for string truncation in logging
+MAX_LOG_STRING_LENGTH = 50
+MAX_LOG_ICU_STRING_LENGTH = 100
+
+# Constants for plural category counts
+PLURAL_CATEGORIES_ARABIC = 6  # zero, one, two, few, many, other
+PLURAL_CATEGORIES_FOUR = 4  # one, two, few, other
+PLURAL_CATEGORIES_THREE = 3  # one, few, other
+PLURAL_CATEGORIES_TWO = 2  # one, other (most languages)
 
 
 class GitRepository:
@@ -827,6 +839,82 @@ class Command(BaseCommand):
         )
         return filtered
 
+    def _get_icu_plural_categories(self, lang_code: str) -> list[str]:
+        """Get ICU MessageFormat plural categories for a language."""
+        base_lang = _get_base_lang(lang_code)
+        plural_form = PLURAL_FORMS.get(base_lang, "nplurals=2; plural=(n != 1);")
+
+        nplurals_match = re.search(r"nplurals=(\d+)", plural_form)
+        if not nplurals_match:
+            return ["one", "other"]
+
+        nplurals = int(nplurals_match.group(1))
+
+        # Map nplurals to ICU categories
+        nplurals_to_categories = {
+            1: ["other"],
+            2: ["one", "other"],
+            3: ["one", "few", "other"],
+            4: ["one", "two", "few", "other"],
+            6: ["zero", "one", "two", "few", "many", "other"],
+        }
+
+        return nplurals_to_categories.get(nplurals, ["one", "other"])
+
+    def _get_po_plural_count(self, lang_code: str) -> int:
+        """Get number of plural forms for a language (for PO files)."""
+        base_lang = _get_base_lang(lang_code)
+        plural_form = PLURAL_FORMS.get(base_lang, "nplurals=2; plural=(n != 1);")
+
+        nplurals_match = re.search(r"nplurals=(\d+)", plural_form)
+        if not nplurals_match:
+            return 2
+
+        return int(nplurals_match.group(1))
+
+    def _build_icu_example(self, categories_list: list[str]) -> str:
+        """Build an ICU MessageFormat example string based on categories."""
+        num_categories = len(categories_list)
+
+        if num_categories == PLURAL_CATEGORIES_ARABIC:
+            # Arabic: zero, one, two, few, many, other
+            return (
+                "{activityCount, plural, "
+                "zero {# activities} "
+                "one {# activity} "
+                "two {# activities} "
+                "few {# activities} "
+                "many {# activities} "
+                "other {# activities}}"
+            )
+        elif num_categories == PLURAL_CATEGORIES_FOUR:
+            # Languages with 4 forms: one, two, few, other
+            return (
+                "{activityCount, plural, "
+                "one {# activity} "
+                "two {# activities} "
+                "few {# activities} "
+                "other {# activities}}"
+            )
+        elif num_categories == PLURAL_CATEGORIES_THREE:
+            # Languages with 3 forms: one, few, other (e.g., Russian, Polish)
+            return (
+                "{activityCount, plural, "
+                "one {# activity} "
+                "few {# activities} "
+                "other {# activities}}"
+            )
+        elif num_categories == PLURAL_CATEGORIES_TWO:
+            # Languages with 2 forms: one, other (most languages)
+            return "{activityCount, plural, one {# activity} other {# activities}}"
+        else:
+            # Fallback for other multi-category languages
+            example_categories = " ".join(
+                f"{cat} {{# {'activity' if cat == 'one' else 'activities'}}}"
+                for cat in categories_list
+            )
+            return f"{{activityCount, plural, {example_categories}}}"
+
     def _load_glossary(self, options: dict, lang_code: str) -> dict[str, Any]:
         """Load glossary if enabled."""
         if not options.get("glossary", False):
@@ -1117,14 +1205,30 @@ class Command(BaseCommand):
         model = params["model"]
         glossary = params["glossary"]
         batch_size = params["batch_size"]
+
+        # Add lang_code to each key_info for ICU format conversion
+        for key_info in empty_keys:
+            key_info["lang_code"] = lang_code
         max_retries = params["max_retries"]
 
         # First pass: check glossary matches
+        logger.info(
+            "Checking glossary matches for %d empty key(s) (language: %s)",
+            len(empty_keys),
+            lang_code,
+        )
         translations, glossary_matches, keys_needing_llm = (
             self._check_glossary_for_keys(empty_keys, glossary)
         )
 
+        logger.info(
+            "Glossary matches: %d, Keys needing LLM: %d",
+            glossary_matches,
+            len(keys_needing_llm),
+        )
+
         if not keys_needing_llm:
+            logger.info("All translations found in glossary, skipping LLM translation")
             return translations, {
                 "glossary_matches": glossary_matches,
                 "llm_translations": 0,
@@ -1133,6 +1237,13 @@ class Command(BaseCommand):
             }
 
         # Translate remaining keys with LLM
+        logger.info(
+            "Starting LLM translation for %d key(s) using %s/%s (batch size: %d)",
+            len(keys_needing_llm),
+            provider,
+            model,
+            batch_size,
+        )
         llm_translations, llm_errors, errors_by_app = self._translate_with_llm(
             keys_needing_llm,
             translations,
@@ -1142,6 +1253,11 @@ class Command(BaseCommand):
             glossary,
             batch_size,
             max_retries,
+        )
+        logger.info(
+            "LLM translation completed: %d translated, %d errors",
+            llm_translations,
+            llm_errors,
         )
 
         summary = (
@@ -1183,42 +1299,94 @@ class Command(BaseCommand):
         if is_plural and msgid_plural:
             return self._check_plural_glossary_match(key_info, glossary, msgid_plural)
 
-        # Singular match
         match = match_glossary_term(key_info["english"], glossary, exact_match=True)
         if not match:
+            logger.debug(
+                "No glossary match found for key: %s", key_info.get("key", "unknown")
+            )
             return None
 
-        if isinstance(match, dict):
-            return match.get("translation", match.get("singular", ""))
-        return match
+        translation = (
+            match.get("translation", match.get("singular", ""))
+            if isinstance(match, dict)
+            else match
+        )
+        logger.debug(
+            "Found glossary match for key: %s -> %s",
+            key_info.get("key", "unknown"),
+            str(translation)[:MAX_LOG_STRING_LENGTH] + "..."
+            if len(str(translation)) > MAX_LOG_STRING_LENGTH
+            else str(translation),
+        )
+        return translation
+
+    def _is_icu_format(self, text: str) -> bool:
+        """Check if text is already in ICU MessageFormat."""
+        if not isinstance(text, str):
+            return False
+        # Match ICU MessageFormat pattern: {variable, plural, ...}
+        icu_pattern = r"\{[^,]+,\s*plural\s*,"
+        return bool(re.search(icu_pattern, text))
+
+    def _convert_to_icu_format(
+        self, singular: str, plural: str, lang_code: str, count_var: str = "count"
+    ) -> str:
+        """Convert singular and plural translations to ICU MessageFormat string."""
+        categories = self._get_icu_plural_categories(lang_code)
+
+        parts = [f"{{{count_var}, plural"]
+        for category in categories:
+            translation = singular if category == "one" else plural
+            parts.append(f" {category} {{{translation}}}")
+        parts.append("}")
+
+        icu_string = "".join(parts)
+        logger.debug(
+            "Converted singular/plural to ICU format for %s: %s (categories: %s)",
+            lang_code,
+            (
+                icu_string[:MAX_LOG_ICU_STRING_LENGTH] + "..."
+                if len(icu_string) > MAX_LOG_ICU_STRING_LENGTH
+                else icu_string
+            ),
+            categories,
+        )
+        return icu_string
+
+    def _extract_translation_from_match(self, match: Any) -> str:
+        """Extract translation string from glossary match."""
+        if isinstance(match, str):
+            return match
+        return match.get(
+            "singular", match.get("plural", match.get("translation", str(match)))
+        )
 
     def _check_plural_glossary_match(
         self, key_info: dict, glossary: dict[str, Any], msgid_plural: str
     ) -> Any | None:
         """Check glossary match for plural keys. Returns translation or None."""
+        file_type = key_info.get("file_type", "po")
         singular_match = match_glossary_term(
             key_info["english"], glossary, exact_match=True
         )
         plural_match = match_glossary_term(msgid_plural, glossary, exact_match=True)
 
         if singular_match and plural_match:
-            if isinstance(singular_match, dict) and "singular" in singular_match:
-                return singular_match
-            if isinstance(plural_match, dict) and "singular" in plural_match:
-                return plural_match
-            return {
-                "singular": str(singular_match),
-                "plural": str(plural_match),
-            }
+            singular_str = self._extract_translation_from_match(singular_match)
+            plural_str = self._extract_translation_from_match(plural_match)
+
+            if file_type == "json":
+                lang_code = key_info.get("lang_code", "en")
+                return self._convert_to_icu_format(singular_str, plural_str, lang_code)
+
+            return {"singular": singular_str, "plural": plural_str}
 
         if singular_match:
-            key_info["_glossary_singular"] = (
-                str(singular_match)
-                if isinstance(singular_match, str)
-                else singular_match.get("singular", "")
+            key_info["_glossary_singular"] = self._extract_translation_from_match(
+                singular_match
             )
 
-        return None  # Need LLM for plural or no match
+        return None
 
     def _format_glossary_for_prompt(self, glossary: dict[str, Any] | None) -> str:
         """Format glossary as a prompt section for LLM translation requests.
@@ -1235,12 +1403,9 @@ class Command(BaseCommand):
         if not glossary:
             return ""
 
-        # Format glossary as JSON for the prompt
-        # Handle potential serialization errors gracefully
         try:
             glossary_json = json.dumps(glossary, indent=2, ensure_ascii=False)
         except (TypeError, ValueError) as e:
-            # If glossary contains non-serializable values, log warning and skip
             self.stdout.write(
                 self.style.WARNING(
                     f"   WARNING: Could not serialize glossary for prompt: {e!s}. "
@@ -1264,6 +1429,146 @@ class Command(BaseCommand):
             """
         return textwrap.dedent(glossary_template)
 
+    def _build_plural_instructions(
+        self,
+        json_plural_info: dict[str, Any],
+        plural_count: int,
+        key_batch: list[dict],
+        icu_categories_str: str,
+        lang_code: str,
+    ) -> str:
+        """Build plural handling instructions for LLM prompt."""
+        instructions = []
+        json_plural_count = json_plural_info.get("count", 0)
+        json_plural_entries = json_plural_info.get("entries", {})
+
+        if json_plural_count > 0:
+            categories_list = icu_categories_str.split(", ")
+            num_categories = len(categories_list)
+            has_existing_icu = any(
+                self._is_icu_format(key_batch[i].get("english", ""))
+                for i in range(len(key_batch))
+                if str(i + 1) in json_plural_entries
+            )
+
+            if has_existing_icu:
+                if num_categories > PLURAL_CATEGORIES_TWO:
+                    # For languages with multiple plural forms (e.g., Arabic with 6),
+                    # expand the ICU structure to include ALL required categories
+                    instructions.append(
+                        f"IMPORTANT: {json_plural_count} entry/entries are JSON "
+                        f"strings with ICU MessageFormat plural forms. "
+                        f"These may currently have only 'one' and 'other' "
+                        f"categories, but for this language ({icu_categories_str}), "
+                        f"you MUST expand them to include ALL {num_categories} "
+                        f"categories: {icu_categories_str}. "
+                        f"Translate the content and return a complete ICU "
+                        f"MessageFormat string with ALL categories. "
+                        f"Example format: {{count, plural, {icu_categories_str} "
+                        f"{{translation}} ... other {{translation}}}}. "
+                        f"CRITICAL: Do not preserve the existing 2-category "
+                        f"structure. Expand it to include all {num_categories} "
+                        f"required categories for this language."
+                    )
+                else:
+                    # For languages with 2 forms, preserve existing structure
+                    instructions.append(
+                        f"IMPORTANT: {json_plural_count} entry/entries are JSON "
+                        f"strings with ICU MessageFormat plural forms. "
+                        f"These already have the ICU structure "
+                        f"(e.g., {{activityCount, plural, one {{# activity}} "
+                        f"other {{# activities}}}}). "
+                        f"Translate the content inside the plural forms while "
+                        f"preserving the exact ICU structure and variable names. "
+                        f"Return the complete ICU MessageFormat string with "
+                        f"translated content."
+                    )
+            else:
+                # Build language-specific example based on categories
+                example = self._build_icu_example(categories_list)
+
+                if num_categories > PLURAL_CATEGORIES_TWO:
+                    instructions.append(
+                        f"IMPORTANT: {json_plural_count} entry/entries are for "
+                        f"JSON files with plural forms. "
+                        f"For these, return ICU MessageFormat strings with ALL "
+                        f"plural categories: {icu_categories_str}. "
+                        f"Format: {{count, plural, {icu_categories_str} "
+                        f"{{translation}} ... other {{translation}}}}. "
+                        f"Example: {example}. "
+                        f"IMPORTANT: Include ALL {num_categories} categories in "
+                        f"your response, not just 'one' and 'other'. Each category "
+                        f"may require different word forms in this language."
+                    )
+                else:
+                    instructions.append(
+                        f"IMPORTANT: {json_plural_count} entry/entries are for "
+                        f"JSON files with plural forms. "
+                        f"For these, return ICU MessageFormat strings with plural "
+                        f"categories: {icu_categories_str}. "
+                        f"Format: {{count, plural, {icu_categories_str} "
+                        f"{{translation}} ... other {{translation}}}}. "
+                        f"Example: {example}."
+                    )
+
+        if plural_count > 0:
+            # Get number of plural forms needed for this language
+            po_plural_count = self._get_po_plural_count(lang_code)
+            if po_plural_count > PLURAL_CATEGORIES_TWO:
+                # Languages with more than 2 forms need all forms translated
+                instructions.append(
+                    f"CRITICAL - PO FILE PLURAL ENTRIES "
+                    f"({plural_count} entry/entries): "
+                    f"These are for PO files (NOT JSON files). "
+                    f"This language requires {po_plural_count} plural forms "
+                    f"(indices 0, 1, 2, ..., {po_plural_count - 1}). "
+                    f"For PO files, you MUST return an object with keys "
+                    f"'0', '1', '2', ..., '{po_plural_count - 1}', "
+                    f"covering all indices from 0 through "
+                    f"{po_plural_count - 1}, where each value is a "
+                    f"PLAIN TRANSLATION STRING. "
+                    f"\n"
+                    f"WRONG (DO NOT DO THIS): "
+                    f"{{'0': '{{count, plural, one {{...}} other {{...}}}}'}} "
+                    f"\n"
+                    f"CORRECT: "
+                    f"{{'0': 'translation for zero items', "
+                    f"'1': 'translation for one item', "
+                    f"'2': 'translation for two items', "
+                    f"'3': 'translation for few items', "
+                    f"'4': 'translation for many items', "
+                    f"'5': 'translation for other items'}} "
+                    f"\n"
+                    f"Each value must be a simple translated string, "
+                    f"NOT ICU MessageFormat syntax. "
+                    f"Preserve placeholders like {{count}}, %(count)s, etc. "
+                    f"in the plain strings."
+                )
+            else:
+                # Languages with 2 forms use singular/plural format
+                instructions.append(
+                    f"CRITICAL - PO FILE PLURAL ENTRIES "
+                    f"({plural_count} entry/entries): "
+                    f"These are for PO files (NOT JSON files). "
+                    f"For PO files, return an object with 'singular' and "
+                    f"'plural' keys, each containing a PLAIN TRANSLATION STRING. "
+                    f"\n"
+                    f"WRONG (DO NOT DO THIS): "
+                    f"{{'singular': '{{count, plural, one {{...}} "
+                    f"other {{...}}}}'}} "
+                    f"\n"
+                    f"CORRECT: "
+                    f"{{'singular': 'translation for one item', "
+                    f"'plural': 'translation for multiple items'}} "
+                    f"\n"
+                    f"Each value must be a simple translated string, "
+                    f"NOT ICU MessageFormat syntax. "
+                    f"Preserve placeholders like {{count}}, %(count)s, etc. "
+                    f"in the plain strings."
+                )
+
+        return "\n".join(instructions)
+
     def _call_llm_batch(  # noqa: PLR0913
         self,
         key_batch: list[dict],
@@ -1272,7 +1577,7 @@ class Command(BaseCommand):
         model: str,
         glossary: dict[str, Any] | None = None,
         timeout: int = 120,
-    ) -> list[str | dict]:
+    ) -> list[str | dict[str, str] | None]:
         """Call LLM API to translate multiple texts in a single request.
 
         Args:
@@ -1286,25 +1591,41 @@ class Command(BaseCommand):
         api_key = self._get_llm_api_key(provider)
 
         texts_dict = {}
-        plural_entries = {}
+        plural_entries: dict[str, bool] = {}
+        json_plural_entries: dict[str, bool] = {}
+
         for i, key_info in enumerate(key_batch, 1):
             key_str = str(i)
-            if key_info.get("is_plural") and key_info.get("msgid_plural"):
-                texts_dict[key_str] = {
-                    "singular": key_info["english"],
-                    "plural": key_info.get("msgid_plural", ""),
-                }
-                plural_entries[key_str] = True
+            file_type = key_info.get("file_type", "po")
+            english_text = key_info["english"]
+            is_plural = key_info.get("is_plural", False)
+            msgid_plural = key_info.get("msgid_plural")
+
+            if file_type == "json" and self._is_icu_format(english_text):
+                texts_dict[key_str] = english_text
+                json_plural_entries[key_str] = True
+            elif is_plural and msgid_plural:
+                texts_dict[key_str] = {"singular": english_text, "plural": msgid_plural}
+                (json_plural_entries if file_type == "json" else plural_entries)[
+                    key_str
+                ] = True
             else:
-                texts_dict[key_str] = key_info["english"]
+                texts_dict[key_str] = english_text
 
         texts_block = json.dumps(texts_dict, indent=2, ensure_ascii=False)
         plural_count = len(plural_entries)
+        json_plural_count = len(json_plural_entries)
 
         lang_name = LANGUAGE_MAPPING.get(lang_code, lang_code)
-
-        # Build glossary section if glossary is provided
         glossary_section = self._format_glossary_for_prompt(glossary)
+        icu_categories_str = ", ".join(self._get_icu_plural_categories(lang_code))
+        plural_instructions = self._build_plural_instructions(
+            {"count": json_plural_count, "entries": json_plural_entries},
+            plural_count,
+            key_batch,
+            icu_categories_str,
+            lang_code,
+        )
 
         prompt_template = (
             f"""Translate the following {len(key_batch)} text(s) to {lang_name} """
@@ -1313,23 +1634,32 @@ class Command(BaseCommand):
             Preserve any placeholders like {{variable}}, {{0}}, %s, etc.
             Preserve HTML tags and formatting.
             {glossary_section}
-            {
-                (
-                    "IMPORTANT: "
-                    + str(plural_count)
-                    + " entry/entries have plural forms. "
-                    + "For these, return BOTH singular and "
-                    + 'plural translations as an object with "singular" '
-                    + 'and "plural" keys.'
-                )
-                if plural_count > 0
-                else ""
-            }
+            {plural_instructions}
 
             Return a JSON object where each key is the number (1, 2, 3, etc.).
-            - For singular entries: value is the translation string.
-            - For plural entries: value is an object with "singular" and "plural" keys,
-              each containing the translation.
+
+            FORMAT BY ENTRY TYPE:
+
+            1. Singular entries (no plural): value is a simple translation string.
+
+            2. JSON plural entries: value is an ICU MessageFormat string.
+               Example: "{{count, plural, one {{# item}} other {{# items}}}}"
+
+            3. PO plural entries: value is an object with PLAIN TRANSLATION STRINGS.
+               NEVER use ICU MessageFormat for PO entries!
+               Use simple translated strings for each form.
+
+               For languages with 2 forms:
+                 {{"singular": "translation for one", "plural": "translation for many"}}
+
+               For languages with more forms (e.g., Arabic with 6):
+                 {{"0": "translation for zero", "1": "translation for one",
+                   "2": "translation for two", "3": "translation for few",
+                   "4": "translation for many", "5": "translation for other"}}
+
+               CRITICAL: Each value in PO entries must be a plain string, "
+               "NOT ICU syntax! Preserve placeholders ({{count}}, "
+               "%(count)s, etc.) in the plain strings.
 
             Input texts (numbered):
             {texts_block}
@@ -1337,9 +1667,11 @@ class Command(BaseCommand):
             Return ONLY valid JSON in this format:
             {{
               "1": "translation of first text",
-              "2": {{"singular": "singular translation",
-                    "plural": "plural translation"}},
-              "3": "translation of third text",
+              "2": "{{count, plural, one {{singular}} "
+              "other {{plural}}}}",
+              "3": {{"singular": "singular translation", "
+              ""plural": "plural translation"}},
+              "4": {{"0": "form 0", "1": "form 1", "2": "form 2"}}
               ...
             }}"""
         )
@@ -1358,13 +1690,33 @@ class Command(BaseCommand):
             response = completion(**completion_kwargs)
             response_text = response.choices[0].message.content.strip()
 
+            logger.debug(
+                "LLM response received for batch of %d key(s), response length: %d",
+                len(key_batch),
+                len(response_text),
+            )
+
             translations = self._parse_json_response(response_text, key_batch)
             if translations:
+                logger.debug(
+                    "Successfully parsed JSON response for batch of %d key(s)",
+                    len(key_batch),
+                )
                 return translations
 
+            logger.warning(
+                "JSON parsing failed for batch, falling back to order-based parsing"
+            )
             return self._parse_order_based_response(response_text, key_batch)
 
         except TimeoutError:
+            logger.exception(
+                "LLM batch API call timed out after %d seconds "
+                "(model: %s, batch size: %d)",
+                timeout,
+                model,
+                len(key_batch),
+            )
             msg = (
                 f"LLM batch API call timed out after {timeout} seconds.\n"
                 f"Model: {model}\n"
@@ -1373,6 +1725,11 @@ class Command(BaseCommand):
             )
             raise CommandError(msg) from None
         except (requests.RequestException, ValueError, KeyError, AttributeError) as e:
+            logger.exception(
+                "LLM batch API call failed (model: %s, batch size: %d)",
+                model,
+                len(key_batch),
+            )
             msg = (
                 f"LLM batch API call failed: {e!s}\n"
                 f"Model: {model}\n"
@@ -1383,10 +1740,8 @@ class Command(BaseCommand):
             )
             raise CommandError(msg) from e
 
-    def _parse_json_response(
-        self, response_text: str, key_batch: list[dict]
-    ) -> list[str | dict] | None:
-        """Parse JSON response from LLM."""
+    def _extract_json_from_response(self, response_text: str) -> str:
+        """Extract JSON text from response, handling code blocks."""
         json_text = response_text
         if "```json" in response_text:
             start = response_text.find("```json") + 7
@@ -1398,37 +1753,111 @@ class Command(BaseCommand):
             end = response_text.find("```", start)
             if end > start:
                 json_text = response_text[start:end].strip()
+        return json_text
+
+    def _process_translation_key(
+        self, key: str, value: Any, key_info: dict
+    ) -> tuple[str | dict[str, str] | None, bool]:
+        """Process a single translation key from LLM response."""
+        file_type = key_info.get("file_type", "po")
+        is_plural = key_info.get("is_plural", False)
+
+        translation = self._process_llm_response_value(
+            value, key_info, file_type, is_plural=is_plural
+        )
+        is_missing = translation is None
+
+        if translation is None:
+            self._log_rejected_translation(key, key_info)
+        elif translation is not None:
+            self._log_parsed_translation(key_info, translation)
+
+        return translation, is_missing
+
+    def _log_rejected_translation(self, key: str, key_info: dict) -> None:
+        """Log warning for rejected translation."""
+        self.stdout.write(
+            self.style.WARNING(
+                f"   WARNING: Translation rejected for key {key} "
+                f"(file: {key_info.get('file_path', 'unknown')}, "
+                f"key: {key_info.get('key', 'unknown')[:50]}). "
+                f"Likely returned ICU format for PO file."
+            )
+        )
+        logger.warning(
+            "Translation rejected for key %s (file: %s) - "
+            "likely ICU format for PO file",
+            key_info.get("key", "unknown"),
+            key_info.get("file_path", "unknown"),
+        )
+
+    def _log_parsed_translation(
+        self, key_info: dict, translation: str | dict[str, str]
+    ) -> None:
+        """Log debug message for parsed translation."""
+        logger.debug(
+            "Parsed translation for key %s: %s",
+            key_info.get("key", "unknown"),
+            (
+                str(translation)[:MAX_LOG_STRING_LENGTH] + "..."
+                if len(str(translation)) > MAX_LOG_STRING_LENGTH
+                else str(translation)
+            ),
+        )
+
+    def _parse_json_response(
+        self, response_text: str, key_batch: list[dict]
+    ) -> list[str | dict[str, str] | None] | None:
+        """Parse JSON response from LLM."""
+        json_text = self._extract_json_from_response(response_text)
 
         try:
             data = json.loads(json_text)
-            translations: list[str | dict[str, str]] = []
+            translations: list[str | dict[str, str] | None] = []
+            missing_keys = []
             for i in range(len(key_batch)):
                 key = str(i + 1)
+                key_info = key_batch[i]
+
                 if key in data:
                     value = data[key]
-                    if (
-                        isinstance(value, dict)
-                        and "singular" in value
-                        and "plural" in value
-                    ):
-                        translations.append(
-                            {
-                                "singular": str(value["singular"]).strip(),
-                                "plural": str(value["plural"]).strip(),
-                            }
-                        )
-                    else:
-                        translations.append(str(value).strip())
+                    translation, is_missing = self._process_translation_key(
+                        key, value, key_info
+                    )
+                    if is_missing:
+                        missing_keys.append(key_info.get("key", "unknown"))
+                    translations.append(translation)
                 else:
-                    translations.append("")
+                    missing_keys.append(key_info.get("key", "unknown"))
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"   WARNING: LLM did not return translation for key {key} "
+                            f"(file: {key_info.get('file_path', 'unknown')}, "
+                            f"key: {key_info.get('key', 'unknown')})"
+                        )
+                    )
+                    logger.warning(
+                        "LLM did not return translation for key %s (file: %s)",
+                        key_info.get("key", "unknown"),
+                        key_info.get("file_path", "unknown"),
+                    )
+                    translations.append(None)
+
+            if missing_keys:
+                logger.warning(
+                    "LLM response missing %d key(s): %s",
+                    len(missing_keys),
+                    missing_keys,
+                )
         except (json.JSONDecodeError, KeyError, ValueError):
+            logger.exception("Failed to parse JSON response")
             return None
         else:
             return translations
 
     def _parse_order_based_response(
         self, response_text: str, key_batch: list[dict]
-    ) -> list[str | dict[str, str]]:
+    ) -> list[str | dict[str, str] | None]:
         """Fallback: Parse response assuming translations are in order."""
         lines = [line.strip() for line in response_text.split("\n") if line.strip()]
         cleaned_lines = [
@@ -1438,8 +1867,10 @@ class Command(BaseCommand):
         ]
         if len(cleaned_lines) < len(key_batch):
             cleaned_lines.extend([""] * (len(key_batch) - len(cleaned_lines)))
-        # Return as list[str | dict[str, str]] - all strings in this fallback
-        return cast("list[str | dict[str, str]]", cleaned_lines[: len(key_batch)])
+        # Return as list[str | dict[str, str] | None] - all strings in this fallback
+        return cast(
+            "list[str | dict[str, str] | None]", cleaned_lines[: len(key_batch)]
+        )
 
     def _get_llm_api_key(self, provider: str) -> str | None:
         """Get API key from TRANSLATIONS_PROVIDERS or environment variables.
@@ -1468,6 +1899,114 @@ class Command(BaseCommand):
         )
         return os.environ.get(env_key_name)
 
+    def _process_string_value(
+        self, value: str, file_type: str, *, is_plural: bool
+    ) -> tuple[str | dict | None, bool]:
+        """Process a string value from LLM response.
+
+        Returns:
+            Tuple of (result, is_dict) where is_dict indicates if result is a dict
+            that should be processed further.
+        """
+        stripped = value.strip()
+        if stripped.startswith("{") and stripped.endswith("}"):
+            return self._parse_string_dict(stripped, file_type, is_plural=is_plural)
+        if self._is_icu_format(stripped):
+            if file_type == "po" and is_plural:
+                return None, False
+            return stripped, False
+        return stripped, False
+
+    def _parse_string_dict(
+        self, value: str, file_type: str, *, is_plural: bool
+    ) -> tuple[str | dict | None, bool]:
+        """Parse a string that looks like a dict."""
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, dict):
+                # Return dict to be processed further
+                return parsed, True
+        except (json.JSONDecodeError, ValueError):
+            # Not valid JSON; fall through to ICU check and plain string handling.
+            pass
+
+        # Not a dict or parsing failed, check ICU format
+        if self._is_icu_format(value) and file_type == "po" and is_plural:
+            return None, False
+        return value, False
+
+    def _process_dict_numeric_keys(
+        self, value: dict, file_type: str, *, is_plural: bool
+    ) -> dict[str, str] | None:
+        """Process dict with numeric keys (multiple plural forms)."""
+        numeric_keys = [
+            k for k in value if (isinstance(k, (int, str)) and str(k).isdigit())
+        ]
+        if not numeric_keys or file_type != "po" or not is_plural:
+            return None
+
+        result = {}
+        for k, v in value.items():
+            if isinstance(k, (int, str)) and str(k).isdigit():
+                v_str = str(v).strip()
+                if self._is_icu_format(v_str):
+                    return None
+                result[str(k)] = v_str
+        return result if result else None
+
+    def _process_dict_singular_plural(
+        self, value: dict, key_info: dict, file_type: str, *, is_plural: bool
+    ) -> str | dict[str, str] | None:
+        """Process dict with singular/plural keys."""
+        if "singular" not in value or "plural" not in value:
+            return None
+
+        if file_type == "json" and is_plural:
+            lang_code = key_info.get("lang_code", "en")
+            return self._convert_to_icu_format(
+                str(value["singular"]).strip(),
+                str(value["plural"]).strip(),
+                lang_code,
+            )
+        return {
+            "singular": str(value["singular"]).strip(),
+            "plural": str(value["plural"]).strip(),
+        }
+
+    def _process_llm_response_value(
+        self, value: Any, key_info: dict, file_type: str, *, is_plural: bool
+    ) -> str | dict[str, str] | None:
+        """Process a single value from LLM response, converting formats."""
+        if isinstance(value, str):
+            result, is_dict = self._process_string_value(
+                value, file_type, is_plural=is_plural
+            )
+            if result is None:
+                return None
+            if is_dict:
+                # Result is a dict, process it further
+                value = result
+            else:
+                # Result is a string, return it
+                return result
+
+        if isinstance(value, dict):
+            # Check for numeric keys (multiple plural forms)
+            result = self._process_dict_numeric_keys(
+                value, file_type, is_plural=is_plural
+            )
+            if result is not None:
+                return result
+
+            # Check for singular/plural format
+            result = self._process_dict_singular_plural(
+                value, key_info, file_type, is_plural=is_plural
+            )
+            if result is not None:
+                return result
+
+        return str(value).strip()
+
     def _group_translations_by_file(
         self, translations: dict[str, Any], empty_keys: list[dict]
     ) -> dict[str, dict[str, Any]]:
@@ -1475,14 +2014,23 @@ class Command(BaseCommand):
         translations_by_file: dict[str, dict[str, Any]] = {}
 
         for key_info in empty_keys:
-            # Normalize file path for consistent comparison
             file_path_str = str(Path(key_info["file_path"]).resolve())
             translation_key = f"{file_path_str}:{key_info['key']}"
+
             if translation_key in translations:
                 trans_value = translations[translation_key]
+                if trans_value is None:
+                    continue  # Skip missing translations
+                file_type = key_info.get("file_type", "po")
+                is_plural = key_info.get("is_plural", False)
 
-                if key_info["file_type"] == "json" and isinstance(trans_value, dict):
-                    trans_value = trans_value.get("singular", str(trans_value))
+                if file_type == "json" and isinstance(trans_value, dict):
+                    if "singular" in trans_value and "plural" in trans_value:
+                        trans_value = self._process_llm_response_value(
+                            trans_value, key_info, file_type, is_plural=is_plural
+                        )
+                    else:
+                        trans_value = trans_value.get("singular", str(trans_value))
 
                 translations_by_file.setdefault(file_path_str, {})[key_info["key"]] = (
                     trans_value
@@ -1511,12 +2059,27 @@ class Command(BaseCommand):
         )
         app = key_info.get("app", "unknown")
 
+        logger.debug(
+            "Applying %d translation(s) to %s (type: %s, app: %s)",
+            len(file_translations),
+            file_path.name,
+            key_info["file_type"],
+            app,
+        )
         if key_info["file_type"] == "json":
             count = apply_json_translations(file_path, file_translations)
         elif key_info["file_type"] == "po":
             count = apply_po_translations(file_path, file_translations)
         else:
+            logger.warning(
+                "Unknown file type '%s' for file: %s", key_info["file_type"], file_path
+            )
             return 0, app
+
+        if count > 0:
+            logger.info(
+                "Applied %d translation(s) to %s (app: %s)", count, file_path.name, app
+            )
 
         return count, app
 
@@ -1820,8 +2383,6 @@ class Command(BaseCommand):
                 if breakdown_lines
                 else "   No translations applied"
             }
-
-               Applied {applied_count} translations
 
             ### Files Modified
 
