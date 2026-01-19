@@ -26,4 +26,4 @@ class DisableMathJaxForOLChatBlock(PipelineStep):
             if child.block_type == __package__:
                 context["load_mathjax"] = False
                 break
-        return context
+        return {"context": context, "student_view_context": student_view_context}

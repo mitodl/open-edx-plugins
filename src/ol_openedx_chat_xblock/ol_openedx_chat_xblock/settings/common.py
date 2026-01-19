@@ -33,7 +33,7 @@ def plugin_settings(settings):
             "fail_silently": False,
         }
     }
-    existing_filters = env_tokens.get("OPEN_EDX_FILTERS_CONFIG", {})
+    existing_filters = env_tokens.get("OPEN_EDX_FILTERS_CONFIG", getattr(settings, "OPEN_EDX_FILTERS_CONFIG", {}))
 
     # Merge pipeline lists instead of overwriting
     for filter_name, config in CHAT_XBLOCK_FILTERS.items():
