@@ -7,6 +7,7 @@ from typing import Any
 
 import srt
 from litellm import completion
+from django.conf import settings
 
 from .base import TranslationProvider, load_glossary
 
@@ -68,7 +69,7 @@ class LLMProvider(TranslationProvider):
         primary_api_key: str,
         repair_api_key: str | None = None,
         model_name: str | None = None,
-        timeout: int = 120,
+        timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
     ):
         """
         Initialize LLM provider with API keys and model name.

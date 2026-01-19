@@ -62,3 +62,4 @@ def apply_common_settings(settings):
     settings.TRANSLATIONS_REPO_URL = (
         "https://github.com/mitodl/mitxonline-translations.git"
     )
+    settings.LITE_LLM_REQUEST_TIMEOUT = 120  # seconds
