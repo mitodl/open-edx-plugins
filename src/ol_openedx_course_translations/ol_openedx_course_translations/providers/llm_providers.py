@@ -68,6 +68,7 @@ class LLMProvider(TranslationProvider):
         primary_api_key: str,
         repair_api_key: str | None = None,
         model_name: str | None = None,
+        timeout: int = 120,
     ):
         """
         Initialize LLM provider with API keys and model name.
@@ -79,6 +80,7 @@ class LLMProvider(TranslationProvider):
         """
         super().__init__(primary_api_key, repair_api_key)
         self.model_name = model_name
+        self.timeout = timeout
 
     def _get_subtitle_system_prompt(
         self,
@@ -317,6 +319,7 @@ class LLMProvider(TranslationProvider):
             model=self.model_name,
             messages=llm_messages,
             api_key=self.primary_api_key,
+            timeout=self.timeout,
             **additional_kwargs,
         )
         return llm_response.choices[0].message.content.strip()
@@ -348,6 +351,9 @@ class LLMProvider(TranslationProvider):
         current_batch_size = len(subtitle_list)
 
         current_index = 0
+        retry_count = 0
+        max_retries = 3
+
         while current_index < len(subtitle_list):
             subtitle_batch = subtitle_list[
                 current_index : current_index + current_batch_size
@@ -373,18 +379,27 @@ class LLMProvider(TranslationProvider):
                 )
                 translated_subtitle_list.extend(translated_batch)
                 current_index += current_batch_size
+                retry_count = 0  # Reset retry count on success
 
             except Exception as llm_error:
                 error_message = str(llm_error).lower()
                 if any(
                     error_term in error_message for error_term in LLM_ERROR_KEYWORDS
                 ):
-                    if current_batch_size <= 1:
-                        logger.exception("Failed even with batch size 1")
+                    if current_batch_size <= 1 or retry_count >= max_retries:
+                        logger.exception(
+                            "Failed after %s batch size reduction attempts", retry_count
+                        )
                         raise
 
-                    logger.warning("Error: %s. Reducing batch size...", llm_error)
+                    logger.warning(
+                        "Error: %s. Reducing batch size (attempt %s/%s)...",
+                        llm_error,
+                        retry_count + 1,
+                        max_retries,
+                    )
                     current_batch_size = max(1, current_batch_size // 2)
+                    retry_count += 1
                     continue
                 else:
                     raise
