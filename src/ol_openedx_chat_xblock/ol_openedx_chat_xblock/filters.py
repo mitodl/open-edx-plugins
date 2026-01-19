@@ -9,7 +9,7 @@ class DisableMathJaxForOLChatBlock(PipelineStep):
     and sets 'load_mathjax' to False in the context if found.
     """
 
-    def run_filter(self, context, student_view_context):  # noqa: ARG002
+    def run_filter(self, context, student_view_context):
         """
         Disables MathJax loading in the context if any child block is of type
         'ol_openedx_chat_xblock'.
@@ -26,4 +26,4 @@ class DisableMathJaxForOLChatBlock(PipelineStep):
             if child.block_type == __package__:
                 context["load_mathjax"] = False
                 break
-        return context
+        return {"context": context, "student_view_context": student_view_context}

@@ -36,4 +36,4 @@ class AddDestLangForVideoBlock(PipelineStep):
                     and course_lang in transcripts_info["transcripts"]
                 ):
                     student_view_context["dest_lang"] = course_lang
-        return context, student_view_context
+        return {"context": context, "student_view_context": student_view_context}
