@@ -50,6 +50,7 @@ Configuration
        TRANSLATIONS_GITHUB_TOKEN: <YOUR_GITHUB_TOKEN>
        TRANSLATIONS_REPO_PATH: ""
        TRANSLATIONS_REPO_URL: "https://github.com/mitodl/mitxonline-translations.git"
+       LITE_LLM_REQUEST_TIMEOUT: 120  # Timeout for LLM API requests in seconds
 
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
