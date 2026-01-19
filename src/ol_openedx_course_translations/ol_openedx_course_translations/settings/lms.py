@@ -21,7 +21,7 @@ def plugin_settings(settings):
             "fail_silently": False,
         }
     }
-    existing_filters = getattr(settings, "OPEN_EDX_FILTERS_CONFIG", getattr(settings, "OPEN_EDX_FILTERS_CONFIG", {}))
+    existing_filters = getattr(settings, "OPEN_EDX_FILTERS_CONFIG", {})
 
     # Merge pipeline lists instead of overwriting
     for filter_name, config in VIDEO_TRANSCRIPT_LANGUAGE_FILTERS.items():
