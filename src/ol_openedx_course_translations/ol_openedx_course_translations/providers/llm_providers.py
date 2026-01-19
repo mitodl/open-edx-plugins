@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import srt
-from litellm import completion
 from django.conf import settings
+from litellm import completion
 
 from .base import TranslationProvider, load_glossary
 
