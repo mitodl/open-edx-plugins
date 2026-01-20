@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from celery import shared_task
+from django.conf import settings
 
 from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
 from ol_openedx_course_translations.utils.course_translations import (
@@ -25,21 +26,21 @@ TRANSLATE_FILE_TASK_LIMITS = getattr(
         "time_limit": 5 * 60,  # 5 minutes
         "max_retries": 1,  # 1 Initial try + 1 retry = 2 attempts
         "retry_countdown": 30,  # wait 60s before retry
-    }
+    },
 )
 
 
 @shared_task(
     bind=True,
     name="translate_file_task",
-    soft_time_limit = TRANSLATE_FILE_TASK_LIMITS["soft_time_limit"],
-    time_limit = TRANSLATE_FILE_TASK_LIMITS["time_limit"],
-    autoretry_for = (Exception,),
-    retry_kwargs = {
+    soft_time_limit=TRANSLATE_FILE_TASK_LIMITS["soft_time_limit"],
+    time_limit=TRANSLATE_FILE_TASK_LIMITS["time_limit"],
+    autoretry_for=(Exception,),
+    retry_kwargs={
         "max_retries": TRANSLATE_FILE_TASK_LIMITS["max_retries"],
         "countdown": TRANSLATE_FILE_TASK_LIMITS["retry_countdown"],
     },
-    retry_backoff = False,  # keep retries predictable
+    retry_backoff=False,  # keep retries predictable
 )
 def translate_file_task(  # noqa: PLR0913
     _self,
