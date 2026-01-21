@@ -1505,10 +1505,8 @@ class Command(BaseCommand):
                     po_key = f"{msgctxt}:{key_info['key']}"
                 else:
                     po_key = key_info["key"]
-                
-                translations_by_file.setdefault(file_path_str, {})[po_key] = (
-                    trans_value
-                )
+
+                translations_by_file.setdefault(file_path_str, {})[po_key] = trans_value
 
         return translations_by_file
 

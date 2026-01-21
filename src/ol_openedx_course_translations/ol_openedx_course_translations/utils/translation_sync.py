@@ -227,7 +227,7 @@ def parse_po_file_with_metadata(po_file: Path) -> dict[str, dict]:
 
 def _create_po_entry_from_en(entry: polib.POEntry) -> polib.POEntry:
     """Create a new PO entry from an English entry with empty translation.
-    
+
     Preserves all metadata from the English entry including:
     - msgid, msgid_plural, msgctxt
     - occurrences (location comments)
@@ -242,7 +242,7 @@ def _create_po_entry_from_en(entry: polib.POEntry) -> polib.POEntry:
     # Preserve msgctxt (message context) if it exists
     if hasattr(entry, "msgctxt") and entry.msgctxt:
         new_entry.msgctxt = entry.msgctxt
-    
+
     if entry.msgid_plural:
         # Initialize plural forms (at least 2)
         num_forms = max(2, len(entry.msgstr_plural) if entry.msgstr_plural else 2)
@@ -655,45 +655,45 @@ def match_glossary_term(
 def _normalize_translation_newlines(msgid: str, translation: str) -> str:
     """
     Normalize translation to match msgid's newline structure EXACTLY.
-    
+
     CRITICAL: msgfmt checks the ACTUAL last character of the string, NOT after
     stripping whitespace. So we must match whether the string ends with '\n' or not.
-    
+
     Args:
         msgid: The original msgid string
         translation: The translation string to normalize
-        
+
     Returns:
         Normalized translation string with matching newline structure
     """
     if not translation:
         return translation
-    
+
     # Handle leading newlines
     msgid_no_leading_spaces = msgid.lstrip(" \t")
     msgid_starts_newline = (
         msgid_no_leading_spaces.startswith("\n") if msgid_no_leading_spaces else False
     )
-    
+
     normalized = translation
-    
+
     if msgid_starts_newline:
         if not normalized.startswith("\n"):
             normalized = "\n" + normalized
     else:
         normalized = normalized.lstrip("\n")
-    
+
     # CRITICAL: Check the ACTUAL last character
     msgid_ends_with_newline = msgid.endswith("\n") if msgid else False
     normalized_ends_with_newline = normalized.endswith("\n") if normalized else False
-    
+
     if msgid_ends_with_newline and not normalized_ends_with_newline:
         # msgid ends with \n, but translation doesn't - add trailing newline
         normalized = normalized.rstrip(" \t") + "\n"
     elif not msgid_ends_with_newline and normalized_ends_with_newline:
         # msgid doesn't end with \n, but translation does - remove trailing newline
         normalized = normalized.rstrip(" \t\n")
-    
+
     return normalized
 
 
@@ -701,18 +701,18 @@ def _normalize_all_entries_in_po_file(po: polib.POFile) -> int:
     """
     Normalize newlines for ALL entries in a PO file.
     This ensures that even entries with existing translations have correct newline structure.
-    
+
     Returns:
         Number of entries that were normalized (changed)
     """
     normalized_count = 0
-    
+
     for entry in po:
         if not entry.msgid:  # Skip header
             continue
-        
+
         entry_changed = False
-        
+
         if entry.msgid_plural:
             # Plural entry - normalize each plural form
             if entry.msgstr_plural:
@@ -727,17 +727,18 @@ def _normalize_all_entries_in_po_file(po: polib.POFile) -> int:
                         if normalized_plural != msgstr_plural_val:
                             entry.msgstr_plural[i] = normalized_plural
                             entry_changed = True
-        else:
-            # Singular entry
-            if entry.msgstr:  # Only normalize non-empty translations
-                normalized_msgstr = _normalize_translation_newlines(entry.msgid, entry.msgstr)
-                if normalized_msgstr != entry.msgstr:
-                    entry.msgstr = normalized_msgstr
-                    entry_changed = True
-        
+        # Singular entry
+        elif entry.msgstr:  # Only normalize non-empty translations
+            normalized_msgstr = _normalize_translation_newlines(
+                entry.msgid, entry.msgstr
+            )
+            if normalized_msgstr != entry.msgstr:
+                entry.msgstr = normalized_msgstr
+                entry_changed = True
+
         if entry_changed:
             normalized_count += 1
-    
+
     return normalized_count
 
 
@@ -807,7 +808,9 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
         and (not entry.msgstr or not entry.msgstr.strip())
     ):
         # Normalize translation to match msgid's newline structure
-        normalized_translation = _normalize_translation_newlines(entry.msgid, translation)
+        normalized_translation = _normalize_translation_newlines(
+            entry.msgid, translation
+        )
         entry.msgstr = normalized_translation
         return True
     return False
@@ -820,7 +823,7 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
     For plural forms, translations dict can contain:
     - Dict with 'singular' and 'plural' keys: {"singular": "...", "plural": "..."}
     - String: applies same translation to all plural forms
-    
+
     The translations dict is keyed by msgid. If entries have msgctxt, we try to match
     by msgid first, and if there are multiple matches, we prefer entries without msgctxt
     or with matching msgctxt.
@@ -834,18 +837,18 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
 
         # Get msgctxt for this entry
         entry_msgctxt = getattr(entry, "msgctxt", None) or None
-        
+
         # Try to find translation - first with msgctxt if it exists, then fallback to msgid only
         translation = None
         if entry_msgctxt:
             # Try key with msgctxt prefix first
             key_with_context = f"{entry_msgctxt}:{entry.msgid}"
             translation = translations.get(key_with_context)
-        
+
         # Fallback to msgid-only key (for backward compatibility and entries without msgctxt)
         if translation is None:
             translation = translations.get(entry.msgid)
-        
+
         # If translation found, apply it
         if translation is not None:
             if _apply_translation_to_entry(entry, translation):
