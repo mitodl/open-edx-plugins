@@ -870,7 +870,12 @@ class Command(BaseCommand):
         for key_info in empty_keys:
             # Normalize file path for consistent comparison
             file_path_str = str(Path(key_info["file_path"]).resolve())
-            translation_key = f"{file_path_str}:{key_info['key']}"
+            # Include msgctxt in key if it exists to distinguish entries with same msgid
+            msgctxt = key_info.get("msgctxt")
+            if msgctxt:
+                translation_key = f"{file_path_str}:{msgctxt}:{key_info['key']}"
+            else:
+                translation_key = f"{file_path_str}:{key_info['key']}"
 
             if glossary:
                 match_result = self._check_glossary_match(key_info, glossary)
@@ -900,7 +905,12 @@ class Command(BaseCommand):
         for i, key_info in enumerate(batch):
             # Normalize file path for consistent comparison
             file_path_str = str(Path(key_info["file_path"]).resolve())
-            translation_key = f"{file_path_str}:{key_info['key']}"
+            # Include msgctxt in key if it exists to distinguish entries with same msgid
+            msgctxt = key_info.get("msgctxt")
+            if msgctxt:
+                translation_key = f"{file_path_str}:{msgctxt}:{key_info['key']}"
+            else:
+                translation_key = f"{file_path_str}:{key_info['key']}"
             app = key_info.get("app", "unknown")
             if i < len(batch_translations) and batch_translations[i]:
                 translations[translation_key] = batch_translations[i]
@@ -1475,18 +1485,28 @@ class Command(BaseCommand):
         translations_by_file: dict[str, dict[str, Any]] = {}
 
         for key_info in empty_keys:
-            # Normalize file path for consistent comparison
             file_path_str = str(Path(key_info["file_path"]).resolve())
-            translation_key = f"{file_path_str}:{key_info['key']}"
+            # Include msgctxt in key if it exists to match key structure
+            msgctxt = key_info.get("msgctxt")
+            if msgctxt:
+                translation_key = f"{file_path_str}:{msgctxt}:{key_info['key']}"
+            else:
+                translation_key = f"{file_path_str}:{key_info['key']}"
+
             if translation_key in translations:
                 trans_value = translations[translation_key]
 
                 if key_info["file_type"] == "json" and isinstance(trans_value, dict):
                     trans_value = trans_value.get("singular", str(trans_value))
 
-                translations_by_file.setdefault(file_path_str, {})[key_info["key"]] = (
-                    trans_value
-                )
+                # For PO files, include msgctxt in key for apply_po_translations
+                if key_info["file_type"] == "po" and msgctxt:
+                    # Store with msgctxt prefix for proper matching
+                    po_key = f"{msgctxt}:{key_info['key']}"
+                else:
+                    po_key = key_info["key"]
+
+                translations_by_file.setdefault(file_path_str, {})[po_key] = trans_value
 
         return translations_by_file
 
