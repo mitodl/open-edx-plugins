@@ -1486,7 +1486,7 @@ class Command(BaseCommand):
 
         for key_info in empty_keys:
             file_path_str = str(Path(key_info["file_path"]).resolve())
-            # Include msgctxt in key if it exists to match the key structure used earlier
+            # Include msgctxt in key if it exists to match key structure
             msgctxt = key_info.get("msgctxt")
             if msgctxt:
                 translation_key = f"{file_path_str}:{msgctxt}:{key_info['key']}"
@@ -1499,7 +1499,7 @@ class Command(BaseCommand):
                 if key_info["file_type"] == "json" and isinstance(trans_value, dict):
                     trans_value = trans_value.get("singular", str(trans_value))
 
-                # For PO files, include msgctxt in the key passed to apply_po_translations
+                # For PO files, include msgctxt in key for apply_po_translations
                 if key_info["file_type"] == "po" and msgctxt:
                     # Store with msgctxt prefix for proper matching
                     po_key = f"{msgctxt}:{key_info['key']}"

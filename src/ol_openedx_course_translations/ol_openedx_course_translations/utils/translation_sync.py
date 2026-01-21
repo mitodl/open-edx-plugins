@@ -256,8 +256,8 @@ def _sync_existing_po_file(
     en_po: polib.POFile, target_po: polib.POFile, target_file: Path
 ) -> int:
     """Sync existing PO file by adding missing entries. Returns count added."""
-    # Create a set of existing entries (msgctxt + msgid + msgid_plural for plural entries)
-    # msgctxt is included because the same msgid can appear with different contexts
+    # Create a set of existing entries using (msgctxt, msgid, msgid_plural) tuple
+    # msgctxt is included because same msgid can have different contexts
     existing_entries = set()
     for entry in target_po:
         if entry.msgid:
@@ -463,7 +463,7 @@ def _extract_empty_keys_from_backend(base_dir: Path, backend_locale: str) -> lis
             target_po = polib.pofile(str(target_file))
             en_po = polib.pofile(str(en_file))
 
-            # Create dict keyed by (msgctxt, msgid) to handle entries with same msgid but different contexts
+            # Dict keyed by (msgctxt, msgid) for entries with same msgid
             target_entries_dict = {}
             for entry in target_po:
                 if entry.msgid:
@@ -700,7 +700,7 @@ def _normalize_translation_newlines(msgid: str, translation: str) -> str:
 def _normalize_all_entries_in_po_file(po: polib.POFile) -> int:
     """
     Normalize newlines for ALL entries in a PO file.
-    This ensures that even entries with existing translations have correct newline structure.
+    Ensures entries with existing translations have correct newline structure.
 
     Returns:
         Number of entries that were normalized (changed)
@@ -711,35 +711,39 @@ def _normalize_all_entries_in_po_file(po: polib.POFile) -> int:
         if not entry.msgid:  # Skip header
             continue
 
-        entry_changed = False
-
         if entry.msgid_plural:
-            # Plural entry - normalize each plural form
-            if entry.msgstr_plural:
-                for i, msgstr_plural_val in entry.msgstr_plural.items():
-                    if msgstr_plural_val:  # Only normalize non-empty translations
-                        # msgstr[0] must match msgid's newline structure
-                        # msgstr[1+] must match msgid_plural's newline structure
-                        reference_msgid = entry.msgid if i == 0 else entry.msgid_plural
-                        normalized_plural = _normalize_translation_newlines(
-                            reference_msgid, msgstr_plural_val
-                        )
-                        if normalized_plural != msgstr_plural_val:
-                            entry.msgstr_plural[i] = normalized_plural
-                            entry_changed = True
-        # Singular entry
-        elif entry.msgstr:  # Only normalize non-empty translations
-            normalized_msgstr = _normalize_translation_newlines(
-                entry.msgid, entry.msgstr
-            )
-            if normalized_msgstr != entry.msgstr:
-                entry.msgstr = normalized_msgstr
-                entry_changed = True
-
-        if entry_changed:
+            if _normalize_plural_entry(entry):
+                normalized_count += 1
+        elif entry.msgstr and _normalize_singular_entry(entry):
             normalized_count += 1
 
     return normalized_count
+
+
+def _normalize_plural_entry(entry: polib.POEntry) -> bool:
+    """Normalize plural entry newlines. Returns True if changed."""
+    if not entry.msgstr_plural:
+        return False
+
+    changed = False
+    for i, msgstr_plural_val in entry.msgstr_plural.items():
+        if msgstr_plural_val:
+            # msgstr[0] matches msgid, msgstr[1+] matches msgid_plural
+            reference = entry.msgid if i == 0 else entry.msgid_plural
+            normalized = _normalize_translation_newlines(reference, msgstr_plural_val)
+            if normalized != msgstr_plural_val:
+                entry.msgstr_plural[i] = normalized
+                changed = True
+    return changed
+
+
+def _normalize_singular_entry(entry: polib.POEntry) -> bool:
+    """Normalize singular entry newlines. Returns True if changed."""
+    normalized = _normalize_translation_newlines(entry.msgid, entry.msgstr)
+    if normalized != entry.msgstr:
+        entry.msgstr = normalized
+        return True
+    return False
 
 
 def _apply_plural_dict_translation(
@@ -838,21 +842,19 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
         # Get msgctxt for this entry
         entry_msgctxt = getattr(entry, "msgctxt", None) or None
 
-        # Try to find translation - first with msgctxt if it exists, then fallback to msgid only
+        # Try msgctxt:msgid key first, then fallback to msgid only
         translation = None
         if entry_msgctxt:
-            # Try key with msgctxt prefix first
             key_with_context = f"{entry_msgctxt}:{entry.msgid}"
             translation = translations.get(key_with_context)
 
-        # Fallback to msgid-only key (for backward compatibility and entries without msgctxt)
+        # Fallback to msgid-only key (backward compatibility)
         if translation is None:
             translation = translations.get(entry.msgid)
 
         # If translation found, apply it
-        if translation is not None:
-            if _apply_translation_to_entry(entry, translation):
-                applied += 1
+        if translation is not None and _apply_translation_to_entry(entry, translation):
+            applied += 1
 
     # CRITICAL: Normalize ALL entries to fix newline mismatches
     normalized_count = _normalize_all_entries_in_po_file(po)
