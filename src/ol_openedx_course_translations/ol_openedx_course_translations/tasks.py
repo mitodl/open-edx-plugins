@@ -12,7 +12,7 @@ from ol_openedx_course_translations.utils.course_translations import (
     get_srt_output_filename,
     get_translation_provider,
     translate_policy_fields,
-    translate_xml_display_name,
+    translate_xml_attributes,
     update_video_xml_complete,
 )
 
@@ -123,7 +123,7 @@ def translate_file_task(  # noqa: PLR0913
         # Handle XML display_name translation only for DeepL provider
         # LLM providers translate display_name as part of the XML translation
         if file_path.suffix == ".xml" and isinstance(provider, DeepLProvider):
-            translated_content = translate_xml_display_name(
+            translated_content = translate_xml_attributes(
                 translated_content, target_language, provider, glossary_directory
             )
 

@@ -20,6 +20,8 @@ from ol_openedx_course_translations.providers.llm_providers import (
     OpenAIProvider,
 )
 from ol_openedx_course_translations.utils.constants import (
+    ES_419_LANGUAGE_CODE,
+    ES_LANGUAGE_CODE,
     PROVIDER_DEEPL,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
@@ -99,7 +101,7 @@ def get_translation_provider(
     raise ValueError(msg)
 
 
-def translate_xml_display_name(
+def translate_xml_attributes(
     xml_content: str,
     target_language: str,
     provider,
@@ -120,17 +122,21 @@ def translate_xml_display_name(
     Returns:
         Updated XML content with translated display_name
     """
+    attribute_names = ["display_name", "format"]
     try:
         xml_root = ElementTree.fromstring(xml_content)
-        display_name = xml_root.attrib.get("display_name")
-
-        if display_name:
-            translated_name = provider.translate_text(
-                display_name,
-                target_language,
-                glossary_directory=glossary_directory,
-            )
-            xml_root.set("display_name", translated_name)
+        is_xml_updated = False
+        for attribute_name in attribute_names:
+            attribute_value = xml_root.attrib.get(attribute_name)
+            if attribute_value:
+                translated_value = provider.translate_text(
+                    attribute_value,
+                    target_language,
+                    glossary_directory=glossary_directory,
+                )
+                xml_root.set(attribute_name, translated_value)
+                is_xml_updated = True
+        if is_xml_updated:
             return ElementTree.tostring(xml_root, encoding="unicode")
     except ElementTree.ParseError as e:
         logger.warning("Failed to parse XML for display_name translation: %s", e)
@@ -296,9 +302,16 @@ def get_srt_output_filename(input_filename: str, target_language: str) -> str:
     Returns:
         Output filename with target language code
     """
+    # Use 'es' for Spanish regardless of es-419
+    output_lang_code = (
+        ES_LANGUAGE_CODE
+        if target_language.lower() == ES_419_LANGUAGE_CODE
+        else target_language.lower()
+    )
+
     if "-" in input_filename and input_filename.endswith(".srt"):
         filename_parts = input_filename.rsplit("-", 1)
-        return f"{filename_parts[0]}-{target_language.lower()}.srt"
+        return f"{filename_parts[0]}-{output_lang_code}.srt"
     return input_filename
 
 
@@ -464,7 +477,11 @@ def update_video_xml_complete(xml_content: str, target_language: str) -> str:  #
     """
     try:
         xml_root = ElementTree.fromstring(xml_content)
-        target_lang_code = target_language.lower()
+        target_lang_code = (
+            ES_LANGUAGE_CODE
+            if target_language.lower() == ES_419_LANGUAGE_CODE
+            else target_language.lower()
+        )
 
         # Update transcripts attribute in <video>
         if xml_root.tag == "video" and "transcripts" in xml_root.attrib:
