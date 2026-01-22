@@ -65,7 +65,7 @@ def apply_common_settings(settings):
     settings.LITE_LLM_REQUEST_TIMEOUT = 120  # seconds
     settings.TRANSLATE_FILE_TASK_LIMITS = {
         "soft_time_limit": 4 * 60,  # 4 minutes
-        "time_limit": 5 * 60,  # 5 minutes (hard kill)
+        "time_limit": 10 * 60,  # 10 minutes (hard kill)
         "max_retries": 1,  # 1 Initial try + 1 retry = 2 attempts
         "retry_countdown": 30,  # wait 30s before retry
     }
