@@ -24,11 +24,21 @@ from ol_openedx_course_translations.utils.constants import (
 
 
 def validate_language_code(code: str, field_name: str = "language code") -> None:
-    """Validate language code format (xx or xx_XX)."""
-    if not re.match(r"^[a-z]{2}(_[A-Z]{2})?$", code):
+    """Validate language code format.
+
+    Accepts:
+    - xx (2 lowercase letters): e.g., 'el', 'es', 'ar'
+    - xx_XX (with 2-letter region): e.g., 'es_ES', 'pt_BR'
+    - xx_NNN (with UN M.49 numeric region): e.g., 'es_419' (Latin America)
+    - xx_Xxxx (with script subtag): e.g., 'zh_Hans', 'zh_Hant'
+    """
+    # Pattern: xx, xx_XX, xx_419, xx_Hans
+    pattern = r"^[a-z]{2}(_([A-Z]{2}|[0-9]{3}|[A-Z][a-z]{3}))?$"
+    if not re.match(pattern, code):
         msg = (
             f"Invalid {field_name} format: {code}. "
-            f"Expected format: 'xx' or 'xx_XX' (e.g., 'el', 'es_ES')"
+            f"Expected format: 'xx', 'xx_XX', 'xx_419', 'xx_Hans' "
+            f"(e.g., 'el', 'es_ES', 'es_419', 'zh_Hans')"
         )
         raise CommandError(msg)
 
