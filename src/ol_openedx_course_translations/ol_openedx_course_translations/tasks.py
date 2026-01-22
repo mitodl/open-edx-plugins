@@ -22,8 +22,8 @@ TRANSLATE_FILE_TASK_LIMITS = getattr(
     settings,
     "TRANSLATE_FILE_TASK_LIMITS",
     {
-        "soft_time_limit": 4 * 60,  # 4 minutes
-        "time_limit": 5 * 60,  # 5 minutes
+        "soft_time_limit": 9 * 60,  # 9 minutes
+        "time_limit": 10 * 60,  # 10 minutes
         "max_retries": 1,  # 1 Initial try + 1 retry = 2 attempts
         "retry_countdown": 30,  # wait 60s before retry
     },
