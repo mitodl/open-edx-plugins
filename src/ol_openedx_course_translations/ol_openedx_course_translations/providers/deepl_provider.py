@@ -18,7 +18,9 @@ DEEPL_ENABLE_BETA_LANGUAGES = True
 DEEPL_LANGUAGE_CODES = {
     "fr": "FR",
     "de": "DE",
-    "es": "ES",
+    "es-419": "ES-419",
+    "es": "ES-419",
+    "es-ES": "ES",
     "pt": "PT-PT",
     "pt-br": "PT-BR",
     "hi": "HI",

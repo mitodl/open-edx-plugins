@@ -17,7 +17,11 @@ from ol_openedx_course_translations.tasks import (
     translate_grading_policy_task,
     translate_policy_json_task,
 )
-from ol_openedx_course_translations.utils.constants import PROVIDER_DEEPL
+from ol_openedx_course_translations.utils.constants import (
+    ES_419_LANGUAGE_CODE,
+    ES_LANGUAGE_CODE,
+    PROVIDER_DEEPL,
+)
 from ol_openedx_course_translations.utils.course_translations import (
     create_translated_archive,
     create_translated_copy,
@@ -199,6 +203,11 @@ class Command(BaseCommand):
             course_archive_path = Path(options["course_archive_path"])
             source_language = options["source_language"].upper()
             target_language = options["target_language"].upper()
+
+            # Normalize Spanish language codes to es-419
+            if target_language in (ES_LANGUAGE_CODE, ES_419_LANGUAGE_CODE):
+                target_language = ES_419_LANGUAGE_CODE
+
             content_provider_spec = options["content_translation_provider"]
             srt_provider_spec = options["srt_translation_provider"]
             glossary_directory = options.get("glossary_directory")

@@ -5,7 +5,11 @@ Filters for Open edX course translations.
 from openedx_filters import PipelineStep
 from xmodule.modulestore.django import modulestore
 
-from ol_openedx_course_translations.utils.constants import ENGLISH_LANGUAGE_CODE
+from ol_openedx_course_translations.utils.constants import (
+    ENGLISH_LANGUAGE_CODE,
+    ES_419_LANGUAGE_CODE,
+    ES_LANGUAGE_CODE,
+)
 
 VIDEO_BLOCK_TYPE = "video"
 
@@ -35,5 +39,11 @@ class AddDestLangForVideoBlock(PipelineStep):
                     and transcripts_info.get("transcripts", {})
                     and course_lang in transcripts_info["transcripts"]
                 ):
-                    student_view_context["dest_lang"] = course_lang
+                    # Use 'es' for Spanish regardless of es-419
+                    dest_lang = (
+                        ES_LANGUAGE_CODE
+                        if course_lang == ES_419_LANGUAGE_CODE
+                        else course_lang
+                    )
+                    student_view_context["dest_lang"] = dest_lang
         return {"context": context, "student_view_context": student_view_context}
