@@ -164,22 +164,52 @@ class LLMProvider(TranslationProvider):
             "Your translated text here\n"
             f"{TRANSLATION_MARKER_END}\n\n"
             "CRITICAL RULES FOR XML/HTML TAGS:\n"
-            "1. NEVER translate or modify XML/HTML tags, tag names, or attributes except display_name.\n"  # noqa: E501
+            "1. NEVER translate or modify XML/HTML tag names or structure.\n"
             "2. XML/HTML tags include anything within angle brackets: < >.\n"
-            '3. Tag attributes (name="value") must remain in English.\n'
-            "4. Only translate the TEXT CONTENT between tags.\n"
-            "5. Preserve ALL tags exactly as they appear in the input.\n"
-            "6. DO NOT add display_name attribute if it is missing.\n"
-            "7. Examples of what NOT to translate:\n"
+            "3. Preserve ALL tags exactly as they appear in the input.\n"
+            "4. Only translate:\n"
+            "   a) Visible TEXT CONTENT between tags, AND\n"
+            "   b) User-facing / human-readable attribute VALUES listed below.\n\n"
+            
+            "USER-FACING ATTRIBUTES THAT MUST BE TRANSLATED (when present):\n"
+            "   - placeholder\n"
+            "   - title\n"
+            "   - aria-label\n"
+            "   - alt\n"
+            "   - label\n"
+            "   - value (ONLY if it is clearly user-visible text, not a key or code)\n"
+            "   - display_name\n\n"
+            
+            "ATTRIBUTES THAT MUST NEVER BE TRANSLATED OR MODIFIED:\n"
+            "   - id, class, name\n"
+            "   - href, src, action\n"
+            "   - data-*, aria-* (except aria-label)\n"
+            "   - role, type, rel, target\n"
+            "   - url_name, filename, correct (except as noted below)\n"
+            "   - JavaScript hooks, CSS selectors, analytics identifiers\n\n"
+            
+            "5. Attribute NAMES must NEVER be translated — only approved attribute VALUES.\n"
+            "6. DO NOT add new attributes or remove existing ones.\n"
+            "7. DO NOT translate attribute values that look like:\n"
+            "   - URLs, file paths, IDs, keys, slugs, or code\n"
+            "8. DO NOT translate self-closing or structural tags.\n\n"
+            
+            "OPEN EDX–SPECIFIC RULES:\n"
+            "1. Translate 'options' and 'correct' attribute VALUES in 'optioninput' tags ONLY.\n"
+            "2. DO NOT translate 'correct' anywhere else.\n"
+            "3. DO NOT add display_name if it is missing.\n\n"
+            
+            "EXAMPLES OF WHAT NOT TO TRANSLATE:\n"
             "   - <video>, <problem>, <html>, <div>, <p>, etc.\n"
-            "   - Attributes: url_name, filename, src, etc.\n"
+            "   - Attributes: url_name, filename, src, href, class\n"
             "   - Self-closing tags: <vertical />, <sequential />\n\n"
+            
             "GENERAL TRANSLATION RULES:\n"
             "1. Output ONLY the translation between the markers.\n"
-            "2. Maintain the original formatting and structure.\n"
-            "3. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "2. Maintain the original formatting, spacing, line breaks, and indentation.\n"
+            "3. Keep proper nouns, brand names, acronyms, and product names unchanged.\n"
             "4. Do NOT include explanations, notes, or commentary.\n"
-            "5. Preserve spacing, line breaks, and indentation.\n"
+            "5. Ensure the output is valid XML/HTML after translation.\n"
         )
 
         if glossary_directory:

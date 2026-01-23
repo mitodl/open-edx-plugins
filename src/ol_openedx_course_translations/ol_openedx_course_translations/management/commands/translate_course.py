@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 # Task configuration
 TASK_TIMEOUT_SECONDS = 3600 * 2  # 2 hour total timeout for all tasks
 TASK_POLL_INTERVAL_SECONDS = 2  # Poll every 2 seconds for task completion
+BATCH_SIZE = 20  # Process 20 tasks at a time
 
 
 class Command(BaseCommand):
@@ -441,10 +442,10 @@ class Command(BaseCommand):
 
     def _wait_and_report_tasks(self) -> list[str]:  # noqa: C901, PLR0915, PLR0912
         """
-        Execute all tasks as a Celery group and wait for completion.
+        Execute all tasks as Celery groups in batches and wait for completion.
 
-        Uses Celery's group primitive to execute tasks in parallel and
-        provides detailed progress reporting.
+        Processes tasks in batches of 20. If any task fails in a batch,
+        the command fails immediately.
 
         Raises:
             CommandError: If any tasks fail
@@ -456,94 +457,125 @@ class Command(BaseCommand):
 
         total_tasks = len(self.tasks)
         self.stdout.write(
-            f"\nExecuting {total_tasks} translation tasks in parallel...\n"
+            f"\nExecuting {total_tasks} translation tasks in batches of {BATCH_SIZE}...\n"
         )
 
-        # Extract task signatures and create mappings
-        task_signatures = [task_sig for _, _, task_sig in self.tasks]
-        task_metadata = {
-            i: (task_type, file_path)
-            for i, (task_type, file_path, _) in enumerate(self.tasks)
-        }
-
-        # Create and execute group
-        job = group(task_signatures)
-        result = job.apply_async()
-
-        # Wait for all tasks to complete with progress reporting
-        completed_count = 0
-        self.stdout.flush()
-
-        try:
-            # Poll for completion and show progress
-            while not result.ready():
-                # Count completed tasks
-                new_completed = sum(1 for r in result.results if r.ready())
-                if new_completed > completed_count:
-                    completed_count = new_completed
-                    self.stdout.write(
-                        f"\rProgress: {completed_count}/{total_tasks} tasks completed",
-                        ending="",
-                    )
-                    self.stdout.flush()
-
-                # Sleep before next poll (don't use join with timeout)
-                time.sleep(TASK_POLL_INTERVAL_SECONDS)
-
-            # Final update
-            self.stdout.write(
-                f"\rProgress: {total_tasks}/{total_tasks} tasks completed\n"
-            )
-
-            # Get all results (this will raise exceptions if propagate=True)
-            results = result.get(timeout=TASK_TIMEOUT_SECONDS, propagate=False)
-
-        except Exception as e:
-            logger.exception("Task execution failed")
-            error_msg = f"Task execution timeout or error: {e}"
-            raise CommandError(error_msg) from e
-
-        # Process results
+        # Process tasks in batches
         completed_tasks = 0
         failed_tasks = 0
         skipped_tasks = 0
 
-        for i, task_result in enumerate(results):
-            task_type, file_path = task_metadata[i]
+        for batch_start in range(0, total_tasks, BATCH_SIZE):
+            batch_end = min(batch_start + BATCH_SIZE, total_tasks)
+            batch_tasks = self.tasks[batch_start:batch_end]
+            batch_num = (batch_start // BATCH_SIZE) + 1
+            total_batches = (total_tasks + BATCH_SIZE - 1) // BATCH_SIZE
 
-            if isinstance(task_result, dict):
-                status = task_result.get("status", "unknown")
-                if status == "success":
-                    completed_tasks += 1
-                    msg = f"✓ {task_type}: {file_path}"
-                    stats.append(msg)
-                    self.stdout.write(self.style.SUCCESS(msg))
-                elif status == "skipped":
-                    skipped_tasks += 1
-                    reason = task_result.get("reason", "Skipped")
-                    msg = f"⊘ {task_type}: {file_path} - {reason}"
-                    stats.append(msg)
-                    self.stdout.write(self.style.WARNING(msg))
-                elif status == "error":
-                    failed_tasks += 1
-                    error = task_result.get("error", "Unknown error")
-                    msg = f"✗ {task_type}: {file_path} - {error}"
-                    stats.append(msg)
-                    self.stdout.write(self.style.ERROR(msg))
+            self.stdout.write(
+                f"\nProcessing batch {batch_num}/{total_batches} "
+                f"(tasks {batch_start + 1}-{batch_end})..."
+            )
+
+            # Extract task signatures and create mappings for this batch
+            task_signatures = [task_sig for _, _, task_sig in batch_tasks]
+            task_metadata = {
+                i: (task_type, file_path)
+                for i, (task_type, file_path, _) in enumerate(batch_tasks)
+            }
+
+            # Create and execute group for this batch
+            job = group(task_signatures)
+            result = job.apply_async()
+
+            # Wait for batch to complete with progress reporting
+            batch_completed = 0
+            self.stdout.flush()
+
+            try:
+                # Poll for completion and show progress
+                while not result.ready():
+                    # Count completed tasks in this batch
+                    new_completed = sum(1 for r in result.results if r.ready())
+                    if new_completed > batch_completed:
+                        batch_completed = new_completed
+                        overall_completed = completed_tasks + skipped_tasks + batch_completed
+                        self.stdout.write(
+                            f"\rProgress: {overall_completed}/{total_tasks} tasks completed",
+                            ending="",
+                        )
+                        self.stdout.flush()
+
+                    # Sleep before next poll
+                    time.sleep(TASK_POLL_INTERVAL_SECONDS)
+
+                # Get all results (propagate=False to handle errors manually)
+                results = result.get(timeout=TASK_TIMEOUT_SECONDS, propagate=False)
+
+            except Exception as e:
+                logger.exception("Batch execution failed")
+                error_msg = f"Batch execution timeout or error: {e}"
+                raise CommandError(error_msg) from e
+
+            # Process batch results
+            batch_failed = False
+
+            for i, task_result in enumerate(results):
+                task_type, file_path = task_metadata[i]
+
+                if isinstance(task_result, dict):
+                    status = task_result.get("status", "unknown")
+                    if status == "success":
+                        completed_tasks += 1
+                        msg = f"✓ {task_type}: {file_path}"
+                        stats.append(msg)
+                        self.stdout.write(self.style.SUCCESS(msg))
+                    elif status == "skipped":
+                        skipped_tasks += 1
+                        reason = task_result.get("reason", "Skipped")
+                        msg = f"⊘ {task_type}: {file_path} - {reason}"
+                        stats.append(msg)
+                        self.stdout.write(self.style.WARNING(msg))
+                    elif status == "error":
+                        failed_tasks += 1
+                        batch_failed = True
+                        error = task_result.get("error", "Unknown error")
+                        msg = f"✗ {task_type}: {file_path} - {error}"
+                        stats.append(msg)
+                        self.stdout.write(self.style.ERROR(msg))
+                    else:
+                        failed_tasks += 1
+                        batch_failed = True
+                        msg = f"✗ {task_type}: {file_path} - Unknown status: {status}"
+                        stats.append(msg)
+                        self.stdout.write(self.style.ERROR(msg))
                 else:
+                    # Task raised an exception
                     failed_tasks += 1
-                    msg = f"✗ {task_type}: {file_path} - Unknown status: {status}"
+                    batch_failed = True
+                    error_msg = str(task_result) if task_result else "Task failed"
+                    msg = f"✗ {task_type}: {file_path} - {error_msg}"
                     stats.append(msg)
                     self.stdout.write(self.style.ERROR(msg))
-            else:
-                # Task raised an exception
-                failed_tasks += 1
-                error_msg = str(task_result) if task_result else "Task failed"
-                msg = f"✗ {task_type}: {file_path} - {error_msg}"
-                stats.append(msg)
-                self.stdout.write(self.style.ERROR(msg))
 
-        # Print summary
+            # If any task in this batch failed, stop processing
+            if batch_failed:
+                self.stdout.write("\n" + "=" * 60)
+                self.stdout.write(
+                    self.style.ERROR(f"Batch {batch_num} failed. Stopping execution.")
+                )
+                failure_summary = (
+                    f"Total tasks processed: {completed_tasks + skipped_tasks + failed_tasks}\n"
+                    f"Completed: {completed_tasks}\n"
+                    f"Skipped: {skipped_tasks}\n"
+                    f"Failed: {failed_tasks}"
+                )
+                stats.append(failure_summary)
+                self.stdout.write(failure_summary)
+                self.stdout.write("=" * 60 + "\n")
+                error_msg = f"{failed_tasks} translation task(s) failed in batch {batch_num}"
+                raise CommandError(error_msg)
+
+        # Print summary (only reached if all batches succeed)
         self.stdout.write("\n" + "=" * 60)
         successful_tasks_stats = (
             f"Total tasks: {total_tasks}\nCompleted: {completed_tasks}"
@@ -554,15 +586,8 @@ class Command(BaseCommand):
             skipped_tasks_stats = f"Skipped: {skipped_tasks}"
             stats.append(skipped_tasks_stats)
             self.stdout.write(self.style.WARNING(skipped_tasks_stats))
-        if failed_tasks > 0:
-            failed_tasks_stats = f"Failed: {failed_tasks}"
-            stats.append(failed_tasks_stats)
-            self.stdout.write(self.style.ERROR(failed_tasks_stats))
         self.stdout.write("=" * 60 + "\n")
 
-        if failed_tasks > 0:
-            error_msg = f"{failed_tasks} translation tasks failed"
-            raise CommandError(error_msg)
 
         return stats
 
