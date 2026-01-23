@@ -1,9 +1,4 @@
-"""Base classes for translation providers.
-
-Notes:
-- Most call sites pass `glossary_directory` (a directory containing language files).
-- Providers should treat `glossary_directory` as optional and ignore if unsupported.
-"""
+"""Base classes for translation providers."""
 
 import logging
 from abc import ABC, abstractmethod

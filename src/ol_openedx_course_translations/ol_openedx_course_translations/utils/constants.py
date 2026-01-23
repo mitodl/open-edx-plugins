@@ -227,6 +227,7 @@ TRANSLATABLE_ATTRS_BASE = {
     "alt",
     "label",
     "display_name",
+    "format",
 }
 
 # Open edX-specific: these are only translatable on <optioninput>
