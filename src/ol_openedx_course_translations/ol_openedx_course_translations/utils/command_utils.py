@@ -22,6 +22,10 @@ from ol_openedx_course_translations.utils.constants import (
 # Validation Utilities
 # ============================================================================
 
+# Language code suffix length constants
+REGION_CODE_LENGTH = 2  # 2-letter region codes (e.g., ES, BR)
+SCRIPT_TAG_LENGTH = 4  # 4-letter script tags (e.g., Hans, Hant)
+
 
 def normalize_language_code(code: str) -> str:
     """Normalize language code to use underscores (Django/gettext format).
@@ -47,9 +51,9 @@ def normalize_language_code(code: str) -> str:
 
     # Normalize suffix: uppercase 2-char regions, title case 4-char scripts
     suffix = parts[1]
-    if len(suffix) == 2:
+    if len(suffix) == REGION_CODE_LENGTH:
         suffix = suffix.upper()  # Region codes: ES, BR, etc.
-    elif len(suffix) == 4 and suffix[0].isalpha():
+    elif len(suffix) == SCRIPT_TAG_LENGTH and suffix[0].isalpha():
         suffix = suffix.title()  # Script tags: Hans, Hant, etc.
     # Numeric regions (419) and others stay as-is
 
