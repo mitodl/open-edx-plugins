@@ -10,10 +10,6 @@ import srt
 from django.conf import settings
 from litellm import completion
 
-from ol_openedx_course_translations.utils.course_translations import (
-    HtmlXmlTranslationHelper,
-)
-
 from .base import TranslationProvider, load_glossary
 
 logger = logging.getLogger(__name__)
@@ -723,6 +719,10 @@ class LLMProvider(TranslationProvider):
         Returns:
             Translated text
         """
+        from ol_openedx_course_translations.utils.course_translations import (
+            HtmlXmlTranslationHelper,
+        )
+
         if not source_text or not source_text.strip():
             return source_text
 
