@@ -64,8 +64,6 @@ def validate_language_code(code: str, field_name: str = "language code") -> None
     - xx_XX (with 2-letter region): e.g., 'es_ES'
     - xx_NNN (with UN M.49 numeric region): e.g., 'es_419'
     - xx_Xxxx (with script subtag): e.g., 'zh_Hans'
-
-    Note: Code should be normalized before calling this function.
     """
     # Pattern: xx, xx_XX, xx_419, xx_Hans
     pattern = r"^[a-z]{2}(_([A-Z]{2}|[0-9]{3}|[A-Z][a-z]{3}))?$"
