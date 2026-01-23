@@ -23,14 +23,49 @@ from ol_openedx_course_translations.utils.constants import (
 # ============================================================================
 
 
+def normalize_language_code(code: str) -> str:
+    """Normalize language code to use underscores (Django/gettext format).
+
+    Converts BCP 47 format (hyphens) to gettext format (underscores) and
+    normalizes case: language part lowercase, suffix properly cased.
+    Examples:
+    - 'es-419' -> 'es_419'
+    - 'ES-419' -> 'es_419'
+    - 'es-ES' -> 'es_ES'
+    - 'ES_ES' -> 'es_ES'
+    - 'zh-Hans' -> 'zh_Hans'
+    - 'ZH-HANS' -> 'zh_Hans'
+    - 'es_419' -> 'es_419' (unchanged)
+    - 'es' -> 'es' (unchanged)
+    """
+    # Replace hyphens with underscores and split
+    parts = code.replace("-", "_").split("_", 1)
+    lang_part = parts[0].lower()  # Language: always lowercase
+    
+    if len(parts) == 1:
+        return lang_part
+    
+    # Normalize suffix: uppercase 2-char regions, title case 4-char scripts
+    suffix = parts[1]
+    if len(suffix) == 2:
+        suffix = suffix.upper()  # Region codes: ES, BR, etc.
+    elif len(suffix) == 4 and suffix[0].isalpha():
+        suffix = suffix.title()  # Script tags: Hans, Hant, etc.
+    # Numeric regions (419) and others stay as-is
+    
+    return f"{lang_part}_{suffix}"
+
+
 def validate_language_code(code: str, field_name: str = "language code") -> None:
     """Validate language code format.
 
-    Accepts:
+    Accepts normalized codes (already normalized by normalize_language_code):
     - xx (2 lowercase letters): e.g., 'el', 'es', 'ar'
-    - xx_XX (with 2-letter region): e.g., 'es_ES', 'pt_BR'
-    - xx_NNN (with UN M.49 numeric region): e.g., 'es_419' (Latin America)
-    - xx_Xxxx (with script subtag): e.g., 'zh_Hans', 'zh_Hant'
+    - xx_XX (with 2-letter region): e.g., 'es_ES'
+    - xx_NNN (with UN M.49 numeric region): e.g., 'es_419'
+    - xx_Xxxx (with script subtag): e.g., 'zh_Hans'
+
+    Note: Code should be normalized before calling this function.
     """
     # Pattern: xx, xx_XX, xx_419, xx_Hans
     pattern = r"^[a-z]{2}(_([A-Z]{2}|[0-9]{3}|[A-Z][a-z]{3}))?$"
