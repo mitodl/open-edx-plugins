@@ -218,3 +218,29 @@ MAX_ERROR_MESSAGE_LENGTH = 200
 ENGLISH_LANGUAGE_CODE = "en"
 ES_LANGUAGE_CODE = "es"
 ES_419_LANGUAGE_CODE = "es-419"
+
+# HTML/XML attribute translation policy
+TRANSLATABLE_ATTRS_BASE = {
+    "placeholder",
+    "title",
+    "aria-label",
+    "alt",
+    "label",
+    "display_name",
+}
+
+# Open edX-specific: these are only translatable on <optioninput>
+TRANSLATABLE_ATTRS_OPTIONINPUT_ONLY = {"options", "correct"}
+
+# Never translate these (names), even if user-facing-ish in some contexts
+NEVER_TRANSLATE_ATTRS = {
+    "id",
+    "class",
+    "name",
+    "href",
+    "src",
+    "role",
+    "type",
+    "url_name",
+    "filename",
+}

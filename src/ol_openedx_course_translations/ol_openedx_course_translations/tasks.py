@@ -111,6 +111,8 @@ def translate_file_task(  # noqa: PLR0913
         tag_handling_mode = None
         if file_path.suffix in [".xml", ".html"]:
             tag_handling_mode = file_path.suffix.lstrip(".")
+            # DeepL uses tag_handling directly.
+            # LLM providers use tag_handling to trigger DOM-safe unit translation.
 
         provider = get_translation_provider(content_provider_name, content_model)
         translated_content = provider.translate_text(
