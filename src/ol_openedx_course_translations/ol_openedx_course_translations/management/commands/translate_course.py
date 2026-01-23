@@ -457,7 +457,7 @@ class Command(BaseCommand):
 
         total_tasks = len(self.tasks)
         self.stdout.write(
-            f"\nExecuting {total_tasks} translation tasks in batches of {BATCH_SIZE}...\n"
+            f"\nExecuting {total_tasks} translation tasks in batches of {BATCH_SIZE}...\n"  # noqa: E501
         )
 
         # Process tasks in batches
@@ -498,9 +498,11 @@ class Command(BaseCommand):
                     new_completed = sum(1 for r in result.results if r.ready())
                     if new_completed > batch_completed:
                         batch_completed = new_completed
-                        overall_completed = completed_tasks + skipped_tasks + batch_completed
+                        overall_completed = (
+                            completed_tasks + skipped_tasks + batch_completed
+                        )
                         self.stdout.write(
-                            f"\rProgress: {overall_completed}/{total_tasks} tasks completed",
+                            f"\rProgress: {overall_completed}/{total_tasks} tasks completed",  # noqa: E501
                             ending="",
                         )
                         self.stdout.flush()
@@ -564,7 +566,7 @@ class Command(BaseCommand):
                     self.style.ERROR(f"Batch {batch_num} failed. Stopping execution.")
                 )
                 failure_summary = (
-                    f"Total tasks processed: {completed_tasks + skipped_tasks + failed_tasks}\n"
+                    f"Total tasks processed: {completed_tasks + skipped_tasks + failed_tasks}\n"  # noqa: E501
                     f"Completed: {completed_tasks}\n"
                     f"Skipped: {skipped_tasks}\n"
                     f"Failed: {failed_tasks}"
@@ -572,7 +574,9 @@ class Command(BaseCommand):
                 stats.append(failure_summary)
                 self.stdout.write(failure_summary)
                 self.stdout.write("=" * 60 + "\n")
-                error_msg = f"{failed_tasks} translation task(s) failed in batch {batch_num}"
+                error_msg = (
+                    f"{failed_tasks} translation task(s) failed in batch {batch_num}"
+                )
                 raise CommandError(error_msg)
 
         # Print summary (only reached if all batches succeed)
@@ -587,7 +591,6 @@ class Command(BaseCommand):
             stats.append(skipped_tasks_stats)
             self.stdout.write(self.style.WARNING(skipped_tasks_stats))
         self.stdout.write("=" * 60 + "\n")
-
 
         return stats
 
