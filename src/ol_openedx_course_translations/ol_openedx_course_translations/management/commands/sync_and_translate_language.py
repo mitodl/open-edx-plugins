@@ -35,6 +35,7 @@ from ol_openedx_course_translations.utils.command_utils import (
     get_default_model_for_provider,
     get_default_provider,
     is_retryable_error,
+    normalize_language_code,
     sanitize_for_git,
     validate_branch_name,
     validate_language_code,
@@ -607,8 +608,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):  # noqa: ARG002, PLR0915
         """Handle the command execution."""
-        lang_code = options["lang"]
-        iso_code = options.get("iso_code") or lang_code
+        # Normalize language codes (convert hyphens to underscores)
+        lang_code = normalize_language_code(options["lang"])
+        iso_code = normalize_language_code(options.get("iso_code") or lang_code)
 
         validate_language_code(lang_code)
         validate_language_code(iso_code, "ISO code")
