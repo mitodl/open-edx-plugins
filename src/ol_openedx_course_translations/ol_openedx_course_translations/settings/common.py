@@ -62,10 +62,10 @@ def apply_common_settings(settings):
     settings.TRANSLATIONS_REPO_URL = (
         "https://github.com/mitodl/mitxonline-translations.git"
     )
-    settings.LITE_LLM_REQUEST_TIMEOUT = 120  # seconds
+    settings.LITE_LLM_REQUEST_TIMEOUT = 300  # seconds
     settings.TRANSLATE_FILE_TASK_LIMITS = {
         "soft_time_limit": 9 * 60,  # 9 minutes
         "time_limit": 10 * 60,  # 10 minutes (hard kill)
         "max_retries": 1,  # 1 Initial try + 1 retry = 2 attempts
-        "retry_countdown": 30,  # wait 30s before retry
+        "retry_countdown": 1 * 60,  # wait 1m before retry
     }
