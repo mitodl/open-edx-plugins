@@ -41,10 +41,10 @@ def normalize_language_code(code: str) -> str:
     # Replace hyphens with underscores and split
     parts = code.replace("-", "_").split("_", 1)
     lang_part = parts[0].lower()  # Language: always lowercase
-    
+
     if len(parts) == 1:
         return lang_part
-    
+
     # Normalize suffix: uppercase 2-char regions, title case 4-char scripts
     suffix = parts[1]
     if len(suffix) == 2:
@@ -52,7 +52,7 @@ def normalize_language_code(code: str) -> str:
     elif len(suffix) == 4 and suffix[0].isalpha():
         suffix = suffix.title()  # Script tags: Hans, Hant, etc.
     # Numeric regions (419) and others stay as-is
-    
+
     return f"{lang_part}_{suffix}"
 
 
