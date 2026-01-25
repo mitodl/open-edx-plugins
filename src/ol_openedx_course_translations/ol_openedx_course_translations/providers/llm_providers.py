@@ -111,20 +111,21 @@ class LLMProvider(TranslationProvider):
             f"You are a professional subtitle translator. "
             f"Translate English subtitles to {target_language_display_name}.\n\n"
             "INPUT FORMAT:\n"
-            'Source [ID]: "English text"\n'
+            "Source [ID]: <srt_text>English text</srt_text>\n"
             "Target [ID]: \n\n"
             "OUTPUT FORMAT - Fill in each Target line:\n"
-            'Source [ID]: "English text"\n'
-            'Target [ID]: "Translated text"\n\n'
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: <srt_text>Translated text</srt_text>\n\n"
             "CRITICAL RULES:\n"
             "1. Fill in EVERY Target [ID] line with the translation.\n"
-            "2. Each Target must translate ONLY its corresponding Source.\n"
-            "3. Do NOT merge or shift content between IDs.\n"
-            "4. If Source is a single word (e.g., 'Perfect.'), "
+            "2. Wrap ALL translations in <srt_text></srt_text> tags.\n"
+            "3. Each Target must translate ONLY its corresponding Source.\n"
+            "4. Do NOT merge or shift content between IDs.\n"
+            "5. If Source is a single word (e.g., 'Perfect.'), "
             "Target must be just that word translated.\n"
-            "5. If Source is a sentence fragment, Target must be a fragment.\n"
-            "6. Keep proper nouns, brand names, and acronyms unchanged.\n"
-            "7. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
+            "6. If Source is a sentence fragment, Target must be a fragment.\n"
+            "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
         )
 
         if glossary_directory:
@@ -236,9 +237,9 @@ class LLMProvider(TranslationProvider):
         """
         parsed_subtitle_list = []
 
-        # Parse Target [ID]: "text" or Target [ID]: text patterns
-        pattern = r'Target\s*\[(\d+)\]:\s*"?([^"\n]*)"?'
-        matches = re.findall(pattern, llm_response_text)
+        # Parse Target [ID]: <srt_text>text</srt_text> patterns (supports multi-line)
+        pattern = r"Target\s*\[(\d+)\]:\s*<srt_text>(.*?)</srt_text>"
+        matches = re.findall(pattern, llm_response_text, re.DOTALL)
 
         translation_map = {}
         for match in matches:
@@ -443,7 +444,9 @@ class LLMProvider(TranslationProvider):
 
                     payload_parts = []
                     for s in subtitle_batch:
-                        payload_parts.append(f'Source [{s.index}]: "{s.content}"')
+                        payload_parts.append(
+                            f"Source [{s.index}]: <srt_text>{s.content}</srt_text>"
+                        )
                         payload_parts.append(f"Target [{s.index}]: ")
                     user_payload = "\n".join(payload_parts)
 
