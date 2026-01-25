@@ -61,6 +61,7 @@ class TranslationProvider(ABC):
         subtitle_list: list[srt.Subtitle],
         target_language: str,
         glossary_file: str | None = None,
+        input_file_path: Path | None = None,
     ) -> list[srt.Subtitle]:
         """
         Translate SRT subtitles with timestamp validation and repair.
@@ -72,55 +73,73 @@ class TranslationProvider(ABC):
             subtitle_list: List of subtitle objects to translate
             target_language: Target language code
             glossary_file: Path to glossary directory (optional)
+            input_file_path: Path to input file (optional)
 
         Returns:
             List of translated subtitle objects with validated timestamps
 
         Raises:
-            ValueError: If timestamp repair fails after validation
+            ValueError: If translation fails validation after all retries
         """
         log = logger.getChild("TranslationProvider")
-        log.info("  🌐 Translating subtitles to %s...", target_language)
+        path_str = str(input_file_path) if input_file_path else "file"
 
-        # Try translation with retries
-        translated_subtitles = []
-        for attempt in range(MAX_SUBTITLE_TRANSLATION_RETRIES + 1):
-            if attempt > 0:
-                log.info("  🔧 Retrying subtitle translations...")
+        log.info(
+            "  🌐 Translating %d subtitles to %s for %s...",
+            len(subtitle_list),
+            target_language,
+            path_str,
+        )
 
-            translated_subtitles = self.translate_subtitles(
-                subtitle_list, target_language, glossary_file
-            )
-
-            log.info(
-                "  🔍 %sValidating translated subtitles...",
-                "Re-" if attempt > 0 else "",
-            )
-
-            if self._validate_timestamps(subtitle_list, translated_subtitles):
+        for attempt_num in range(1, MAX_SUBTITLE_TRANSLATION_RETRIES + 1):
+            try:
                 log.info(
-                    "  ✅ Timestamps validated successfully%s.",
-                    " on retry" if attempt > 0 else "",
+                    "  📝 Attempt %d: translation for %s...", attempt_num, path_str
                 )
-                return translated_subtitles
 
-            log.warning(
-                "  ❌ Timestamp %svalidation failed.", "re-" if attempt > 0 else ""
-            )
+                translated_subtitles = self.translate_subtitles(
+                    subtitle_list, target_language, glossary_file
+                )
 
+                log.info(
+                    "  🔍 Validating: original=%d, translated=%d subtitles for %s...",
+                    len(subtitle_list),
+                    len(translated_subtitles),
+                    path_str,
+                )
+
+                if self._validate_timestamps(subtitle_list, translated_subtitles):
+                    log.info("  ✅ Validation successful for %s.", path_str)
+                    return translated_subtitles
+
+                log.warning("  ❌ Validation failed for %s, retrying...", path_str)
+
+            except Exception as e:  # noqa: BLE001
+                log.warning(
+                    "  ❌ Attempt %d failed with error: %s for %s...",
+                    attempt_num,
+                    e,
+                    path_str,
+                )
+
+        # All retries failed - try DeepL repair as last resort
+        log.info("  🔧 All attempts failed, trying DeepL repair for %s...", path_str)
         repaired_subtitles = self._repair_timestamps_with_deepl(
             subtitle_list, target_language
         )
 
-        log.info("  🔍 Re-validating repaired subtitles...")
+        log.info("  🔍 Re-validating repaired subtitles for %s...", path_str)
         if self._validate_timestamps(subtitle_list, repaired_subtitles):
-            log.info("  ✅ Timestamps repaired and validated successfully.")
+            log.info(
+                "  ✅ Timestamps repaired and validated successfully for %s.", path_str
+            )
             return repaired_subtitles
 
-        log.error("  ❌ Timestamp repair failed. Translation cannot proceed.")
-        raise ValueError(  # noqa: TRY003
-            "Subtitle timestamp repair failed - timestamps could not be validated"  # noqa: EM101
+        log.error(
+            "  ❌ Timestamp repair failed for %s. Translation cannot proceed.", path_str
         )
+        msg = "Subtitle timestamp repair failed - timestamps could not be validated"
+        raise ValueError(msg)
 
     def _validate_timestamps(
         self, original: list[srt.Subtitle], translated: list[srt.Subtitle]
@@ -144,16 +163,16 @@ class TranslationProvider(ABC):
                 f"Cue count mismatch: original {len(original)}, "
                 f"translated {len(translated)}"
             )
-
-        for i, (orig, trans) in enumerate(zip(original, translated)):
-            if orig.index != trans.index:
-                issues.append(
-                    f"Cue {i + 1}: index mismatch ({orig.index} vs {trans.index})"
-                )
-            if orig.start != trans.start or orig.end != trans.end:
-                issues.append(f"Cue {i + 1}: timestamp mismatch")
-            if orig.content.strip() and not trans.content.strip():
-                issues.append(f"Cue {i + 1}: translation is BLANK")
+        else:
+            for i, (orig, trans) in enumerate(zip(original, translated)):
+                if orig.index != trans.index:
+                    issues.append(
+                        f"Cue {i + 1}: index mismatch ({orig.index} vs {trans.index})"
+                    )
+                if orig.start != trans.start or orig.end != trans.end:
+                    issues.append(f"Cue {i + 1}: timestamp mismatch")
+                if orig.content.strip() and not trans.content.strip():
+                    issues.append(f"Cue {i + 1}: translation is BLANK")
 
         if issues:
             logger.warning("Translation validation found issues:")

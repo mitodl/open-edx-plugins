@@ -123,6 +123,14 @@ class Command(BaseCommand):
                 "language-specific glossary files."
             ),
         )
+        parser.add_argument(
+            "--keep_failure",
+            dest="keep_failure",
+            required=False,
+            default=False,
+            action="store_true",
+            help=("Keep failed translation files instead of deleting them."),
+        )
 
     def _parse_and_validate_provider_spec(
         self, provider_spec: str
@@ -212,6 +220,7 @@ class Command(BaseCommand):
             content_provider_spec = options["content_translation_provider"]
             srt_provider_spec = options["srt_translation_provider"]
             glossary_directory = options.get("glossary_directory")
+            keep_failure = options.get("keep_failure", False)
 
             # Parse and validate provider specifications (includes validation)
             content_provider_name, content_model = (
@@ -243,7 +252,7 @@ class Command(BaseCommand):
             self.srt_provider_name = srt_provider_name
             self.srt_model = srt_model
             self.glossary_directory = glossary_directory
-
+            self.keep_failure = keep_failure
             # Extract course archive
             extracted_course_dir = extract_course_archive(course_archive_path)
 
@@ -292,7 +301,11 @@ class Command(BaseCommand):
             logger.exception("Translation failed")
 
             # Cleanup translated course directory on failure
-            if self.translated_course_dir and self.translated_course_dir.exists():
+            if (
+                self.translated_course_dir
+                and self.translated_course_dir.exists()
+                and not self.keep_failure
+            ):
                 self.stdout.write(
                     self.style.WARNING(
                         f"Cleaning up translated course directory: {self.translated_course_dir}"  # noqa: E501

@@ -58,6 +58,8 @@ LLM_EXPLANATION_KEYWORDS = [
 TRANSLATION_MARKER_START = ":::TRANSLATION_START:::"
 TRANSLATION_MARKER_END = ":::TRANSLATION_END:::"
 
+MAX_CHUNK_RETRIES = 3
+
 
 class LLMProvider(TranslationProvider):
     """
@@ -76,7 +78,7 @@ class LLMProvider(TranslationProvider):
 
         Args:
             primary_api_key: API key for the LLM service
-            repair_api_key: API key for repair service (optional)
+            repair_api_key: API key for DeepL repair service (optional)
             model_name: Name of the LLM model to use
         """
         super().__init__(primary_api_key, repair_api_key)
@@ -107,21 +109,22 @@ class LLMProvider(TranslationProvider):
 
         system_prompt = (
             f"You are a professional subtitle translator. "
-            f"Translate the following English subtitles to "
-            f"{target_language_display_name}.\n\n"
+            f"Translate English subtitles to {target_language_display_name}.\n\n"
             "INPUT FORMAT:\n"
-            ":::ID:::\n"
-            "Text to translate\n\n"
-            "OUTPUT FORMAT (exactly):\n"
-            ":::ID:::\n"
-            "Translated text\n\n"
-            "RULES:\n"
-            "1. Preserve ALL :::ID::: markers exactly as given.\n"
-            "2. Every input ID MUST appear in output with its translation.\n"
-            "3. One ID = one translation. "
-            "NEVER merge or split content across IDs.\n"
-            "4. Keep proper nouns, brand names, and acronyms unchanged.\n"
-            "5. Use natural phrasing appropriate for subtitles.\n"
+            'Source [ID]: "English text"\n'
+            "Target [ID]: \n\n"
+            "OUTPUT FORMAT - Fill in each Target line:\n"
+            'Source [ID]: "English text"\n'
+            'Target [ID]: "Translated text"\n\n'
+            "CRITICAL RULES:\n"
+            "1. Fill in EVERY Target [ID] line with the translation.\n"
+            "2. Each Target must translate ONLY its corresponding Source.\n"
+            "3. Do NOT merge or shift content between IDs.\n"
+            "4. If Source is a single word (e.g., 'Perfect.'), "
+            "Target must be just that word translated.\n"
+            "5. If Source is a sentence fragment, Target must be a fragment.\n"
+            "6. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "7. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
         )
 
         if glossary_directory:
@@ -233,16 +236,17 @@ class LLMProvider(TranslationProvider):
         """
         parsed_subtitle_list = []
 
-        subtitle_id_pattern = re.compile(
-            r":::(\d+):::\s*(.*?)(?=(?::::\d+:::|$))", re.DOTALL
-        )
-        subtitle_matches = subtitle_id_pattern.findall(llm_response_text)
+        # Parse Target [ID]: "text" or Target [ID]: text patterns
+        pattern = r'Target\s*\[(\d+)\]:\s*"?([^"\n]*)"?'
+        matches = re.findall(pattern, llm_response_text)
 
         translation_map = {}
-        for subtitle_id_str, translated_text in subtitle_matches:
-            clean_subtitle_id = subtitle_id_str.strip()
-            translation_map[clean_subtitle_id] = translated_text.strip()
+        for match in matches:
+            cue_id = str(match[0])
+            text = match[1].strip()
+            translation_map[cue_id] = text
 
+        # Map translations back to original subtitles
         for original_subtitle in original_subtitle_batch:
             subtitle_id_key = str(original_subtitle.index)
             if subtitle_id_key in translation_map:
@@ -356,9 +360,51 @@ class LLMProvider(TranslationProvider):
         glossary_directory: str | None = None,
     ) -> list[srt.Subtitle]:
         """
-        Translate subtitles using LLM.
+        Translate subtitles using direct ID-based approach.
 
-        Processes subtitles in batches with dynamic batch sizing to handle API limits.
+        Attempts to translate entire file at once, progressively reducing
+        batch size on failure (max 3 attempts). Falls back to two-stage
+        pipeline only for very large files that exceed context limits.
+
+        Args:
+            subtitle_list: List of subtitle objects to translate
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+
+        Returns:
+            List of translated subtitle objects
+        """
+        if not subtitle_list:
+            return []
+
+        # Check if any subtitle has content
+        has_content = any(s.content and s.content.strip() for s in subtitle_list)
+        if not has_content:
+            logger.warning("Empty transcript - returning original subtitles")
+            return subtitle_list
+
+        # Use direct ID-based translation (more reliable for structure preservation)
+        logger.info(
+            "Translating %d subtitles (will try entire file first)...",
+            len(subtitle_list),
+        )
+
+        return self._translate_subtitle_list(
+            subtitle_list, target_language, glossary_directory
+        )
+
+    def _translate_subtitle_list(
+        self,
+        subtitle_list: list[srt.Subtitle],
+        target_language: str,
+        glossary_directory: str | None = None,
+    ) -> list[srt.Subtitle]:
+        """
+        Translate subtitles using structured block format.
+
+        Uses Source/Target block format for reliable 1:1 mapping. Starts by
+        attempting to translate the entire file at once, then progressively
+        reduces batch size on failure (context errors or blank translations).
 
         Args:
             subtitle_list: List of subtitle objects to translate
@@ -372,59 +418,98 @@ class LLMProvider(TranslationProvider):
             target_language, glossary_directory
         )
 
-        translated_subtitle_list = []
-        current_batch_size = len(subtitle_list)
+        max_attempts = MAX_CHUNK_RETRIES
+        # Start with entire file, halve on each failure
+        batch_size = len(subtitle_list)
 
-        current_index = 0
-        retry_count = 0
-        max_retries = 3
-
-        while current_index < len(subtitle_list):
-            subtitle_batch = subtitle_list[
-                current_index : current_index + current_batch_size
-            ]
-
-            user_payload_parts = []
-            for subtitle_item in subtitle_batch:
-                user_payload_parts.append(f":::{subtitle_item.index}:::")
-                user_payload_parts.append(subtitle_item.content)
-                user_payload_parts.append("")
-            user_payload = "\n".join(user_payload_parts)
-
+        for attempt in range(1, max_attempts + 1):
             logger.info(
-                "  Translating batch starting at ID %s (%s blocks)...",
-                subtitle_batch[0].index,
-                len(subtitle_batch),
+                "  Attempt %d/%d: translating %d subtitles (batch_size=%d)...",
+                attempt,
+                max_attempts,
+                len(subtitle_list),
+                batch_size,
             )
 
             try:
-                llm_response_text = self._call_llm(system_prompt, user_payload)
-                translated_batch = self._parse_structured_response(
-                    llm_response_text, subtitle_batch
-                )
-                translated_subtitle_list.extend(translated_batch)
-                current_index += current_batch_size
-                retry_count = 0  # Reset retry count on success
+                translated_subtitle_list = []
+                current_index = 0
+                has_blanks = False
+
+                while current_index < len(subtitle_list):
+                    subtitle_batch = subtitle_list[
+                        current_index : current_index + batch_size
+                    ]
+
+                    payload_parts = []
+                    for s in subtitle_batch:
+                        payload_parts.append(f'Source [{s.index}]: "{s.content}"')
+                        payload_parts.append(f"Target [{s.index}]: ")
+                    user_payload = "\n".join(payload_parts)
+
+                    llm_response_text = self._call_llm(system_prompt, user_payload)
+                    translated_batch = self._parse_structured_response(
+                        llm_response_text, subtitle_batch
+                    )
+
+                    # Check for blank translations
+                    blank_cues = [
+                        orig.index
+                        for orig, trans in zip(subtitle_batch, translated_batch)
+                        if orig.content.strip() and not trans.content.strip()
+                    ]
+
+                    if blank_cues:
+                        has_blanks = True
+                        logger.warning(
+                            "    Blank translations detected for cues: %s",
+                            blank_cues,
+                        )
+
+                    translated_subtitle_list.extend(translated_batch)
+                    current_index += batch_size
+
+                # If no blanks, we're done
+                if not has_blanks:
+                    logger.info("  ✓ Translation complete with no blank cues.")
+                    return translated_subtitle_list
+
+                # Had blanks - if more attempts remain, reduce batch size and retry
+                blank_cue_indices = [
+                    orig.index
+                    for orig, trans in zip(subtitle_list, translated_subtitle_list)
+                    if orig.content.strip() and not trans.content.strip()
+                ]
+
+                if attempt < max_attempts:
+                    batch_size = max(1, batch_size // 2)
+                    logger.warning(
+                        "  %d blank cues detected: %s. Reducing batch size to %d...",
+                        len(blank_cue_indices),
+                        blank_cue_indices,
+                        batch_size,
+                    )
+                    continue
+                else:
+                    # Final attempt still had blanks - return what we have
+                    logger.warning(
+                        "  Final attempt still has %d blank cues: %s",
+                        len(blank_cue_indices),
+                        blank_cue_indices,
+                    )
+                    return translated_subtitle_list
 
             except Exception as llm_error:
                 error_message = str(llm_error).lower()
-                if any(
-                    error_term in error_message for error_term in LLM_ERROR_KEYWORDS
-                ):
-                    if current_batch_size <= 1 or retry_count >= max_retries:
-                        logger.exception(
-                            "Failed after %s batch size reduction attempts", retry_count
-                        )
-                        raise
+                is_context_error = any(kw in error_message for kw in LLM_ERROR_KEYWORDS)
 
+                if is_context_error and attempt < max_attempts:
+                    batch_size = max(1, batch_size // 2)
                     logger.warning(
-                        "Error: %s. Reducing batch size (attempt %s/%s)...",
+                        "  Error: %s. Reducing batch size to %d and retrying...",
                         llm_error,
-                        retry_count + 1,
-                        max_retries,
+                        batch_size,
                     )
-                    current_batch_size = max(1, current_batch_size // 2)
-                    retry_count += 1
                     continue
                 else:
                     raise
@@ -495,12 +580,26 @@ class LLMProvider(TranslationProvider):
         if input_file_path.suffix == ".srt":
             srt_content = input_file_path.read_text(encoding="utf-8")
             subtitle_list = list(srt.parse(srt_content))
-
+            logger.info(
+                "Translating SRT file %s with %d subtitles...",
+                input_file_path,
+                len(subtitle_list),
+            )
             translated_subtitle_list = self.translate_srt_with_validation(
-                subtitle_list, target_language, glossary_directory
+                subtitle_list,
+                target_language,
+                glossary_directory,
+                input_file_path=input_file_path,
             )
 
-            translated_srt_content = srt.compose(translated_subtitle_list)
+            translated_srt_content = srt.compose(
+                translated_subtitle_list, reindex=False
+            )
+            logger.info(
+                "Completed translating SRT file %s with %d subtitles...",
+                input_file_path,
+                len(subtitle_list),
+            )
             output_file_path.write_text(translated_srt_content, encoding="utf-8")
         else:
             # For other files, treat as text
@@ -525,7 +624,7 @@ class OpenAIProvider(LLMProvider):
 
         Args:
             primary_api_key: OpenAI API key
-            repair_api_key: API key for repair service (optional)
+            repair_api_key: API key for DeepL repair service (optional)
             model_name: OpenAI model name (e.g., "gpt-5.2")
 
         Raises:
@@ -567,7 +666,7 @@ class GeminiProvider(LLMProvider):
 
         Args:
             primary_api_key: Gemini API key
-            repair_api_key: API key for repair service (optional)
+            repair_api_key: API key for DeepL repair service (optional)
             model_name: Gemini model name (e.g., "gemini-3-pro-preview")
 
         Raises:
@@ -593,7 +692,7 @@ class MistralProvider(LLMProvider):
 
         Args:
             primary_api_key: Mistral API key
-            repair_api_key: API key for repair service (optional)
+            repair_api_key: API key for DeepL repair service (optional)
             model_name: Mistral model name (e.g., "mistral-large-latest")
 
         Raises:
