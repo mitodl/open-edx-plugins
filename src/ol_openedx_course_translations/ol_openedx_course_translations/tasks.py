@@ -173,15 +173,17 @@ def translate_grading_policy_task(
         grading_policy_data = json.loads(policy_file_path.read_text(encoding="utf-8"))
         policy_updated = False
 
+        keys_to_translate = ["short_label", "type"]
         for grader_item in grading_policy_data.get("GRADER", []):
-            if "short_label" in grader_item:
-                translated_label = provider.translate_text(
-                    grader_item["short_label"],
-                    target_language.lower(),
-                    glossary_directory=glossary_directory,
-                )
-                grader_item["short_label"] = translated_label
-                policy_updated = True
+            for key in keys_to_translate:
+                if key in grader_item:
+                    translated_label = provider.translate_text(
+                        grader_item[key],
+                        target_language.lower(),
+                        glossary_directory=glossary_directory,
+                    )
+                    grader_item[key] = translated_label
+                    policy_updated = True
 
         if policy_updated:
             policy_file_path.write_text(
