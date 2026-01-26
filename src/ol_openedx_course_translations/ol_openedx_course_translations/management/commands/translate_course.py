@@ -515,7 +515,7 @@ class Command(BaseCommand):
                             completed_tasks + skipped_tasks + batch_completed
                         )
                         self.stdout.write(
-                            f"\rProgress: {overall_completed}/{total_tasks} tasks completed",  # noqa: E501
+                            f"\rProgress: {overall_completed}/{total_tasks} tasks completed\n",  # noqa: E501
                             ending="",
                         )
                         self.stdout.flush()

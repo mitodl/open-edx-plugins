@@ -19,6 +19,7 @@ def apply_common_settings(settings):
         "about",
         "course",
         "chapter",
+        "drafts",
         "html",
         "info",
         "problem",
