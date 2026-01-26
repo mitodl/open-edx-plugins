@@ -280,7 +280,7 @@ def translate_policy_fields(  # noqa: C901
         course_policy_obj["xml_attributes"], dict
     ):
         xml_attributes_dict = course_policy_obj["xml_attributes"]
-        translatable_xml_fields = ["diplay_name", "info_sidebar_name"]
+        translatable_xml_fields = ["display_name", "info_sidebar_name"]
         for xml_field_name in translatable_xml_fields:
             if xml_field_name in xml_attributes_dict:
                 translated_value = provider.translate_text(

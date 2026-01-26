@@ -281,7 +281,9 @@ class DeepLProvider(TranslationProvider):
                     subtitle_list, target_language, glossary_directory
                 )
 
-                translated_srt_content = srt.compose(translated_subtitle_list)
+                translated_srt_content = srt.compose(
+                    translated_subtitle_list, reindex=False
+                )
                 output_file_path.write_text(translated_srt_content, encoding="utf-8")
             else:
                 self.deepl_translator.translate_document_from_filepath(
