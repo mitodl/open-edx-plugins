@@ -373,9 +373,6 @@ class LLMProvider(TranslationProvider):
             messages=llm_messages,
             api_key=self.primary_api_key,
             timeout=self.timeout,
-            temperature=0.0,
-            allowed_openai_params=["top_p"],
-            drop_params=True,
             **additional_kwargs,
             temperature=0.0,
         )
