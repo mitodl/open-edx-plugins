@@ -605,6 +605,8 @@ class LLMProvider(TranslationProvider):
         max_attempts = MAX_CHUNK_RETRIES
         # Start with entire file, halve on each failure
         batch_size = len(subtitle_list)
+        if batch_size > 250:  # noqa: PLR2004
+            batch_size = batch_size // 2  # start smaller for very large files
 
         for attempt in range(1, max_attempts + 1):
             logger.info(
