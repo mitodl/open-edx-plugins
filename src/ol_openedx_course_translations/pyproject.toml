@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-course-translations"
-version = "0.3.12"
+version = "0.3.13"
 description = "An Open edX plugin to translate courses"
 authors = [
   {name = "MIT Office of Digital Learning"}
