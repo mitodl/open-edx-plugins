@@ -1,16 +1,26 @@
-"""Utility functions for course translations."""
+"""Utility functions for course translations.
+
+This module includes DOM-aware helpers for translating HTML/XML safely by:
+- Extracting only text nodes and allowlisted attribute VALUES as independent units
+- Sending only those units to translation providers (never raw markup blobs)
+- Reinserting translations without changing markup structure, tag names,
+or attribute names
+"""
 
 import json
 import logging
 import re
 import shutil
 import tarfile
+from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 from xml.etree.ElementTree import Element
 
 from defusedxml import ElementTree
 from django.conf import settings
 from django.core.management.base import CommandError
+from lxml import etree
 from opaque_keys.edx.locator import CourseLocator
 
 from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
@@ -22,10 +32,13 @@ from ol_openedx_course_translations.providers.llm_providers import (
 from ol_openedx_course_translations.utils.constants import (
     ES_419_LANGUAGE_CODE,
     ES_LANGUAGE_CODE,
+    NEVER_TRANSLATE_ATTRS,
     PROVIDER_DEEPL,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
     PROVIDER_OPENAI,
+    TRANSLATABLE_ATTRS_BASE,
+    TRANSLATABLE_ATTRS_OPTIONINPUT_ONLY,
 )
 
 logger = logging.getLogger(__name__)
@@ -623,3 +636,245 @@ def generate_course_key_from_xml(course_dir_path: Path) -> str:
     else:
         # URL name is the run ID of the course
         return CourseLocator(org=org, course=course, run=url_name)
+
+
+@dataclass(frozen=True)
+class _TranslationUnitRef:
+    """
+    Reference to where a translation unit lives in the DOM.
+
+    kind:
+      - "text": element.text
+      - "tail": element.tail
+      - "attr": element.attrib[attr_name]
+    """
+
+    kind: str
+    xpath: str
+    attr_name: str | None = None
+
+
+class HtmlXmlTranslationHelper:
+    """
+    Extract/reinsert small translation units from HTML/XML without altering structure.
+
+    Guarantees (best-effort; parser-dependent):
+    - Never changes element/tag names or markup structure.
+    - Never changes attribute names; only allowlisted attribute VALUES may be replaced.
+    - Preserves whitespace/indentation by keeping leading/trailing whitespace untouched
+      and translating only the "core" (stripped) text/attribute value.
+    - Applies Open edX-specific rules:
+      * Translate `options` and `correct` attribute VALUES ONLY on <optioninput>
+      * Never translate `correct` elsewhere
+      * Never adds `display_name` (only translates it if present)
+
+    Limitations:
+    - HTML parsing with lxml may normalize malformed HTML; prefer XML/XHTML
+    where possible.
+    - For HTML fragments, serialization attempts to return the <body> inner HTML.
+    """
+
+    # Tags whose text content should not be translated (non-user-visible)
+    _SKIP_TEXT_TAGS = {"script", "style"}
+
+    def __init__(self, *, is_xml: bool):
+        self.is_xml = is_xml
+
+    def parse(self, raw: str) -> etree._Element:
+        if self.is_xml:
+            parser = etree.XMLParser(
+                resolve_entities=False,
+                no_network=True,
+                recover=False,
+                remove_blank_text=False,
+            )
+            return etree.fromstring(raw.encode("utf-8"), parser=parser)
+        # HTML: keep input formatting as much as possible; do not pretty-print later
+        parser = etree.HTMLParser(
+            no_network=True,
+            remove_blank_text=False,
+        )
+        return etree.fromstring(raw.encode("utf-8"), parser=parser)
+
+    @staticmethod
+    def _split_preserve_outer_ws(value: str) -> tuple[str, str, str]:
+        """
+        Split a string into (leading_ws, core, trailing_ws) such that:
+        value == leading_ws + core + trailing_ws and core has no leading/trailing ws.
+
+        This allows translating only `core` and re-wrapping it to preserve formatting.
+        """
+        if value is None:
+            return "", "", ""
+        m = re.match(r"^(\s*)(.*?)(\s*)$", value, flags=re.DOTALL)
+        if not m:
+            return "", value, ""
+        return m.group(1), m.group(2), m.group(3)
+
+    def _iter_elements(self, root: etree._Element) -> Iterable[etree._Element]:
+        for el in root.iter():
+            # Skip comments / processing instructions
+            if not isinstance(el.tag, str):
+                continue
+            yield el
+
+    def _is_translatable_attr(self, el: etree._Element, attr_name: str) -> bool:
+        # Never translate data-* or most aria-* (except aria-label)
+        if attr_name.startswith("data-"):
+            return False
+        if attr_name.startswith("aria-") and attr_name != "aria-label":
+            return False
+
+        if attr_name in NEVER_TRANSLATE_ATTRS:
+            return False
+
+        if attr_name in TRANSLATABLE_ATTRS_BASE:
+            # Open edX: do not add display_name; extraction only happens if exists
+            return True
+
+        # Open edX rule: options/correct only inside <optioninput>
+        if attr_name in TRANSLATABLE_ATTRS_OPTIONINPUT_ONLY:
+            return (el.tag or "").lower() == "optioninput"
+
+        # Do NOT attempt to translate other attributes (incl. value) by default
+        return False
+
+    def _should_translate_text_in_element(self, el: etree._Element) -> bool:
+        return (el.tag or "").lower() not in self._SKIP_TEXT_TAGS
+
+    @staticmethod
+    def _looks_like_nontranslatable(value: str) -> bool:
+        v = value.strip()
+        if not v:
+            return True
+        # Avoid translating obvious identifiers/paths/urls
+        if "://" in v or v.startswith(("/", "./")):
+            return True
+        if v.startswith("#") and len(v) > 1:
+            return True
+        # Avoid translating pure tokens/codes
+        if re.fullmatch(r"[A-Za-z0-9_\-.:/]+", v) and not re.search(r"[A-Za-z]", v):  # noqa: SIM103
+            return True
+        return False
+
+    def extract_units(  # noqa: C901
+        self, raw: str
+    ) -> tuple[etree._Element, list[str], list[_TranslationUnitRef]]:
+        """
+        Parse markup and extract a list of dedicated translation units.
+
+        Returns:
+            (root, units, refs)
+            - root: parsed lxml element tree root
+            - units: list of *core* strings to translate (trimmed, no outer ws)
+            - refs: parallel list of references describing where each unit belongs
+        """
+        root = self.parse(raw)
+
+        units: list[str] = []
+        refs: list[_TranslationUnitRef] = []
+
+        def add_unit(text: str, ref: _TranslationUnitRef) -> None:
+            if text is None:
+                return
+            _leading, core, _trailing = self._split_preserve_outer_ws(text)
+            if not core.strip():
+                return
+            if self._looks_like_nontranslatable(core):
+                return
+            # Store only core; outer whitespace is preserved on reinsertion
+            units.append(core)
+            refs.append(ref)
+
+        tree = root.getroottree()
+
+        for el in self._iter_elements(root):
+            # Text node
+            if self._should_translate_text_in_element(el):
+                if el.text:
+                    add_unit(el.text, _TranslationUnitRef("text", tree.getpath(el)))
+                if el.tail:
+                    add_unit(el.tail, _TranslationUnitRef("tail", tree.getpath(el)))
+
+            # Attribute values
+            for attr_name, attr_val in list(el.attrib.items()):
+                if not attr_val:
+                    continue
+                if not self._is_translatable_attr(el, attr_name):
+                    continue
+                _leading, core, _trailing = self._split_preserve_outer_ws(attr_val)
+                if not core.strip():
+                    continue
+                if self._looks_like_nontranslatable(core):
+                    continue
+                add_unit(
+                    attr_val,
+                    _TranslationUnitRef("attr", tree.getpath(el), attr_name=attr_name),
+                )
+
+        return root, units, refs
+
+    def apply_translations(
+        self,
+        root: etree._Element,
+        refs: list[_TranslationUnitRef],
+        translated_units: list[str],
+    ) -> etree._Element:
+        """
+        Reinsert translated units back into the parsed DOM.
+
+        `translated_units` must align 1:1 with `refs` from `extract_units()`.
+        Leading/trailing whitespace from the original node/value is preserved.
+        """
+        if len(refs) != len(translated_units):
+            raise ValueError("Translation unit count mismatch")  # noqa: TRY003, EM101
+
+        tree = root.getroottree()
+        for ref, translated_core in zip(refs, translated_units, strict=True):
+            nodes = tree.xpath(ref.xpath)
+            if not nodes:
+                continue
+            el = nodes[0]
+
+            if ref.kind == "text":
+                orig = el.text or ""
+                leading, _, trailing = self._split_preserve_outer_ws(orig)
+                el.text = f"{leading}{translated_core}{trailing}"
+            elif ref.kind == "tail":
+                orig = el.tail or ""
+                leading, _, trailing = self._split_preserve_outer_ws(orig)
+                el.tail = f"{leading}{translated_core}{trailing}"
+            elif ref.kind == "attr" and ref.attr_name:
+                if ref.attr_name in el.attrib:
+                    orig = el.attrib.get(ref.attr_name, "")
+                    leading, _, trailing = self._split_preserve_outer_ws(orig)
+                    el.attrib[ref.attr_name] = f"{leading}{translated_core}{trailing}"
+            else:
+                continue
+        return root
+
+    def serialize(self, root: etree._Element) -> str:
+        """
+        Serialize the DOM back to markup.
+
+        For HTML parsing, lxml frequently wraps content in <html><body>.
+        If a <body> exists, this returns its inner HTML to better match original
+        fragment inputs while keeping structure valid.
+        """
+        if not self.is_xml:
+            body = root.find(".//body")
+            if body is not None:
+                parts: list[str] = []
+                if body.text:
+                    parts.append(body.text)
+                for child in body:
+                    parts.append(  # noqa: PERF401
+                        etree.tostring(child, encoding="unicode", method="html")
+                    )
+                return "".join(parts)
+
+        return etree.tostring(
+            root,
+            encoding="unicode",
+            method="xml" if self.is_xml else "html",
+        )

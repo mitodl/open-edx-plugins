@@ -261,7 +261,7 @@ class DeepLProvider(TranslationProvider):
             output_file_path: Path to output file
             source_language: Source language code
             target_language: Target language code
-            glossary_directory: Path to glossary directory (optional)
+            glossary_directory: Path to glossary directory (optional, unused by DeepL)
 
         Raises:
             ValueError: If target language is not supported by DeepL

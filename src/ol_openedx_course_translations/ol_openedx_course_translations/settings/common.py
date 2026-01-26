@@ -63,6 +63,13 @@ def apply_common_settings(settings):
         "https://github.com/mitodl/mitxonline-translations.git"
     )
     settings.LITE_LLM_REQUEST_TIMEOUT = 300  # seconds
+
+    # HTML/XML translation safety/perf knobs (LLM providers only)
+    settings.LLM_HTMLXML_MAX_UNITS_PER_REQUEST = 40
+    settings.LLM_HTMLXML_MAX_CHARS_PER_REQUEST = 6000
+    settings.LLM_HTMLXML_MAX_CHARS_PER_UNIT = 800
+    settings.LLM_TRANSLATION_CACHE_MAX_ENTRIES = 5000
+
     settings.TRANSLATE_FILE_TASK_LIMITS = {
         "soft_time_limit": 9 * 60,  # 9 minutes
         "time_limit": 10 * 60,  # 10 minutes (hard kill)

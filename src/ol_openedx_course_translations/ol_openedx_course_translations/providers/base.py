@@ -60,7 +60,7 @@ class TranslationProvider(ABC):
         self,
         subtitle_list: list[srt.Subtitle],
         target_language: str,
-        glossary_file: str | None = None,
+        glossary_directory: str | None = None,
         input_file_path: Path | None = None,
     ) -> list[srt.Subtitle]:
         """
@@ -72,8 +72,8 @@ class TranslationProvider(ABC):
         Args:
             subtitle_list: List of subtitle objects to translate
             target_language: Target language code
-            glossary_file: Path to glossary directory (optional)
             input_file_path: Path to input file (optional)
+            glossary_directory: Path to glossary directory (optional)
 
         Returns:
             List of translated subtitle objects with validated timestamps
@@ -98,7 +98,7 @@ class TranslationProvider(ABC):
                 )
 
                 translated_subtitles = self.translate_subtitles(
-                    subtitle_list, target_language, glossary_file
+                    subtitle_list, target_language, glossary_directory
                 )
 
                 log.info(
@@ -241,7 +241,7 @@ class TranslationProvider(ABC):
         self,
         subtitle_list: list[srt.Subtitle],
         target_language: str,
-        glossary_file: str | None = None,
+        glossary_directory: str | None = None,
     ) -> list[srt.Subtitle]:
         """
         Translate SRT subtitles.
@@ -249,7 +249,7 @@ class TranslationProvider(ABC):
         Args:
             subtitle_list: List of subtitle objects to translate
             target_language: Target language code
-            glossary_file: Path to glossary directory (optional)
+            glossary_directory: Path to glossary directory (optional)
 
         Returns:
             List of translated subtitle objects
@@ -261,7 +261,7 @@ class TranslationProvider(ABC):
         source_text: str,
         target_language: str,
         tag_handling: str | None = None,
-        glossary_file: str | None = None,
+        glossary_directory: str | None = None,
     ) -> str:
         """
         Translate plain text or HTML/XML.
@@ -270,7 +270,7 @@ class TranslationProvider(ABC):
             source_text: Text to translate
             target_language: Target language code
             tag_handling: How to handle XML/HTML tags (optional)
-            glossary_file: Path to glossary directory (optional)
+            glossary_directory: Path to glossary directory (optional)
 
         Returns:
             Translated text
@@ -283,7 +283,7 @@ class TranslationProvider(ABC):
         output_file_path: Path,
         source_language: str,
         target_language: str,
-        glossary_file: str | None = None,
+        glossary_directory: str | None = None,
     ) -> None:
         """
         Translate document file.
@@ -293,5 +293,5 @@ class TranslationProvider(ABC):
             output_file_path: Path to output file
             source_language: Source language code
             target_language: Target language code
-            glossary_file: Path to glossary directory (optional)
+            glossary_directory: Path to glossary directory (optional)
         """

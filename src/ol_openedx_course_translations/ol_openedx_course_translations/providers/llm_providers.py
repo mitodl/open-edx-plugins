@@ -2,6 +2,7 @@
 
 import logging
 import re
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
@@ -63,7 +64,14 @@ MAX_CHUNK_RETRIES = 3
 
 class LLMProvider(TranslationProvider):
     """
-    Base class for LLM-based providers (OpenAI, Gemini) that use structured prompting.
+    Base class for LLM-based providers.
+
+    Important behavior:
+    - For HTML/XML inputs, this class must NEVER send raw markup to the LLM.
+      It uses HtmlXmlTranslationHelper to extract safe, small units (text nodes and
+      allowlisted attribute VALUES), batch-translates them, and reinserts them into
+      the existing DOM without changing structure.
+    - For plain text inputs, it uses structured prompting with markers.
     """
 
     def __init__(
@@ -84,6 +92,18 @@ class LLMProvider(TranslationProvider):
         super().__init__(primary_api_key, repair_api_key)
         self.model_name = model_name
         self.timeout = timeout
+        self._translation_cache: OrderedDict[tuple[str, str], str] = OrderedDict()
+
+    def _cache_get(self, target_language: str, text: str) -> str | None:
+        return self._translation_cache.get((target_language, text))
+
+    def _cache_set(self, target_language: str, text: str, translated: str) -> None:
+        key = (target_language, text)
+        self._translation_cache[key] = translated
+        # simple LRU eviction
+        max_entries = getattr(settings, "LLM_TRANSLATION_CACHE_MAX_ENTRIES", 5000)
+        while len(self._translation_cache) > max_entries:
+            self._translation_cache.popitem(last=False)
 
     def _get_subtitle_system_prompt(
         self,
@@ -160,7 +180,8 @@ class LLMProvider(TranslationProvider):
         )
 
         system_prompt = (
-            f"You are a professional translator. "
+            f"This is educational content. "
+            f"You are a localization engine for Open edX. "
             f"Translate the following English text to "
             f"{target_language_display_name}.\n\n"
             f"OUTPUT FORMAT (exactly):\n"
@@ -208,6 +229,8 @@ class LLMProvider(TranslationProvider):
             "3. Keep proper nouns, brand names, acronyms, and product names unchanged.\n"  # noqa: E501
             "4. Do NOT include explanations, notes, or commentary.\n"
             "5. Ensure the output is valid XML/HTML after translation.\n"
+            "Rules for Tone:\n"
+            f"Use professional, academic {target_language_display_name}."
         )
 
         if glossary_directory:
@@ -351,8 +374,168 @@ class LLMProvider(TranslationProvider):
             api_key=self.primary_api_key,
             timeout=self.timeout,
             **additional_kwargs,
+            temperature=0.0,
         )
         return llm_response.choices[0].message.content.strip()
+
+    def _translate_plain_text_unit(
+        self,
+        text: str,
+        target_language: str,
+        glossary_directory: str | None,
+    ) -> str:
+        cached = self._cache_get(target_language, text)
+        if cached is not None:
+            return cached
+
+        system_prompt = self._get_text_system_prompt(
+            target_language, glossary_directory
+        )
+        llm_response = self._call_llm(system_prompt, text)
+        translated = self._parse_text_response(llm_response)
+        self._cache_set(target_language, text, translated)
+        return translated
+
+    def _batch_translate_units(  # noqa: C901, PLR0912, PLR0915
+        self,
+        units: list[str],
+        target_language: str,
+        glossary_directory: str | None,
+    ) -> list[str]:
+        """
+        Batch translate multiple short strings via a single LLM request.
+
+        Safety properties:
+        - Only plain strings are sent (no HTML/XML).
+        - Inputs are labeled with stable numeric IDs; outputs are parsed back by ID.
+        - If an ID is missing from the response, the corresponding unit
+        is left unchanged.
+
+        Performance properties:
+        - De-duplicates identical strings within the batch.
+        - Uses an in-process LRU cache keyed by (target_language, text).
+        """
+        # De-dupe (preserve order for stable output)
+        uniq: list[str] = []
+        index_map: list[int] = []
+        seen: dict[str, int] = {}
+        for u in units:
+            cached = self._cache_get(target_language, u)
+            if cached is not None:
+                # encode cached via negative index sentinel
+                seen.setdefault(u, -1)
+            if u in seen and seen[u] >= 0:
+                index_map.append(seen[u])
+                continue
+            seen[u] = len(uniq)
+            index_map.append(seen[u])
+            uniq.append(u)
+
+        # Prepare results array for uniq
+        uniq_out: list[str | None] = [None] * len(uniq)
+        # fill from cache
+        for i, u in enumerate(uniq):
+            cached = self._cache_get(target_language, u)
+            if cached is not None:
+                uniq_out[i] = cached
+
+        max_units = getattr(settings, "LLM_HTMLXML_MAX_UNITS_PER_REQUEST", 40)
+        max_chars_req = getattr(settings, "LLM_HTMLXML_MAX_CHARS_PER_REQUEST", 6000)
+        max_chars_unit = getattr(settings, "LLM_HTMLXML_MAX_CHARS_PER_UNIT", 800)
+
+        # helper to chunk remaining indices
+        pending_indices = [i for i, v in enumerate(uniq_out) if v is None]
+
+        def make_payload(chunk_idxs: list[int]) -> str:
+            parts: list[str] = []
+            for idx in chunk_idxs:
+                s = uniq[idx]
+                # safety cap per unit (prefer correctness over truncation;
+                # fallback to single-unit call)
+                if len(s) > max_chars_unit:
+                    continue
+                parts.append(f":::{idx}:::")
+                parts.append(s)
+                parts.append("")
+            return "\n".join(parts)
+
+        # Prompt specifically for batches of plain strings
+        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+            target_language, target_language
+        )
+        system_prompt = (
+            f"You are a professional translator. Translate English to {target_language_display_name}.\n\n"  # noqa: E501
+            "INPUT FORMAT:\n"
+            ":::ID:::\n"
+            "Text\n\n"
+            "OUTPUT FORMAT (exactly):\n"
+            ":::ID:::\n"
+            "Translated text\n\n"
+            "RULES:\n"
+            "1. Preserve ALL :::ID::: markers exactly.\n"
+            "2. Do not add extra IDs.\n"
+            "3. Output only the translations (no explanations).\n"
+            "4. Preserve whitespace inside each string as much as possible.\n"
+        )
+        if glossary_directory:
+            glossary_terms = load_glossary(target_language, glossary_directory)
+            if glossary_terms:
+                system_prompt += (
+                    f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
+                )
+
+        id_pattern = re.compile(r":::(\d+):::\s*(.*?)(?=(?::::\d+:::|$))", re.DOTALL)
+
+        cursor = 0
+        while cursor < len(pending_indices):
+            chunk: list[int] = []
+            approx_chars = 0
+            while cursor < len(pending_indices) and len(chunk) < max_units:
+                idx = pending_indices[cursor]
+                s = uniq[idx]
+                if len(s) > max_chars_unit:
+                    # translate oversized unit alone (still as plain text)
+                    break
+                addition = len(s) + 16
+                if chunk and (approx_chars + addition) > max_chars_req:
+                    break
+                chunk.append(idx)
+                approx_chars += addition
+                cursor += 1
+
+            # Oversized: fallback to per-unit (still cached)
+            if not chunk:
+                idx = pending_indices[cursor]
+                uniq_out[idx] = self._translate_plain_text_unit(
+                    uniq[idx], target_language, glossary_directory
+                )
+                cursor += 1
+                continue
+
+            user_payload = make_payload(chunk)
+            llm_text = self._call_llm(system_prompt, user_payload)
+
+            matches = id_pattern.findall(llm_text)
+            got: dict[int, str] = {int(i): t.strip() for i, t in matches}
+
+            for idx in chunk:
+                translated = got.get(idx)
+                if translated is None:
+                    # conservative fallback: keep original
+                    # to avoid breaking DOM semantics
+                    translated = uniq[idx]
+                uniq_out[idx] = translated
+                self._cache_set(target_language, uniq[idx], translated)
+
+        # Map back to original units
+        out: list[str] = []
+        for orig, uniq_idx in zip(units, index_map, strict=True):
+            cached = self._cache_get(target_language, orig)
+            if cached is not None:
+                out.append(cached)
+            else:
+                out.append(uniq_out[uniq_idx] or orig)
+        return out
 
     def translate_subtitles(
         self,
@@ -422,6 +605,8 @@ class LLMProvider(TranslationProvider):
         max_attempts = MAX_CHUNK_RETRIES
         # Start with entire file, halve on each failure
         batch_size = len(subtitle_list)
+        if batch_size > 250:  # noqa: PLR2004
+            batch_size = batch_size // 2  # start smaller for very large files
 
         for attempt in range(1, max_attempts + 1):
             logger.info(
@@ -523,7 +708,7 @@ class LLMProvider(TranslationProvider):
         self,
         source_text: str,
         target_language: str,
-        tag_handling: str | None = None,  # noqa: ARG002
+        tag_handling: str | None = None,
         glossary_directory: str | None = None,
     ) -> str:
         """
@@ -540,21 +725,44 @@ class LLMProvider(TranslationProvider):
         Returns:
             Translated text
         """
+        from ol_openedx_course_translations.utils.course_translations import (  # noqa: PLC0415
+            HtmlXmlTranslationHelper,
+        )
+
         if not source_text or not source_text.strip():
             return source_text
 
-        system_prompt = self._get_text_system_prompt(
-            target_language, glossary_directory
-        )
+        # DOM-aware path for HTML/XML: extract -> batch translate strings -> reinsert
+        # Require an actual tag-like pattern to avoid false
+        # positives on plain text containing < >
+        looks_like_markup = bool(re.search(r"</?[\w:-]+(?:\s|>|/)", source_text))
+        is_xmlish = bool(tag_handling in {"xml", "html"}) or looks_like_markup
+        if is_xmlish and looks_like_markup:
+            try:
+                helper = HtmlXmlTranslationHelper(is_xml=(tag_handling == "xml"))
+                root, units, refs = helper.extract_units(source_text)
+                if not units:
+                    return source_text
 
+                translated_units = self._batch_translate_units(
+                    units, target_language, glossary_directory
+                )
+                root = helper.apply_translations(root, refs, translated_units)
+                return helper.serialize(root)
+            except Exception as e:  # noqa: BLE001
+                # Safety first: if parsing/reinsertion fails, return original
+                # rather than risk broken markup
+                logger.warning(
+                    "HTML/XML unit translation failed; returning original. Error: %s",
+                    e,
+                )
+                return source_text
+
+        # Plain text path (existing behavior, but cached)
         try:
-            llm_response = self._call_llm(system_prompt, source_text)
-            logger.info(
-                "\n\n\nSource Text:\n%s\n LLM Response:\n%s\n\n",
-                source_text,
-                llm_response,
+            return self._translate_plain_text_unit(
+                source_text, target_language, glossary_directory
             )
-            return self._parse_text_response(llm_response)
         except (ValueError, ConnectionError) as llm_error:
             logger.warning("LLM translation failed: %s", llm_error)
             return source_text
