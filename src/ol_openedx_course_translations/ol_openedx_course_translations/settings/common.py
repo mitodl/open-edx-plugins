@@ -22,7 +22,6 @@ def apply_common_settings(settings):
         "drafts",
         "html",
         "info",
-        "policies",
         "problem",
         "sequential",
         "vertical",
