@@ -723,7 +723,7 @@ class LLMProvider(TranslationProvider):
         Returns:
             Translated text
         """
-        from ol_openedx_course_translations.utils.course_translations import (
+        from ol_openedx_course_translations.utils.course_translations import (  # noqa: PLC0415
             HtmlXmlTranslationHelper,
         )
 
