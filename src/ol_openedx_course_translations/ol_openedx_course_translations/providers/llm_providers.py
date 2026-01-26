@@ -180,7 +180,8 @@ class LLMProvider(TranslationProvider):
         )
 
         system_prompt = (
-            f"You are a professional translator. "
+            f"This is educational content. "
+            f"You are a localization engine for Open edX. "
             f"Translate the following English text to "
             f"{target_language_display_name}.\n\n"
             f"OUTPUT FORMAT (exactly):\n"
@@ -228,6 +229,8 @@ class LLMProvider(TranslationProvider):
             "3. Keep proper nouns, brand names, acronyms, and product names unchanged.\n"  # noqa: E501
             "4. Do NOT include explanations, notes, or commentary.\n"
             "5. Ensure the output is valid XML/HTML after translation.\n"
+            "Rules for Tone:\n"
+            f"Use professional, academic {target_language_display_name}."
         )
 
         if glossary_directory:
@@ -371,6 +374,7 @@ class LLMProvider(TranslationProvider):
             api_key=self.primary_api_key,
             timeout=self.timeout,
             **additional_kwargs,
+            temperature=0.0,
         )
         return llm_response.choices[0].message.content.strip()
 
