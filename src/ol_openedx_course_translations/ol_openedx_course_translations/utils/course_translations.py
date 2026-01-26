@@ -1193,28 +1193,58 @@ class HtmlXmlTranslationHelper:
 
         return root, units, refs
 
-    def _apply_dict_translation(  # noqa: C901, PLR0912
+    def _navigate_dict_path(
+        self, data: dict | list, path: tuple[str | int, ...]
+    ) -> tuple[dict | list, str | int] | None:
+        """
+        Navigate to the parent container of the target value/key.
+
+        Returns (parent_container, final_key) or None if path not found.
+        """
+        if not path:
+            return None
+        current: dict | list = data
+        for key in path[:-1]:
+            if isinstance(current, dict) and key in current:  # noqa: SIM114
+                current = current[key]
+            elif (
+                isinstance(current, list)
+                and isinstance(key, int)
+                and 0 <= key < len(current)
+            ):
+                current = current[key]
+            else:
+                return None
+        return current, path[-1]
+
+    def _apply_value_translation(
+        self, parent: dict | list, key: str | int, translated_core: str
+    ) -> bool:
+        """Apply translation to a value at parent[key], preserving whitespace."""
+        val = None
+        if isinstance(parent, dict) and key in parent:  # noqa: SIM114
+            val = parent[key]
+        elif (
+            isinstance(parent, list) and isinstance(key, int) and 0 <= key < len(parent)
+        ):
+            val = parent[key]
+        if isinstance(val, str):
+            leading, _, trailing = self._split_preserve_outer_ws(val)
+            parent[key] = f"{leading}{translated_core}{trailing}"  # type: ignore[index]
+            return True
+        return False
+
+    def _apply_dict_translation(
         self,
         el: etree._Element,
         dict_path: tuple[str | int, ...],
         translated_core: str,
     ) -> None:
-        """
-        Apply a translation to a path within dictionary content of a script tag.
-
-        Supports both Python dict syntax and JSON.
-
-        Args:
-            el: The script element containing the dictionary
-            dict_path: Tuple of keys/indices to navigate to the value
-            translated_core: The translated string to insert
-        """
+        """Apply a translation to a path within dictionary content of a script tag."""
         if not el.text:
             return
 
         original_text = el.text
-
-        # Try parsing as Python dict first, then fall back to JSON
         data = self._parse_python_dict(original_text)
         is_python_dict = data is not None
 
@@ -1224,227 +1254,97 @@ class HtmlXmlTranslationHelper:
             except json.JSONDecodeError:
                 return
 
-        # Navigate to the parent of the target value
-        current: dict | list = data
-        for key in dict_path[:-1]:
-            if isinstance(current, dict) and key in current:  # noqa: SIM114
-                current = current[key]
-            elif (
-                isinstance(current, list)
-                and isinstance(key, int)
-                and 0 <= key < len(current)
-            ):
-                current = current[key]
-            else:
-                return  # Path not found
+        result = self._navigate_dict_path(data, dict_path)
+        if result is None:
+            return
+        self._apply_value_translation(result[0], result[1], translated_core)
 
-        # Apply translation preserving whitespace
-        final_key = dict_path[-1]
-        if isinstance(current, dict) and final_key in current:  # noqa: SIM114
-            orig = current[final_key]
-            if isinstance(orig, str):
-                leading, _, trailing = self._split_preserve_outer_ws(orig)
-                current[final_key] = f"{leading}{translated_core}{trailing}"
-        elif (
-            isinstance(current, list)
-            and isinstance(final_key, int)
-            and 0 <= final_key < len(current)
-        ):
-            orig = current[final_key]
-            if isinstance(orig, str):
-                leading, _, trailing = self._split_preserve_outer_ws(orig)
-                current[final_key] = f"{leading}{translated_core}{trailing}"
-
-        # Serialize back using appropriate format
         if is_python_dict:
             el.text = self._serialize_python_dict(data, original_text)
         else:
             el.text = json.dumps(data, ensure_ascii=False, indent=2)
 
-    def _apply_js_dict_translation(  # noqa: C901, PLR0912
-        self,
-        el: etree._Element,
-        var_name: str,
-        dict_path: tuple[str | int, ...],
-        translated_core: str,
-    ) -> None:
+    def _get_js_object_data(
+        self, el: etree._Element, var_name: str
+    ) -> tuple[str, str, dict | list] | None:
         """
-        Apply a translation to a value within a JavaScript object literal.
+        Parse a JS variable's object literal.
 
-        Finds the variable assignment, parses the object, updates the value,
-        and replaces the object literal in the original script.
-
-        Args:
-            el: The script element containing JavaScript
-            var_name: The variable name holding the object
-            dict_path: Tuple of keys/indices to navigate to the value
-            translated_core: The translated string to insert
+        Returns (original_text, literal, data) or None.
         """
         if not el.text:
-            return
-
+            return None
         original_text = el.text
-
-        # Find this specific variable's object literal
-        js_objects = self._extract_js_object_literals(original_text)
-        target_literal = None
-        for vname, obj_literal in js_objects:
+        for vname, obj_literal in self._extract_js_object_literals(original_text):
             if vname == var_name:
-                target_literal = obj_literal
-                break
+                python_literal = self._convert_js_to_python_literal(obj_literal)
+                data = self._parse_python_dict(python_literal)
+                if data is None:
+                    try:
+                        data = json.loads(obj_literal)
+                    except json.JSONDecodeError:
+                        return None
+                return original_text, obj_literal, data
+        return None
 
-        if target_literal is None:
-            return
-
-        # Parse the object
-        python_literal = self._convert_js_to_python_literal(target_literal)
-        data = self._parse_python_dict(python_literal)
-
-        if data is None:
-            try:
-                data = json.loads(target_literal)
-            except json.JSONDecodeError:
-                return
-
-        # Navigate to the parent of the target value
-        current: dict | list = data
-        for key in dict_path[:-1]:
-            if isinstance(current, dict) and key in current:  # noqa: SIM114
-                current = current[key]
-            elif (
-                isinstance(current, list)
-                and isinstance(key, int)
-                and 0 <= key < len(current)
-            ):
-                current = current[key]
-            else:
-                return  # Path not found
-
-        # Apply translation preserving whitespace
-        final_key = dict_path[-1]
-        if isinstance(current, dict) and final_key in current:  # noqa: SIM114
-            orig = current[final_key]
-            if isinstance(orig, str):
-                leading, _, trailing = self._split_preserve_outer_ws(orig)
-                current[final_key] = f"{leading}{translated_core}{trailing}"
-        elif (
-            isinstance(current, list)
-            and isinstance(final_key, int)
-            and 0 <= final_key < len(current)
-        ):
-            orig = current[final_key]
-            if isinstance(orig, str):
-                leading, _, trailing = self._split_preserve_outer_ws(orig)
-                current[final_key] = f"{leading}{translated_core}{trailing}"
-
-        # Serialize back to JSON format (works as valid JS)
-        new_literal = json.dumps(data, ensure_ascii=False, indent=2)
-
-        # Replace the old literal with the new one in the script
-        el.text = original_text.replace(target_literal, new_literal, 1)
-
-    def _apply_js_dict_key_translation(  # noqa: C901, PLR0912
+    def _apply_js_dict_translation(
         self,
         el: etree._Element,
         var_name: str,
         dict_path: tuple[str | int, ...],
         translated_core: str,
     ) -> None:
-        """
-        Apply a translation to a key within a JavaScript object literal.
-
-        Finds the variable assignment, parses the object, renames the key,
-        and replaces the object literal in the original script.
-
-        Args:
-            el: The script element containing JavaScript
-            var_name: The variable name holding the object
-            dict_path: Tuple of keys/indices where the last element is the key to rename
-            translated_core: The translated key name
-        """
-        if not el.text or not dict_path:
+        """Apply a translation to a value within a JavaScript object literal."""
+        parsed = self._get_js_object_data(el, var_name)
+        if parsed is None:
             return
+        original_text, target_literal, data = parsed
 
-        original_text = el.text
-
-        # Find this specific variable's object literal
-        js_objects = self._extract_js_object_literals(original_text)
-        target_literal = None
-        for vname, obj_literal in js_objects:
-            if vname == var_name:
-                target_literal = obj_literal
-                break
-
-        if target_literal is None:
+        result = self._navigate_dict_path(data, dict_path)
+        if result is None:
             return
+        self._apply_value_translation(result[0], result[1], translated_core)
 
-        # Parse the object
-        python_literal = self._convert_js_to_python_literal(target_literal)
-        data = self._parse_python_dict(python_literal)
-
-        if data is None:
-            try:
-                data = json.loads(target_literal)
-            except json.JSONDecodeError:
-                return
-
-        # Navigate to the parent dict containing the key to rename
-        current: dict | list = data
-        for key in dict_path[:-1]:
-            if isinstance(current, dict) and key in current:  # noqa: SIM114
-                current = current[key]
-            elif (
-                isinstance(current, list)
-                and isinstance(key, int)
-                and 0 <= key < len(current)
-            ):
-                current = current[key]
-            else:
-                return  # Path not found
-
-        # Rename the key (only works for dict, not list)
-        old_key = dict_path[-1]
-        if not isinstance(current, dict) or old_key not in current:
-            return
-
-        # Preserve the original key's whitespace in the translated version
-        if isinstance(old_key, str):
-            leading, _, trailing = self._split_preserve_outer_ws(old_key)
-            new_key = f"{leading}{translated_core}{trailing}"
-        else:
-            new_key = translated_core
-
-        # Create new dict with renamed key while preserving order
-        new_dict: dict = {}
-        for k, v in current.items():
-            if k == old_key:
-                new_dict[new_key] = v
-            else:
-                new_dict[k] = v
-
-        # Update the parent to use the new dict
-        if dict_path[:-1]:
-            # Navigate to grandparent and update parent reference
-            grandparent: dict | list = data
-            for key in dict_path[:-2]:
-                if isinstance(grandparent, dict) and key in grandparent:  # noqa: SIM114
-                    grandparent = grandparent[key]
-                elif isinstance(grandparent, list) and isinstance(key, int):
-                    grandparent = grandparent[key]
-            parent_key = dict_path[-2]
-            if isinstance(grandparent, dict):  # noqa: SIM114
-                grandparent[parent_key] = new_dict
-            elif isinstance(grandparent, list) and isinstance(parent_key, int):
-                grandparent[parent_key] = new_dict
-        # The key is at root level, replace data entirely
-        elif isinstance(data, dict):
-            data.clear()
-            data.update(new_dict)
-
-        # Serialize back to JSON format (works as valid JS)
         new_literal = json.dumps(data, ensure_ascii=False, indent=2)
+        el.text = original_text.replace(target_literal, new_literal, 1)
 
-        # Replace the old literal with the new one in the script
+    def _apply_js_dict_key_translation(
+        self,
+        el: etree._Element,
+        var_name: str,
+        dict_path: tuple[str | int, ...],
+        translated_core: str,
+    ) -> None:
+        """Apply a translation to a key within a JavaScript object literal."""
+        if not dict_path:
+            return
+        parsed = self._get_js_object_data(el, var_name)
+        if parsed is None:
+            return
+        original_text, target_literal, data = parsed
+
+        result = self._navigate_dict_path(data, dict_path)
+        if result is None:
+            return
+        parent, old_key = result
+
+        # Key translation only works for dicts with string keys
+        if not isinstance(parent, dict) or not isinstance(old_key, str):
+            return
+        if old_key not in parent:
+            return
+
+        # Preserve whitespace and rename key while keeping order
+        leading, _, trailing = self._split_preserve_outer_ws(old_key)
+        new_key = f"{leading}{translated_core}{trailing}"
+
+        # Rebuild dict with renamed key preserving order
+        items = list(parent.items())
+        parent.clear()
+        for k, v in items:
+            parent[new_key if k == old_key else k] = v
+
+        new_literal = json.dumps(data, ensure_ascii=False, indent=2)
         el.text = original_text.replace(target_literal, new_literal, 1)
 
     def apply_translations(  # noqa: C901, PLR0912, PLR0915
