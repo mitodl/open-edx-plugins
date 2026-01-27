@@ -877,5 +877,5 @@ class MistralProvider(LLMProvider):
             primary_api_key,
             repair_api_key,
             f"mistral/{model_name}",
-            srt_batch_size=20,
+            srt_batch_size=50,
         )
