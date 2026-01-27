@@ -70,6 +70,11 @@ def apply_common_settings(settings):
     settings.LLM_HTMLXML_MAX_CHARS_PER_UNIT = 800
     settings.LLM_TRANSLATION_CACHE_MAX_ENTRIES = 5000
 
+    # Translation quality validation settings
+    settings.TRANSLATION_VALIDATION_ENABLED = True
+    settings.TRANSLATION_VALIDATION_MIN_SCORE = 9  # Minimum acceptable quality score
+    settings.TRANSLATION_VALIDATION_SCORE_RANGE = (1, 10)  # Score range for validation
+
     settings.TRANSLATE_FILE_TASK_LIMITS = {
         "soft_time_limit": 9 * 60,  # 9 minutes
         "time_limit": 10 * 60,  # 10 minutes (hard kill)

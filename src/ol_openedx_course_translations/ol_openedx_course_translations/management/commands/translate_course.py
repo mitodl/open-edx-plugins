@@ -64,6 +64,8 @@ class Command(BaseCommand):
         self.content_model = None
         self.srt_provider_name = None
         self.srt_model = None
+        self.validation_provider_name = None
+        self.validation_model = None
         self.content_glossary = None
         self.srt_glossary = None
         self.keep_failure = False
@@ -132,6 +134,17 @@ class Command(BaseCommand):
             help=(
                 "Path to glossary directory for SRT subtitle translation. "
                 "Should contain language-specific glossary files."
+            ),
+        )
+        parser.add_argument(
+            "--validation-provider",
+            dest="validation_provider",
+            default="gemini",
+            help=(
+                "Translation validation provider for quality checking. "
+                "Format: 'PROVIDER' or 'PROVIDER/MODEL' "
+                "(e.g., 'gemini', 'gemini/gemini-3-pro-preview', 'openai/gpt-5.2'). "
+                "Default: gemini. Used only for validation, not initial translation."
             ),
         )
         parser.add_argument(
@@ -230,6 +243,7 @@ class Command(BaseCommand):
 
             content_provider_spec = options["content_translation_provider"]
             srt_provider_spec = options["srt_translation_provider"]
+            validation_provider_spec = options.get("validation_provider", "gemini")
             content_glossary = options.get("content_glossary")
             srt_glossary = options.get("srt_glossary")
             keep_failure = options.get("keep_failure", False)
@@ -240,6 +254,9 @@ class Command(BaseCommand):
             )
             srt_provider_name, srt_model = self._parse_and_validate_provider_spec(
                 srt_provider_spec
+            )
+            validation_provider_name, validation_model = (
+                self._parse_and_validate_provider_spec(validation_provider_spec)
             )
 
             # Log the resolved configuration
@@ -255,6 +272,13 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f"SRT provider: {srt_provider_name}")
 
+            if validation_model:
+                self.stdout.write(
+                    f"Validation provider: {validation_provider_name}/{validation_model}"
+                )
+            else:
+                self.stdout.write(f"Validation provider: {validation_provider_name}")
+
             # Validate inputs
             validate_course_inputs(course_archive_path)
 
@@ -263,6 +287,8 @@ class Command(BaseCommand):
             self.content_model = content_model
             self.srt_provider_name = srt_provider_name
             self.srt_model = srt_model
+            self.validation_provider_name = validation_provider_name
+            self.validation_model = validation_model
             self.content_glossary = content_glossary
             self.srt_glossary = srt_glossary
             self.keep_failure = keep_failure
@@ -403,6 +429,8 @@ class Command(BaseCommand):
                 self.content_model,
                 self.srt_provider_name,
                 self.srt_model,
+                self.validation_provider_name,
+                self.validation_model,
                 self.content_glossary,
                 self.srt_glossary,
             )
@@ -433,6 +461,8 @@ class Command(BaseCommand):
                     target_language,
                     self.content_provider_name,
                     self.content_model,
+                    self.validation_provider_name,
+                    self.validation_model,
                     self.content_glossary,
                 )
                 self.tasks.append(("grading_policy", str(grading_policy_file), task))
@@ -462,6 +492,8 @@ class Command(BaseCommand):
                     target_language,
                     self.content_provider_name,
                     self.content_model,
+                    self.validation_provider_name,
+                    self.validation_model,
                     self.content_glossary,
                 )
                 self.tasks.append(("policy", str(policy_file), task))
