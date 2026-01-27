@@ -80,6 +80,7 @@ class LLMProvider(TranslationProvider):
         repair_api_key: str | None = None,
         model_name: str | None = None,
         timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
+        srt_batch_size: int = 250,
     ):
         """
         Initialize LLM provider with API keys and model name.
@@ -88,10 +89,13 @@ class LLMProvider(TranslationProvider):
             primary_api_key: API key for the LLM service
             repair_api_key: API key for DeepL repair service (optional)
             model_name: Name of the LLM model to use
+            timeout: Request timeout in seconds
+            srt_batch_size: Batch size for subtitle translation
         """
         super().__init__(primary_api_key, repair_api_key)
         self.model_name = model_name
         self.timeout = timeout
+        self.srt_batch_size = srt_batch_size
         self._translation_cache: OrderedDict[tuple[str, str], str] = OrderedDict()
 
     def _cache_get(self, target_language: str, text: str) -> str | None:
@@ -564,11 +568,7 @@ class LLMProvider(TranslationProvider):
         )
 
         max_attempts = MAX_CHUNK_RETRIES
-        # Start with entire file, halve on each failure
-        batch_size = len(subtitle_list)
-        if batch_size > 250:  # noqa: PLR2004
-            batch_size = batch_size // 2  # start smaller for very large files
-
+        batch_size = min(len(subtitle_list), self.srt_batch_size)
         for attempt in range(1, max_attempts + 1):
             logger.info(
                 "  Attempt %d/%d: translating %d subtitles (batch_size=%d)...",
@@ -873,4 +873,9 @@ class MistralProvider(LLMProvider):
         if not model_name:
             msg = "model_name is required for MistralProvider"
             raise ValueError(msg)
-        super().__init__(primary_api_key, repair_api_key, f"mistral/{model_name}")
+        super().__init__(
+            primary_api_key,
+            repair_api_key,
+            f"mistral/{model_name}",
+            srt_batch_size=20,
+        )
