@@ -574,7 +574,8 @@ class Command(BaseCommand):
             action="store_true",
             default=False,
             help="Use glossary from plugin glossaries folder. "
-            "Looks for {plugin_dir}/glossaries/machine_learning/{lang_code}.txt",
+            "Looks for {plugin_dir}/glossaries/machine_learning/{iso_code}.txt "
+            "(uses --iso-code when given, else lang code).",
         )
         parser.add_argument(
             "--batch-size",
@@ -659,7 +660,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("\nNo empty keys to translate!"))
             return
 
-        glossary = self._load_glossary(options, lang_code)
+        glossary = self._load_glossary(options, iso_code)
 
         provider = options.get("provider") or get_default_provider()
         if not provider:
@@ -829,28 +830,37 @@ class Command(BaseCommand):
         )
         return filtered
 
-    def _load_glossary(self, options: dict, lang_code: str) -> dict[str, Any]:
-        """Load glossary if enabled."""
+    def _load_glossary(self, options: dict, iso_code: str) -> dict[str, Any]:
+        """Load glossary if enabled. Uses ISO code for file lookup.
+
+        iso_code is already normalized (e.g. es_419). Tries {iso_code}.txt first,
+        then {iso_code with underscores→hyphens}.txt (e.g. es-419.txt) if not found.
+        """
         if not options.get("glossary", False):
             return {}
 
         utils_file = Path(utils_module.__file__)
-        glossary_path = (
-            utils_file.parent.parent
-            / "glossaries"
-            / "machine_learning"
-            / f"{lang_code}.txt"
-        )
+        base_dir = utils_file.parent.parent / "glossaries" / "machine_learning"
+        candidates = [
+            base_dir / f"{iso_code}.txt",
+            base_dir / f"{iso_code.replace('_', '-')}.txt",
+        ]
+        glossary_path = None
+        for path in candidates:
+            if path.exists():
+                glossary_path = path
+                break
 
-        if glossary_path.exists():
+        if glossary_path is not None:
             self.stdout.write(f"\nLoading glossary from {glossary_path}...")
-            glossary = load_glossary(glossary_path, lang_code)
+            glossary = load_glossary(glossary_path, iso_code)
             self.stdout.write(f"   Loaded {len(glossary)} glossary terms")
             return glossary
 
         self.stdout.write(
             self.style.WARNING(
-                f"\nWARNING: Glossary file not found: {glossary_path}\n"
+                f"\nWARNING: Glossary file not found for {iso_code} "
+                f"(tried {candidates[0].name}, {candidates[1].name})\n"
                 f"   Continuing without glossary."
             )
         )
@@ -1397,7 +1407,7 @@ class Command(BaseCommand):
 
     def _parse_json_response(
         self, response_text: str, key_batch: list[dict]
-    ) -> list[str | dict] | None:
+    ) -> list[str | dict[str, str]] | None:
         """Parse JSON response from LLM."""
         json_text = response_text
         if "```json" in response_text:

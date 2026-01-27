@@ -806,17 +806,25 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
         ):
             return True
     # Singular entry - translation should be a string
-    elif (
-        isinstance(translation, str)
-        and translation
-        and (not entry.msgstr or not entry.msgstr.strip())
-    ):
-        # Normalize translation to match msgid's newline structure
-        normalized_translation = _normalize_translation_newlines(
-            entry.msgid, translation
-        )
-        entry.msgstr = normalized_translation
-        return True
+    elif (not entry.msgstr or not entry.msgstr.strip()):
+        # Handle case where LLM returns plural dict for singular entry
+        # (some LLMs like Mistral may incorrectly return plural format)
+        if isinstance(translation, dict) and "singular" in translation:
+            translation_str = str(translation["singular"]).strip()
+            if translation_str:
+                normalized_translation = _normalize_translation_newlines(
+                    entry.msgid, translation_str
+                )
+                entry.msgstr = normalized_translation
+                return True
+        # Normal string translation
+        elif isinstance(translation, str) and translation:
+            # Normalize translation to match msgid's newline structure
+            normalized_translation = _normalize_translation_newlines(
+                entry.msgid, translation
+            )
+            entry.msgstr = normalized_translation
+            return True
     return False
 
 
