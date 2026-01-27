@@ -788,312 +788,124 @@ class HtmlXmlTranslationHelper:
 
     @staticmethod
     def _convert_js_to_python_literal(js_text: str) -> str:
-        """
-        Convert JavaScript object/array literal syntax to Python dict/list syntax.
-
-        Handles common differences:
-        - true/false/null -> True/False/None
-        - Trailing commas (allowed in both)
-        - Single-line comments // (removed)
-
-        Args:
-            js_text: JavaScript object or array literal
-
-        Returns:
-            Python-compatible literal string
-        """
-        # Remove single-line comments
+        """Convert JS object literal syntax to Python."""
         text = re.sub(r"//.*$", "", js_text, flags=re.MULTILINE)
-
-        # Replace JavaScript literals with Python equivalents
-        # Use word boundaries to avoid replacing inside strings
-        text = re.sub(r"\btrue\b", "True", text)
-        text = re.sub(r"\bfalse\b", "False", text)
-        text = re.sub(r"\bnull\b", "None", text)
+        for js, py in [("true", "True"), ("false", "False"), ("null", "None")]:
+            text = re.sub(rf"\b{js}\b", py, text)
         return re.sub(r"\bundefined\b", "None", text)
 
     def _extract_js_object_literals(self, script_text: str) -> list[tuple[str, str]]:
-        """
-        Extract object/array literals from JavaScript variable assignments.
-
-        Args:
-            script_text: JavaScript code containing variable assignments
-
-        Returns:
-            List of (variable_name, object_literal) tuples
-        """
+        """Extract (var_name, object_literal) from JS variable assignments."""
         results = []
-
-        # Pattern to match: const/let/var NAME = { ... } or [ ... ]
-        # We need to handle nested braces/brackets properly
-        var_pattern = re.compile(
-            r"(?:const|let|var)\s+(\w+)\s*=\s*",
-            re.MULTILINE,
-        )
-
-        for match in var_pattern.finditer(script_text):
-            var_name = match.group(1)
-            start_pos = match.end()
-
-            if start_pos >= len(script_text):
-                continue
-
-            # Find the opening brace/bracket
-            first_char = script_text[start_pos:].lstrip()[0:1]
+        for match in re.finditer(r"(?:const|let|var)\s+(\w+)\s*=\s*", script_text):
+            pos = match.end()
+            first_char = script_text[pos:].lstrip()[:1]
             if first_char not in ("{", "["):
                 continue
-
-            # Find matching close brace/bracket
-            adjusted_start = (
-                start_pos
-                + len(script_text[start_pos:])
-                - len(script_text[start_pos:].lstrip())
-            )
-            obj_literal = self._extract_balanced_braces(
-                script_text, adjusted_start, first_char
-            )
-            if obj_literal:
-                results.append((var_name, obj_literal))
-
+            start = pos + len(script_text[pos:]) - len(script_text[pos:].lstrip())
+            if obj := self._extract_balanced(script_text, start, first_char):
+                results.append((match.group(1), obj))
         return results
 
     @staticmethod
-    def _extract_balanced_braces(text: str, start: int, open_char: str) -> str | None:
-        """
-        Extract a balanced brace/bracket expression from text.
-
-        Args:
-            text: Full text
-            start: Starting position (at the opening brace/bracket)
-            open_char: The opening character ('{' or '[')
-
-        Returns:
-            The balanced expression including braces, or None if unbalanced
-        """
-        close_char = "}" if open_char == "{" else "]"
-        depth = 0
-        in_string = False
-        string_char = None
-        escape_next = False
-        i = start
-
-        while i < len(text):
-            char = text[i]
-
-            if escape_next:
-                escape_next = False
-                i += 1
-                continue
-
-            if char == "\\":
-                escape_next = True
-                i += 1
-                continue
-
-            if in_string:
-                if char == string_char:
-                    in_string = False
-            elif char in ('"', "'"):
-                in_string = True
-                string_char = char
-            elif char == open_char:
+    def _extract_balanced(text: str, start: int, open_ch: str) -> str | None:
+        """Extract balanced brace/bracket expression from text."""
+        close_ch = "}" if open_ch == "{" else "]"
+        depth, in_str, esc = 0, False, False
+        for i, c in enumerate(text[start:], start):
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif in_str:
+                if c == in_str:
+                    in_str = False
+            elif c in "\"'":
+                in_str = c  # type: ignore[assignment]
+            elif c == open_ch:
                 depth += 1
-            elif char == close_char:
+            elif c == close_ch:
                 depth -= 1
                 if depth == 0:
                     return text[start : i + 1]
-
-            i += 1
-
         return None
 
     @staticmethod
     def _serialize_python_dict(data: dict | list, original_text: str) -> str:
-        """
-        Serialize a Python dict/list back to string, preserving formatting.
-
-        Attempts to detect whether the original used single or double quotes
-        and maintains that style.
-
-        Args:
-            data: The dictionary or list to serialize
-            original_text: The original text to detect formatting style from
-
-        Returns:
-            Serialized string representation
-        """
-        # Detect if original used single quotes predominantly
-        single_quote_count = original_text.count("'")
-        double_quote_count = original_text.count('"')
-        use_single_quotes = single_quote_count > double_quote_count
-
-        # Use repr which gives Python literal syntax
+        """Serialize dict/list back to string, preserving quote style."""
         result = repr(data)
-
-        # If original used double quotes but repr uses single, swap them
-        # (repr typically uses single quotes)
-        if not use_single_quotes:
-            # Simple swap - this works for most cases without nested quotes
+        if original_text.count('"') > original_text.count("'"):
             result = result.replace("'", '"')
-
         return result
 
-    def _extract_dict_units(  # noqa: C901
-        self,
-        el: etree._Element,
-        xpath: str,
+    def _extract_dict_units(
+        self, el: etree._Element, xpath: str
     ) -> tuple[list[str], list[_TranslationUnitRef]]:
-        """
-        Extract translatable string values from dict content in a script tag.
-
-        Supports both JSON and Python dictionary syntax.
-        Recursively walks the structure and extracts all string values
-        that appear to be translatable text (not URLs, identifiers, etc.).
-
-        Returns:
-            Tuple of (units, refs) for all translatable strings in the dictionary
-        """
-        units: list[str] = []
-        refs: list[_TranslationUnitRef] = []
-
+        """Extract translatable values from dict/JSON content in a script tag."""
         if not el.text:
-            return units, refs
-
-        # Try parsing as Python dict first, then fall back to JSON
+            return [], []
         data = self._parse_python_dict(el.text)
         if data is None:
             try:
                 data = json.loads(el.text)
             except json.JSONDecodeError:
-                return units, refs
+                return [], []
+        return self._collect_dict_units(data, xpath, None, values_only=True)
 
-        def extract_from_value(
-            value: str | dict | list, path: tuple[str | int, ...]
-        ) -> None:
-            """Recursively extract translatable strings from value."""
-            if isinstance(value, str):
-                _leading, core, _trailing = self._split_preserve_outer_ws(value)
-                if core.strip() and not self._looks_like_nontranslatable(core):
-                    units.append(core)
-                    refs.append(
-                        _TranslationUnitRef(
-                            kind="dict_value",
-                            xpath=xpath,
-                            json_path=path,
-                        )
-                    )
-            elif isinstance(value, dict):
-                for key, val in value.items():
-                    extract_from_value(val, (*path, key))
-            elif isinstance(value, list):
-                for idx, item in enumerate(value):
-                    extract_from_value(item, (*path, idx))
-
-        extract_from_value(data, ())
-        return units, refs
-
-    def _extract_js_dict_units(  # noqa: C901
-        self,
-        el: etree._Element,
-        xpath: str,
+    def _extract_js_dict_units(
+        self, el: etree._Element, xpath: str
     ) -> tuple[list[str], list[_TranslationUnitRef]]:
-        """
-        Extract translatable keys and values from JS object literals in a script tag.
-
-        Finds variable assignments like `const glossaryData = {...}` and extracts
-        translatable string keys and values from the object literals.
-
-        Returns:
-            Tuple of (units, refs) for all translatable strings in JS objects
-        """
+        """Extract translatable keys and values from JS object literals."""
+        if not el.text:
+            return [], []
         units: list[str] = []
         refs: list[_TranslationUnitRef] = []
-
-        if not el.text:
-            return units, refs
-
-        # Extract object literals from JS variable assignments
-        js_objects = self._extract_js_object_literals(el.text)
-
-        for var_name, obj_literal in js_objects:
-            # Convert JS syntax to Python and parse
-            python_literal = self._convert_js_to_python_literal(obj_literal)
-            data = self._parse_python_dict(python_literal)
-
+        for var_name, obj_literal in self._extract_js_object_literals(el.text):
+            py_lit = self._convert_js_to_python_literal(obj_literal)
+            data = self._parse_python_dict(py_lit)
             if data is None:
-                # Try parsing as JSON as fallback
                 try:
                     data = json.loads(obj_literal)
                 except json.JSONDecodeError:
                     continue
+            u, r = self._collect_dict_units(data, xpath, var_name, values_only=False)
+            units.extend(u)
+            refs.extend(r)
+        return units, refs
 
-            def extract_from_container(  # noqa: C901
-                container: dict | list,
-                path: tuple[str | int, ...],
-                vname: str,
-            ) -> None:
-                """Recursively extract translatable keys and values."""
-                if isinstance(container, dict):
-                    for key, val in container.items():
-                        # Extract the key itself if it's a translatable string
-                        if isinstance(key, str):
-                            _leading, core, _trailing = self._split_preserve_outer_ws(
-                                key
-                            )
-                            if core.strip() and not self._looks_like_nontranslatable(
-                                core
-                            ):
-                                units.append(core)
-                                refs.append(
-                                    _TranslationUnitRef(
-                                        kind="js_dict_key",
-                                        xpath=xpath,
-                                        json_path=(*path, key),
-                                        js_var_name=vname,
-                                    )
-                                )
-                        # Extract the value
-                        if isinstance(val, str):
-                            _leading, core, _trailing = self._split_preserve_outer_ws(
-                                val
-                            )
-                            if core.strip() and not self._looks_like_nontranslatable(
-                                core
-                            ):
-                                units.append(core)
-                                refs.append(
-                                    _TranslationUnitRef(
-                                        kind="js_dict_value",
-                                        xpath=xpath,
-                                        json_path=(*path, key),
-                                        js_var_name=vname,
-                                    )
-                                )
-                        elif isinstance(val, (dict, list)):
-                            extract_from_container(val, (*path, key), vname)
-                elif isinstance(container, list):
-                    for idx, item in enumerate(container):
-                        if isinstance(item, str):
-                            _leading, core, _trailing = self._split_preserve_outer_ws(
-                                item
-                            )
-                            if core.strip() and not self._looks_like_nontranslatable(
-                                core
-                            ):
-                                units.append(core)
-                                refs.append(
-                                    _TranslationUnitRef(
-                                        kind="js_dict_value",
-                                        xpath=xpath,
-                                        json_path=(*path, idx),
-                                        js_var_name=vname,
-                                    )
-                                )
-                        elif isinstance(item, (dict, list)):
-                            extract_from_container(item, (*path, idx), vname)
+    def _collect_dict_units(  # noqa: C901
+        self, data: dict | list, xpath: str, var_name: str | None, *, values_only: bool
+    ) -> tuple[list[str], list[_TranslationUnitRef]]:
+        """Recursively collect translatable strings from a dict/list structure."""
+        units: list[str] = []
+        refs: list[_TranslationUnitRef] = []
 
-            extract_from_container(data, (), var_name)
+        def add_unit(core: str, kind: str, path: tuple[str | int, ...]) -> None:
+            units.append(core)
+            refs.append(
+                _TranslationUnitRef(
+                    kind=kind, xpath=xpath, json_path=path, js_var_name=var_name
+                )
+            )
 
+        def collect(val: str | dict | list, path: tuple[str | int, ...]) -> None:
+            if isinstance(val, str):
+                _, core, _ = self._split_preserve_outer_ws(val)
+                if core.strip() and not self._looks_like_nontranslatable(core):
+                    kind = "js_dict_value" if var_name else "dict_value"
+                    add_unit(core, kind, path)
+            elif isinstance(val, dict):
+                for k, v in val.items():
+                    if not values_only and isinstance(k, str):
+                        _, core, _ = self._split_preserve_outer_ws(k)
+                        if core.strip() and not self._looks_like_nontranslatable(core):
+                            add_unit(core, "js_dict_key", (*path, k))
+                    collect(v, (*path, k))
+            elif isinstance(val, list):
+                for i, item in enumerate(val):
+                    collect(item, (*path, i))
+
+        collect(data, ())
         return units, refs
 
     def _should_translate_text_in_element(self, el: etree._Element) -> bool:
@@ -1196,153 +1008,107 @@ class HtmlXmlTranslationHelper:
     def _navigate_dict_path(
         self, data: dict | list, path: tuple[str | int, ...]
     ) -> tuple[dict | list, str | int] | None:
-        """
-        Navigate to the parent container of the target value/key.
-
-        Returns (parent_container, final_key) or None if path not found.
-        """
+        """Navigate to parent of target. Returns (parent, key) or None."""
         if not path:
             return None
         current: dict | list = data
         for key in path[:-1]:
-            if isinstance(current, dict) and key in current:  # noqa: SIM114
+            if isinstance(current, dict) and key in current:
                 current = current[key]
-            elif (
-                isinstance(current, list)
-                and isinstance(key, int)
-                and 0 <= key < len(current)
-            ):
-                current = current[key]
+            elif isinstance(current, list) and isinstance(key, int):
+                if 0 <= key < len(current):
+                    current = current[key]
+                else:
+                    return None
             else:
                 return None
         return current, path[-1]
 
-    def _apply_value_translation(
+    def _set_dict_value(
         self, parent: dict | list, key: str | int, translated_core: str
-    ) -> bool:
-        """Apply translation to a value at parent[key], preserving whitespace."""
-        val = None
+    ) -> None:
+        """Set translated value at key in parent container."""
         if isinstance(parent, dict) and key in parent:  # noqa: SIM114
-            val = parent[key]
-        elif (
-            isinstance(parent, list) and isinstance(key, int) and 0 <= key < len(parent)
-        ):
-            val = parent[key]
-        if isinstance(val, str):
-            leading, _, trailing = self._split_preserve_outer_ws(val)
-            parent[key] = f"{leading}{translated_core}{trailing}"  # type: ignore[index]
-            return True
-        return False
+            if isinstance(parent[key], str):
+                lead, _, trail = self._split_preserve_outer_ws(parent[key])
+                parent[key] = f"{lead}{translated_core}{trail}"
+        elif isinstance(parent, list) and isinstance(key, int):  # noqa: SIM102
+            if isinstance(parent[key], str):
+                lead, _, trail = self._split_preserve_outer_ws(parent[key])
+                parent[key] = f"{lead}{translated_core}{trail}"
 
     def _apply_dict_translation(
-        self,
-        el: etree._Element,
-        dict_path: tuple[str | int, ...],
-        translated_core: str,
+        self, el: etree._Element, dict_path: tuple[str | int, ...], translated_core: str
     ) -> None:
-        """Apply a translation to a path within dictionary content of a script tag."""
+        """Apply translation to a path within dict/JSON content."""
         if not el.text:
             return
-
         original_text = el.text
         data = self._parse_python_dict(original_text)
-        is_python_dict = data is not None
-
+        is_python = data is not None
         if data is None:
             try:
                 data = json.loads(original_text)
             except json.JSONDecodeError:
                 return
-
-        result = self._navigate_dict_path(data, dict_path)
-        if result is None:
-            return
-        self._apply_value_translation(result[0], result[1], translated_core)
-
-        if is_python_dict:
+        if result := self._navigate_dict_path(data, dict_path):
+            parent, key = result
+            self._set_dict_value(parent, key, translated_core)
+        if is_python:
             el.text = self._serialize_python_dict(data, original_text)
         else:
             el.text = json.dumps(data, ensure_ascii=False, indent=2)
 
-    def _get_js_object_data(
+    def _get_js_data(
         self, el: etree._Element, var_name: str
     ) -> tuple[str, str, dict | list] | None:
-        """
-        Parse a JS variable's object literal.
-
-        Returns (original_text, literal, data) or None.
-        """
+        """Parse JS variable's object. Returns (original_text, literal, data)."""
         if not el.text:
             return None
-        original_text = el.text
-        for vname, obj_literal in self._extract_js_object_literals(original_text):
+        for vname, lit in self._extract_js_object_literals(el.text):
             if vname == var_name:
-                python_literal = self._convert_js_to_python_literal(obj_literal)
-                data = self._parse_python_dict(python_literal)
+                py_lit = self._convert_js_to_python_literal(lit)
+                data = self._parse_python_dict(py_lit)
                 if data is None:
                     try:
-                        data = json.loads(obj_literal)
+                        data = json.loads(lit)
                     except json.JSONDecodeError:
                         return None
-                return original_text, obj_literal, data
+                return el.text, lit, data
         return None
 
-    def _apply_js_dict_translation(
+    def _apply_js_translation(
         self,
         el: etree._Element,
         var_name: str,
         dict_path: tuple[str | int, ...],
         translated_core: str,
+        *,
+        is_key: bool = False,
     ) -> None:
-        """Apply a translation to a value within a JavaScript object literal."""
-        parsed = self._get_js_object_data(el, var_name)
-        if parsed is None:
-            return
-        original_text, target_literal, data = parsed
-
-        result = self._navigate_dict_path(data, dict_path)
-        if result is None:
-            return
-        self._apply_value_translation(result[0], result[1], translated_core)
-
-        new_literal = json.dumps(data, ensure_ascii=False, indent=2)
-        el.text = original_text.replace(target_literal, new_literal, 1)
-
-    def _apply_js_dict_key_translation(
-        self,
-        el: etree._Element,
-        var_name: str,
-        dict_path: tuple[str | int, ...],
-        translated_core: str,
-    ) -> None:
-        """Apply a translation to a key within a JavaScript object literal."""
+        """Apply translation to a value or key within a JS object literal."""
         if not dict_path:
             return
-        parsed = self._get_js_object_data(el, var_name)
-        if parsed is None:
+        if (parsed := self._get_js_data(el, var_name)) is None:
             return
         original_text, target_literal, data = parsed
-
-        result = self._navigate_dict_path(data, dict_path)
-        if result is None:
+        if (result := self._navigate_dict_path(data, dict_path)) is None:
             return
         parent, old_key = result
 
-        # Key translation only works for dicts with string keys
-        if not isinstance(parent, dict) or not isinstance(old_key, str):
-            return
-        if old_key not in parent:
-            return
-
-        # Preserve whitespace and rename key while keeping order
-        leading, _, trailing = self._split_preserve_outer_ws(old_key)
-        new_key = f"{leading}{translated_core}{trailing}"
-
-        # Rebuild dict with renamed key preserving order
-        items = list(parent.items())
-        parent.clear()
-        for k, v in items:
-            parent[new_key if k == old_key else k] = v
+        if is_key:
+            if not isinstance(parent, dict):
+                return
+            if not isinstance(old_key, str) or old_key not in parent:
+                return
+            lead, _, trail = self._split_preserve_outer_ws(old_key)
+            new_key = f"{lead}{translated_core}{trail}"
+            items = list(parent.items())
+            parent.clear()
+            for k, v in items:
+                parent[new_key if k == old_key else k] = v
+        else:
+            self._set_dict_value(parent, old_key, translated_core)
 
         new_literal = json.dumps(data, ensure_ascii=False, indent=2)
         el.text = original_text.replace(target_literal, new_literal, 1)
@@ -1423,27 +1189,26 @@ class HtmlXmlTranslationHelper:
 
         # Apply JavaScript dictionary value translations first
         for xpath, translations in js_dict_translations.items():
-            nodes = tree.xpath(xpath)
-            if not nodes:
+            if not (nodes := tree.xpath(xpath)):
                 continue
-            el = nodes[0]
             for ref, translated_core in translations:
-                if ref.json_path is not None and ref.js_var_name is not None:
-                    self._apply_js_dict_translation(
-                        el, ref.js_var_name, ref.json_path, translated_core
+                if ref.json_path and ref.js_var_name:
+                    self._apply_js_translation(
+                        nodes[0], ref.js_var_name, ref.json_path, translated_core
                     )
 
         # Apply JavaScript dictionary key translations after values
-        # (renaming keys changes the structure, so we do this last)
         for xpath, translations in js_dict_key_translations.items():
-            nodes = tree.xpath(xpath)
-            if not nodes:
+            if not (nodes := tree.xpath(xpath)):
                 continue
-            el = nodes[0]
             for ref, translated_core in translations:
-                if ref.json_path is not None and ref.js_var_name is not None:
-                    self._apply_js_dict_key_translation(
-                        el, ref.js_var_name, ref.json_path, translated_core
+                if ref.json_path and ref.js_var_name:
+                    self._apply_js_translation(
+                        nodes[0],
+                        ref.js_var_name,
+                        ref.json_path,
+                        translated_core,
+                        is_key=True,
                     )
 
         return root
