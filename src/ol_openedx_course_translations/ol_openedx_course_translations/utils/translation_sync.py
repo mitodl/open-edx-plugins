@@ -806,7 +806,7 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
         ):
             return True
     # Singular entry - translation should be a string
-    elif (not entry.msgstr or not entry.msgstr.strip()):
+    elif not entry.msgstr or not entry.msgstr.strip():
         # Handle case where LLM returns plural dict for singular entry
         # (some LLMs like Mistral may incorrectly return plural format)
         if isinstance(translation, dict) and "singular" in translation:
