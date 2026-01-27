@@ -56,6 +56,54 @@ class TranslationProvider(ABC):
         self.primary_api_key = primary_api_key
         self.repair_api_key = repair_api_key
 
+    def validate_translation(
+        self,
+        original_text: str,
+        translated_text: str,
+        target_language: str,
+        validation_provider: "TranslationProvider | None" = None,
+    ) -> dict:
+        """
+        Validate translation quality using a validation provider.
+
+        Args:
+            original_text: Original text in source language
+            translated_text: Translated text
+            target_language: Target language code
+            validation_provider: Provider to use for validation (if different)
+
+        Returns:
+            Dict with 'score' (int) and 'issues' (list of str)
+        """
+        # Default implementation: no validation
+        # LLM providers override this
+        return {"score": 10, "issues": []}
+
+    def correct_translation(
+        self,
+        original_text: str,
+        translated_text: str,
+        issues: list[str],
+        target_language: str,
+        glossary_directory: str | None = None,
+    ) -> str:
+        """
+        Correct translation based on identified issues.
+
+        Args:
+            original_text: Original text in source language
+            translated_text: Initial translation with issues
+            issues: List of issues to fix
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+
+        Returns:
+            Corrected translation
+        """
+        # Default implementation: return original translation
+        # LLM providers override this
+        return translated_text
+
     def translate_srt_with_validation(
         self,
         subtitle_list: list[srt.Subtitle],

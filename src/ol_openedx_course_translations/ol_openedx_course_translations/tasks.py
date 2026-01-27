@@ -42,7 +42,7 @@ TRANSLATE_FILE_TASK_LIMITS = getattr(
     },
     retry_backoff=False,  # keep retries predictable
 )
-def translate_file_task(  # noqa: PLR0913
+def translate_file_task(  # noqa: PLR0913, PLR0915
     _self,
     file_path_str: str,
     source_language: str,
@@ -51,14 +51,17 @@ def translate_file_task(  # noqa: PLR0913
     content_model: str | None,
     srt_provider_name: str,
     srt_model: str | None,
+    validation_provider_name: str | None = None,
+    validation_model: str | None = None,
     content_glossary: str | None = None,
     srt_glossary: str | None = None,
 ):
     """
-    Translate a single file asynchronously.
+    Translate a single file asynchronously with optional validation.
 
     Handles translation of various file types including SRT subtitles,
     XML, and HTML files. Uses appropriate translation provider based on file type.
+    Optionally validates and corrects content translations.
 
     Args:
         _self: Celery task instance (bound)
@@ -69,6 +72,8 @@ def translate_file_task(  # noqa: PLR0913
         content_model: Model name for content provider (optional)
         srt_provider_name: Provider name for SRT translation
         srt_model: Model name for SRT provider (optional)
+        validation_provider_name: Provider name for validation (optional)
+        validation_model: Model name for validation provider (optional)
         content_glossary: Path to glossary directory for content (optional)
         srt_glossary: Path to glossary directory for SRT (optional)
 
@@ -107,7 +112,7 @@ def translate_file_task(  # noqa: PLR0913
                 "output": str(output_file_path),
             }
 
-        # Handle other files
+        # Handle other files (XML, HTML, text)
         file_content = file_path.read_text(encoding="utf-8")
 
         tag_handling_mode = None
@@ -121,6 +126,20 @@ def translate_file_task(  # noqa: PLR0913
             tag_handling=tag_handling_mode,
             glossary_directory=content_glossary,
         )
+
+        # Validate and correct translation if validation provider is specified
+        validation_enabled = getattr(settings, "TRANSLATION_VALIDATION_ENABLED", True)
+        if validation_provider_name and validation_enabled:
+            translated_content = _validate_and_correct_translation(
+                original_text=file_content,
+                translated_text=translated_content,
+                target_language=target_language,
+                content_provider=provider,
+                validation_provider_name=validation_provider_name,
+                validation_model=validation_model,
+                glossary_directory=content_glossary,
+                file_path=file_path_str,
+            )
 
         # Handle XML display_name translation only for DeepL provider
         # LLM providers translate display_name as part of the XML translation
@@ -144,17 +163,131 @@ def translate_file_task(  # noqa: PLR0913
         return {"status": "success", "file": file_path_str}
 
 
+def _validate_and_correct_translation(  # noqa: PLR0913
+    original_text: str,
+    translated_text: str,
+    target_language: str,
+    content_provider,
+    validation_provider_name: str,
+    validation_model: str | None,
+    glossary_directory: str | None,
+    file_path: str,
+) -> str:
+    """
+    Validate and optionally correct a translation.
+
+    Args:
+        original_text: Original text
+        translated_text: Translated text
+        target_language: Target language code
+        content_provider: Provider used for initial translation
+        validation_provider_name: Provider name for validation
+        validation_model: Model for validation provider
+        glossary_directory: Glossary directory path
+        file_path: File path for logging
+
+    Returns:
+        Final translation (original, corrected, or fallback)
+    """
+    try:
+        # Get validation provider
+        validation_provider = get_translation_provider(
+            validation_provider_name, validation_model
+        )
+
+        # Validate initial translation
+        logger.info("Validating translation for: %s", file_path)
+        validation_result = content_provider.validate_translation(
+            original_text,
+            translated_text,
+            target_language.lower(),
+            validation_provider,
+        )
+
+        initial_score = validation_result.get("score", 10)
+        issues = validation_result.get("issues", [])
+
+        logger.info(
+            "Initial validation score: %d/10 for %s", initial_score, file_path
+        )
+
+        # Check if correction is needed
+        min_score = getattr(settings, "TRANSLATION_VALIDATION_MIN_SCORE", 7)
+        if initial_score >= min_score or not issues:
+            logger.info("Translation quality acceptable for: %s", file_path)
+            return translated_text
+
+        logger.info(
+            "Translation needs correction (%d issues) for: %s", len(issues), file_path
+        )
+        for i, issue in enumerate(issues[:5], 1):
+            logger.info("  Issue %d: %s", i, issue)
+        if len(issues) > 5:  # noqa: PLR2004
+            logger.info("  ... and %d more issues", len(issues) - 5)
+
+        # Attempt correction using content provider
+        corrected_text = content_provider.correct_translation(
+            original_text,
+            translated_text,
+            issues,
+            target_language.lower(),
+            glossary_directory,
+        )
+
+        # Re-validate corrected translation
+        logger.info("Re-validating corrected translation for: %s", file_path)
+        corrected_validation = content_provider.validate_translation(
+            original_text,
+            corrected_text,
+            target_language.lower(),
+            validation_provider,
+        )
+
+        corrected_score = corrected_validation.get("score", 0)
+        logger.info(
+            "Corrected validation score: %d/10 for %s", corrected_score, file_path
+        )
+
+        # Keep corrected version if score improved or stayed the same
+        if corrected_score >= initial_score:
+            logger.info(
+                "Using corrected translation (score: %d -> %d) for: %s",
+                initial_score,
+                corrected_score,
+                file_path,
+            )
+            return corrected_text
+        else:
+            logger.warning(
+                "Correction degraded quality (score: %d -> %d), keeping original for: %s",
+                initial_score,
+                corrected_score,
+                file_path,
+            )
+            return translated_text
+
+    except Exception as e:  # noqa: BLE001
+        logger.warning(
+            "Validation/correction failed for %s: %s. Using initial translation.",
+            file_path,
+            e,
+        )
+        return translated_text
+
+
 @shared_task(bind=True, name="translate_grading_policy_task")
-def translate_grading_policy_task(
+def translate_grading_policy_task(  # noqa: PLR0913
     _self,
     policy_file_path_str: str,
     target_language: str,
     content_provider_name: str,
     content_model: str | None,
+    validation_provider_name: str | None = None,
+    validation_model: str | None = None,
     content_glossary: str | None = None,
 ):
     """
-    Translate grading_policy.json file.
+    Translate grading_policy.json file with optional validation.
 
     Translates the short_label fields within the GRADER section of grading policy files.
 
@@ -164,6 +297,8 @@ def translate_grading_policy_task(
         target_language: Target language code
         content_provider_name: Provider name for content translation
         content_model: Model name for content provider (optional)
+        validation_provider_name: Provider name for validation (optional)
+        validation_model: Model name for validation provider (optional)
         content_glossary: Path to glossary directory for content (optional)
 
     Returns:
@@ -180,11 +315,27 @@ def translate_grading_policy_task(
         for grader_item in grading_policy_data.get("GRADER", []):
             for key in keys_to_translate:
                 if key in grader_item:
+                    original_value = grader_item[key]
                     translated_label = provider.translate_text(
-                        grader_item[key],
+                        original_value,
                         target_language.lower(),
                         glossary_directory=content_glossary,
                     )
+
+                    # Validate and correct if validation provider specified
+                    validation_enabled = getattr(settings, "TRANSLATION_VALIDATION_ENABLED", True)
+                    if validation_provider_name and validation_enabled:
+                        translated_label = _validate_and_correct_translation(
+                            original_text=original_value,
+                            translated_text=translated_label,
+                            target_language=target_language,
+                            content_provider=provider,
+                            validation_provider_name=validation_provider_name,
+                            validation_model=validation_model,
+                            glossary_directory=content_glossary,
+                            file_path=f"{policy_file_path_str}:{key}",
+                        )
+
                     grader_item[key] = translated_label
                     policy_updated = True
 
@@ -201,16 +352,18 @@ def translate_grading_policy_task(
 
 
 @shared_task(bind=True, name="translate_policy_json_task")
-def translate_policy_json_task(
+def translate_policy_json_task(  # noqa: PLR0913
     _self,
     policy_file_path_str: str,
     target_language: str,
     content_provider_name: str,
     content_model: str | None,
+    validation_provider_name: str | None = None,
+    validation_model: str | None = None,
     content_glossary: str | None = None,
 ):
     """
-    Translate policy.json file.
+    Translate policy.json file with optional validation.
 
     Translates various policy fields including display names, discussion topics,
     learning info, tabs, and XML attributes.
@@ -221,6 +374,8 @@ def translate_policy_json_task(
         target_language: Target language code
         content_provider_name: Provider name for content translation
         content_model: Model name for content provider (optional)
+        validation_provider_name: Provider name for validation (optional)
+        validation_model: Model name for validation provider (optional)
         content_glossary: Path to glossary directory for content (optional)
 
     Returns:
@@ -230,13 +385,25 @@ def translate_policy_json_task(
         policy_file_path = Path(policy_file_path_str)
         provider = get_translation_provider(content_provider_name, content_model)
 
+        # Get validation provider if specified
+        validation_provider = None
+        validation_enabled = getattr(settings, "TRANSLATION_VALIDATION_ENABLED", True)
+        if validation_provider_name and validation_enabled:
+            validation_provider = get_translation_provider(
+                validation_provider_name, validation_model
+            )
+
         policy_json_data = json.loads(policy_file_path.read_text(encoding="utf-8"))
         for course_policy_obj in policy_json_data.values():
             if not isinstance(course_policy_obj, dict):
                 continue
 
             translate_policy_fields(
-                course_policy_obj, target_language, provider, content_glossary
+                course_policy_obj,
+                target_language,
+                provider,
+                content_glossary,
+                validation_provider=validation_provider,
             )
 
         policy_file_path.write_text(

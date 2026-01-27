@@ -61,6 +61,10 @@ TRANSLATION_MARKER_END = ":::TRANSLATION_END:::"
 
 MAX_CHUNK_RETRIES = 3
 
+# Validation response markers
+VALIDATION_MARKER_START = ":::VALIDATION_START:::"
+VALIDATION_MARKER_END = ":::VALIDATION_END:::"
+
 
 class LLMProvider(TranslationProvider):
     """
@@ -664,6 +668,190 @@ class LLMProvider(TranslationProvider):
                     raise
 
         return translated_subtitle_list
+
+    def validate_translation(
+        self,
+        original_text: str,
+        translated_text: str,
+        target_language: str,
+        validation_provider: TranslationProvider | None = None,
+    ) -> dict:
+        """
+        Validate translation quality using LLM.
+
+        Args:
+            original_text: Original text in source language
+            translated_text: Translated text
+            target_language: Target language code
+            validation_provider: Provider to use for validation (uses self if None)
+
+        Returns:
+            Dict with 'score' (int) and 'issues' (list of str)
+        """
+        provider = validation_provider if validation_provider else self
+
+        # Only validate if provider is an LLM provider
+        if not isinstance(provider, LLMProvider):
+            return {"score": 10, "issues": []}
+
+        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+            target_language.lower(), target_language
+        )
+
+        system_prompt = (
+            "You are a professional translation quality evaluator. "
+            f"Evaluate the quality of an English to {target_language_display_name} translation.\n\n"
+            "OUTPUT FORMAT (exactly):\n"
+            f"{VALIDATION_MARKER_START}\n"
+            "SCORE: <number from 1-10>\n"
+            "ISSUES:\n"
+            "- <issue 1 if any>\n"
+            "- <issue 2 if any>\n"
+            "...\n"
+            f"{VALIDATION_MARKER_END}\n\n"
+            "EVALUATION CRITERIA:\n"
+            "1. Accuracy: Does the translation correctly convey the original meaning?\n"
+            "2. Fluency: Is the translation natural and grammatically correct?\n"
+            "3. Terminology: Are technical terms and proper nouns handled correctly?\n"
+            "4. Tone: Does the translation maintain the appropriate tone?\n"
+            "5. Formatting: Are HTML tags, placeholders, and formatting preserved?\n\n"
+            "SCORING GUIDELINES:\n"
+            "10: Perfect translation with no issues\n"
+            "8-9: Excellent translation with minor issues\n"
+            "6-7: Good translation with some noticeable issues\n"
+            "4-5: Adequate translation with significant issues\n"
+            "1-3: Poor translation requiring major corrections\n\n"
+            "INSTRUCTIONS:\n"
+            "- Assign a score between 1-10\n"
+            "- List specific, actionable issues (be concise)\n"
+            "- If score is 10, write 'ISSUES: None'\n"
+            "- Focus on substantive problems, not minor stylistic preferences\n"
+        )
+
+        user_content = (
+            f"ORIGINAL TEXT:\n{original_text}\n\n"
+            f"TRANSLATED TEXT:\n{translated_text}\n\n"
+            "Evaluate the translation quality and provide your assessment."
+        )
+
+        try:
+            response = provider._call_llm(system_prompt, user_content)
+            return self._parse_validation_response(response)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Validation failed: %s. Assuming translation is acceptable.", e)
+            return {"score": 8, "issues": []}
+
+    def _parse_validation_response(self, response: str) -> dict:
+        """
+        Parse validation response from LLM.
+
+        Args:
+            response: Raw LLM response text
+
+        Returns:
+            Dict with 'score' and 'issues'
+        """
+        # Extract content between markers
+        start_idx = response.find(VALIDATION_MARKER_START)
+        end_idx = response.find(VALIDATION_MARKER_END)
+
+        if start_idx != -1 and end_idx != -1:
+            content = response[start_idx + len(VALIDATION_MARKER_START):end_idx].strip()
+        else:
+            content = response
+
+        # Parse score
+        score = 8  # Default to acceptable
+        score_match = re.search(r'SCORE:\s*(\d+)', content, re.IGNORECASE)
+        if score_match:
+            try:
+                score = int(score_match.group(1))
+                score = max(1, min(10, score))  # Clamp to 1-10
+            except ValueError:
+                pass
+
+        # Parse issues
+        issues = []
+        issues_section = re.search(r'ISSUES:\s*(.+?)(?=\n\n|$)', content, re.DOTALL | re.IGNORECASE)
+        if issues_section:
+            issues_text = issues_section.group(1).strip()
+            if issues_text.lower() not in ['none', 'no issues', 'n/a']:
+                # Extract bullet points
+                for line in issues_text.split('\n'):
+                    line = line.strip()
+                    if line.startswith('-') or line.startswith('•'):
+                        issue = line.lstrip('-•').strip()
+                        if issue:
+                            issues.append(issue)
+
+        return {"score": score, "issues": issues}
+
+    def correct_translation(
+        self,
+        original_text: str,
+        translated_text: str,
+        issues: list[str],
+        target_language: str,
+        glossary_directory: str | None = None,
+    ) -> str:
+        """
+        Correct translation based on identified issues using LLM.
+
+        Args:
+            original_text: Original text in source language
+            translated_text: Initial translation with issues
+            issues: List of issues to fix
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+
+        Returns:
+            Corrected translation
+        """
+        if not issues:
+            return translated_text
+
+        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+            target_language.lower(), target_language
+        )
+
+        issues_formatted = "\n".join(f"- {issue}" for issue in issues)
+
+        system_prompt = (
+            f"You are a professional translator. "
+            f"Fix the following issues in an English to {target_language_display_name} translation.\n\n"
+            f"OUTPUT FORMAT (exactly):\n"
+            f"{TRANSLATION_MARKER_START}\n"
+            "Your corrected translation here\n"
+            f"{TRANSLATION_MARKER_END}\n\n"
+            "CORRECTION RULES:\n"
+            "1. Fix ONLY the reported issues\n"
+            "2. Preserve ALL formatting, HTML tags, and placeholders exactly\n"
+            "3. Keep proper nouns, brand names, and technical terms unchanged unless issues specify otherwise\n"
+            "4. Maintain the original translation structure and length where possible\n"
+            "5. Do NOT add explanations or notes\n"
+        )
+
+        if glossary_directory:
+            glossary_terms = load_glossary(target_language, glossary_directory)
+            if glossary_terms:
+                system_prompt += (
+                    f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
+                )
+
+        user_content = (
+            f"ORIGINAL TEXT:\n{original_text}\n\n"
+            f"CURRENT TRANSLATION:\n{translated_text}\n\n"
+            f"ISSUES TO FIX:\n{issues_formatted}\n\n"
+            "Provide the corrected translation that addresses these issues."
+        )
+
+        try:
+            response = self._call_llm(system_prompt, user_content)
+            corrected = self._parse_text_response(response)
+            return corrected if corrected.strip() else translated_text
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Correction failed: %s. Keeping original translation.", e)
+            return translated_text
 
     def translate_text(
         self,

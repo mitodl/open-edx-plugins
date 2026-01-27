@@ -230,26 +230,58 @@ def translate_policy_fields(  # noqa: C901
     target_language: str,
     provider,
     glossary_directory: str | None = None,
+    validation_provider=None,
 ) -> None:
     """
-    Translate fields in policy object.
+    Translate fields in policy object with optional validation.
 
     Args:
         course_policy_obj: Policy object dictionary
         target_language: Target language code
         provider: Translation provider instance
         glossary_directory: Optional glossary directory path
+        validation_provider: Optional validation provider
     """
+    def translate_with_validation(text: str) -> str:
+        """Helper to translate and optionally validate."""
+        translated = provider.translate_text(
+            text,
+            target_language.lower(),
+            glossary_directory=glossary_directory,
+        )
+
+        # Validate if provider is available
+        if validation_provider:
+            try:
+                validation_result = provider.validate_translation(
+                    text, translated, target_language.lower(), validation_provider
+                )
+                score = validation_result.get("score", 10)
+                issues = validation_result.get("issues", [])
+
+                min_score = getattr(settings, "TRANSLATION_VALIDATION_MIN_SCORE", 7)
+                if score < min_score and issues:
+                    corrected = provider.correct_translation(
+                        text, translated, issues, target_language.lower(), glossary_directory
+                    )
+                    # Re-validate
+                    corrected_validation = provider.validate_translation(
+                        text, corrected, target_language.lower(), validation_provider
+                    )
+                    if corrected_validation.get("score", 0) >= score:
+                        return corrected
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Validation failed for policy field: %s", e)
+
+        return translated
+
     # Translate string fields
     string_fields = ["advertised_start", "display_name", "display_organization"]
     for field in string_fields:
         if field in course_policy_obj:
-            translated = provider.translate_text(
-                course_policy_obj[field],
-                target_language.lower(),
-                glossary_directory=glossary_directory,
+            course_policy_obj[field] = translate_with_validation(
+                course_policy_obj[field]
             )
-            course_policy_obj[field] = translated
 
     # Update language attribute
     course_policy_obj["language"] = target_language.lower()
@@ -260,9 +292,7 @@ def translate_policy_fields(  # noqa: C901
         if isinstance(topics, dict):
             translated_topics = {}
             for key, value in topics.items():
-                translated_key = provider.translate_text(
-                    key, target_language.lower(), glossary_directory=glossary_directory
-                )
+                translated_key = translate_with_validation(key)
                 translated_topics[translated_key] = value
             course_policy_obj["discussion_topics"] = translated_topics
 
@@ -271,9 +301,7 @@ def translate_policy_fields(  # noqa: C901
         course_policy_obj["learning_info"], list
     ):
         translated_info = [
-            provider.translate_text(
-                item, target_language.lower(), glossary_directory=glossary_directory
-            )
+            translate_with_validation(item)
             for item in course_policy_obj["learning_info"]
         ]
         course_policy_obj["learning_info"] = translated_info
@@ -282,11 +310,7 @@ def translate_policy_fields(  # noqa: C901
     if "tabs" in course_policy_obj and isinstance(course_policy_obj["tabs"], list):
         for tab in course_policy_obj["tabs"]:
             if isinstance(tab, dict) and "name" in tab:
-                tab["name"] = provider.translate_text(
-                    tab["name"],
-                    target_language.lower(),
-                    glossary_directory=glossary_directory,
-                )
+                tab["name"] = translate_with_validation(tab["name"])
 
     # Translate XML attributes
     if "xml_attributes" in course_policy_obj and isinstance(
@@ -296,12 +320,9 @@ def translate_policy_fields(  # noqa: C901
         translatable_xml_fields = ["display_name", "info_sidebar_name"]
         for xml_field_name in translatable_xml_fields:
             if xml_field_name in xml_attributes_dict:
-                translated_value = provider.translate_text(
-                    xml_attributes_dict[xml_field_name],
-                    target_language.lower(),
-                    glossary_directory=glossary_directory,
+                xml_attributes_dict[xml_field_name] = translate_with_validation(
+                    xml_attributes_dict[xml_field_name]
                 )
-                xml_attributes_dict[xml_field_name] = translated_value
 
 
 def get_srt_output_filename(input_filename: str, target_language: str) -> str:
