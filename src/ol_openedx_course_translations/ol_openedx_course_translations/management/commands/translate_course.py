@@ -64,7 +64,9 @@ class Command(BaseCommand):
         self.content_model = None
         self.srt_provider_name = None
         self.srt_model = None
-        self.glossary_directory = None
+        self.content_glossary = None
+        self.srt_glossary = None
+        self.keep_failure = False
 
     def add_arguments(self, parser) -> None:
         """Entry point for subclassed commands to add custom arguments."""
@@ -115,12 +117,21 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
-            "--glossary-dir",
-            dest="glossary_directory",
+            "--content-glossary",
+            dest="content_glossary",
             required=False,
             help=(
-                "Path to glossary directory containing "
-                "language-specific glossary files."
+                "Path to glossary directory for content (XML/HTML and text) "
+                "translation. Should contain language-specific glossary files."
+            ),
+        )
+        parser.add_argument(
+            "--srt-glossary",
+            dest="srt_glossary",
+            required=False,
+            help=(
+                "Path to glossary directory for SRT subtitle translation. "
+                "Should contain language-specific glossary files."
             ),
         )
         parser.add_argument(
@@ -205,7 +216,7 @@ class Command(BaseCommand):
 
         return provider_name, default_model
 
-    def handle(self, **options) -> None:
+    def handle(self, **options) -> None:  # noqa: PLR0915
         """Handle the translate_course command."""
         try:
             start_time = time.perf_counter()
@@ -219,7 +230,8 @@ class Command(BaseCommand):
 
             content_provider_spec = options["content_translation_provider"]
             srt_provider_spec = options["srt_translation_provider"]
-            glossary_directory = options.get("glossary_directory")
+            content_glossary = options.get("content_glossary")
+            srt_glossary = options.get("srt_glossary")
             keep_failure = options.get("keep_failure", False)
 
             # Parse and validate provider specifications (includes validation)
@@ -251,7 +263,8 @@ class Command(BaseCommand):
             self.content_model = content_model
             self.srt_provider_name = srt_provider_name
             self.srt_model = srt_model
-            self.glossary_directory = glossary_directory
+            self.content_glossary = content_glossary
+            self.srt_glossary = srt_glossary
             self.keep_failure = keep_failure
             # Extract course archive
             extracted_course_dir = extract_course_archive(course_archive_path)
@@ -390,7 +403,8 @@ class Command(BaseCommand):
                 self.content_model,
                 self.srt_provider_name,
                 self.srt_model,
-                self.glossary_directory,
+                self.content_glossary,
+                self.srt_glossary,
             )
             self.tasks.append(("file", str(file_path), task))
             logger.info("Added translation task for: %s", file_path)
@@ -419,7 +433,7 @@ class Command(BaseCommand):
                     target_language,
                     self.content_provider_name,
                     self.content_model,
-                    self.glossary_directory,
+                    self.content_glossary,
                 )
                 self.tasks.append(("grading_policy", str(grading_policy_file), task))
                 logger.info("Added grading policy task for: %s", grading_policy_file)
@@ -448,7 +462,7 @@ class Command(BaseCommand):
                     target_language,
                     self.content_provider_name,
                     self.content_model,
-                    self.glossary_directory,
+                    self.content_glossary,
                 )
                 self.tasks.append(("policy", str(policy_file), task))
                 logger.info("Added policy.json task for: %s", policy_file)

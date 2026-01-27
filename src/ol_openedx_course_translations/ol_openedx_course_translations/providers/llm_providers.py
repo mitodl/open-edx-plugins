@@ -80,6 +80,7 @@ class LLMProvider(TranslationProvider):
         repair_api_key: str | None = None,
         model_name: str | None = None,
         timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
+        srt_batch_size: int = 250,
     ):
         """
         Initialize LLM provider with API keys and model name.
@@ -88,10 +89,13 @@ class LLMProvider(TranslationProvider):
             primary_api_key: API key for the LLM service
             repair_api_key: API key for DeepL repair service (optional)
             model_name: Name of the LLM model to use
+            timeout: Request timeout in seconds
+            srt_batch_size: Batch size for subtitle translation
         """
         super().__init__(primary_api_key, repair_api_key)
         self.model_name = model_name
         self.timeout = timeout
+        self.srt_batch_size = srt_batch_size
         self._translation_cache: OrderedDict[tuple[str, str], str] = OrderedDict()
 
     def _cache_get(self, target_language: str, text: str) -> str | None:
@@ -180,57 +184,17 @@ class LLMProvider(TranslationProvider):
         )
 
         system_prompt = (
-            f"This is educational content. "
-            f"You are a localization engine for Open edX. "
             f"Translate the following English text to "
             f"{target_language_display_name}.\n\n"
             f"OUTPUT FORMAT (exactly):\n"
             f"{TRANSLATION_MARKER_START}\n"
             "Your translated text here\n"
             f"{TRANSLATION_MARKER_END}\n\n"
-            "CRITICAL RULES FOR XML/HTML TAGS:\n"
-            "1. NEVER translate or modify XML/HTML tag names or structure.\n"
-            "2. XML/HTML tags include anything within angle brackets: < >.\n"
-            "3. Preserve ALL tags exactly as they appear in the input.\n"
-            "4. Only translate:\n"
-            "   a) Visible TEXT CONTENT between tags, AND\n"
-            "   b) User-facing / human-readable attribute VALUES listed below.\n\n"
-            "USER-FACING ATTRIBUTES THAT MUST BE TRANSLATED (when present):\n"
-            "   - placeholder\n"
-            "   - title\n"
-            "   - aria-label\n"
-            "   - alt\n"
-            "   - label\n"
-            "   - value (ONLY if it is clearly user-visible text, not a key or code)\n"
-            "   - display_name\n\n"
-            "ATTRIBUTES THAT MUST NEVER BE TRANSLATED OR MODIFIED:\n"
-            "   - id, class, name\n"
-            "   - href, src, action\n"
-            "   - data-*, aria-* (except aria-label)\n"
-            "   - role, type, rel, target\n"
-            "   - url_name, filename, correct (except as noted below)\n"
-            "   - JavaScript hooks, CSS selectors, analytics identifiers\n\n"
-            "5. Attribute NAMES must NEVER be translated — only approved attribute VALUES.\n"  # noqa: E501
-            "6. DO NOT add new attributes or remove existing ones.\n"
-            "7. DO NOT translate attribute values that look like:\n"
-            "   - URLs, file paths, IDs, keys, slugs, or code\n"
-            "8. DO NOT translate self-closing or structural tags.\n\n"
-            "OPEN EDX-SPECIFIC RULES:\n"
-            "1. Translate 'options' and 'correct' attribute VALUES in 'optioninput' tags ONLY.\n"  # noqa: E501
-            "2. DO NOT translate 'correct' anywhere else.\n"
-            "3. DO NOT add display_name if it is missing.\n\n"
-            "EXAMPLES OF WHAT NOT TO TRANSLATE:\n"
-            "   - <video>, <problem>, <html>, <div>, <p>, etc.\n"
-            "   - Attributes: url_name, filename, src, href, class\n"
-            "   - Self-closing tags: <vertical />, <sequential />\n\n"
             "GENERAL TRANSLATION RULES:\n"
             "1. Output ONLY the translation between the markers.\n"
             "2. Maintain the original formatting, spacing, line breaks, and indentation.\n"  # noqa: E501
             "3. Keep proper nouns, brand names, acronyms, and product names unchanged.\n"  # noqa: E501
             "4. Do NOT include explanations, notes, or commentary.\n"
-            "5. Ensure the output is valid XML/HTML after translation.\n"
-            "Rules for Tone:\n"
-            f"Use professional, academic {target_language_display_name}."
         )
 
         if glossary_directory:
@@ -464,7 +428,8 @@ class LLMProvider(TranslationProvider):
             target_language, target_language
         )
         system_prompt = (
-            f"You are a professional translator. Translate English to {target_language_display_name}.\n\n"  # noqa: E501
+            f"You are a professional translator. "
+            f"Translate English to {target_language_display_name}.\n\n"
             "INPUT FORMAT:\n"
             ":::ID:::\n"
             "Text\n\n"
@@ -603,11 +568,7 @@ class LLMProvider(TranslationProvider):
         )
 
         max_attempts = MAX_CHUNK_RETRIES
-        # Start with entire file, halve on each failure
-        batch_size = len(subtitle_list)
-        if batch_size > 250:  # noqa: PLR2004
-            batch_size = batch_size // 2  # start smaller for very large files
-
+        batch_size = min(len(subtitle_list), self.srt_batch_size)
         for attempt in range(1, max_attempts + 1):
             logger.info(
                 "  Attempt %d/%d: translating %d subtitles (batch_size=%d)...",
@@ -912,4 +873,9 @@ class MistralProvider(LLMProvider):
         if not model_name:
             msg = "model_name is required for MistralProvider"
             raise ValueError(msg)
-        super().__init__(primary_api_key, repair_api_key, f"mistral/{model_name}")
+        super().__init__(
+            primary_api_key,
+            repair_api_key,
+            f"mistral/{model_name}",
+            srt_batch_size=50,
+        )
