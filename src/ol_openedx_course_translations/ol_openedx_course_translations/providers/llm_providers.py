@@ -424,7 +424,8 @@ class LLMProvider(TranslationProvider):
             target_language, target_language
         )
         system_prompt = (
-            f"You are a professional translator. Translate English to {target_language_display_name}.\n\n"  # noqa: E501
+            f"You are a professional translator. "
+            f"Translate English to {target_language_display_name}.\n\n"
             "INPUT FORMAT:\n"
             ":::ID:::\n"
             "Text\n\n"

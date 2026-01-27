@@ -149,7 +149,8 @@ Translating a Course
             --course-dir /path/to/course.tar.gz \
             --content-translation-provider openai \
             --srt-translation-provider gemini \
-            --glossary-dir /path/to/glossary
+            --content-glossary /path/to/content/glossary \
+            --srt-glossary /path/to/srt/glossary
 
 **Command Options:**
 
@@ -165,7 +166,8 @@ Translating a Course
   - ``PROVIDER/MODEL`` - uses provider with specific model (e.g., ``openai/gpt-5.2``, ``gemini/gemini-3-pro-preview``, ``mistral/mistral-large-latest``)
 
 - ``--srt-translation-provider``: Translation provider for SRT subtitles (required). Same format as ``--content-translation-provider``
-- ``--glossary-dir``: Path to glossary directory (optional)
+- ``--content-glossary``: Path to glossary directory for content (XML/HTML and text) translation (optional)
+- ``--srt-glossary``: Path to glossary directory for SRT subtitle translation (optional)
 
 **Examples:**
 
@@ -192,21 +194,43 @@ Translating a Course
         --content-translation-provider openai/gpt-5.2 \
         --srt-translation-provider gemini
 
-    # Use Mistral with specific model and glossary
+    # Use Mistral with specific model and separate glossaries for content and SRT
     ./manage.py cms translate_course \
         --target-language ES \
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider mistral/mistral-large-latest \
         --srt-translation-provider mistral/mistral-large-latest \
-        --glossary-dir /path/to/glossary
+        --content-glossary /path/to/content/glossary \
+        --srt-glossary /path/to/srt/glossary
+
+    # Use different glossaries for content vs subtitles
+    ./manage.py cms translate_course \
+        --target-language AR \
+        --course-dir /path/to/course.tar.gz \
+        --content-translation-provider openai \
+        --srt-translation-provider gemini \
+        --content-glossary /path/to/technical/glossary \
+        --srt-glossary /path/to/conversational/glossary
 
 **Glossary Support:**
 
-Create language-specific glossary files in the glossary directory:
+You can use separate glossaries for content and subtitle translation. This allows you to apply different terminology choices based on context:
+
+- **Content glossary** (``--content-glossary``): Used for XML/HTML content, policy files, and text-based course materials. Typically contains more formal or technical terminology.
+- **SRT glossary** (``--srt-glossary``): Used for subtitle translation. Can contain more conversational or context-specific terms appropriate for spoken content.
+
+Create language-specific glossary files in each glossary directory:
 
 .. code-block:: bash
 
-    glossaries/machine_learning/
+    # Content glossary structure
+    glossaries/technical/
+    ├── ar.txt  # Arabic glossary
+    ├── fr.txt  # French glossary
+    └── es.txt  # Spanish glossary
+
+    # SRT glossary structure
+    glossaries/conversational/
     ├── ar.txt  # Arabic glossary
     ├── fr.txt  # French glossary
     └── es.txt  # Spanish glossary
@@ -223,6 +247,8 @@ Format: One term per line as "source_term : translated_term"
     - 'activation function' : 'función de activación'
     - 'artificial intelligence' : 'inteligencia artificial'
     - 'AUC' : 'AUC'
+
+**Note:** Both glossary arguments are optional. If not provided, translation will proceed without glossary terms. You can provide one, both, or neither glossary as needed.
 
 Subtitle Translation and Validation
 ====================================

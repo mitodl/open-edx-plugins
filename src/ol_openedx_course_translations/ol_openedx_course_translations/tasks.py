@@ -51,7 +51,8 @@ def translate_file_task(  # noqa: PLR0913
     content_model: str | None,
     srt_provider_name: str,
     srt_model: str | None,
-    glossary_directory: str | None = None,
+    content_glossary: str | None = None,
+    srt_glossary: str | None = None,
 ):
     """
     Translate a single file asynchronously.
@@ -68,7 +69,8 @@ def translate_file_task(  # noqa: PLR0913
         content_model: Model name for content provider (optional)
         srt_provider_name: Provider name for SRT translation
         srt_model: Model name for SRT provider (optional)
-        glossary_directory: Path to glossary directory (optional)
+        content_glossary: Path to glossary directory for content (optional)
+        srt_glossary: Path to glossary directory for SRT (optional)
 
     Returns:
         Dict with status, file path, and optional error or output information
@@ -96,7 +98,7 @@ def translate_file_task(  # noqa: PLR0913
                 output_file_path,
                 source_language,
                 target_language,
-                glossary_directory,
+                srt_glossary,
             )
 
             return {
@@ -117,14 +119,14 @@ def translate_file_task(  # noqa: PLR0913
             file_content,
             target_language.lower(),
             tag_handling=tag_handling_mode,
-            glossary_directory=glossary_directory,
+            glossary_directory=content_glossary,
         )
 
         # Handle XML display_name translation only for DeepL provider
         # LLM providers translate display_name as part of the XML translation
         if file_path.suffix == ".xml" and isinstance(provider, DeepLProvider):
             translated_content = translate_xml_attributes(
-                translated_content, target_language, provider, glossary_directory
+                translated_content, target_language, provider, content_glossary
             )
 
         # Update video XML if needed (use complete version)
@@ -133,6 +135,7 @@ def translate_file_task(  # noqa: PLR0913
                 translated_content, target_language
             )
 
+        logger.info("\n\n%s\n\n", translated_content)
         file_path.write_text(translated_content, encoding="utf-8")
     except Exception as e:
         logger.exception("Failed to translate file %s", file_path_str)
@@ -148,7 +151,7 @@ def translate_grading_policy_task(
     target_language: str,
     content_provider_name: str,
     content_model: str | None,
-    glossary_directory: str | None = None,
+    content_glossary: str | None = None,
 ):
     """
     Translate grading_policy.json file.
@@ -161,7 +164,7 @@ def translate_grading_policy_task(
         target_language: Target language code
         content_provider_name: Provider name for content translation
         content_model: Model name for content provider (optional)
-        glossary_directory: Path to glossary directory (optional)
+        content_glossary: Path to glossary directory for content (optional)
 
     Returns:
         Dict with status, file path, and optional error information
@@ -180,7 +183,7 @@ def translate_grading_policy_task(
                     translated_label = provider.translate_text(
                         grader_item[key],
                         target_language.lower(),
-                        glossary_directory=glossary_directory,
+                        glossary_directory=content_glossary,
                     )
                     grader_item[key] = translated_label
                     policy_updated = True
@@ -204,7 +207,7 @@ def translate_policy_json_task(
     target_language: str,
     content_provider_name: str,
     content_model: str | None,
-    glossary_directory: str | None = None,
+    content_glossary: str | None = None,
 ):
     """
     Translate policy.json file.
@@ -218,7 +221,7 @@ def translate_policy_json_task(
         target_language: Target language code
         content_provider_name: Provider name for content translation
         content_model: Model name for content provider (optional)
-        glossary_directory: Path to glossary directory (optional)
+        content_glossary: Path to glossary directory for content (optional)
 
     Returns:
         Dict with status, file path, and optional error information
@@ -233,7 +236,7 @@ def translate_policy_json_task(
                 continue
 
             translate_policy_fields(
-                course_policy_obj, target_language, provider, glossary_directory
+                course_policy_obj, target_language, provider, content_glossary
             )
 
         policy_file_path.write_text(
