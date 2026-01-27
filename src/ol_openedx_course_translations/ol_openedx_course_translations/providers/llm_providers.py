@@ -738,7 +738,9 @@ class LLMProvider(TranslationProvider):
             response = provider._call_llm(system_prompt, user_content)
             return self._parse_validation_response(response)
         except Exception as e:  # noqa: BLE001
-            logger.warning("Validation failed: %s. Assuming translation is acceptable.", e)
+            logger.warning(
+                "Validation failed: %s. Assuming translation is acceptable.", e
+            )
             return {"score": 8, "issues": []}
 
     def _parse_validation_response(self, response: str) -> dict:
@@ -756,13 +758,15 @@ class LLMProvider(TranslationProvider):
         end_idx = response.find(VALIDATION_MARKER_END)
 
         if start_idx != -1 and end_idx != -1:
-            content = response[start_idx + len(VALIDATION_MARKER_START):end_idx].strip()
+            content = response[
+                start_idx + len(VALIDATION_MARKER_START) : end_idx
+            ].strip()
         else:
             content = response
 
         # Parse score
         score = 8  # Default to acceptable
-        score_match = re.search(r'SCORE:\s*(\d+)', content, re.IGNORECASE)
+        score_match = re.search(r"SCORE:\s*(\d+)", content, re.IGNORECASE)
         if score_match:
             try:
                 score = int(score_match.group(1))
@@ -772,15 +776,17 @@ class LLMProvider(TranslationProvider):
 
         # Parse issues
         issues = []
-        issues_section = re.search(r'ISSUES:\s*(.+?)(?=\n\n|$)', content, re.DOTALL | re.IGNORECASE)
+        issues_section = re.search(
+            r"ISSUES:\s*(.+?)(?=\n\n|$)", content, re.DOTALL | re.IGNORECASE
+        )
         if issues_section:
             issues_text = issues_section.group(1).strip()
-            if issues_text.lower() not in ['none', 'no issues', 'n/a']:
+            if issues_text.lower() not in ["none", "no issues", "n/a"]:
                 # Extract bullet points
-                for line in issues_text.split('\n'):
+                for line in issues_text.split("\n"):
                     line = line.strip()
-                    if line.startswith('-') or line.startswith('•'):
-                        issue = line.lstrip('-•').strip()
+                    if line.startswith("-") or line.startswith("•"):
+                        issue = line.lstrip("-•").strip()
                         if issue:
                             issues.append(issue)
 

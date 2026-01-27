@@ -242,6 +242,7 @@ def translate_policy_fields(  # noqa: C901
         glossary_directory: Optional glossary directory path
         validation_provider: Optional validation provider
     """
+
     def translate_with_validation(text: str) -> str:
         """Helper to translate and optionally validate."""
         translated = provider.translate_text(
@@ -262,7 +263,11 @@ def translate_policy_fields(  # noqa: C901
                 min_score = getattr(settings, "TRANSLATION_VALIDATION_MIN_SCORE", 7)
                 if score < min_score and issues:
                     corrected = provider.correct_translation(
-                        text, translated, issues, target_language.lower(), glossary_directory
+                        text,
+                        translated,
+                        issues,
+                        target_language.lower(),
+                        glossary_directory,
                     )
                     # Re-validate
                     corrected_validation = provider.validate_translation(

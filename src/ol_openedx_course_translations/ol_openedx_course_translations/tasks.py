@@ -42,7 +42,7 @@ TRANSLATE_FILE_TASK_LIMITS = getattr(
     },
     retry_backoff=False,  # keep retries predictable
 )
-def translate_file_task(  # noqa: PLR0913, PLR0915
+def translate_file_task(  # noqa: PLR0913
     _self,
     file_path_str: str,
     source_language: str,
@@ -207,9 +207,7 @@ def _validate_and_correct_translation(  # noqa: PLR0913
         initial_score = validation_result.get("score", 10)
         issues = validation_result.get("issues", [])
 
-        logger.info(
-            "Initial validation score: %d/10 for %s", initial_score, file_path
-        )
+        logger.info("Initial validation score: %d/10 for %s", initial_score, file_path)
 
         # Check if correction is needed
         min_score = getattr(settings, "TRANSLATION_VALIDATION_MIN_SCORE", 7)
@@ -323,7 +321,9 @@ def translate_grading_policy_task(  # noqa: PLR0913
                     )
 
                     # Validate and correct if validation provider specified
-                    validation_enabled = getattr(settings, "TRANSLATION_VALIDATION_ENABLED", True)
+                    validation_enabled = getattr(
+                        settings, "TRANSLATION_VALIDATION_ENABLED", True
+                    )
                     if validation_provider_name and validation_enabled:
                         translated_label = _validate_and_correct_translation(
                             original_text=original_value,
