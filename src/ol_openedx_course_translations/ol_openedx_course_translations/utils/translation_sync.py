@@ -814,7 +814,7 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
         # (some LLMs like Mistral may incorrectly return plural format)
         if isinstance(translation, dict) and "singular" in translation:
             logger.info(
-                "LLM returned plural-style dict for singular entry; msgid=%r msgctxt=%r",
+                "LLM returned dict for singular entry; msgid=%r msgctxt=%r",
                 entry.msgid,
                 getattr(entry, "msgctxt", None),
             )
