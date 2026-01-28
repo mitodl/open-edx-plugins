@@ -215,6 +215,16 @@ HTTP_UNPROCESSABLE_ENTITY = 422
 # Error message length limit
 MAX_ERROR_MESSAGE_LENGTH = 200
 
+# Maximum length for strings in log messages (truncate with "...")
+MAX_LOG_STRING_LENGTH = 50
+MAX_LOG_ICU_STRING_LENGTH = 100
+
+# Plural category counts (GNU gettext nplurals)
+PLURAL_CATEGORIES_ARABIC = 6  # zero, one, two, few, many, other
+PLURAL_CATEGORIES_FOUR = 4  # one, two, few, other
+PLURAL_CATEGORIES_THREE = 3  # one, few, other
+PLURAL_CATEGORIES_TWO = 2  # one, other (most languages)
+
 ENGLISH_LANGUAGE_CODE = "en"
 ES_LANGUAGE_CODE = "es"
 ES_419_LANGUAGE_CODE = "es-419"
