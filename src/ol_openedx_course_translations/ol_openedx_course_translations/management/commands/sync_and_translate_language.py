@@ -1850,7 +1850,9 @@ class Command(BaseCommand):
         pr_template = (
             f"""## Summary
 
-            This PR adds {iso_code} translations via LLM automation using {provider_display} provider and model {model}.
+            This PR adds {iso_code} translations via LLM automation using {
+                provider_display
+            } provider and model {model}.
             {error_section}
             ### Changes
 
