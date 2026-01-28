@@ -180,13 +180,17 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, C901
         # LLM providers translate display_name as part of the XML translation
         if file_path.suffix == ".xml" and isinstance(provider, DeepLProvider):
             translated_content = translate_xml_attributes(
-                translated_content, target_language, provider, content_glossary
+                translated_content,
+                target_language,
+                provider,
+                content_glossary,
             )
 
         # Update video XML if needed (use complete version)
         if file_path.suffix == ".xml" and file_path.parent.name == "video":
             translated_content = update_video_xml_complete(
-                translated_content, target_language
+                translated_content,
+                target_language,
             )
 
         # Post-translation validation/fix for XML/HTML (optional)
