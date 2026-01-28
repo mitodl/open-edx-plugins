@@ -48,7 +48,13 @@ from ol_openedx_course_translations.utils.constants import (
     HTTP_UNPROCESSABLE_ENTITY,
     LANGUAGE_MAPPING,
     MAX_ERROR_MESSAGE_LENGTH,
+    MAX_LOG_ICU_STRING_LENGTH,
+    MAX_LOG_STRING_LENGTH,
     MAX_RETRIES,
+    PLURAL_CATEGORIES_ARABIC,
+    PLURAL_CATEGORIES_FOUR,
+    PLURAL_CATEGORIES_THREE,
+    PLURAL_CATEGORIES_TWO,
     PLURAL_FORMS,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
@@ -64,16 +70,6 @@ from ol_openedx_course_translations.utils.translation_sync import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Constants for string truncation in logging
-MAX_LOG_STRING_LENGTH = 50
-MAX_LOG_ICU_STRING_LENGTH = 100
-
-# Constants for plural category counts
-PLURAL_CATEGORIES_ARABIC = 6  # zero, one, two, few, many, other
-PLURAL_CATEGORIES_FOUR = 4  # one, two, few, other
-PLURAL_CATEGORIES_THREE = 3  # one, few, other
-PLURAL_CATEGORIES_TWO = 2  # one, other (most languages)
 
 
 class GitRepository:

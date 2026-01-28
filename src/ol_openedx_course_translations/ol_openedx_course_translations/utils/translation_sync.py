@@ -16,6 +16,7 @@ from ol_openedx_course_translations.utils.constants import (
     EXPECTED_GLOSSARY_PARTS,
     LANGUAGE_MAPPING,
     LEARNER_FACING_APPS,
+    MAX_LOG_STRING_LENGTH,
     PLURAL_FORMS,
     PO_HEADER_BUGS_EMAIL,
     PO_HEADER_CONTENT_TRANSFER_ENCODING,
@@ -29,9 +30,6 @@ from ol_openedx_course_translations.utils.constants import (
 )
 
 logger = logging.getLogger(__name__)
-
-# Constants for string truncation in logging
-MAX_LOG_STRING_LENGTH = 50
 
 
 def load_json_file(file_path: Path) -> dict:
