@@ -522,7 +522,13 @@ class Command(BaseCommand):
                 # Poll for completion and show progress
                 while not result.ready():
                     # Count completed tasks in this batch
-                    new_completed = sum(1 for r in result.results if r.ready())
+                    new_completed = 0
+                    for r in result.results:
+                        if r.ready():
+                            # Check if the task is in RETRY state
+                            if hasattr(r, "state") and r.state == "RETRY":
+                                continue  # Still retrying, don't count as completed
+                            new_completed += 1
                     if new_completed > batch_completed:
                         batch_completed = new_completed
                         overall_completed = (
