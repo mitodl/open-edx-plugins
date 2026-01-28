@@ -58,11 +58,14 @@ def apply_common_settings(settings):
         },
     }
     settings.TRANSLATIONS_GITHUB_TOKEN = ""
-    # Translation repository settings
-    settings.TRANSLATIONS_REPO_PATH = ""
+    # Translation repository settings (used by sync_and_translate_language command)
+    # Git URL of the translations repository (e.g. mitxonline-translations).
     settings.TRANSLATIONS_REPO_URL = (
         "https://github.com/mitodl/mitxonline-translations.git"
     )
+    # Local path to a clone of the translations repo; leave empty to clone
+    # at the default path from TRANSLATIONS_REPO_URL.
+    settings.TRANSLATIONS_REPO_PATH = ""
     settings.LITE_LLM_REQUEST_TIMEOUT = 300  # seconds
 
     # HTML/XML translation safety/perf knobs (LLM providers only)
