@@ -145,7 +145,6 @@ def translate_file_task(  # noqa: PLR0913
         )
 
 
-
 @shared_task(bind=True, name="translate_grading_policy_task")
 def translate_grading_policy_task(
     _self,
