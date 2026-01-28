@@ -914,6 +914,60 @@ def _apply_plural_string_translation(entry: polib.POEntry, translation: str) -> 
     return plural_applied
 
 
+def _apply_translation_to_plural_entry(entry: polib.POEntry, translation: Any) -> bool:
+    """Apply translation to a plural PO entry. Returns True if applied."""
+    # Check if translation is a string representation of a dict
+    if (
+        isinstance(translation, str)
+        and translation.strip().startswith("{")
+        and translation.strip().endswith("}")
+    ):
+        try:
+            translation = json.loads(translation.strip())
+        except (json.JSONDecodeError, ValueError):
+            return bool(
+                translation and _apply_plural_string_translation(entry, translation)
+            )
+
+    if isinstance(translation, dict):
+        numeric_keys = [
+            k for k in translation if (isinstance(k, (int, str)) and str(k).isdigit())
+        ]
+        if numeric_keys or "singular" in translation:
+            return _apply_plural_dict_translation(entry, translation)
+    return bool(
+        isinstance(translation, str)
+        and translation
+        and _apply_plural_string_translation(entry, translation)
+    )
+
+
+def _apply_translation_to_singular_entry(
+    entry: polib.POEntry, translation: Any
+) -> bool:
+    """Apply translation to a singular PO entry. Returns True if applied."""
+    if isinstance(translation, dict) and "singular" in translation:
+        logger.info(
+            "LLM returned dict for singular entry; msgid=%r msgctxt=%r",
+            entry.msgid,
+            getattr(entry, "msgctxt", None),
+        )
+        translation_str = str(translation["singular"]).strip()
+        if translation_str:
+            normalized_translation = _normalize_translation_newlines(
+                entry.msgid, translation_str
+            )
+            entry.msgstr = normalized_translation
+            return True
+    if isinstance(translation, str) and translation:
+        normalized_translation = _normalize_translation_newlines(
+            entry.msgid, translation
+        )
+        entry.msgstr = normalized_translation
+        return True
+    return False
+
+
 def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
     """
     Apply translation to a PO entry. Returns True if translation was applied.
@@ -927,62 +981,9 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
         True if translation was applied, False otherwise.
     """
     if entry.msgid_plural:
-        # Plural entry
-        # Check if translation is a string representation of a dict
-        if (
-            isinstance(translation, str)
-            and translation.strip().startswith("{")
-            and translation.strip().endswith("}")
-        ):
-            try:
-                translation = json.loads(translation.strip())
-            except (json.JSONDecodeError, ValueError):
-                # If parsing fails, treat as regular string
-                return bool(
-                    translation and _apply_plural_string_translation(entry, translation)
-                )
-
-        if isinstance(translation, dict):
-            # Check for numeric keys (multiple forms) or singular/plural keys
-            # Handle both integer and string keys
-            numeric_keys = [
-                k
-                for k in translation
-                if (isinstance(k, (int, str)) and str(k).isdigit())
-            ]
-            if numeric_keys or "singular" in translation:
-                return _apply_plural_dict_translation(entry, translation)
-        if (
-            isinstance(translation, str)
-            and translation
-            and _apply_plural_string_translation(entry, translation)
-        ):
-            return True
-    # Singular entry - translation should be a string
-    elif not entry.msgstr or not entry.msgstr.strip():
-        # Handle case where LLM returns plural dict for singular entry
-        # (some LLMs like Mistral may incorrectly return plural format)
-        if isinstance(translation, dict) and "singular" in translation:
-            logger.info(
-                "LLM returned dict for singular entry; msgid=%r msgctxt=%r",
-                entry.msgid,
-                getattr(entry, "msgctxt", None),
-            )
-            translation_str = str(translation["singular"]).strip()
-            if translation_str:
-                normalized_translation = _normalize_translation_newlines(
-                    entry.msgid, translation_str
-                )
-                entry.msgstr = normalized_translation
-                return True
-        # Normal string translation
-        elif isinstance(translation, str) and translation:
-            # Normalize translation to match msgid's newline structure
-            normalized_translation = _normalize_translation_newlines(
-                entry.msgid, translation
-            )
-            entry.msgstr = normalized_translation
-            return True
+        return _apply_translation_to_plural_entry(entry, translation)
+    if not entry.msgstr or not entry.msgstr.strip():
+        return _apply_translation_to_singular_entry(entry, translation)
     return False
 
 
