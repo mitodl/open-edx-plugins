@@ -781,6 +781,97 @@ class LLMProvider(TranslationProvider):
             )
             output_file_path.write_text(translated_file_content, encoding="utf-8")
 
+    def _get_xmlhtml_validation_system_prompt(
+        self,
+        source_language: str,
+        target_language: str,
+    ) -> str:
+        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+            target_language, target_language
+        )
+        source_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+            source_language, source_language
+        )
+
+        return (
+            "You are a professional language editor.\n\n"
+            "Review the following translated XML/HTML document and correct ONLY linguistic issues in the target language.\n\n"
+            "ALLOWED CHANGES (ONLY THESE):\n"
+            "- Grammar and article agreement\n"
+            "- Spelling and punctuation\n"
+            "- Obvious encoding artifacts (e.g., broken characters, malformed symbols)\n"
+            "- Consistency in verb mood and tense where directly implied by the source text\n\n"
+            "ABSOLUTE RULES (NON-NEGOTIABLE):\n"
+            "- DO NOT change, add, remove, or reorder any XML/HTML tags\n"
+            "- DO NOT change indentation, line breaks, or spacing\n"
+            "- DO NOT paraphrase, rewrite, summarize, or expand content\n"
+            "- DO NOT translate anything new\n"
+            "- DO NOT change meaning, tone, or register\n"
+            "- Only edit visible text nodes and approved user-facing attribute VALUES\n"
+            "- Attribute NAMES must never be changed\n\n"
+            f"SOURCE LANGUAGE: {source_language_display_name}\n"
+            f"TARGET LANGUAGE: {target_language_display_name}\n\n"
+            "OUTPUT FORMAT (exactly):\n"
+            f"{TRANSLATION_MARKER_START}\n"
+            "<Corrected XML/HTML content>\n"
+            f"{TRANSLATION_MARKER_END}\n\n"
+            "Output NOTHING else."
+        )
+
+    def _call_llm_raw(
+        self,
+        system_prompt: str,
+        user_content: str,
+        **additional_kwargs: Any,
+    ) -> str:
+        """
+        Raw LLM call that bypasses translate_text() parsing logic entirely.
+        Use this when user_content may contain full XML/HTML documents.
+        """
+        llm_messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content},
+        ]
+        llm_response = completion(
+            model=self.model_name,
+            messages=llm_messages,
+            api_key=self.primary_api_key,
+            timeout=90,
+            **additional_kwargs,
+            temperature=0.0,
+        )
+        return llm_response.choices[0].message.content.strip()
+
+    def validate_xmlhtml_translation(
+        self,
+        *,
+        source_language: str,
+        target_language: str,
+        source_content: str,
+        translated_content: str,
+    ) -> str:
+        """
+        Validate/fix a translated XML/HTML document by sending the full markup blob
+        to the LLM. This bypasses the DOM-aware translate_text() flow intentionally.
+        """
+        if not translated_content or not translated_content.strip():
+            return translated_content
+
+        system_prompt = self._get_xmlhtml_validation_system_prompt(
+            source_language=source_language.lower(),
+            target_language=target_language.lower(),
+        )
+
+        user_payload = (
+            "SOURCE DOCUMENT (reference only):\n"
+            f"{source_content}\n\n"
+            "TRANSLATED DOCUMENT (correct this; preserve tags/spacing exactly):\n"
+            f"{translated_content}\n"
+        )
+
+        llm_response = self._call_llm_raw(system_prompt, user_payload)
+        return self._parse_text_response(llm_response)
+
 
 class OpenAIProvider(LLMProvider):
     """OpenAI translation provider."""
