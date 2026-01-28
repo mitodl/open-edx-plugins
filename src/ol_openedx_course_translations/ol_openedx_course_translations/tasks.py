@@ -35,15 +35,10 @@ TRANSLATE_FILE_TASK_LIMITS = getattr(
     name="translate_file_task",
     soft_time_limit=TRANSLATE_FILE_TASK_LIMITS["soft_time_limit"],
     time_limit=TRANSLATE_FILE_TASK_LIMITS["time_limit"],
-    autoretry_for=(Exception,),
-    retry_kwargs={
-        "max_retries": TRANSLATE_FILE_TASK_LIMITS["max_retries"],
-        "countdown": TRANSLATE_FILE_TASK_LIMITS["retry_countdown"],
-    },
     retry_backoff=False,  # keep retries predictable
 )
 def translate_file_task(  # noqa: PLR0913
-    _self,
+    self,
     file_path_str: str,
     source_language: str,
     target_language: str,
@@ -56,24 +51,8 @@ def translate_file_task(  # noqa: PLR0913
 ):
     """
     Translate a single file asynchronously.
-
-    Handles translation of various file types including SRT subtitles,
-    XML, and HTML files. Uses appropriate translation provider based on file type.
-
-    Args:
-        _self: Celery task instance (bound)
-        file_path_str: Path to the file to translate
-        source_language: Source language code
-        target_language: Target language code
-        content_provider_name: Provider name for content translation
-        content_model: Model name for content provider (optional)
-        srt_provider_name: Provider name for SRT translation
-        srt_model: Model name for SRT provider (optional)
-        content_glossary: Path to glossary directory for content (optional)
-        srt_glossary: Path to glossary directory for SRT (optional)
-
-    Returns:
-        Dict with status, file path, and optional error or output information
+    Retries on ANY exception and returns an error response only
+    after all retries are exhausted.
     """
     try:
         file_path = Path(file_path_str)
@@ -126,22 +105,45 @@ def translate_file_task(  # noqa: PLR0913
         # LLM providers translate display_name as part of the XML translation
         if file_path.suffix == ".xml" and isinstance(provider, DeepLProvider):
             translated_content = translate_xml_attributes(
-                translated_content, target_language, provider, content_glossary
+                translated_content,
+                target_language,
+                provider,
+                content_glossary,
             )
 
         # Update video XML if needed (use complete version)
         if file_path.suffix == ".xml" and file_path.parent.name == "video":
             translated_content = update_video_xml_complete(
-                translated_content, target_language
+                translated_content,
+                target_language,
             )
 
-        logger.info("\n\n%s\n\n", translated_content)
         file_path.write_text(translated_content, encoding="utf-8")
-    except Exception as e:
-        logger.exception("Failed to translate file %s", file_path_str)
-        return {"status": "error", "file": file_path_str, "error": str(e)}
-    else:
+
         return {"status": "success", "file": file_path_str}
+
+    except Exception as exc:
+        logger.exception(
+            "Translation failed (attempt %s/%s) for %s",
+            self.request.retries + 1,
+            TRANSLATE_FILE_TASK_LIMITS["max_retries"] + 1,
+            file_path_str,
+        )
+
+        # If retries are exhausted → return error payload
+        if self.request.retries >= TRANSLATE_FILE_TASK_LIMITS["max_retries"]:
+            return {
+                "status": "error",
+                "file": file_path_str,
+                "error": str(exc),
+            }
+
+        # Otherwise retry
+        raise self.retry(
+            exc=exc,
+            countdown=TRANSLATE_FILE_TASK_LIMITS["retry_countdown"],
+        )
+
 
 
 @shared_task(bind=True, name="translate_grading_policy_task")
