@@ -500,6 +500,8 @@ class PullRequestData(TypedDict):
     applied_count: int
     translation_stats: dict[str, Any]
     applied_by_app: dict[str, Any]
+    provider: str
+    model: str
 
 
 class TranslationParams(TypedDict):
@@ -715,6 +717,8 @@ class Command(BaseCommand):
                 applied_count=applied_count,
                 translation_stats=translation_stats,
                 applied_by_app=applied_by_app,
+                provider=provider,
+                model=model,
             )
             pr_url = self._create_pull_request(
                 repo_path,
@@ -1670,7 +1674,14 @@ class Command(BaseCommand):
         repo_url: str,
     ) -> str:
         """Create pull request using GitHub CLI or API."""
-        lang_code = pr_data["lang_code"]
+        iso_code = pr_data["iso_code"]
+        provider = pr_data["provider"]
+        model = pr_data["model"]
+        provider_display = provider.replace("_", " ").title()
+        pr_title = (
+            f"feat: Add {iso_code} translations via LLM using "
+            f"{provider_display} provider and model {model}"
+        )
         try:
             # Using GitHub CLI (gh) - trusted system command
             gh_path = shutil.which("gh")
@@ -1681,7 +1692,7 @@ class Command(BaseCommand):
                         "pr",
                         "create",
                         "--title",
-                        f"feat: Add {lang_code} translations via LLM",
+                        pr_title,
                         "--body",
                         self._generate_pr_body(pr_data),
                     ],
@@ -1699,6 +1710,7 @@ class Command(BaseCommand):
             branch_name,
             pr_data,
             repo_url,
+            pr_title=pr_title,
         )
 
     def _generate_error_section(
@@ -1776,6 +1788,8 @@ class Command(BaseCommand):
         applied_count = pr_data["applied_count"]
         translation_stats = pr_data["translation_stats"]
         applied_by_app = pr_data["applied_by_app"]
+        provider = pr_data["provider"]
+        model = pr_data["model"]
 
         glossary_matches = translation_stats.get("glossary_matches", 0)
         llm_translations = translation_stats.get("llm_translations", 0)
@@ -1832,10 +1846,11 @@ class Command(BaseCommand):
             ]
         )
 
+        provider_display = provider.replace("_", " ").title()
         pr_template = (
             f"""## Summary
 
-            This PR adds {lang_code} translations via LLM automation.
+            This PR adds {iso_code} translations via LLM automation using {provider_display} provider and model {model}.
             {error_section}
             ### Changes
 
@@ -1878,6 +1893,7 @@ class Command(BaseCommand):
         branch_name: str,
         pr_data: PullRequestData,
         repo_url: str,
+        pr_title: str,
     ) -> str:
         """Create PR using GitHub API."""
         client = GitHubAPIClient()
@@ -1886,12 +1902,11 @@ class Command(BaseCommand):
         git_repo = GitRepository(repo_path)
         main_branch = git_repo._get_main_branch_name()  # noqa: SLF001
 
-        lang_code = pr_data["lang_code"]
         return client.create_pull_request(
             owner=owner,
             repo=repo,
             branch_name=branch_name,
-            title=f"feat: Add {lang_code} translations via LLM",
+            title=pr_title,
             body=self._generate_pr_body(pr_data),
             base=main_branch,
             stdout=self.stdout,
