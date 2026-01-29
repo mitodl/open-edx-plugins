@@ -67,8 +67,8 @@ class Command(BaseCommand):
         self.content_glossary = None
         self.srt_glossary = None
         self.keep_failure = False
-        self.xmlhtml_validation_provider_name = None
-        self.xmlhtml_validation_model = None
+        self.translation_validation_provider_name = None
+        self.translation_validation_model = None
 
     def add_arguments(self, parser) -> None:
         """Entry point for subclassed commands to add custom arguments."""
@@ -119,13 +119,13 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
-            "--xmlhtml-validation-provider",
-            dest="xmlhtml_validation_provider",
+            "--translation-validation-provider",
+            dest="translation_validation_provider",
             required=False,
             help=(
-                "Optional provider to validate/fix XML/HTML translations after translation. "
+                "Optional provider to validate/fix XML/HTML translations after translation. "  # noqa: E501
                 "Format: 'deepl', 'PROVIDER', or 'PROVIDER/MODEL' "
-                "(e.g., 'openai', 'openai/gpt-5.2', 'gemini', 'gemini/gemini-3-pro-preview'). "
+                "(e.g., 'openai', 'openai/gpt-5.2', 'gemini', 'gemini/gemini-3-pro-preview'). "  # noqa: E501
                 "If omitted, no post-translation validation is performed."
             ),
         )
@@ -243,7 +243,9 @@ class Command(BaseCommand):
 
             content_provider_spec = options["content_translation_provider"]
             srt_provider_spec = options["srt_translation_provider"]
-            xmlhtml_validation_provider_spec = options.get("xmlhtml_validation_provider")
+            translation_validation_provider_spec = options.get(
+                "translation_validation_provider"
+            )
             self.content_glossary = options.get("content_glossary")
             self.srt_glossary = options.get("srt_glossary")
             self.keep_failure = options.get("keep_failure", False)
@@ -255,14 +257,14 @@ class Command(BaseCommand):
             srt_provider_name, srt_model = self._parse_and_validate_provider_spec(
                 srt_provider_spec
             )
-            xmlhtml_validation_provider_name = None
-            xmlhtml_validation_model = None
-            if xmlhtml_validation_provider_spec:
+            translation_validation_provider_name = None
+            translation_validation_model = None
+            if translation_validation_provider_spec:
                 (
-                    xmlhtml_validation_provider_name,
-                    xmlhtml_validation_model,
+                    translation_validation_provider_name,
+                    translation_validation_model,
                 ) = self._parse_and_validate_provider_spec(
-                    xmlhtml_validation_provider_spec
+                    translation_validation_provider_spec
                 )
 
             # Log the resolved configuration
@@ -278,15 +280,15 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f"SRT provider: {srt_provider_name}")
 
-            if xmlhtml_validation_provider_name:
-                if xmlhtml_validation_model:
+            if translation_validation_provider_name:
+                if translation_validation_model:
                     self.stdout.write(
                         "XML/HTML validation provider: "
-                        f"{xmlhtml_validation_provider_name}/{xmlhtml_validation_model}"
+                        f"{translation_validation_provider_name}/{translation_validation_model}"
                     )
                 else:
                     self.stdout.write(
-                        f"XML/HTML validation provider: {xmlhtml_validation_provider_name}"
+                        f"XML/HTML validation provider: {translation_validation_provider_name}"  # noqa: E501
                     )
 
             # Validate inputs
@@ -297,8 +299,10 @@ class Command(BaseCommand):
             self.content_model = content_model
             self.srt_provider_name = srt_provider_name
             self.srt_model = srt_model
-            self.xmlhtml_validation_provider_name = xmlhtml_validation_provider_name
-            self.xmlhtml_validation_model = xmlhtml_validation_model
+            self.translation_validation_provider_name = (
+                translation_validation_provider_name
+            )
+            self.translation_validation_model = translation_validation_model
             # Extract course archive
             extracted_course_dir = extract_course_archive(course_archive_path)
 
@@ -438,8 +442,8 @@ class Command(BaseCommand):
                 self.srt_model,
                 self.content_glossary,
                 self.srt_glossary,
-                self.xmlhtml_validation_provider_name,
-                self.xmlhtml_validation_model,
+                self.translation_validation_provider_name,
+                self.translation_validation_model,
             )
             self.tasks.append(("file", str(file_path), task))
             logger.info("Added translation task for: %s", file_path)

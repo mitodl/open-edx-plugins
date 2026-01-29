@@ -10,9 +10,9 @@ from django.conf import settings
 
 from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
 from ol_openedx_course_translations.providers.llm_providers import (
-    LLMProvider,
     TRANSLATION_MARKER_END,
     TRANSLATION_MARKER_START,
+    LLMProvider,
 )
 from ol_openedx_course_translations.utils.course_translations import (
     get_srt_output_filename,
@@ -37,12 +37,17 @@ TRANSLATE_FILE_TASK_LIMITS = getattr(
 
 
 def _parse_marker_wrapped_translation(raw_text: str) -> str | None:
+    """
+    Parse translation text wrapped in specific start/end markers.
+    """
     if not raw_text:
         return None
 
     # Tolerant pattern (handles whitespace/newlines and any provider echo)
     pattern = re.compile(
-        re.escape(TRANSLATION_MARKER_START) + r"(.*?)" + re.escape(TRANSLATION_MARKER_END),
+        re.escape(TRANSLATION_MARKER_START)
+        + r"(.*?)"
+        + re.escape(TRANSLATION_MARKER_END),
         flags=re.DOTALL,
     )
     match = pattern.search(raw_text)
@@ -51,10 +56,12 @@ def _parse_marker_wrapped_translation(raw_text: str) -> str | None:
 
     # Case-insensitive fallback (some providers might alter marker casing)
     pattern_ci = re.compile(
-        re.escape(TRANSLATION_MARKER_START).replace("TRANSLATION", "translation")
+        re.escape(TRANSLATION_MARKER_START)
+        .replace("TRANSLATION", "translation")
         .replace("START", "start")
         + r"(.*?)"
-        + re.escape(TRANSLATION_MARKER_END).replace("TRANSLATION", "translation")
+        + re.escape(TRANSLATION_MARKER_END)
+        .replace("TRANSLATION", "translation")
         .replace("END", "end"),
         flags=re.DOTALL,
     )
@@ -66,6 +73,9 @@ def _parse_marker_wrapped_translation(raw_text: str) -> str | None:
 
 
 def _looks_like_markup(value: str) -> bool:
+    """
+    Heuristic to determine if a string looks like markup (XML/HTML).
+    """
     if not value:
         return False
     # Require at least one tag-like token; avoid accepting plain prose
@@ -84,7 +94,7 @@ def _looks_like_markup(value: str) -> bool:
     },
     retry_backoff=False,  # keep retries predictable
 )
-def translate_file_task(  # noqa: PLR0913
+def translate_file_task(  # noqa: PLR0913, PLR0912, C901
     _self,
     file_path_str: str,
     source_language: str,
@@ -95,8 +105,8 @@ def translate_file_task(  # noqa: PLR0913
     srt_model: str | None,
     content_glossary: str | None = None,
     srt_glossary: str | None = None,
-    xmlhtml_validation_provider_name: str | None = None,
-    xmlhtml_validation_model: str | None = None,
+    translation_validation_provider_name: str | None = None,
+    translation_validation_model: str | None = None,
 ):
     """
     Translate a single file asynchronously.
@@ -182,53 +192,63 @@ def translate_file_task(  # noqa: PLR0913
         # Post-translation validation/fix for XML/HTML (optional)
         if (
             file_path.suffix in [".xml", ".html"]
-            and xmlhtml_validation_provider_name
+            and translation_validation_provider_name
             and translated_content
             and translated_content.strip()
         ):
             validation_provider = get_translation_provider(
-                xmlhtml_validation_provider_name, xmlhtml_validation_model
+                translation_validation_provider_name, translation_validation_model
             )
 
             validated_content = None
             if isinstance(validation_provider, LLMProvider):
                 try:
-                    validated_response = validation_provider.validate_xmlhtml_translation(
+                    validated_response = validation_provider.validate_translation(
                         source_language=source_language,
                         target_language=target_language,
                         source_content=file_content,
                         translated_content=translated_content,
                     )
-                    # validate_xmlhtml_translation already parses markers via _parse_text_response,
-                    # but keep an extra safety parse in case provider returns raw marker-wrapped text.
-                    validated_content = _parse_marker_wrapped_translation(validated_response) or validated_response
-                except Exception as e:
+                    # validate_translation already parses markers via
+                    # _parse_text_response, but keep an extra safety parse
+                    # in case provider returns raw marker-wrapped text.
+                    validated_content = (
+                        _parse_marker_wrapped_translation(validated_response)
+                        or validated_response
+                    )
+                except Exception as e:  # noqa: BLE001
                     logger.warning(
                         "XML/HTML validation via LLM provider %s failed for %s: %s",
-                        xmlhtml_validation_provider_name,
+                        translation_validation_provider_name,
                         file_path_str,
                         str(e),
                     )
                     validated_content = None
             else:
+                msg = (
+                    "XML/HTML validation provider %s does not support "
+                    "raw XML/HTML validation; skipping validation for %s."
+                )
                 logger.warning(
-                    "XML/HTML validation provider %s does not support raw XML/HTML validation; skipping validation for %s.",
-                    xmlhtml_validation_provider_name,
+                    msg,
+                    translation_validation_provider_name,
                     file_path_str,
                 )
 
             if validated_content is None:
                 pass
             elif _looks_like_markup(validated_content):
-                print("\n\nVALIDATED_CONTENT:\n\n%s\n\n", validated_content)
                 translated_content = validated_content
             else:
+                msg = (
+                    "XML/HTML validation provider returned non-markup output for %s; "
+                    "keeping original translation. Response snippet: %r"
+                )
                 logger.warning(
-                    "XML/HTML validation provider returned non-markup output for %s; keeping original translation. Response snippet: %r",
+                    msg,
                     file_path_str,
                     (validated_content or "")[:500],
                 )
-        print("\n\nTRANSLATED_CONTENT:\n%s\n\n", translated_content)
         file_path.write_text(translated_content, encoding="utf-8")
     except Exception as e:
         logger.exception("Failed to translate file %s", file_path_str)

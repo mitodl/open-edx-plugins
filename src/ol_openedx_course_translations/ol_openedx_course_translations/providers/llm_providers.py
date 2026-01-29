@@ -781,7 +781,7 @@ class LLMProvider(TranslationProvider):
             )
             output_file_path.write_text(translated_file_content, encoding="utf-8")
 
-    def _get_xmlhtml_validation_system_prompt(
+    def _get_translation_validation_system_prompt(
         self,
         source_language: str,
         target_language: str,
@@ -795,12 +795,12 @@ class LLMProvider(TranslationProvider):
 
         return (
             "You are a professional language editor.\n\n"
-            "Review the following translated XML/HTML document and correct ONLY linguistic issues in the target language.\n\n"
+            "Review the following translated XML/HTML document and correct ONLY linguistic issues in the target language.\n\n"  # noqa: E501
             "ALLOWED CHANGES (ONLY THESE):\n"
             "- Grammar and article agreement\n"
             "- Spelling and punctuation\n"
-            "- Obvious encoding artifacts (e.g., broken characters, malformed symbols)\n"
-            "- Consistency in verb mood and tense where directly implied by the source text\n\n"
+            "- Obvious encoding artifacts (e.g., broken characters, malformed symbols)\n"  # noqa: E501
+            "- Consistency in verb mood and tense where directly implied by the source text\n\n"  # noqa: E501
             "ABSOLUTE RULES (NON-NEGOTIABLE):\n"
             "- DO NOT change, add, remove, or reorder any XML/HTML tags\n"
             "- DO NOT change indentation, line breaks, or spacing\n"
@@ -818,31 +818,7 @@ class LLMProvider(TranslationProvider):
             "Output NOTHING else."
         )
 
-    def _call_llm_raw(
-        self,
-        system_prompt: str,
-        user_content: str,
-        **additional_kwargs: Any,
-    ) -> str:
-        """
-        Raw LLM call that bypasses translate_text() parsing logic entirely.
-        Use this when user_content may contain full XML/HTML documents.
-        """
-        llm_messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ]
-        llm_response = completion(
-            model=self.model_name,
-            messages=llm_messages,
-            api_key=self.primary_api_key,
-            timeout=90,
-            **additional_kwargs,
-            temperature=0.0,
-        )
-        return llm_response.choices[0].message.content.strip()
-
-    def validate_xmlhtml_translation(
+    def validate_translation(
         self,
         *,
         source_language: str,
@@ -857,7 +833,7 @@ class LLMProvider(TranslationProvider):
         if not translated_content or not translated_content.strip():
             return translated_content
 
-        system_prompt = self._get_xmlhtml_validation_system_prompt(
+        system_prompt = self._get_translation_validation_system_prompt(
             source_language=source_language.lower(),
             target_language=target_language.lower(),
         )
@@ -869,7 +845,8 @@ class LLMProvider(TranslationProvider):
             f"{translated_content}\n"
         )
 
-        llm_response = self._call_llm_raw(system_prompt, user_payload)
+        self.timeout = 90  # 90s timeout for the validation
+        llm_response = self._call_llm(system_prompt, user_payload)
         return self._parse_text_response(llm_response)
 
 
