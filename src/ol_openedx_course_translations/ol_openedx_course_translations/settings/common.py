@@ -80,3 +80,7 @@ def apply_common_settings(settings):
         "max_retries": 1,  # 1 Initial try + 1 retry = 2 attempts
         "retry_countdown": 1 * 60,  # wait 1m before retry
     }
+
+    # Base directory where translate_course extracts archives and writes
+    # translated .tar.gz output. Directory is created at runtime if missing.
+    settings.COURSE_TRANSLATIONS_BASE_DIR = "/openedx/data/course_translations/"

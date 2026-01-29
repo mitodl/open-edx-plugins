@@ -366,12 +366,13 @@ def validate_tar_file(tar_file: tarfile.TarFile) -> None:
             raise CommandError(error_msg)
 
 
-def extract_course_archive(course_archive_path: Path) -> Path:
+def extract_course_archive(course_archive_path: Path, extract_to_dir: Path) -> Path:
     """
-    Extract course archive to working directory.
+    Extract course archive to the specified directory.
 
     Args:
         course_archive_path: Path to the course archive file
+        extract_to_dir: Directory to extract the course archive to
 
     Returns:
         Path to extracted course directory
@@ -379,8 +380,7 @@ def extract_course_archive(course_archive_path: Path) -> Path:
     Raises:
         CommandError: If extraction fails
     """
-    # Use the parent directory of the source file as the base extraction directory
-    extraction_base_dir = course_archive_path.parent
+    extraction_base_dir = extract_to_dir
 
     # Get base name without extension
     archive_extension = get_supported_archive_extension(course_archive_path.name)
@@ -437,6 +437,7 @@ def create_translated_archive(
     translated_course_dir: Path,
     target_language: str,
     original_archive_name: str,
+    output_dir: Path,
 ) -> Path:
     """
     Create tar.gz archive of translated course.
@@ -445,6 +446,7 @@ def create_translated_archive(
         translated_course_dir: Path to translated course directory
         target_language: Target language code
         original_archive_name: Original archive filename
+        output_dir: Path to the output directory
 
     Returns:
         Path to created archive
@@ -461,7 +463,7 @@ def create_translated_archive(
     translated_archive_name = (
         f"{target_language}_{clean_archive_name}_{generated_at}.tar.gz"
     )
-    translated_archive_path = translated_course_dir.parent / translated_archive_name
+    translated_archive_path = output_dir / translated_archive_name
 
     # Remove existing archive
     if translated_archive_path.exists():

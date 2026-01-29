@@ -303,10 +303,22 @@ class Command(BaseCommand):
                 translation_validation_provider_name
             )
             self.translation_validation_model = translation_validation_model
-            # Extract course archive
-            extracted_course_dir = extract_course_archive(course_archive_path)
 
-            # Create translated copy
+            # Resolve base directory from settings (string) and ensure it exists
+            base_dir_setting = getattr(
+                settings,
+                "COURSE_TRANSLATIONS_BASE_DIR",
+                "/openedx/data/course_translations",
+            )
+            course_translations_base_dir = Path(base_dir_setting)
+            course_translations_base_dir.mkdir(parents=True, exist_ok=True)
+
+            # Extract course archive into fixed base directory
+            extracted_course_dir = extract_course_archive(
+                course_archive_path, extract_to_dir=course_translations_base_dir
+            )
+
+            # Create translated copy (also under fixed base directory)
             translated_course_dir = create_translated_copy(
                 extracted_course_dir, target_language
             )
@@ -337,9 +349,12 @@ class Command(BaseCommand):
                 target_language=target_language,
                 command_stats=command_stats,
             )
-            # Create final archive
+            # Create final archive in the same fixed base directory
             translated_archive_path = create_translated_archive(
-                translated_course_dir, target_language, course_archive_path.stem
+                translated_course_dir,
+                target_language,
+                course_archive_path.stem,
+                output_dir=course_translations_base_dir,
             )
             success_msg = (
                 f"Translation completed successfully. Translated archive created: "

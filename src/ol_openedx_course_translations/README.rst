@@ -28,6 +28,10 @@ Configuration
        # Enable auto language selection
        ENABLE_AUTO_LANGUAGE_SELECTION: true
 
+       # Output directory for translated courses
+       # Default: /openedx/data/course_translations/
+       COURSE_TRANSLATIONS_BASE_DIR: "/openedx/data/course_translations/"
+
        # Translation providers configuration
        TRANSLATIONS_PROVIDERS: {
            "default_provider": "mistral",  # Default provider to use
