@@ -55,7 +55,7 @@ def _parse_marker_wrapped_translation(raw_text: str) -> str | None:
         return match.group(1).strip()
 
     # Case-insensitive fallback (some providers might alter marker casing)
-    pattern_ci = re.compile(
+    pattern_case_insensitive = re.compile(
         re.escape(TRANSLATION_MARKER_START)
         .replace("TRANSLATION", "translation")
         .replace("START", "start")
@@ -65,7 +65,7 @@ def _parse_marker_wrapped_translation(raw_text: str) -> str | None:
         .replace("END", "end"),
         flags=re.DOTALL,
     )
-    match_ci = pattern_ci.search(raw_text)
+    match_ci = pattern_case_insensitive.search(raw_text)
     if match_ci:
         return match_ci.group(1).strip()
 
@@ -226,7 +226,7 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, C901
                     validated_content = None
             else:
                 msg = (
-                    "XML/HTML validation provider %s does not support "
+                    "Content translation validation provider %s does not support "
                     "raw XML/HTML validation; skipping validation for %s."
                 )
                 logger.warning(

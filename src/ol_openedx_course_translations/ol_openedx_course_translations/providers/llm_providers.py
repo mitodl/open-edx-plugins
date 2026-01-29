@@ -827,7 +827,7 @@ class LLMProvider(TranslationProvider):
         translated_content: str,
     ) -> str:
         """
-        Validate/fix a translated XML/HTML document by sending the full markup blob
+        Validate and fix a translated XML/HTML document by sending the full markup blob
         to the LLM. This bypasses the DOM-aware translate_text() flow intentionally.
         """
         if not translated_content or not translated_content.strip():

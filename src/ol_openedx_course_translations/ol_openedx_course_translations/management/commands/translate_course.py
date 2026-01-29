@@ -123,8 +123,8 @@ class Command(BaseCommand):
             dest="translation_validation_provider",
             required=False,
             help=(
-                "Optional provider to validate/fix XML/HTML translations after translation. "  # noqa: E501
-                "Format: 'deepl', 'PROVIDER', or 'PROVIDER/MODEL' "
+                "Optional provider to validate and fix the generated content translations by the primary provider. "  # noqa: E501
+                "Format: 'PROVIDER', or 'PROVIDER/MODEL' "
                 "(e.g., 'openai', 'openai/gpt-5.2', 'gemini', 'gemini/gemini-3-pro-preview'). "  # noqa: E501
                 "If omitted, no post-translation validation is performed."
             ),
@@ -283,12 +283,12 @@ class Command(BaseCommand):
             if translation_validation_provider_name:
                 if translation_validation_model:
                     self.stdout.write(
-                        "XML/HTML validation provider: "
+                        "Content translation validation provider: "
                         f"{translation_validation_provider_name}/{translation_validation_model}"
                     )
                 else:
                     self.stdout.write(
-                        f"XML/HTML validation provider: {translation_validation_provider_name}"  # noqa: E501
+                        f"Content translation validation provider: {translation_validation_provider_name}"  # noqa: E501
                     )
 
             # Validate inputs
