@@ -343,12 +343,28 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(total_time_taken_msg))
             command_stats.append(total_time_taken_msg)
 
+            source_course_id = generate_course_key_from_xml(
+                course_dir_path=self.translated_course_dir
+            )
+
             # Add translation log entry
             self._add_translation_log_entry(
                 source_language=source_language,
                 target_language=target_language,
                 command_stats=command_stats,
+                source_course_id=source_course_id,
             )
+
+            # Write translations metadata into the translated course output
+            self._write_translations_meta_file(
+                course_dir=translated_course_dir,
+                source_language=source_language,
+                target_language=target_language,
+                command_stats=command_stats,
+                command_options=options,
+                source_course_id=source_course_id,
+            )
+
             # Create final archive in the same fixed base directory
             translated_archive_path = create_translated_archive(
                 translated_course_dir,
@@ -676,7 +692,7 @@ class Command(BaseCommand):
         return stats
 
     def _add_translation_log_entry(
-        self, source_language, target_language, command_stats=None
+        self, source_language, target_language, source_course_id, command_stats=None
     ) -> None:
         """
         Add a log entry for the course translation operation.
@@ -685,10 +701,8 @@ class Command(BaseCommand):
             source_language: Source language code
             target_language: Target language code
             command_stats: List of command statistics/logs
+            source_course_id: Source course id
         """
-        source_course_id = generate_course_key_from_xml(
-            course_dir_path=self.translated_course_dir
-        )
         command_stats_str = "\n".join(command_stats) if command_stats else ""
 
         CourseTranslationLog.objects.create(
@@ -701,3 +715,63 @@ class Command(BaseCommand):
             content_provider_model=self.content_model or "",
             command_stats=command_stats_str,
         )
+
+    def _write_translations_meta_file(  # noqa: PLR0913
+        self,
+        *,
+        course_dir: Path,
+        source_language: str,
+        target_language: str,
+        command_stats: list[str] | None,
+        command_options: dict | None = None,
+        source_course_id: str,
+    ) -> None:
+        """
+        Write a metadata file into <course_dir>/course/static/translations_meta.txt.
+
+        Contains:
+          - source_language
+          - target_language
+          - command_options (resolved options, incl. defaults)
+          - command_stats
+          - Source course id
+
+        Args:
+            course_dir: Path to the course directory
+            source_language: Source language code
+            target_language: Target language code
+            command_stats: List of command statistics/logs
+            command_options: Dictionary of command options used
+            source_course_id: Source course id
+        """
+        static_dir = course_dir / "course" / "static"
+        static_dir.mkdir(parents=True, exist_ok=True)
+
+        meta_path = static_dir / "translations_meta.txt"
+        stats_text = "\n".join(command_stats) if command_stats else ""
+
+        options_lines = []
+        if command_options:
+            # Stable, readable ordering
+            for key in sorted(command_options.keys()):
+                value = command_options.get(key)
+                options_lines.append(f"{key}: {value}")
+        options_text = "\n".join(options_lines)
+
+        meta_contents = (
+            f"source_course_id: {source_course_id}\n"
+            f"source_language: {source_language}\n"
+            f"target_language: {target_language}\n"
+            f"Content Provider: {self.content_provider_name}\n"
+            f"Content Model: {self.content_model}\n"
+            f"SRT Provider: {self.srt_provider_name}\n"
+            f"SRT Model: {self.srt_model}\n\n"
+            f"Validation Provider: {self.translation_validation_provider_name}\n"
+            f"Validation Model: {self.translation_validation_model}\n\n"
+            "COMMAND_OPTIONS:\n"
+            f"{options_text}\n\n"
+            "COMMAND_STATS:\n"
+            f"{stats_text}\n"
+        )
+
+        meta_path.write_text(meta_contents, encoding="utf-8")
