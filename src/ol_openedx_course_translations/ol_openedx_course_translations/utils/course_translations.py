@@ -457,7 +457,7 @@ def create_translated_archive(
         else original_archive_name
     )
 
-    generated_at = datetime.now(UTC).strftime("%Y_%m_%d_%H_%M_%SZ")
+    generated_at = datetime.now(UTC).strftime("%Y%m%d_%H%MZ")
     translated_archive_name = (
         f"{target_language}_{clean_archive_name}_{generated_at}.tar.gz"
     )
