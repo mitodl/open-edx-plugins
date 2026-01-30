@@ -157,6 +157,13 @@ def _get_po_plural_count(lang_code: str) -> int:
     return int(nplurals_match.group(1))
 
 
+def _get_numeric_plural_keys(translation: dict) -> list:
+    """Return keys that are int or digit-string (plural form indices)."""
+    return [
+        key for key in translation if isinstance(key, (int, str)) and str(key).isdigit()
+    ]
+
+
 def create_po_file_header(lang_code: str, iso_code: str | None = None) -> str:
     """Create PO file header for a language."""
     if iso_code is None:
@@ -232,8 +239,8 @@ def parse_po_file_with_metadata(po_file: Path) -> dict[str, dict]:
                 entry_data["msgid_plural"] = entry.msgid_plural
                 # Convert msgstr_plural dict to simple dict
                 entry_data["msgstr_plural"] = {
-                    i: entry.msgstr_plural.get(i, "")
-                    for i in range(len(entry.msgstr_plural))
+                    form_index: entry.msgstr_plural.get(form_index, "")
+                    for form_index in range(len(entry.msgstr_plural))
                 }
             entries[entry.msgid] = entry_data
     return entries
@@ -493,8 +500,8 @@ def _is_po_entry_empty(
     if entry.msgid_plural:
         # Plural entry - check if plural forms are empty
         return any(
-            not target_entry.msgstr_plural.get(i, "").strip()
-            for i in range(len(target_entry.msgstr_plural))
+            not target_entry.msgstr_plural.get(form_index, "").strip()
+            for form_index in range(len(target_entry.msgstr_plural))
         )
 
     # Singular entry - check if empty
@@ -831,13 +838,13 @@ def _normalize_plural_entry(entry: polib.POEntry) -> bool:
         return False
 
     changed = False
-    for i, msgstr_plural_val in entry.msgstr_plural.items():
+    for form_index, msgstr_plural_val in entry.msgstr_plural.items():
         if msgstr_plural_val:
             # msgstr[0] matches msgid, msgstr[1+] matches msgid_plural
-            reference = entry.msgid if i == 0 else entry.msgid_plural
+            reference = entry.msgid if form_index == 0 else entry.msgid_plural
             normalized = _normalize_translation_newlines(reference, msgstr_plural_val)
             if normalized != msgstr_plural_val:
-                entry.msgstr_plural[i] = normalized
+                entry.msgstr_plural[form_index] = normalized
                 changed = True
     return changed
 
@@ -858,10 +865,7 @@ def _apply_plural_dict_translation(
     plural_applied = False
 
     # Check if translation uses numeric keys (multiple forms: 0, 1, 2 or "0", "1", "2")
-    # Handle both integer and string keys
-    numeric_keys = [
-        k for k in translation if (isinstance(k, (int, str)) and str(k).isdigit())
-    ]
+    numeric_keys = _get_numeric_plural_keys(translation)
     if numeric_keys:
         # Multiple plural forms - apply each form to its corresponding index
         for key in numeric_keys:
@@ -888,13 +892,13 @@ def _apply_plural_dict_translation(
             entry.msgstr_plural[0] = normalized_singular
             plural_applied = True
         # Apply plural to all remaining empty forms (for languages with >2 forms)
-        for i in range(1, len(entry.msgstr_plural)):
-            if not entry.msgstr_plural.get(i, "").strip():
+        for form_index in range(1, len(entry.msgstr_plural)):
+            if not entry.msgstr_plural.get(form_index, "").strip():
                 # Normalize plural translation to match msgid_plural structure
                 normalized_plural = _normalize_translation_newlines(
                     entry.msgid_plural or entry.msgid, translation["plural"]
                 )
-                entry.msgstr_plural[i] = normalized_plural
+                entry.msgstr_plural[form_index] = normalized_plural
                 plural_applied = True
 
     return plural_applied
@@ -905,9 +909,9 @@ def _apply_plural_string_translation(entry: polib.POEntry, translation: str) -> 
     plural_applied = False
     # Normalize translation to match msgid structure
     normalized_translation = _normalize_translation_newlines(entry.msgid, translation)
-    for i in range(len(entry.msgstr_plural)):
-        if not entry.msgstr_plural.get(i, "").strip():
-            entry.msgstr_plural[i] = normalized_translation
+    for form_index in range(len(entry.msgstr_plural)):
+        if not entry.msgstr_plural.get(form_index, "").strip():
+            entry.msgstr_plural[form_index] = normalized_translation
             plural_applied = True
     return plural_applied
 
@@ -928,9 +932,7 @@ def _apply_translation_to_plural_entry(entry: polib.POEntry, translation: Any) -
             )
 
     if isinstance(translation, dict):
-        numeric_keys = [
-            k for k in translation if (isinstance(k, (int, str)) and str(k).isdigit())
-        ]
+        numeric_keys = _get_numeric_plural_keys(translation)
         if numeric_keys or "singular" in translation:
             return _apply_plural_dict_translation(entry, translation)
     return bool(
@@ -1015,8 +1017,8 @@ def _expand_plural_forms_if_needed(entry: polib.POEntry, po: polib.POFile) -> bo
         if not entry.msgstr_plural:
             entry.msgstr_plural = {}
         # Add missing forms with empty strings
-        for i in range(current_forms, required_forms):
-            entry.msgstr_plural[i] = ""
+        for form_index in range(current_forms, required_forms):
+            entry.msgstr_plural[form_index] = ""
         return True
 
     return False

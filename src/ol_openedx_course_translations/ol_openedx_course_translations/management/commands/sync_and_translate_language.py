@@ -61,6 +61,8 @@ from ol_openedx_course_translations.utils.constants import (
 )
 from ol_openedx_course_translations.utils.translation_sync import (
     _get_base_lang,
+    _get_numeric_plural_keys,
+    _get_po_plural_count,
     apply_json_translations,
     apply_po_translations,
     extract_empty_keys,
@@ -70,6 +72,116 @@ from ol_openedx_course_translations.utils.translation_sync import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Plural-instruction prompts for LLM (used in _build_plural_instructions).
+# Format with .format(json_plural_count=..., icu_categories_str=..., etc.).
+
+# For languages with multiple plural forms (e.g. Arabic): expand ICU to ALL categories.
+_PROMPT_JSON_PLURAL_EXPAND_ICU = (
+    "IMPORTANT: {json_plural_count} entry/entries are JSON "
+    "strings with ICU MessageFormat plural forms. "
+    "These may currently have only 'one' and 'other' "
+    "categories, but for this language ({icu_categories_str}), "
+    "you MUST expand them to include ALL {num_categories} "
+    "categories: {icu_categories_str}. "
+    "Translate the content and return a complete ICU "
+    "MessageFormat string with ALL categories. "
+    "Example format: {{count, plural, {icu_categories_str} "
+    "{{translation}} ... other {{translation}}}}. "
+    "CRITICAL: Do not preserve the existing 2-category "
+    "structure. Expand it to include all {num_categories} "
+    "required categories for this language."
+)
+
+# For languages with 2 forms: preserve existing ICU structure.
+_PROMPT_JSON_PLURAL_PRESERVE_ICU = (
+    "IMPORTANT: {json_plural_count} entry/entries are JSON "
+    "strings with ICU MessageFormat plural forms. "
+    "These already have the ICU structure "
+    "(e.g., {{activityCount, plural, one {{# activity}} "
+    "other {{# activities}}}}). "
+    "Translate the content inside the plural forms while "
+    "preserving the exact ICU structure and variable names. "
+    "Return the complete ICU MessageFormat string with "
+    "translated content."
+)
+
+# JSON plurals (no existing ICU), multiple categories.
+_PROMPT_JSON_PLURAL_MULTI_CATEGORY = (
+    "IMPORTANT: {json_plural_count} entry/entries are for "
+    "JSON files with plural forms. "
+    "For these, return ICU MessageFormat strings with ALL "
+    "plural categories: {icu_categories_str}. "
+    "Format: {{count, plural, {icu_categories_str} "
+    "{{translation}} ... other {{translation}}}}. "
+    "Example: {example}. "
+    "IMPORTANT: Include ALL {num_categories} categories in "
+    "your response, not just 'one' and 'other'. Each category "
+    "may require different word forms in this language."
+)
+
+# JSON plurals (no existing ICU), two categories.
+_PROMPT_JSON_PLURAL_TWO_CATEGORY = (
+    "IMPORTANT: {json_plural_count} entry/entries are for "
+    "JSON files with plural forms. "
+    "For these, return ICU MessageFormat strings with plural "
+    "categories: {icu_categories_str}. "
+    "Format: {{count, plural, {icu_categories_str} "
+    "{{translation}} ... other {{translation}}}}. "
+    "Example: {example}."
+)
+
+# PO plurals: language has more than 2 forms (all indices 0..N-1).
+_PROMPT_PO_PLURAL_MULTI_FORM = (
+    "CRITICAL - PO FILE PLURAL ENTRIES "
+    "({plural_count} entry/entries): "
+    "These are for PO files (NOT JSON files). "
+    "This language requires {po_plural_count} plural forms "
+    "(indices 0, 1, 2, ..., {po_plural_count_minus_1}). "
+    "For PO files, you MUST return an object with keys "
+    "'0', '1', '2', ..., '{po_plural_count_minus_1}', "
+    "covering all indices from 0 through "
+    "{po_plural_count_minus_1}, where each value is a "
+    "PLAIN TRANSLATION STRING. "
+    "\n"
+    "WRONG (DO NOT DO THIS): "
+    "{{'0': '{{count, plural, one {{...}} other {{...}}}}'}} "
+    "\n"
+    "CORRECT: "
+    "{{'0': 'translation for zero items', "
+    "'1': 'translation for one item', "
+    "'2': 'translation for two items', "
+    "'3': 'translation for few items', "
+    "'4': 'translation for many items', "
+    "'5': 'translation for other items'}} "
+    "\n"
+    "Each value must be a simple translated string, "
+    "NOT ICU MessageFormat syntax. "
+    "Preserve placeholders like {{count}}, %(count)s, etc. "
+    "in the plain strings."
+)
+
+# PO plurals: language has 2 forms (singular/plural).
+_PROMPT_PO_PLURAL_SINGULAR_PLURAL = (
+    "CRITICAL - PO FILE PLURAL ENTRIES "
+    "({plural_count} entry/entries): "
+    "These are for PO files (NOT JSON files). "
+    "For PO files, return an object with 'singular' and "
+    "'plural' keys, each containing a PLAIN TRANSLATION STRING. "
+    "\n"
+    "WRONG (DO NOT DO THIS): "
+    "{{'singular': '{{count, plural, one {{...}} "
+    "other {{...}}}}'}} "
+    "\n"
+    "CORRECT: "
+    "{{'singular': 'translation for one item', "
+    "'plural': 'translation for multiple items'}} "
+    "\n"
+    "Each value must be a simple translated string, "
+    "NOT ICU MessageFormat syntax. "
+    "Preserve placeholders like {{count}}, %(count)s, etc. "
+    "in the plain strings."
+)
 
 
 class GitRepository:
@@ -864,24 +976,13 @@ class Command(BaseCommand):
 
         return nplurals_to_categories.get(nplurals, ["one", "other"])
 
-    def _get_po_plural_count(self, lang_code: str) -> int:
-        """Get number of plural forms for a language (for PO files)."""
-        base_lang = _get_base_lang(lang_code)
-        plural_form = PLURAL_FORMS.get(base_lang, "nplurals=2; plural=(n != 1);")
-
-        nplurals_match = re.search(r"nplurals=(\d+)", plural_form)
-        if not nplurals_match:
-            return 2
-
-        return int(nplurals_match.group(1))
-
     def _build_icu_example(self, categories_list: list[str]) -> str:
         """Build an ICU MessageFormat example string based on categories."""
         num_categories = len(categories_list)
 
-        if num_categories == PLURAL_CATEGORIES_ARABIC:
-            # Arabic: zero, one, two, few, many, other
-            return (
+        templates_by_count = {
+            PLURAL_CATEGORIES_ARABIC: (
+                # Arabic: zero, one, two, few, many, other
                 "{activityCount, plural, "
                 "zero {# activities} "
                 "one {# activity} "
@@ -889,34 +990,37 @@ class Command(BaseCommand):
                 "few {# activities} "
                 "many {# activities} "
                 "other {# activities}}"
-            )
-        elif num_categories == PLURAL_CATEGORIES_FOUR:
-            # Languages with 4 forms: one, two, few, other
-            return (
+            ),
+            PLURAL_CATEGORIES_FOUR: (
+                # Languages with 4 forms: one, two, few, other
                 "{activityCount, plural, "
                 "one {# activity} "
                 "two {# activities} "
                 "few {# activities} "
                 "other {# activities}}"
-            )
-        elif num_categories == PLURAL_CATEGORIES_THREE:
-            # Languages with 3 forms: one, few, other (e.g., Russian, Polish)
-            return (
+            ),
+            PLURAL_CATEGORIES_THREE: (
+                # Languages with 3 forms: one, few, other (e.g., Russian, Polish)
                 "{activityCount, plural, "
                 "one {# activity} "
                 "few {# activities} "
                 "other {# activities}}"
-            )
-        elif num_categories == PLURAL_CATEGORIES_TWO:
-            # Languages with 2 forms: one, other (most languages)
-            return "{activityCount, plural, one {# activity} other {# activities}}"
-        else:
+            ),
+            PLURAL_CATEGORIES_TWO: (
+                # Languages with 2 forms: one, other (most languages)
+                "{activityCount, plural, one {# activity} other {# activities}}"
+            ),
+        }
+
+        def fallback_template() -> str:
             # Fallback for other multi-category languages
             example_categories = " ".join(
                 f"{cat} {{# {'activity' if cat == 'one' else 'activities'}}}"
                 for cat in categories_list
             )
             return f"{{activityCount, plural, {example_categories}}}"
+
+        return templates_by_count.get(num_categories) or fallback_template()
 
     def _load_glossary(self, options: dict, iso_code: str) -> dict[str, Any]:
         """Load glossary if enabled. Uses ISO code for file lookup.
@@ -1475,118 +1579,53 @@ class Command(BaseCommand):
 
             if has_existing_icu:
                 if num_categories > PLURAL_CATEGORIES_TWO:
-                    # For languages with multiple plural forms (e.g., Arabic with 6),
-                    # expand the ICU structure to include ALL required categories
                     instructions.append(
-                        f"IMPORTANT: {json_plural_count} entry/entries are JSON "
-                        f"strings with ICU MessageFormat plural forms. "
-                        f"These may currently have only 'one' and 'other' "
-                        f"categories, but for this language ({icu_categories_str}), "
-                        f"you MUST expand them to include ALL {num_categories} "
-                        f"categories: {icu_categories_str}. "
-                        f"Translate the content and return a complete ICU "
-                        f"MessageFormat string with ALL categories. "
-                        f"Example format: {{count, plural, {icu_categories_str} "
-                        f"{{translation}} ... other {{translation}}}}. "
-                        f"CRITICAL: Do not preserve the existing 2-category "
-                        f"structure. Expand it to include all {num_categories} "
-                        f"required categories for this language."
+                        _PROMPT_JSON_PLURAL_EXPAND_ICU.format(
+                            json_plural_count=json_plural_count,
+                            icu_categories_str=icu_categories_str,
+                            num_categories=num_categories,
+                        )
                     )
                 else:
-                    # For languages with 2 forms, preserve existing structure
                     instructions.append(
-                        f"IMPORTANT: {json_plural_count} entry/entries are JSON "
-                        f"strings with ICU MessageFormat plural forms. "
-                        f"These already have the ICU structure "
-                        f"(e.g., {{activityCount, plural, one {{# activity}} "
-                        f"other {{# activities}}}}). "
-                        f"Translate the content inside the plural forms while "
-                        f"preserving the exact ICU structure and variable names. "
-                        f"Return the complete ICU MessageFormat string with "
-                        f"translated content."
+                        _PROMPT_JSON_PLURAL_PRESERVE_ICU.format(
+                            json_plural_count=json_plural_count
+                        )
                     )
             else:
-                # Build language-specific example based on categories
                 example = self._build_icu_example(categories_list)
-
                 if num_categories > PLURAL_CATEGORIES_TWO:
                     instructions.append(
-                        f"IMPORTANT: {json_plural_count} entry/entries are for "
-                        f"JSON files with plural forms. "
-                        f"For these, return ICU MessageFormat strings with ALL "
-                        f"plural categories: {icu_categories_str}. "
-                        f"Format: {{count, plural, {icu_categories_str} "
-                        f"{{translation}} ... other {{translation}}}}. "
-                        f"Example: {example}. "
-                        f"IMPORTANT: Include ALL {num_categories} categories in "
-                        f"your response, not just 'one' and 'other'. Each category "
-                        f"may require different word forms in this language."
+                        _PROMPT_JSON_PLURAL_MULTI_CATEGORY.format(
+                            json_plural_count=json_plural_count,
+                            icu_categories_str=icu_categories_str,
+                            num_categories=num_categories,
+                            example=example,
+                        )
                     )
                 else:
                     instructions.append(
-                        f"IMPORTANT: {json_plural_count} entry/entries are for "
-                        f"JSON files with plural forms. "
-                        f"For these, return ICU MessageFormat strings with plural "
-                        f"categories: {icu_categories_str}. "
-                        f"Format: {{count, plural, {icu_categories_str} "
-                        f"{{translation}} ... other {{translation}}}}. "
-                        f"Example: {example}."
+                        _PROMPT_JSON_PLURAL_TWO_CATEGORY.format(
+                            json_plural_count=json_plural_count,
+                            icu_categories_str=icu_categories_str,
+                            example=example,
+                        )
                     )
 
         if plural_count > 0:
             # Get number of plural forms needed for this language
-            po_plural_count = self._get_po_plural_count(lang_code)
+            po_plural_count = _get_po_plural_count(lang_code)
             if po_plural_count > PLURAL_CATEGORIES_TWO:
-                # Languages with more than 2 forms need all forms translated
                 instructions.append(
-                    f"CRITICAL - PO FILE PLURAL ENTRIES "
-                    f"({plural_count} entry/entries): "
-                    f"These are for PO files (NOT JSON files). "
-                    f"This language requires {po_plural_count} plural forms "
-                    f"(indices 0, 1, 2, ..., {po_plural_count - 1}). "
-                    f"For PO files, you MUST return an object with keys "
-                    f"'0', '1', '2', ..., '{po_plural_count - 1}', "
-                    f"covering all indices from 0 through "
-                    f"{po_plural_count - 1}, where each value is a "
-                    f"PLAIN TRANSLATION STRING. "
-                    f"\n"
-                    f"WRONG (DO NOT DO THIS): "
-                    f"{{'0': '{{count, plural, one {{...}} other {{...}}}}'}} "
-                    f"\n"
-                    f"CORRECT: "
-                    f"{{'0': 'translation for zero items', "
-                    f"'1': 'translation for one item', "
-                    f"'2': 'translation for two items', "
-                    f"'3': 'translation for few items', "
-                    f"'4': 'translation for many items', "
-                    f"'5': 'translation for other items'}} "
-                    f"\n"
-                    f"Each value must be a simple translated string, "
-                    f"NOT ICU MessageFormat syntax. "
-                    f"Preserve placeholders like {{count}}, %(count)s, etc. "
-                    f"in the plain strings."
+                    _PROMPT_PO_PLURAL_MULTI_FORM.format(
+                        plural_count=plural_count,
+                        po_plural_count=po_plural_count,
+                        po_plural_count_minus_1=po_plural_count - 1,
+                    )
                 )
             else:
-                # Languages with 2 forms use singular/plural format
                 instructions.append(
-                    f"CRITICAL - PO FILE PLURAL ENTRIES "
-                    f"({plural_count} entry/entries): "
-                    f"These are for PO files (NOT JSON files). "
-                    f"For PO files, return an object with 'singular' and "
-                    f"'plural' keys, each containing a PLAIN TRANSLATION STRING. "
-                    f"\n"
-                    f"WRONG (DO NOT DO THIS): "
-                    f"{{'singular': '{{count, plural, one {{...}} "
-                    f"other {{...}}}}'}} "
-                    f"\n"
-                    f"CORRECT: "
-                    f"{{'singular': 'translation for one item', "
-                    f"'plural': 'translation for multiple items'}} "
-                    f"\n"
-                    f"Each value must be a simple translated string, "
-                    f"NOT ICU MessageFormat syntax. "
-                    f"Preserve placeholders like {{count}}, %(count)s, etc. "
-                    f"in the plain strings."
+                    _PROMPT_PO_PLURAL_SINGULAR_PLURAL.format(plural_count=plural_count)
                 )
 
         return "\n".join(instructions)
@@ -1961,19 +2000,16 @@ class Command(BaseCommand):
         self, value: dict, file_type: str, *, is_plural: bool
     ) -> dict[str, str] | None:
         """Process dict with numeric keys (multiple plural forms)."""
-        numeric_keys = [
-            k for k in value if (isinstance(k, (int, str)) and str(k).isdigit())
-        ]
+        numeric_keys = _get_numeric_plural_keys(value)
         if not numeric_keys or file_type != "po" or not is_plural:
             return None
 
         result = {}
-        for k, v in value.items():
-            if isinstance(k, (int, str)) and str(k).isdigit():
-                v_str = str(v).strip()
-                if self._is_icu_format(v_str):
-                    return None
-                result[str(k)] = v_str
+        for key in numeric_keys:
+            v_str = str(value[key]).strip()
+            if self._is_icu_format(v_str):
+                return None
+            result[str(key)] = v_str
         return result if result else None
 
     def _process_dict_singular_plural(
