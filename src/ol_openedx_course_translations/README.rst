@@ -149,6 +149,7 @@ Translating a Course
             --course-dir /path/to/course.tar.gz \
             --content-translation-provider openai \
             --srt-translation-provider gemini \
+            --translation-validation-provider openai/gpt-5.2 \
             --content-glossary /path/to/content/glossary \
             --srt-glossary /path/to/srt/glossary
 
@@ -166,6 +167,7 @@ Translating a Course
   - ``PROVIDER/MODEL`` - uses provider with specific model (e.g., ``openai/gpt-5.2``, ``gemini/gemini-3-pro-preview``, ``mistral/mistral-large-latest``)
 
 - ``--srt-translation-provider``: Translation provider for SRT subtitles (required). Same format as ``--content-translation-provider``
+- ``--translation-validation-provider``: Optional provider to validate/fix XML/HTML translations after translation.
 - ``--content-glossary``: Path to glossary directory for content (XML/HTML and text) translation (optional)
 - ``--srt-glossary``: Path to glossary directory for SRT subtitle translation (optional)
 

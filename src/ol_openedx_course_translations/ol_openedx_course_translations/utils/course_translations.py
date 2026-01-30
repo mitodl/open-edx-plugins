@@ -14,6 +14,7 @@ import shutil
 import tarfile
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from xml.etree.ElementTree import Element
 
@@ -456,7 +457,10 @@ def create_translated_archive(
         else original_archive_name
     )
 
-    translated_archive_name = f"{target_language}_{clean_archive_name}.tar.gz"
+    generated_at = datetime.now(UTC).strftime("%Y%m%d_%H%MZ")
+    translated_archive_name = (
+        f"{target_language}_{clean_archive_name}_{generated_at}.tar.gz"
+    )
     translated_archive_path = translated_course_dir.parent / translated_archive_name
 
     # Remove existing archive
