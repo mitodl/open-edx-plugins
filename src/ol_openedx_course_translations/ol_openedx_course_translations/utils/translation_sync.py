@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ from ol_openedx_course_translations.utils.constants import (
     EXPECTED_GLOSSARY_PARTS,
     LANGUAGE_MAPPING,
     LEARNER_FACING_APPS,
+    MAX_LOG_STRING_LENGTH,
     PLURAL_FORMS,
     PO_HEADER_BUGS_EMAIL,
     PO_HEADER_CONTENT_TRANSFER_ENCODING,
@@ -146,6 +148,22 @@ def _get_plural_form(lang_code: str) -> str:
     return PLURAL_FORMS.get(base_lang, DEFAULT_PLURAL_FORM)
 
 
+def _get_po_plural_count(lang_code: str) -> int:
+    """Get number of plural forms for a language (for PO files)."""
+    plural_form = _get_plural_form(lang_code)
+    nplurals_match = re.search(r"nplurals=(\d+)", plural_form)
+    if not nplurals_match:
+        return 2
+    return int(nplurals_match.group(1))
+
+
+def _get_numeric_plural_keys(translation: dict) -> list:
+    """Return keys that are int or digit-string (plural form indices)."""
+    return [
+        key for key in translation if isinstance(key, (int, str)) and str(key).isdigit()
+    ]
+
+
 def create_po_file_header(lang_code: str, iso_code: str | None = None) -> str:
     """Create PO file header for a language."""
     if iso_code is None:
@@ -221,20 +239,27 @@ def parse_po_file_with_metadata(po_file: Path) -> dict[str, dict]:
                 entry_data["msgid_plural"] = entry.msgid_plural
                 # Convert msgstr_plural dict to simple dict
                 entry_data["msgstr_plural"] = {
-                    i: entry.msgstr_plural.get(i, "")
-                    for i in range(len(entry.msgstr_plural))
+                    form_index: entry.msgstr_plural.get(form_index, "")
+                    for form_index in range(len(entry.msgstr_plural))
                 }
             entries[entry.msgid] = entry_data
     return entries
 
 
-def _create_po_entry_from_en(entry: polib.POEntry) -> polib.POEntry:
+def _create_po_entry_from_en(
+    entry: polib.POEntry, lang_code: str | None = None
+) -> polib.POEntry:
     """Create a new PO entry from an English entry with empty translation.
 
     Preserves all metadata from the English entry including:
     - msgid, msgid_plural, msgctxt
     - occurrences (location comments)
     - flags (format flags like python-format)
+
+    Args:
+        entry: English PO entry to copy from
+        lang_code: Target language code to determine number of plural forms.
+            If None, uses the number of forms from the English entry.
     """
     new_entry = polib.POEntry(
         msgid=entry.msgid,
@@ -247,8 +272,13 @@ def _create_po_entry_from_en(entry: polib.POEntry) -> polib.POEntry:
         new_entry.msgctxt = entry.msgctxt
 
     if entry.msgid_plural:
-        # Initialize plural forms (at least 2)
-        num_forms = max(2, len(entry.msgstr_plural) if entry.msgstr_plural else 2)
+        # Determine number of plural forms needed
+        if lang_code:
+            # Use target language's plural form count
+            num_forms = _get_po_plural_count(lang_code)
+        else:
+            # Fallback to English entry's form count
+            num_forms = max(2, len(entry.msgstr_plural) if entry.msgstr_plural else 2)
         new_entry.msgstr_plural = dict.fromkeys(range(num_forms), "")
     else:
         new_entry.msgstr = ""
@@ -256,7 +286,10 @@ def _create_po_entry_from_en(entry: polib.POEntry) -> polib.POEntry:
 
 
 def _sync_existing_po_file(
-    en_po: polib.POFile, target_po: polib.POFile, target_file: Path
+    en_po: polib.POFile,
+    target_po: polib.POFile,
+    target_file: Path,
+    lang_code: str | None = None,
 ) -> int:
     """Sync existing PO file by adding missing entries. Returns count added."""
     # Create a set of existing entries using (msgctxt, msgid, msgid_plural) tuple
@@ -285,7 +318,7 @@ def _sync_existing_po_file(
             entry.msgid_plural if entry.msgid_plural else None,
         )
         if entry_key not in existing_entries:
-            new_entry = _create_po_entry_from_en(entry)
+            new_entry = _create_po_entry_from_en(entry, lang_code)
             target_po.append(new_entry)
             added_count += 1
 
@@ -319,7 +352,7 @@ def _create_new_po_file(
         if not entry.msgid:  # Skip header
             continue
 
-        new_entry = _create_po_entry_from_en(entry)
+        new_entry = _create_po_entry_from_en(entry, lang_code)
         target_po.append(new_entry)
         added_count += 1
 
@@ -351,7 +384,9 @@ def sync_or_create_po_file(
     if file_exists:
         # File exists: sync entries
         target_po = polib.pofile(str(target_file))
-        stats["added"] = _sync_existing_po_file(en_po, target_po, target_file)
+        stats["added"] = _sync_existing_po_file(
+            en_po, target_po, target_file, lang_code
+        )
     else:
         # File doesn't exist: create new with all entries from English
         stats["added"] = _create_new_po_file(en_po, target_file, lang_code, iso_code)
@@ -360,7 +395,8 @@ def sync_or_create_po_file(
 
 
 def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dict]:
-    """Extract empty keys from frontend JSON files."""
+    """Extract empty translation keys from frontend JSON files."""
+    logger.debug("Extracting empty keys from frontend apps for language: %s", iso_code)
     empty_keys = []
 
     for app in LEARNER_FACING_APPS:
@@ -390,30 +426,67 @@ def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dic
             )
 
         if not target_file.exists() or not en_file.exists():
+            logger.debug(
+                "Skipping %s: target file or English file missing (target: %s, en: %s)",
+                app,
+                target_file.exists(),
+                en_file.exists(),
+            )
             continue
 
         try:
             target_data = load_json_file(target_file)
             en_data = load_json_file(en_file)
+            logger.debug(
+                "Processing %s: found %d keys in English file", app, len(en_data)
+            )
 
             for key in en_data:
                 target_value = target_data.get(key, "")
                 if not target_value or (
                     isinstance(target_value, str) and not target_value.strip()
                 ):
+                    english_value = en_data[key]
+                    # Skip non-string values (numbers, booleans, objects, arrays)
+                    # These shouldn't be translated as they would break JSON structure
+                    if not isinstance(english_value, str):
+                        logger.debug(
+                            "Skipping non-string value for key '%s' in %s: %s "
+                            "(type: %s). Only string values are translatable.",
+                            key,
+                            app,
+                            english_value,
+                            type(english_value).__name__,
+                        )
+                        continue
+                    # Check if English value is already in ICU MessageFormat
+                    is_icu_plural = (
+                        isinstance(english_value, str) and ", plural," in english_value
+                    )
+
                     empty_keys.append(
                         {
                             "app": app,
                             "key": key,
-                            "english": en_data[key],
+                            "english": english_value,
                             "translation": "",
                             "file_type": "json",
                             "file_path": str(target_file.resolve()),
+                            "is_plural": is_icu_plural,
                         }
                     )
-        except (OSError, ValueError, json.JSONDecodeError):
+            logger.debug("Extracted %d empty key(s) from %s", len(empty_keys), app)
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Skipping %s due to error loading translation files: %s", app, e
+            )
             continue
 
+    logger.info(
+        "Extracted %d total empty key(s) from frontend apps for language: %s",
+        len(empty_keys),
+        iso_code,
+    )
     return empty_keys
 
 
@@ -427,8 +500,8 @@ def _is_po_entry_empty(
     if entry.msgid_plural:
         # Plural entry - check if plural forms are empty
         return any(
-            not target_entry.msgstr_plural.get(i, "").strip()
-            for i in range(len(target_entry.msgstr_plural))
+            not target_entry.msgstr_plural.get(form_index, "").strip()
+            for form_index in range(len(target_entry.msgstr_plural))
         )
 
     # Singular entry - check if empty
@@ -498,7 +571,10 @@ def _extract_empty_keys_from_backend(base_dir: Path, backend_locale: str) -> lis
                             "msgctxt": msgctxt,  # Include msgctxt for proper matching
                         }
                     )
-        except (OSError, polib.POFileError, ValueError):
+        except (OSError, polib.POFileError, ValueError) as e:
+            logger.warning(
+                "Skipping %s due to error loading PO file: %s", target_file, e
+            )
             continue
 
     return empty_keys
@@ -535,6 +611,7 @@ def apply_json_translations(file_path: Path, translations: dict[str, str]) -> in
     """
     data = load_json_file(file_path)
     applied = 0
+    skipped = 0
 
     for key, translation in translations.items():
         if key in data:
@@ -545,9 +622,41 @@ def apply_json_translations(file_path: Path, translations: dict[str, str]) -> in
             ):
                 data[key] = translation
                 applied += 1
+                logger.debug(
+                    "Applied translation for key '%s' in %s", key, file_path.name
+                )
+            else:
+                skipped += 1
+                logger.debug(
+                    "Skipped key '%s' in %s (already has value: %s)",
+                    key,
+                    file_path.name,
+                    current_value[:50]
+                    if isinstance(current_value, str)
+                    else current_value,
+                )
+        else:
+            skipped += 1
+            logger.debug(
+                "Skipped key '%s' in %s (key not found in target file)",
+                key,
+                file_path.name,
+            )
 
     if applied > 0:
         save_json_file(file_path, data)
+        logger.info(
+            "Applied %d translation(s) to %s (%d skipped)",
+            applied,
+            file_path.name,
+            skipped,
+        )
+    elif skipped > 0:
+        logger.debug(
+            "No translations applied to %s (%d keys skipped - already have values)",
+            file_path.name,
+            skipped,
+        )
 
     return applied
 
@@ -729,13 +838,13 @@ def _normalize_plural_entry(entry: polib.POEntry) -> bool:
         return False
 
     changed = False
-    for i, msgstr_plural_val in entry.msgstr_plural.items():
+    for form_index, msgstr_plural_val in entry.msgstr_plural.items():
         if msgstr_plural_val:
             # msgstr[0] matches msgid, msgstr[1+] matches msgid_plural
-            reference = entry.msgid if i == 0 else entry.msgid_plural
+            reference = entry.msgid if form_index == 0 else entry.msgid_plural
             normalized = _normalize_translation_newlines(reference, msgstr_plural_val)
             if normalized != msgstr_plural_val:
-                entry.msgstr_plural[i] = normalized
+                entry.msgstr_plural[form_index] = normalized
                 changed = True
     return changed
 
@@ -754,20 +863,44 @@ def _apply_plural_dict_translation(
 ) -> bool:
     """Apply plural translation from dict. Returns True if applied."""
     plural_applied = False
-    if not entry.msgstr_plural.get(0, "").strip():
-        # Normalize singular translation to match msgid structure
-        normalized_singular = _normalize_translation_newlines(
-            entry.msgid, translation["singular"]
-        )
-        entry.msgstr_plural[0] = normalized_singular
-        plural_applied = True
-    if len(entry.msgstr_plural) > 1 and not entry.msgstr_plural.get(1, "").strip():
-        # Normalize plural translation to match msgid_plural structure
-        normalized_plural = _normalize_translation_newlines(
-            entry.msgid_plural or entry.msgid, translation["plural"]
-        )
-        entry.msgstr_plural[1] = normalized_plural
-        plural_applied = True
+
+    # Check if translation uses numeric keys (multiple forms: 0, 1, 2 or "0", "1", "2")
+    numeric_keys = _get_numeric_plural_keys(translation)
+    if numeric_keys:
+        # Multiple plural forms - apply each form to its corresponding index
+        for key in numeric_keys:
+            form_index = int(key) if isinstance(key, str) else key
+            if (
+                form_index < len(entry.msgstr_plural)
+                and not entry.msgstr_plural.get(form_index, "").strip()
+            ):
+                # Normalize translation - use msgid for form 0, msgid_plural for others
+                reference = entry.msgid if form_index == 0 else entry.msgid_plural
+                normalized = _normalize_translation_newlines(
+                    reference or entry.msgid, str(translation[key]).strip()
+                )
+                entry.msgstr_plural[form_index] = normalized
+                plural_applied = True
+    elif "singular" in translation and "plural" in translation:
+        # Traditional singular/plural format - apply to forms 0 and 1+
+        # Apply singular to form 0
+        if not entry.msgstr_plural.get(0, "").strip():
+            # Normalize singular translation to match msgid structure
+            normalized_singular = _normalize_translation_newlines(
+                entry.msgid, translation["singular"]
+            )
+            entry.msgstr_plural[0] = normalized_singular
+            plural_applied = True
+        # Apply plural to all remaining empty forms (for languages with >2 forms)
+        for form_index in range(1, len(entry.msgstr_plural)):
+            if not entry.msgstr_plural.get(form_index, "").strip():
+                # Normalize plural translation to match msgid_plural structure
+                normalized_plural = _normalize_translation_newlines(
+                    entry.msgid_plural or entry.msgid, translation["plural"]
+                )
+                entry.msgstr_plural[form_index] = normalized_plural
+                plural_applied = True
+
     return plural_applied
 
 
@@ -776,11 +909,63 @@ def _apply_plural_string_translation(entry: polib.POEntry, translation: str) -> 
     plural_applied = False
     # Normalize translation to match msgid structure
     normalized_translation = _normalize_translation_newlines(entry.msgid, translation)
-    for i in range(len(entry.msgstr_plural)):
-        if not entry.msgstr_plural.get(i, "").strip():
-            entry.msgstr_plural[i] = normalized_translation
+    for form_index in range(len(entry.msgstr_plural)):
+        if not entry.msgstr_plural.get(form_index, "").strip():
+            entry.msgstr_plural[form_index] = normalized_translation
             plural_applied = True
     return plural_applied
+
+
+def _apply_translation_to_plural_entry(entry: polib.POEntry, translation: Any) -> bool:
+    """Apply translation to a plural PO entry. Returns True if applied."""
+    # Check if translation is a string representation of a dict
+    if (
+        isinstance(translation, str)
+        and translation.strip().startswith("{")
+        and translation.strip().endswith("}")
+    ):
+        try:
+            translation = json.loads(translation.strip())
+        except (json.JSONDecodeError, ValueError):
+            return bool(
+                translation and _apply_plural_string_translation(entry, translation)
+            )
+
+    if isinstance(translation, dict):
+        numeric_keys = _get_numeric_plural_keys(translation)
+        if numeric_keys or "singular" in translation:
+            return _apply_plural_dict_translation(entry, translation)
+    return bool(
+        isinstance(translation, str)
+        and translation
+        and _apply_plural_string_translation(entry, translation)
+    )
+
+
+def _apply_translation_to_singular_entry(
+    entry: polib.POEntry, translation: Any
+) -> bool:
+    """Apply translation to a singular PO entry. Returns True if applied."""
+    if isinstance(translation, dict) and "singular" in translation:
+        logger.info(
+            "LLM returned dict for singular entry; msgid=%r msgctxt=%r",
+            entry.msgid,
+            getattr(entry, "msgctxt", None),
+        )
+        translation_str = str(translation["singular"]).strip()
+        if translation_str:
+            normalized_translation = _normalize_translation_newlines(
+                entry.msgid, translation_str
+            )
+            entry.msgstr = normalized_translation
+            return True
+    if isinstance(translation, str) and translation:
+        normalized_translation = _normalize_translation_newlines(
+            entry.msgid, translation
+        )
+        entry.msgstr = normalized_translation
+        return True
+    return False
 
 
 def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
@@ -789,50 +974,53 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
 
     Args:
         entry: The PO entry to apply translation to.
-        translation: Translation value (string or dict with 'singular'/'plural').
+        translation: Translation value (string or dict with 'singular'/'plural'
+            or numeric keys '0', '1', '2', etc. for multiple forms).
 
     Returns:
         True if translation was applied, False otherwise.
     """
     if entry.msgid_plural:
-        # Plural entry
-        if (
-            isinstance(translation, dict)
-            and "singular" in translation
-            and "plural" in translation
-        ):
-            return _apply_plural_dict_translation(entry, translation)
-        if (
-            isinstance(translation, str)
-            and translation
-            and _apply_plural_string_translation(entry, translation)
-        ):
-            return True
-    # Singular entry - translation should be a string
-    elif not entry.msgstr or not entry.msgstr.strip():
-        # Handle case where LLM returns plural dict for singular entry
-        # (some LLMs like Mistral may incorrectly return plural format)
-        if isinstance(translation, dict) and "singular" in translation:
-            logger.info(
-                "LLM returned dict for singular entry; msgid=%r msgctxt=%r",
-                entry.msgid,
-                getattr(entry, "msgctxt", None),
-            )
-            translation_str = str(translation["singular"]).strip()
-            if translation_str:
-                normalized_translation = _normalize_translation_newlines(
-                    entry.msgid, translation_str
-                )
-                entry.msgstr = normalized_translation
-                return True
-        # Normal string translation
-        elif isinstance(translation, str) and translation:
-            # Normalize translation to match msgid's newline structure
-            normalized_translation = _normalize_translation_newlines(
-                entry.msgid, translation
-            )
-            entry.msgstr = normalized_translation
-            return True
+        return _apply_translation_to_plural_entry(entry, translation)
+    if not entry.msgstr or not entry.msgstr.strip():
+        return _apply_translation_to_singular_entry(entry, translation)
+    return False
+
+
+def _expand_plural_forms_if_needed(entry: polib.POEntry, po: polib.POFile) -> bool:
+    """Expand plural forms if entry has fewer forms than required by language.
+
+    Args:
+        entry: PO entry to potentially expand
+        po: PO file containing the entry (to read Plural-Forms metadata)
+
+    Returns:
+        True if entry was expanded, False otherwise
+    """
+    if not entry.msgid_plural:
+        return False
+
+    # Get required number of forms from PO file metadata
+    plural_forms_str = po.metadata.get("Plural-Forms", "")
+    if not plural_forms_str:
+        return False
+
+    nplurals_match = re.search(r"nplurals=(\d+)", plural_forms_str)
+    if not nplurals_match:
+        return False
+
+    required_forms = int(nplurals_match.group(1))
+    current_forms = len(entry.msgstr_plural) if entry.msgstr_plural else 0
+
+    # Expand if needed
+    if current_forms < required_forms:
+        if not entry.msgstr_plural:
+            entry.msgstr_plural = {}
+        # Add missing forms with empty strings
+        for form_index in range(current_forms, required_forms):
+            entry.msgstr_plural[form_index] = ""
+        return True
+
     return False
 
 
@@ -842,6 +1030,7 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
     Handles both singular and plural forms.
     For plural forms, translations dict can contain:
     - Dict with 'singular' and 'plural' keys: {"singular": "...", "plural": "..."}
+    - Dict with numeric keys '0', '1', '2', etc. for multiple forms
     - String: applies same translation to all plural forms
 
     The translations dict is keyed by msgid. If entries have msgctxt, we try to match
@@ -850,8 +1039,12 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
     """
     po = polib.pofile(str(file_path))
     applied = 0
+    skipped = 0
 
     for entry in po:
+        # Expand plural forms if entry has fewer than required
+        if entry.msgid_plural:
+            _expand_plural_forms_if_needed(entry, po)
         if not entry.msgid:
             continue
 
@@ -869,14 +1062,50 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
             translation = translations.get(entry.msgid)
 
         # If translation found, apply it
-        if translation is not None and _apply_translation_to_entry(entry, translation):
-            applied += 1
+        if translation is not None:
+            if _apply_translation_to_entry(entry, translation):
+                applied += 1
+                logger.debug(
+                    "Applied translation for msgid '%s' in %s",
+                    (
+                        entry.msgid[:MAX_LOG_STRING_LENGTH] + "..."
+                        if len(entry.msgid) > MAX_LOG_STRING_LENGTH
+                        else entry.msgid
+                    ),
+                    file_path.name,
+                )
+            else:
+                skipped += 1
+                logger.debug(
+                    "Skipped msgid '%s' in %s (already has translation)",
+                    (
+                        entry.msgid[:MAX_LOG_STRING_LENGTH] + "..."
+                        if len(entry.msgid) > MAX_LOG_STRING_LENGTH
+                        else entry.msgid
+                    ),
+                    file_path.name,
+                )
+        else:
+            skipped += 1
 
     # CRITICAL: Normalize ALL entries to fix newline mismatches
     normalized_count = _normalize_all_entries_in_po_file(po)
 
     if applied > 0 or normalized_count > 0:
         po.save(str(file_path))
+        logger.info(
+            "Applied %d translation(s) to %s (%d skipped)",
+            applied,
+            file_path.name,
+            skipped,
+        )
+    elif skipped > 0:
+        logger.debug(
+            "No translations applied to %s (%d entries skipped - "
+            "already have translations)",
+            file_path.name,
+            skipped,
+        )
 
     return applied
 
@@ -908,7 +1137,10 @@ def _sync_frontend_translations(base_dir: Path, iso_code: str) -> dict[str, int]
             frontend_stats["added"] += stats.get("added", 0)
             frontend_stats["fixed"] += stats.get("fixed", 0)
             frontend_stats["removed"] += stats.get("removed", 0)
-        except (OSError, ValueError, json.JSONDecodeError):
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            logger.warning(
+                "Skipping %s due to error syncing translation file: %s", app, e
+            )
             continue
 
     return frontend_stats
