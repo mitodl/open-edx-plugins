@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-chat"
-version = "0.5.3"
+version = "0.5.4"
 description = "An Open edX plugin to add Open Learning AI chat aside to xBlocks"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -34,6 +34,7 @@ packages = ["ol_openedx_chat"]
 include = [
   "ol_openedx_chat/**/*.py",
   "ol_openedx_chat/static/**/*",
+  "ol_openedx_chat/locale/**/*",
 ]
 
 [tool.hatch.build.targets.sdist]
