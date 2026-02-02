@@ -794,9 +794,7 @@ class Command(BaseCommand):
             try:
                 assets = json.loads(assets_path.read_text(encoding="utf-8") or "{}")
             except Exception:
-                logger.exception(
-                    "Failed to parse policies/assets.json;"
-                )
+                logger.exception("Failed to parse policies/assets.json;")
                 return  # Skip updating assets.json on parse failure
 
         asset_key = ".translations_meta"
