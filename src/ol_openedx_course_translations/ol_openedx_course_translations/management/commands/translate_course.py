@@ -730,7 +730,7 @@ class Command(BaseCommand):
         source_course_id: CourseLocator,
     ) -> None:
         """
-        Write a metadata file into <course_dir>/course/static/translations_meta.txt.
+        Write a metadata file into <course_dir>/course/static/.translations_meta
 
         Contains:
           - source_language
