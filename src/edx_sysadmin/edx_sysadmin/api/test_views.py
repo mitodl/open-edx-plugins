@@ -171,7 +171,7 @@ class GitReloadAPIViewTestCase(TestCase):
             },
         )
         assert response.status_code == status
-        assert mocked_get_local_course_repo.called_with("repo_name")  # noqa: PGH005
+        mocked_get_local_course_repo.assert_called_with("repo_name")
 
         if response.status_code == _status.HTTP_200_OK:
             assert mocked_add_repo.assert_called
