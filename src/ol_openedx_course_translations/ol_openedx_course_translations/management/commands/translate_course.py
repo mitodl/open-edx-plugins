@@ -2,6 +2,8 @@
 Management command to translate course content to a specified language.
 """
 
+import hashlib
+import json
 import logging
 import shutil
 import time
@@ -10,6 +12,7 @@ from pathlib import Path
 from celery import group
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from opaque_keys.edx.locator import CourseLocator
 
 from ol_openedx_course_translations.models import CourseTranslationLog
 from ol_openedx_course_translations.tasks import (
@@ -724,7 +727,7 @@ class Command(BaseCommand):
         target_language: str,
         command_stats: list[str] | None,
         command_options: dict | None = None,
-        source_course_id: str,
+        source_course_id: CourseLocator,
     ) -> None:
         """
         Write a metadata file into <course_dir>/course/static/translations_meta.txt.
@@ -747,7 +750,7 @@ class Command(BaseCommand):
         static_dir = course_dir / "course" / "static"
         static_dir.mkdir(parents=True, exist_ok=True)
 
-        meta_path = static_dir / "translations_meta.txt"
+        meta_path = static_dir / ".translations_meta"
         stats_text = "\n".join(command_stats) if command_stats else ""
 
         options_lines = []
@@ -761,11 +764,11 @@ class Command(BaseCommand):
         meta_contents = (
             f"source_course_id: {source_course_id}\n"
             f"source_language: {source_language}\n"
-            f"target_language: {target_language}\n"
+            f"target_language: {target_language}\n\n"
             f"Content Provider: {self.content_provider_name}\n"
             f"Content Model: {self.content_model}\n"
             f"SRT Provider: {self.srt_provider_name}\n"
-            f"SRT Model: {self.srt_model}\n\n"
+            f"SRT Model: {self.srt_model}\n"
             f"Validation Provider: {self.translation_validation_provider_name}\n"
             f"Validation Model: {self.translation_validation_model}\n\n"
             "COMMAND_OPTIONS:\n"
@@ -775,3 +778,49 @@ class Command(BaseCommand):
         )
 
         meta_path.write_text(meta_contents, encoding="utf-8")
+
+        # Compute custom_md5 for the meta contents
+        content = type("Content", (), {"data": meta_contents})()
+        encoded_data = content.data.encode("utf-8")
+        meta_custom_md5 = hashlib.md5(encoded_data).hexdigest()  # noqa: S324
+
+        # Upsert into policies/assets.json
+        policies_dir = course_dir / "course" / "policies"
+        policies_dir.mkdir(parents=True, exist_ok=True)
+        assets_path = policies_dir / "assets.json"
+
+        assets = {}
+        if assets_path.exists():
+            try:
+                assets = json.loads(assets_path.read_text(encoding="utf-8") or "{}")
+            except Exception:
+                logger.exception(
+                    "Failed to parse policies/assets.json;"
+                )
+                return  # Skip updating assets.json on parse failure
+
+        asset_key = ".translations_meta"
+        assets[asset_key] = {
+            "contentType": "text/plain",
+            "content_son": {
+                "category": "asset",
+                "course": source_course_id.course,
+                "name": asset_key,
+                "org": source_course_id.org,
+                "revision": None,
+                "run": source_course_id.run,
+                "tag": "c4x",
+            },
+            "custom_md5": meta_custom_md5,
+            "displayname": asset_key,
+            "filename": f"asset-v1:{source_course_id}+type@asset+block@{asset_key}"
+            if source_course_id
+            else asset_key,
+            "import_path": None,
+            "locked": True,
+            "thumbnail_location": None,
+        }
+
+        assets_path.write_text(
+            json.dumps(assets, indent=4, sort_keys=True) + "\n", encoding="utf-8"
+        )
