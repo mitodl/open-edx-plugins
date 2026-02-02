@@ -113,9 +113,8 @@ class OLChatAside(XBlockAside):
                     "block_id": block_id,
                     "block_usage_key": block_usage_key,
                     "block_type": block_type,
-                    "ask_label_suffix": gettext(
-                        "about this %(block_type)s"
-                    ) % {"block_type": block_type},
+                    "ask_label_suffix": gettext("about this %(block_type)s")
+                    % {"block_type": block_type},
                 },
             )
         )
@@ -165,7 +164,10 @@ class OLChatAside(XBlockAside):
                 "trackingUrl": f"{settings.LMS_ROOT_URL}{self.runtime.handler_url(self, 'track_user_events')}",  # noqa: E501
                 "blockType": block_type,
                 "title": "AskTIM "
-                + (gettext("about %(display_name)s") % {"display_name": block.display_name}),
+                + (
+                    gettext("about %(display_name)s")
+                    % {"display_name": block.display_name}
+                ),
                 "chat": {
                     "chatId": block_id,
                     "initialMessages": TUTOR_INITIAL_MESSAGES,
