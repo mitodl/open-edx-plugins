@@ -113,7 +113,7 @@ class OLChatAside(XBlockAside):
                     "block_id": block_id,
                     "block_usage_key": block_usage_key,
                     "block_type": block_type,
-                    "ask_label_suffix": gettext("about this %(block_type)s")
+                    "about_block": gettext("about this %(block_type)s")
                     % {"block_type": block_type},
                 },
             )
