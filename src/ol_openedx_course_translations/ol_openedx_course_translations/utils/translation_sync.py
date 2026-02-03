@@ -513,7 +513,7 @@ def _is_po_entry_empty(
 def _extract_empty_keys_from_po_file(
     target_file: Path, en_file: Path, po_file_name: str, app_name: str
 ) -> list[dict]:
-    """Extract empty translation keys from a single PO file. Returns list of key dicts."""
+    """Extract empty keys from one PO file. Returns list of key dicts."""
     empty_keys = []
     try:
         target_po = polib.pofile(str(target_file))
@@ -541,9 +541,9 @@ def _extract_empty_keys_from_po_file(
                         "file_path": str(target_file.resolve()),
                         "po_file": po_file_name,
                         "is_plural": entry.msgid_plural is not None,
-                        "msgid_plural": entry.msgid_plural
-                        if entry.msgid_plural
-                        else None,
+                        "msgid_plural": (
+                            entry.msgid_plural if entry.msgid_plural else None
+                        ),
                         "msgctxt": msgctxt,
                     }
                 )
@@ -1063,73 +1063,50 @@ def _expand_plural_forms_if_needed(entry: polib.POEntry, po: polib.POFile) -> bo
     return False
 
 
-def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
-    """
-    Apply translations to a PO file. Returns number of translations applied.
-    Handles both singular and plural forms.
-    For plural forms, translations dict can contain:
-    - Dict with 'singular' and 'plural' keys: {"singular": "...", "plural": "..."}
-    - Dict with numeric keys '0', '1', '2', etc. for multiple forms
-    - String: applies same translation to all plural forms
+def _get_translation_for_po_entry(
+    entry: polib.POEntry, translations: dict[str, Any]
+) -> Any | None:
+    """Look up translation for a PO entry (msgctxt:msgid or msgid)."""
+    entry_msgctxt = getattr(entry, "msgctxt", None) or None
+    if entry_msgctxt:
+        key_with_context = f"{entry_msgctxt}:{entry.msgid}"
+        value = translations.get(key_with_context)
+        if value is not None:
+            return value
+    return translations.get(entry.msgid)
 
-    The translations dict is keyed by msgid. If entries have msgctxt, we try to match
-    by msgid first, and if there are multiple matches, we prefer entries without msgctxt
-    or with matching msgctxt.
-    """
-    po = polib.pofile(str(file_path))
-    applied = 0
-    skipped = 0
 
-    for entry in po:
-        # Expand plural forms if entry has fewer than required
-        if entry.msgid_plural:
-            _expand_plural_forms_if_needed(entry, po)
-        if not entry.msgid:
-            continue
+def _log_po_entry_result(
+    entry: polib.POEntry, file_path: Path, *, applied: bool
+) -> None:
+    """Log whether a translation was applied or skipped for an entry."""
+    msgid_display = (
+        entry.msgid[:MAX_LOG_STRING_LENGTH] + "..."
+        if len(entry.msgid) > MAX_LOG_STRING_LENGTH
+        else entry.msgid
+    )
+    if applied:
+        logger.debug(
+            "Applied translation for msgid '%s' in %s",
+            msgid_display,
+            file_path.name,
+        )
+    else:
+        logger.debug(
+            "Skipped msgid '%s' in %s (already has translation)",
+            msgid_display,
+            file_path.name,
+        )
 
-        # Get msgctxt for this entry
-        entry_msgctxt = getattr(entry, "msgctxt", None) or None
 
-        # Try msgctxt:msgid key first, then fallback to msgid only
-        translation = None
-        if entry_msgctxt:
-            key_with_context = f"{entry_msgctxt}:{entry.msgid}"
-            translation = translations.get(key_with_context)
-
-        # Fallback to msgid-only key (backward compatibility)
-        if translation is None:
-            translation = translations.get(entry.msgid)
-
-        # If translation found, apply it
-        if translation is not None:
-            if _apply_translation_to_entry(entry, translation):
-                applied += 1
-                logger.debug(
-                    "Applied translation for msgid '%s' in %s",
-                    (
-                        entry.msgid[:MAX_LOG_STRING_LENGTH] + "..."
-                        if len(entry.msgid) > MAX_LOG_STRING_LENGTH
-                        else entry.msgid
-                    ),
-                    file_path.name,
-                )
-            else:
-                skipped += 1
-                logger.debug(
-                    "Skipped msgid '%s' in %s (already has translation)",
-                    (
-                        entry.msgid[:MAX_LOG_STRING_LENGTH] + "..."
-                        if len(entry.msgid) > MAX_LOG_STRING_LENGTH
-                        else entry.msgid
-                    ),
-                    file_path.name,
-                )
-        else:
-            skipped += 1
-
-    # CRITICAL: Normalize ALL entries to fix newline mismatches
-    normalized_count = _normalize_all_entries_in_po_file(po)
-
+def _save_po_if_updated(
+    po: polib.POFile,
+    file_path: Path,
+    applied: int,
+    skipped: int,
+    normalized_count: int,
+) -> None:
+    """Save PO file and log result if any changes were made."""
     if applied > 0 or normalized_count > 0:
         po.save(str(file_path))
         logger.info(
@@ -1146,6 +1123,44 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
             skipped,
         )
 
+
+def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
+    """
+    Apply translations to a PO file. Returns number of translations applied.
+    Handles both singular and plural forms.
+    For plural forms, translations dict can contain:
+    - Dict with 'singular' and 'plural' keys: {"singular": "...", "plural": "..."}
+    - Dict with numeric keys '0', '1', '2', etc. for multiple forms
+    - String: applies same translation to all plural forms
+
+    The translations dict is keyed by msgid. If entries have msgctxt, we try
+    to match by msgid first, and if there are multiple matches, we prefer
+    entries without msgctxt or with matching msgctxt.
+    """
+    po = polib.pofile(str(file_path))
+    applied = 0
+    skipped = 0
+
+    for entry in po:
+        if entry.msgid_plural:
+            _expand_plural_forms_if_needed(entry, po)
+        if not entry.msgid:
+            continue
+
+        translation = _get_translation_for_po_entry(entry, translations)
+        if translation is None:
+            skipped += 1
+            continue
+
+        was_applied = _apply_translation_to_entry(entry, translation)
+        if was_applied:
+            applied += 1
+        else:
+            skipped += 1
+        _log_po_entry_result(entry, file_path, applied=was_applied)
+
+    normalized_count = _normalize_all_entries_in_po_file(po)
+    _save_po_if_updated(po, file_path, applied, skipped, normalized_count)
     return applied
 
 
