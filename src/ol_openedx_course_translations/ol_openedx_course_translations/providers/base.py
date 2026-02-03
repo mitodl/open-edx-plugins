@@ -1,6 +1,7 @@
 """Base classes for translation providers."""
 
 import logging
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -9,6 +10,103 @@ import srt
 logger = logging.getLogger(__name__)
 
 MAX_SUBTITLE_TRANSLATION_RETRIES = 1
+
+
+def parse_glossary_text(glossary_text: str) -> dict[str, str]:
+    """
+    Parse a glossary text blob into a dict[term, translation].
+
+    Supports lines like:
+      - 'term' -> 'translation'
+    Ignores comments/blank lines and preserves original (un-normalized) strings.
+    """
+    if not glossary_text:
+        return {}
+
+    out: dict[str, str] = {}
+    for raw_line in glossary_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        # Bullet prefix is optional
+        if line.startswith("-"):
+            line = line[1:].strip()
+
+        # Split on the first arrow only
+        if "->" not in line:
+            continue
+        left, right = (part.strip() for part in line.split("->", 1))
+        if not left or not right:
+            continue
+
+        # Strip optional wrapping quotes
+        left = left.strip("'\"").strip()
+        right = right.strip("'\"").strip()
+        if left:
+            out[left] = right
+
+    return out
+
+
+def _normalize_for_match(value: str) -> str:
+    """
+    Normalize for matching:
+    - trim outer whitespace
+    - case-insensitive
+    - collapse all whitespace runs (incl newlines) to a single space
+    """
+    # Collapse whitespace so multi-word glossary terms match across line breaks.
+    return re.sub(r"\s+", " ", (value or "").strip().lower())
+
+
+def filter_glossary_for_subtitles(
+    subtitles: list[srt.Subtitle],
+    glossary: dict[str, str],
+) -> dict[str, str]:
+    """
+    Return only glossary entries whose terms appear in subtitle content.
+
+    Matching rules:
+    - case-insensitive
+    - trims whitespace
+    - collapses whitespace (so phrases match across subtitle newlines)
+    - avoids partial-word false positives via non-word boundaries
+      (e.g. 'art' won't match 'cart')
+    """
+    if not subtitles or not glossary:
+        return {}
+
+    # Efficient: join once, normalize once.
+    corpus = _normalize_for_match(" ".join((s.content or "") for s in subtitles))
+    if not corpus:
+        return {}
+
+    # Compile patterns once per glossary entry (helps for large glossaries).
+    compiled: list[tuple[str, str, re.Pattern[str]]] = []
+    for term, translation in glossary.items():
+        norm_term = _normalize_for_match(term)
+        if not norm_term:
+            continue
+        compiled.append(
+            (
+                term,
+                translation,
+                re.compile(rf"(?<!\w){re.escape(norm_term)}(?!\w)"),
+            )
+        )
+
+    return {term: translation for term, translation, pattern in compiled if pattern.search(corpus)}
+
+
+def format_glossary_for_prompt(glossary: dict[str, str]) -> str:
+    """
+    Format a dict glossary to prompt-friendly lines.
+    Keeps original keys/values; returns "" if empty.
+    """
+    if not glossary:
+        return ""
+    return "\n".join(f"- '{k}' -> '{v}'" for k, v in glossary.items())
 
 
 def load_glossary(target_language: str, glossary_directory: str | None = None) -> str:
@@ -40,6 +138,15 @@ def load_glossary(target_language: str, glossary_directory: str | None = None) -
         return ""
 
     return glossary_file_path.read_text(encoding="utf-8-sig").strip()
+
+
+def load_glossary_dict(
+    target_language: str, glossary_directory: str | None = None
+) -> dict[str, str]:
+    """
+    Load and parse the glossary file for a language into a dict.
+    """
+    return parse_glossary_text(load_glossary(target_language, glossary_directory))
 
 
 class TranslationProvider(ABC):
