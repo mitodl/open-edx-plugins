@@ -2,6 +2,7 @@
 
 import logging
 import re
+from abc import abstractmethod
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -10,28 +11,9 @@ import srt
 from django.conf import settings
 from litellm import completion
 
-from .base import TranslationProvider, load_glossary
+from .base import TranslationProvider
 
 logger = logging.getLogger(__name__)
-
-# Human-readable language names for LLM prompts
-LANGUAGE_DISPLAY_NAMES = {
-    "en": "English",
-    "de": "Deutsch",
-    "es": "Español",
-    "fr": "Français",
-    "pt-br": "Português - Brasil",
-    "ru": "Русский",
-    "hi": "हिंदी",
-    "el": "ελληνικά",
-    "ja": "日本語",
-    "ar": "العربية",
-    "zh": "中文",
-    "tr": "Türkçe",
-    "sq": "Shqip",
-    "kr": "한국어",
-    "id": "Bahasa Indonesia",
-}
 
 # LLM error detection keywords
 LLM_ERROR_KEYWORDS = [
@@ -74,12 +56,14 @@ class LLMProvider(TranslationProvider):
     - For plain text inputs, it uses structured prompting with markers.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         primary_api_key: str,
         model_name: str | None = None,
-        timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
-        srt_batch_size: int = 250,
+        litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
+        srt_batch_size: int = 50,
+        max_chunk_retries: int = MAX_CHUNK_RETRIES,
+        temperature: float = 0.0,
     ):
         """
         Initialize LLM provider with API key and model name.
@@ -92,8 +76,10 @@ class LLMProvider(TranslationProvider):
         """
         super().__init__(primary_api_key)
         self.model_name = model_name
-        self.timeout = timeout
+        self.litellm_timeout = litellm_timeout
         self.srt_batch_size = srt_batch_size
+        self.max_chunk_retries = max_chunk_retries
+        self.temperature = temperature
         self._translation_cache: OrderedDict[tuple[str, str], str] = OrderedDict()
 
     def _cache_get(self, target_language: str, text: str) -> str | None:
@@ -107,57 +93,49 @@ class LLMProvider(TranslationProvider):
         while len(self._translation_cache) > max_entries:
             self._translation_cache.popitem(last=False)
 
+    def _load_glossary_into_prompt(
+        self,
+        system_prompt: str,
+        glossary_directory: str,
+        target_language: str,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
+    ) -> str:
+        """
+        Load glossary terms into the system prompt.
+        """
+        from ol_openedx_course_translations.utils.course_translations import (  # noqa: PLC0415
+            filter_glossary_for_subtitles,
+            format_glossary_for_prompt,
+            load_glossary,
+            load_glossary_dict,
+        )
+
+        if subtitle_list:
+            glossary_dict = load_glossary_dict(target_language, glossary_directory)
+            filtered = filter_glossary_for_subtitles(subtitle_list, glossary_dict)
+            glossary_terms = format_glossary_for_prompt(filtered)
+        else:
+            # Fallback to previous behavior if subtitles aren't provided.
+            glossary_terms = load_glossary(target_language, glossary_directory)
+
+        if glossary_terms:
+            system_prompt += (
+                f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
+            )
+        return system_prompt
+
+    @abstractmethod
     def _get_subtitle_system_prompt(
         self,
         target_language: str,
         glossary_directory: str | None = None,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
     ) -> str:
         """
         Generate system prompt for subtitle translation.
-
-        Creates detailed prompts with rules for subtitle translation,
-        including glossary terms if provided.
-
-        Args:
-            target_language: Target language code
-            glossary_directory: Path to glossary directory (optional)
-
-        Returns:
-            System prompt string for subtitle translation
         """
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
-            target_language, target_language
-        )
-
-        system_prompt = (
-            f"You are a professional subtitle translator. "
-            f"Translate English subtitles to {target_language_display_name}.\n\n"
-            "INPUT FORMAT:\n"
-            "Source [ID]: <srt_text>English text</srt_text>\n"
-            "Target [ID]: \n\n"
-            "OUTPUT FORMAT - Fill in each Target line:\n"
-            "Source [ID]: <srt_text>English text</srt_text>\n"
-            "Target [ID]: <srt_text>Translated text</srt_text>\n\n"
-            "CRITICAL RULES:\n"
-            "1. Fill in EVERY Target [ID] line with the translation.\n"
-            "2. Wrap ALL translations in <srt_text></srt_text> tags.\n"
-            "3. Each Target must translate ONLY its corresponding Source.\n"
-            "4. Do NOT merge or shift content between IDs.\n"
-            "5. If Source is a single word (e.g., 'Perfect.'), "
-            "Target must be just that word translated.\n"
-            "6. If Source is a sentence fragment, Target must be a fragment.\n"
-            "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
-            "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
-        )
-
-        if glossary_directory:
-            glossary_terms = load_glossary(target_language, glossary_directory)
-            if glossary_terms:
-                system_prompt += (
-                    f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
-                )
-
-        return system_prompt
 
     def _get_text_system_prompt(
         self,
@@ -177,21 +155,27 @@ class LLMProvider(TranslationProvider):
         Returns:
             System prompt string for text translation
         """
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
-            target_language, target_language
+        from ol_openedx_course_translations.utils.course_translations import (  # noqa: PLC0415
+            load_glossary,
+        )
+
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
         )
 
         system_prompt = (
             f"Translate the following English text to "
-            f"{target_language_display_name}.\n\n"
+            f"{target_language_display_name} ({target_language}).\n\n"
             f"OUTPUT FORMAT (exactly):\n"
             f"{TRANSLATION_MARKER_START}\n"
             "Your translated text here\n"
             f"{TRANSLATION_MARKER_END}\n\n"
             "GENERAL TRANSLATION RULES:\n"
             "1. Output ONLY the translation between the markers.\n"
-            "2. Maintain the original formatting, spacing, line breaks, and indentation.\n"  # noqa: E501
-            "3. Keep proper nouns, brand names, acronyms, and product names unchanged.\n"  # noqa: E501
+            "2. Maintain the original formatting, spacing, line breaks, and indentation.\n"
+            "3. Keep proper nouns, brand names, acronyms, and product names unchanged.\n"
             "4. Do NOT include explanations, notes, or commentary.\n"
         )
 
@@ -334,9 +318,9 @@ class LLMProvider(TranslationProvider):
             model=self.model_name,
             messages=llm_messages,
             api_key=self.primary_api_key,
-            timeout=self.timeout,
+            timeout=self.litellm_timeout,
+            temperature=self.temperature,
             **additional_kwargs,
-            temperature=0.0,
         )
         return llm_response.choices[0].message.content.strip()
 
@@ -377,6 +361,10 @@ class LLMProvider(TranslationProvider):
         - De-duplicates identical strings within the batch.
         - Uses an in-process LRU cache keyed by (target_language, text).
         """
+        from ol_openedx_course_translations.utils.course_translations import (  # noqa: PLC0415
+            load_glossary,
+        )
+
         # De-dupe (preserve order for stable output)
         uniq: list[str] = []
         index_map: list[int] = []
@@ -422,12 +410,14 @@ class LLMProvider(TranslationProvider):
             return "\n".join(parts)
 
         # Prompt specifically for batches of plain strings
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
-            target_language, target_language
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
         )
         system_prompt = (
             f"You are a professional translator. "
-            f"Translate English to {target_language_display_name}.\n\n"
+            f"Translate English to {target_language_display_name} ({target_language}).\n\n"
             "INPUT FORMAT:\n"
             ":::ID:::\n"
             "Text\n\n"
@@ -500,6 +490,29 @@ class LLMProvider(TranslationProvider):
                 out.append(uniq_out[uniq_idx] or orig)
         return out
 
+    def detect_blank_cues(self, original, translated) -> list[int]:
+        """
+        Detect blank translations in subtitle cues.
+
+        Args:
+            original: List of original subtitle objects
+            translated: List of translated subtitle objects
+
+        Returns:
+            List of indices of cues with blank translations
+        """
+        blank_cue_indices = []
+        prev_blank = False
+        for orig, trans in zip(original, translated):
+            is_blank = orig.content.strip() and not trans.content.strip()
+            if is_blank:
+                if prev_blank:
+                    blank_cue_indices.append(orig.index)
+                prev_blank = True
+            else:
+                prev_blank = False
+        return blank_cue_indices
+
     def translate_subtitles(
         self,
         subtitle_list: list[srt.Subtitle],
@@ -532,7 +545,7 @@ class LLMProvider(TranslationProvider):
 
         # Use direct ID-based translation (more reliable for structure preservation)
         logger.info(
-            "Translating %d subtitles (will try entire file first)...",
+            "Translating %d subtitles...",
             len(subtitle_list),
         )
 
@@ -561,11 +574,7 @@ class LLMProvider(TranslationProvider):
         Returns:
             List of translated subtitle objects
         """
-        system_prompt = self._get_subtitle_system_prompt(
-            target_language, glossary_directory
-        )
-
-        max_attempts = MAX_CHUNK_RETRIES
+        max_attempts = self.max_chunk_retries
         batch_size = min(len(subtitle_list), self.srt_batch_size)
         for attempt in range(1, max_attempts + 1):
             logger.info(
@@ -585,6 +594,11 @@ class LLMProvider(TranslationProvider):
                     subtitle_batch = subtitle_list[
                         current_index : current_index + batch_size
                     ]
+                    system_prompt = self._get_subtitle_system_prompt(
+                        target_language,
+                        glossary_directory,
+                        subtitle_list=subtitle_batch,
+                    )
 
                     payload_parts = []
                     for s in subtitle_batch:
@@ -599,17 +613,14 @@ class LLMProvider(TranslationProvider):
                         llm_response_text, subtitle_batch
                     )
 
-                    # Check for blank translations
-                    blank_cues = [
-                        orig.index
-                        for orig, trans in zip(subtitle_batch, translated_batch)
-                        if orig.content.strip() and not trans.content.strip()
-                    ]
-
+                    # Check for blank translations, allow 1 blank but not 2 in a row
+                    blank_cues = self.detect_blank_cues(
+                        subtitle_batch, translated_batch
+                    )
                     if blank_cues:
                         has_blanks = True
                         logger.warning(
-                            "    Blank translations detected for cues: %s",
+                            " ❌ 2 Blank translations detected in a row for cues: %s",
                             blank_cues,
                         )
 
@@ -622,16 +633,14 @@ class LLMProvider(TranslationProvider):
                     return translated_subtitle_list
 
                 # Had blanks - if more attempts remain, reduce batch size and retry
-                blank_cue_indices = [
-                    orig.index
-                    for orig, trans in zip(subtitle_list, translated_subtitle_list)
-                    if orig.content.strip() and not trans.content.strip()
-                ]
+                blank_cue_indices = self.detect_blank_cues(
+                    subtitle_list, translated_subtitle_list
+                )
 
                 if attempt < max_attempts:
                     batch_size = max(1, batch_size // 2)
                     logger.warning(
-                        "  %d blank cues detected: %s. Reducing batch size to %d...",
+                        "  %d 2 blank cues detected in a row: %s. Reducing batch size to %d...",
                         len(blank_cue_indices),
                         blank_cue_indices,
                         batch_size,
@@ -784,21 +793,25 @@ class LLMProvider(TranslationProvider):
         source_language: str,
         target_language: str,
     ) -> str:
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
-            target_language, target_language
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
         )
-        source_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
-            source_language, source_language
+        source_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                source_language, source_language
+            )
         )
 
         return (
             "You are a professional language editor.\n\n"
-            "Review the following translated XML/HTML document and correct ONLY linguistic issues in the target language.\n\n"  # noqa: E501
+            "Review the following translated XML/HTML document and correct ONLY linguistic issues in the target language.\n\n"
             "ALLOWED CHANGES (ONLY THESE):\n"
             "- Grammar and article agreement\n"
             "- Spelling and punctuation\n"
-            "- Obvious encoding artifacts (e.g., broken characters, malformed symbols)\n"  # noqa: E501
-            "- Consistency in verb mood and tense where directly implied by the source text\n\n"  # noqa: E501
+            "- Obvious encoding artifacts (e.g., broken characters, malformed symbols)\n"
+            "- Consistency in verb mood and tense where directly implied by the source text\n\n"
             "ABSOLUTE RULES (NON-NEGOTIABLE):\n"
             "- DO NOT change, add, remove, or reorder any XML/HTML tags\n"
             "- DO NOT change indentation, line breaks, or spacing\n"
@@ -807,8 +820,8 @@ class LLMProvider(TranslationProvider):
             "- DO NOT change meaning, tone, or register\n"
             "- Only edit visible text nodes and approved user-facing attribute VALUES\n"
             "- Attribute NAMES must never be changed\n\n"
-            f"SOURCE LANGUAGE: {source_language_display_name}\n"
-            f"TARGET LANGUAGE: {target_language_display_name}\n\n"
+            f"SOURCE LANGUAGE: {source_language_display_name} ({source_language})\n"
+            f"TARGET LANGUAGE: {target_language_display_name} ({target_language})\n\n"
             "OUTPUT FORMAT (exactly):\n"
             f"{TRANSLATION_MARKER_START}\n"
             "<Corrected XML/HTML content>\n"
@@ -832,8 +845,8 @@ class LLMProvider(TranslationProvider):
             return translated_content
 
         system_prompt = self._get_translation_validation_system_prompt(
-            source_language=source_language.lower(),
-            target_language=target_language.lower(),
+            source_language=source_language,
+            target_language=target_language,
         )
 
         user_payload = (
@@ -843,7 +856,7 @@ class LLMProvider(TranslationProvider):
             f"{translated_content}\n"
         )
 
-        self.timeout = 90  # 90s timeout for the validation
+        self.litellm_timeout = 90  # 90s timeout for the validation
         llm_response = self._call_llm(system_prompt, user_payload)
         return self._parse_text_response(llm_response)
 
@@ -851,10 +864,14 @@ class LLMProvider(TranslationProvider):
 class OpenAIProvider(LLMProvider):
     """OpenAI translation provider."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         primary_api_key: str,
         model_name: str | None = None,
+        srt_batch_size: int = 50,
+        litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
+        max_chunk_retries: int = MAX_CHUNK_RETRIES,
+        temperature: float = 0.0,
     ):
         """
         Initialize OpenAI provider.
@@ -869,7 +886,14 @@ class OpenAIProvider(LLMProvider):
         if not model_name:
             msg = "model_name is required for OpenAIProvider"
             raise ValueError(msg)
-        super().__init__(primary_api_key, f"openai/{model_name}")
+        super().__init__(
+            primary_api_key,
+            f"openai/{model_name}",
+            srt_batch_size=srt_batch_size,
+            litellm_timeout=litellm_timeout,
+            max_chunk_retries=max_chunk_retries,
+            temperature=temperature,
+        )
 
     def _call_llm(
         self, system_prompt: str, user_content: str, **additional_kwargs: Any
@@ -887,14 +911,111 @@ class OpenAIProvider(LLMProvider):
         """
         return super()._call_llm(system_prompt, user_content, **additional_kwargs)
 
+    def _get_subtitle_system_prompt(
+        self,
+        target_language: str,
+        glossary_directory: str | None = None,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
+    ) -> str:
+        """
+        Generate system prompt for subtitle translation.
+
+        Includes only glossary terms that actually appear in the subtitle content
+        (if subtitle_list is provided).
+
+        Args:
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+            subtitle_list: List of subtitle objects (optional)
+
+        Returns:
+            System prompt string for subtitle translation
+        """
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
+        )
+
+        # V1
+        system_prompt = (
+            f"You are a professional subtitle translator. "
+            f"Translate English subtitles to {target_language_display_name} ({target_language}).\n\n"
+            "INPUT FORMAT:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: \n\n"
+            "OUTPUT FORMAT - Fill in each Target line:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: <srt_text>Translated text</srt_text>\n\n"
+            "CRITICAL RULES:\n"
+            "1. Fill in EVERY Target [ID] line with the translation.\n"
+            "2. Wrap ALL translations in <srt_text></srt_text> tags.\n"
+            "3. Each Target must translate ONLY its corresponding Source.\n"
+            "4. Do NOT merge or shift content between IDs.\n"
+            "5. If Source is a single word (e.g., 'Perfect.'), "
+            "Target must be just that word translated.\n"
+            "6. If Source is a sentence fragment, Target must be a fragment.\n"
+            "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
+        )
+        # ruff: noqa: ERA001, E501
+        # V2
+        # system_prompt = (
+        #     f"You are an expert subtitle translator. Translate English subtitles to {target_language_display_name}.\n\n"
+        #     "GUIDELINES:\n"
+        #     "1. Idiomatic Flow: Prioritize natural, spoken phrasing over literal translation.\n"
+        #     "2. Brevity: Keep translations concise for reading speed.\n"
+        #     "3. Preservation: Do NOT translate proper nouns, brand names, or technical codes.\n"
+        #     "4. Tone: Match the source (e.g., fragments must remain fragments).\n\n"
+        #     "TECHNICAL RULES:\n"
+        #     "1. 1:1 Mapping: Every Source [ID] must have exactly one Target [ID]. No merging or skipping.\n"
+        #     "2. Tagging: Wrap ALL translations in <srt_text></srt_text> tags.\n"
+        #     "3. Structure: Maintain the exact Source/Target ID format provided.\n\n"
+        #     "INPUT:\n"
+        #     "Source [ID]: <srt_text>English text</srt_text>\n"
+        #     "Target [ID]: "
+        # )
+
+        # V3
+        # system_prompt = (
+        #     f"You are a professional audiovisual translator specializing in academic content. "
+        #     f"Translate English subtitles to {target_language_display_name}.\n\n"
+        #     "GUIDELINES:\n"
+        #     "1. Persona: Use the tone of a professional university lecturer—natural and engaging, yet authoritative. "
+        #     "Use 'dictar' for teaching a course where appropriate.\n"
+        #     "2. Subtitle Economy: Prioritize brevity and reading speed. Remove linguistic fillers while retaining meaning.\n"
+        #     "3. Grammatical Precision: Adhere to RAE standards (e.g., prefixes like 'super-' must be joined to the root word: 'superconfuso').\n"
+        #     "4. Natural Syntax: Use 'Me llamo' instead of 'Mi nombre es' and 'Llevo [tiempo] + gerund' for ongoing actions.\n\n"
+        #     "TECHNICAL RULES:\n"
+        #     "1. Constraints: 1:1 mapping for IDs. Do NOT translate proper nouns (EECS, Python, Ana Bell) or technical codes.\n"
+        #     "2. Format: Wrap ALL translations in <srt_text></srt_text> tags. Maintain the exact Source/Target ID format.\n\n"
+        #     "INPUT:\n"
+        #     "Source [ID]: <srt_text>English text</srt_text>\n"
+        #     "Target [ID]: "
+        # )
+
+        if glossary_directory:
+            system_prompt = self._load_glossary_into_prompt(
+                system_prompt,
+                glossary_directory,
+                target_language,
+                subtitle_list=subtitle_list,
+            )
+        return system_prompt
+
 
 class GeminiProvider(LLMProvider):
     """Gemini translation provider."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         primary_api_key: str,
         model_name: str | None = None,
+        srt_batch_size: int = 50,
+        litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
+        max_chunk_retries: int = MAX_CHUNK_RETRIES,
+        temperature: float = 1.0,
     ):
         """
         Initialize Gemini provider.
@@ -909,16 +1030,84 @@ class GeminiProvider(LLMProvider):
         if not model_name:
             msg = "model_name is required for GeminiProvider"
             raise ValueError(msg)
-        super().__init__(primary_api_key, f"gemini/{model_name}")
+        super().__init__(
+            primary_api_key,
+            f"gemini/{model_name}",
+            srt_batch_size=srt_batch_size,
+            litellm_timeout=litellm_timeout,
+            max_chunk_retries=max_chunk_retries,
+            temperature=temperature,
+        )
+
+    def _get_subtitle_system_prompt(
+        self,
+        target_language: str,
+        glossary_directory: str | None = None,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
+    ) -> str:
+        """
+        Generate system prompt for subtitle translation.
+
+        Includes only glossary terms that actually appear in the subtitle content
+        (if subtitle_list is provided).
+
+        Args:
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+            subtitle_list: List of subtitle objects (optional)
+
+        Returns:
+            System prompt string for subtitle translation
+        """
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
+        )
+
+        system_prompt = (
+            f"You are a professional subtitle translator. "
+            f"Translate English subtitles to {target_language_display_name} ({target_language}).\n\n"
+            "INPUT FORMAT:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: \n\n"
+            "OUTPUT FORMAT - Fill in each Target line:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: <srt_text>Translated text</srt_text>\n\n"
+            "CRITICAL RULES:\n"
+            "1. Fill in EVERY Target [ID] line with the translation.\n"
+            "2. Wrap ALL translations in <srt_text></srt_text> tags.\n"
+            "3. Each Target must translate ONLY its corresponding Source.\n"
+            "4. Do NOT merge or shift content between IDs.\n"
+            "5. If Source is a single word (e.g., 'Perfect.'), "
+            "Target must be just that word translated.\n"
+            "6. If Source is a sentence fragment, Target must be a fragment.\n"
+            "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
+        )
+
+        if glossary_directory:
+            system_prompt = self._load_glossary_into_prompt(
+                system_prompt,
+                glossary_directory,
+                target_language,
+                subtitle_list=subtitle_list,
+            )
+        return system_prompt
 
 
 class MistralProvider(LLMProvider):
     """Mistral translation provider."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         primary_api_key: str,
         model_name: str | None = None,
+        srt_batch_size: int = 20,
+        litellm_timeout: int = 600,
+        max_chunk_retries: int = 2,
+        temperature: float = 0.0,
     ):
         """
         Initialize Mistral provider.
@@ -936,5 +1125,67 @@ class MistralProvider(LLMProvider):
         super().__init__(
             primary_api_key,
             f"mistral/{model_name}",
-            srt_batch_size=50,
+            srt_batch_size=srt_batch_size,
+            litellm_timeout=litellm_timeout,
+            max_chunk_retries=max_chunk_retries,
+            temperature=temperature,
         )
+
+    def _get_subtitle_system_prompt(
+        self,
+        target_language: str,
+        glossary_directory: str | None = None,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
+    ) -> str:
+        """
+        Generate system prompt for subtitle translation.
+
+        Includes only glossary terms that actually appear in the subtitle content
+        (if subtitle_list is provided).
+
+        Args:
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+            subtitle_list: List of subtitle objects (optional)
+
+        Returns:
+            System prompt string for subtitle translation
+        """
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
+        )
+
+        system_prompt = (
+            f"You are a professional subtitle translator. "
+            f"Translate English subtitles to {target_language_display_name} ({target_language}).\n\n"
+            "INPUT FORMAT:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: \n\n"
+            "OUTPUT FORMAT - Fill in each Target line:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: <srt_text>Translated text</srt_text>\n\n"
+            "CRITICAL RULES:\n"
+            "1. Fill in EVERY Target [ID] line with the translation.\n"
+            "2. Wrap ALL translations in <srt_text></srt_text> tags.\n"
+            "3. Each Target must translate ONLY its corresponding Source.\n"
+            "4. Do NOT merge or shift content between IDs.\n"
+            "5. If Source is a single word (e.g., 'Perfect.'), "
+            "Target must be just that word translated.\n"
+            "6. If Source is a sentence fragment, Target must be a fragment.\n"
+            "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
+            "9. Even if you merge fragmented sentences in translation, maintain 1:1 "
+            "ID mapping by adding blank translation for the merged fragment.\n"
+        )
+
+        if glossary_directory:
+            system_prompt = self._load_glossary_into_prompt(
+                system_prompt,
+                glossary_directory,
+                target_language,
+                subtitle_list=subtitle_list,
+            )
+        return system_prompt

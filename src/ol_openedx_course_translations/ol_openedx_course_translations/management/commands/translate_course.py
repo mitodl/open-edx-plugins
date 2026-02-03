@@ -21,8 +21,7 @@ from ol_openedx_course_translations.tasks import (
     translate_policy_json_task,
 )
 from ol_openedx_course_translations.utils.constants import (
-    ES_419_LANGUAGE_CODE,
-    ES_LANGUAGE_CODE,
+    ENGLISH_LANGUAGE_CODE,
     PROVIDER_DEEPL,
 )
 from ol_openedx_course_translations.utils.course_translations import (
@@ -78,10 +77,10 @@ class Command(BaseCommand):
         parser.add_argument(
             "--source-language",
             dest="source_language",
-            default="EN",
+            default="en",
             help=(
                 "Specify the source language of the course content "
-                "in ISO format, e.g. `EN` for English."
+                "in ISO format, e.g. `en` for English."
             ),
         )
         parser.add_argument(
@@ -90,7 +89,7 @@ class Command(BaseCommand):
             required=True,
             help=(
                 "Specify the language code in ISO format "
-                "to translate the course content into. e.g `AR` for Arabic"
+                "to translate the course content into. e.g `ar` for Arabic"
             ),
         )
         parser.add_argument(
@@ -232,17 +231,35 @@ class Command(BaseCommand):
 
         return provider_name, default_model
 
-    def handle(self, **options) -> None:  # noqa: PLR0915
+    def handle(self, **options) -> None:  # noqa: PLR0915, PLR0912, C901
         """Handle the translate_course command."""
         try:
             start_time = time.perf_counter()
             course_archive_path = Path(options["course_archive_path"])
-            source_language = options["source_language"].upper()
-            target_language = options["target_language"].upper()
+            source_language = options["source_language"]
+            target_language = options["target_language"]
 
-            # Normalize Spanish language codes to es-419
-            if target_language in (ES_LANGUAGE_CODE, ES_419_LANGUAGE_CODE):
-                target_language = ES_419_LANGUAGE_CODE
+            # Currently we only support English as source language
+            # because of the complexity of handling multiple source
+            # languages and the fact that most courses are in English.
+            # We can add support for more source languages in the future
+            # if needed, but it will require additional validation and
+            # testing to ensure quality translations. For now, we enforce
+            # this constraint to focus on delivering high-quality
+            # translations from English to supported target languages.
+            if source_language != ENGLISH_LANGUAGE_CODE:
+                error_msg = (
+                    f"Source language '{source_language}' is not supported. "
+                    f"Only `en` is supported as source language at this time."
+                )
+                raise CommandError(error_msg)  # noqa: TRY301
+
+            if target_language not in settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES:
+                error_msg = (
+                    f"Target language '{target_language}' is not supported. "
+                    f"Supported languages: {', '.join(settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.keys())}"  # noqa: E501
+                )
+                raise CommandError(error_msg)  # noqa: TRY301
 
             content_provider_spec = options["content_translation_provider"]
             srt_provider_spec = options["srt_translation_provider"]
@@ -466,6 +483,8 @@ class Command(BaseCommand):
         )
 
         for file_path in translatable_file_paths:
+            # Tag SRT tasks separately so we can throttle them for Mistral.
+            task_type = "srt" if file_path.suffix == ".srt" else "file"
             task = translate_file_task.s(
                 str(file_path),
                 source_language,
@@ -479,7 +498,7 @@ class Command(BaseCommand):
                 self.translation_validation_provider_name,
                 self.translation_validation_model,
             )
-            self.tasks.append(("file", str(file_path), task))
+            self.tasks.append((task_type, str(file_path), task))
             logger.info("Added translation task for: %s", file_path)
 
     def _add_grading_policy_tasks(self, course_dir: Path, target_language: str) -> None:
@@ -540,156 +559,215 @@ class Command(BaseCommand):
                 self.tasks.append(("policy", str(policy_file), task))
                 logger.info("Added policy.json task for: %s", policy_file)
 
-    def _wait_and_report_tasks(self) -> list[str]:  # noqa: C901, PLR0915, PLR0912
-        """
-        Execute all tasks as Celery groups in batches and wait for completion.
+    def _render_progress(self, *, header: str, done: int, total: int) -> None:
+        """Render a single-line progress message."""
+        self.stdout.write(
+            f"\rProgress ({header}): {done}/{total} tasks completed\n",
+            ending="",
+        )
+        self.stdout.flush()
 
-        Processes tasks in batches of 20. If any task fails in a batch,
-        the command fails immediately.
-
-        Raises:
-            CommandError: If any tasks fail
+    def _coerce_task_outcome(self, task_result: object) -> tuple[str, str]:
         """
-        stats = []
+        Normalize a task result into (outcome, detail).
+
+        outcome: "success" | "skipped" | "failed"
+        detail: reason/error string (may be empty for success)
+        """
+        if isinstance(task_result, dict):
+            status = task_result.get("status", "unknown")
+            if status == "success":
+                return "success", ""
+            if status == "skipped":
+                return "skipped", str(task_result.get("reason", "Skipped"))
+            return "failed", str(task_result.get("error", f"Unknown status: {status}"))
+        return "failed", str(task_result) if task_result else "Task failed"
+
+    def _await_group_result(
+        self,
+        *,
+        result,
+        header: str,
+        already_done: int,
+        total_tasks: int,
+    ) -> list[object]:
+        """
+        Wait for a Celery group result with periodic progress reporting.
+        Returns the group results list (propagate=False).
+        """
+        batch_completed = 0
+        self.stdout.flush()
+
+        try:
+            while not result.ready():
+                new_completed = sum(1 for r in result.results if r.ready())
+                if new_completed > batch_completed:
+                    batch_completed = new_completed
+                    self._render_progress(
+                        header=header,
+                        done=already_done + batch_completed,
+                        total=total_tasks,
+                    )
+                time.sleep(TASK_POLL_INTERVAL_SECONDS)
+
+            return result.get(timeout=TASK_TIMEOUT_SECONDS, propagate=False)
+        except Exception as e:
+            logger.exception("Batch execution failed")
+            error_msg = f"{header} batch execution timeout or error: {e}"
+            raise CommandError(error_msg) from e
+
+    def _print_batch_failure_summary(  # noqa: PLR0913
+        self,
+        *,
+        header: str,
+        batch_num: int,
+        completed: int,
+        skipped: int,
+        failed: int,
+        stats: list[str],
+    ) -> None:
+        self.stdout.write("\n" + "=" * 60)
+        self.stdout.write(
+            self.style.ERROR(f"{header} batch {batch_num} failed. Stopping execution.")
+        )
+        failure_summary = (
+            f"Total {header} tasks processed: {completed + skipped + failed}\n"
+            f"Completed: {completed}\n"
+            f"Skipped: {skipped}\n"
+            f"Failed: {failed}"
+        )
+        stats.append(failure_summary)
+        self.stdout.write(failure_summary)
+        self.stdout.write("=" * 60 + "\n")
+
+    def _run_task_batches(
+        self,
+        tasks: list[tuple[str, str, object]],
+        *,
+        batch_size: int,
+        header: str,
+    ) -> tuple[list[str], int, int, int]:
+        """
+        Execute tasks as Celery groups in batches.
+
+        Returns (stats, completed, skipped, failed).
+        """
+        stats: list[str] = []
+        if not tasks:
+            self.stdout.write(f"No tasks to execute for {header}.")
+            return stats, 0, 0, 0
+
+        total_tasks = len(tasks)
+        self.stdout.write(
+            f"\n{header}: executing {total_tasks} tasks in batches of {batch_size}...\n"
+        )
+
+        completed = skipped = failed = 0
+        total_batches = (total_tasks + batch_size - 1) // batch_size
+
+        for batch_index, batch_start in enumerate(
+            range(0, total_tasks, batch_size), start=1
+        ):
+            batch_end = min(batch_start + batch_size, total_tasks)
+            batch_tasks = tasks[batch_start:batch_end]
+
+            self.stdout.write(
+                f"\nProcessing {header} batch {batch_index}/{total_batches} "
+                f"(tasks {batch_start + 1}-{batch_end})..."
+            )
+
+            sigs = [sig for _, _, sig in batch_tasks]
+            metadata = [
+                (task_type, file_path) for task_type, file_path, _ in batch_tasks
+            ]
+
+            result = group(sigs).apply_async()
+            results = self._await_group_result(
+                result=result,
+                header=header,
+                already_done=completed + skipped,
+                total_tasks=total_tasks,
+            )
+
+            batch_failed = False
+            for (task_type, file_path), task_result in zip(
+                metadata, results, strict=False
+            ):
+                outcome, detail = self._coerce_task_outcome(task_result)
+
+                if outcome == "success":
+                    completed += 1
+                    msg = f"✓ {task_type}: {file_path}"
+                    stats.append(msg)
+                    self.stdout.write(self.style.SUCCESS(msg))
+                elif outcome == "skipped":
+                    skipped += 1
+                    msg = f"⊘ {task_type}: {file_path} - {detail}"
+                    stats.append(msg)
+                    self.stdout.write(self.style.WARNING(msg))
+                else:
+                    failed += 1
+                    batch_failed = True
+                    msg = f"✗ {task_type}: {file_path} - {detail}"
+                    stats.append(msg)
+                    self.stdout.write(self.style.ERROR(msg))
+
+            if batch_failed:
+                self._print_batch_failure_summary(
+                    header=header,
+                    batch_num=batch_index,
+                    completed=completed,
+                    skipped=skipped,
+                    failed=failed,
+                    stats=stats,
+                )
+                error_msg = f"{failed} {header} task(s) failed in batch {batch_index}"
+                raise CommandError(error_msg)
+
+        return stats, completed, skipped, failed
+
+    def _wait_and_report_tasks(self) -> list[str]:
+        """
+        Run queued tasks in batches. Non-SRT tasks first, then SRT tasks.
+
+        Fails fast if any batch contains failures.
+        """
         if not self.tasks:
             self.stdout.write("No tasks to execute.")
             return []
 
+        stats: list[str] = []
+
+        non_srt_tasks = [t for t in self.tasks if t[0] != "srt"]
+        srt_tasks = [t for t in self.tasks if t[0] == "srt"]
+
+        non_srt_stats, non_srt_completed, non_srt_skipped, _ = self._run_task_batches(
+            non_srt_tasks,
+            batch_size=BATCH_SIZE,
+            header="CONTENT",
+        )
+        stats.extend(non_srt_stats)
+
+        srt_batch_size = 1 if self.srt_provider_name == "mistral" else BATCH_SIZE
+        srt_stats, srt_completed, srt_skipped, _ = self._run_task_batches(
+            srt_tasks,
+            batch_size=srt_batch_size,
+            header="SRT",
+        )
+        stats.extend(srt_stats)
+
         total_tasks = len(self.tasks)
-        self.stdout.write(
-            f"\nExecuting {total_tasks} translation tasks in batches of {BATCH_SIZE}...\n"  # noqa: E501
-        )
+        completed = non_srt_completed + srt_completed
+        skipped = non_srt_skipped + srt_skipped
 
-        # Process tasks in batches
-        completed_tasks = 0
-        failed_tasks = 0
-        skipped_tasks = 0
-
-        for batch_start in range(0, total_tasks, BATCH_SIZE):
-            batch_end = min(batch_start + BATCH_SIZE, total_tasks)
-            batch_tasks = self.tasks[batch_start:batch_end]
-            batch_num = (batch_start // BATCH_SIZE) + 1
-            total_batches = (total_tasks + BATCH_SIZE - 1) // BATCH_SIZE
-
-            self.stdout.write(
-                f"\nProcessing batch {batch_num}/{total_batches} "
-                f"(tasks {batch_start + 1}-{batch_end})..."
-            )
-
-            # Extract task signatures and create mappings for this batch
-            task_signatures = [task_sig for _, _, task_sig in batch_tasks]
-            task_metadata = {
-                i: (task_type, file_path)
-                for i, (task_type, file_path, _) in enumerate(batch_tasks)
-            }
-
-            # Create and execute group for this batch
-            job = group(task_signatures)
-            result = job.apply_async()
-
-            # Wait for batch to complete with progress reporting
-            batch_completed = 0
-            self.stdout.flush()
-
-            try:
-                # Poll for completion and show progress
-                while not result.ready():
-                    # Count completed tasks in this batch
-                    new_completed = sum(1 for r in result.results if r.ready())
-                    if new_completed > batch_completed:
-                        batch_completed = new_completed
-                        overall_completed = (
-                            completed_tasks + skipped_tasks + batch_completed
-                        )
-                        self.stdout.write(
-                            f"\rProgress: {overall_completed}/{total_tasks} tasks completed\n",  # noqa: E501
-                            ending="",
-                        )
-                        self.stdout.flush()
-
-                    # Sleep before next poll
-                    time.sleep(TASK_POLL_INTERVAL_SECONDS)
-
-                # Get all results (propagate=False to handle errors manually)
-                results = result.get(timeout=TASK_TIMEOUT_SECONDS, propagate=False)
-
-            except Exception as e:
-                logger.exception("Batch execution failed")
-                error_msg = f"Batch execution timeout or error: {e}"
-                raise CommandError(error_msg) from e
-
-            # Process batch results
-            batch_failed = False
-
-            for i, task_result in enumerate(results):
-                task_type, file_path = task_metadata[i]
-
-                if isinstance(task_result, dict):
-                    status = task_result.get("status", "unknown")
-                    if status == "success":
-                        completed_tasks += 1
-                        msg = f"✓ {task_type}: {file_path}"
-                        stats.append(msg)
-                        self.stdout.write(self.style.SUCCESS(msg))
-                    elif status == "skipped":
-                        skipped_tasks += 1
-                        reason = task_result.get("reason", "Skipped")
-                        msg = f"⊘ {task_type}: {file_path} - {reason}"
-                        stats.append(msg)
-                        self.stdout.write(self.style.WARNING(msg))
-                    elif status == "error":
-                        failed_tasks += 1
-                        batch_failed = True
-                        error = task_result.get("error", "Unknown error")
-                        msg = f"✗ {task_type}: {file_path} - {error}"
-                        stats.append(msg)
-                        self.stdout.write(self.style.ERROR(msg))
-                    else:
-                        failed_tasks += 1
-                        batch_failed = True
-                        msg = f"✗ {task_type}: {file_path} - Unknown status: {status}"
-                        stats.append(msg)
-                        self.stdout.write(self.style.ERROR(msg))
-                else:
-                    # Task raised an exception
-                    failed_tasks += 1
-                    batch_failed = True
-                    error_msg = str(task_result) if task_result else "Task failed"
-                    msg = f"✗ {task_type}: {file_path} - {error_msg}"
-                    stats.append(msg)
-                    self.stdout.write(self.style.ERROR(msg))
-
-            # If any task in this batch failed, stop processing
-            if batch_failed:
-                self.stdout.write("\n" + "=" * 60)
-                self.stdout.write(
-                    self.style.ERROR(f"Batch {batch_num} failed. Stopping execution.")
-                )
-                failure_summary = (
-                    f"Total tasks processed: {completed_tasks + skipped_tasks + failed_tasks}\n"  # noqa: E501
-                    f"Completed: {completed_tasks}\n"
-                    f"Skipped: {skipped_tasks}\n"
-                    f"Failed: {failed_tasks}"
-                )
-                stats.append(failure_summary)
-                self.stdout.write(failure_summary)
-                self.stdout.write("=" * 60 + "\n")
-                error_msg = (
-                    f"{failed_tasks} translation task(s) failed in batch {batch_num}"
-                )
-                raise CommandError(error_msg)
-
-        # Print summary (only reached if all batches succeed)
         self.stdout.write("\n" + "=" * 60)
-        successful_tasks_stats = (
-            f"Total tasks: {total_tasks}\nCompleted: {completed_tasks}"
-        )
-        stats.append(successful_tasks_stats)
-        self.stdout.write(self.style.SUCCESS(successful_tasks_stats))
-        if skipped_tasks > 0:
-            skipped_tasks_stats = f"Skipped: {skipped_tasks}"
-            stats.append(skipped_tasks_stats)
-            self.stdout.write(self.style.WARNING(skipped_tasks_stats))
+        summary = f"Total tasks: {total_tasks}\nCompleted: {completed}"
+        stats.append(summary)
+        self.stdout.write(self.style.SUCCESS(summary))
+        if skipped:
+            skipped_msg = f"Skipped: {skipped}"
+            stats.append(skipped_msg)
+            self.stdout.write(self.style.WARNING(skipped_msg))
         self.stdout.write("=" * 60 + "\n")
 
         return stats

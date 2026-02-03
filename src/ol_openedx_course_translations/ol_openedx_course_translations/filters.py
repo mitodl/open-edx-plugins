@@ -7,9 +7,8 @@ from xmodule.modulestore.django import modulestore
 
 from ol_openedx_course_translations.utils.constants import (
     ENGLISH_LANGUAGE_CODE,
-    ES_419_LANGUAGE_CODE,
-    ES_LANGUAGE_CODE,
 )
+from ol_openedx_course_translations.utils.course_translations import LanguageCode
 
 VIDEO_BLOCK_TYPE = "video"
 
@@ -31,15 +30,10 @@ class AddDestLangForVideoBlock(PipelineStep):
                 )
                 video_block = modulestore().get_item(child)
                 transcripts_info = video_block.get_transcripts_info()
-                course_lang = getattr(
+                dest_lang = getattr(
                     context.get("course", None), "language", ENGLISH_LANGUAGE_CODE
                 )
-                # Use 'es' for Spanish regardless of es-419
-                dest_lang = (
-                    ES_LANGUAGE_CODE
-                    if course_lang == ES_419_LANGUAGE_CODE
-                    else course_lang
-                )
+                dest_lang = LanguageCode(dest_lang).to_bcp47()
                 if (
                     transcripts_info
                     and transcripts_info.get("transcripts", {})

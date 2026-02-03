@@ -75,8 +75,8 @@ def apply_common_settings(settings):
     settings.LLM_TRANSLATION_CACHE_MAX_ENTRIES = 5000
 
     settings.TRANSLATE_FILE_TASK_LIMITS = {
-        "soft_time_limit": 9 * 60,  # 9 minutes
-        "time_limit": 10 * 60,  # 10 minutes (hard kill)
+        "soft_time_limit": 29 * 60,  # 9 minutes
+        "time_limit": 30 * 60,  # 10 minutes (hard kill)
         "max_retries": 1,  # 1 Initial try + 1 retry = 2 attempts
         "retry_countdown": 1 * 60,  # wait 1m before retry
     }
@@ -84,3 +84,22 @@ def apply_common_settings(settings):
     # Base directory where translate_course extracts archives and writes
     # translated .tar.gz output. Directory is created at runtime if missing.
     settings.COURSE_TRANSLATIONS_BASE_DIR = "/openedx/data/course_translations/"
+
+    settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES = {
+        "ar": "Arabic",
+        "de": "German",
+        "de_DE": "German (Germany)",
+        "el": "Greek",
+        "en": "English",
+        "es": "Spanish",
+        "es_419": "Spanish (Latin America)",
+        "fr": "French",
+        "hi": "Hindi",
+        "ja": "Japanese",
+        "pt": "Portuguese",
+        "pt_BR": "Portuguese (Brazil)",
+        "ru": "Russian",
+        "zh": "Chinese",
+        "zh_HANS": "Chinese (Simplified)",
+        "zh_HANT": "Chinese (Traditional)",
+    }
