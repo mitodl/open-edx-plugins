@@ -513,7 +513,7 @@ def _is_po_entry_empty(
 def _extract_empty_keys_from_po_file(
     target_file: Path, en_file: Path, po_file_name: str, app_name: str
 ) -> list[dict]:
-    """Extract empty translation keys from a single PO file. Returns list of key dicts."""
+    """Extract empty keys from one PO file. Returns list of key dicts."""
     empty_keys = []
     try:
         target_po = polib.pofile(str(target_file))
@@ -541,9 +541,9 @@ def _extract_empty_keys_from_po_file(
                         "file_path": str(target_file.resolve()),
                         "po_file": po_file_name,
                         "is_plural": entry.msgid_plural is not None,
-                        "msgid_plural": entry.msgid_plural
-                        if entry.msgid_plural
-                        else None,
+                        "msgid_plural": (
+                            entry.msgid_plural if entry.msgid_plural else None
+                        ),
                         "msgctxt": msgctxt,
                     }
                 )
