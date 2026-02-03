@@ -590,8 +590,8 @@ class Command(BaseCommand):
 
             except Exception as e:
                 logger.exception("Batch execution failed")
-                raise CommandError(
-                    f"{header} batch execution timeout or error: {e}"
+                raise CommandError(  # noqa: TRY003
+                    f"{header} batch execution timeout or error: {e}"  # noqa: EM102
                 ) from e
 
             batch_failed = False
@@ -630,8 +630,8 @@ class Command(BaseCommand):
             if batch_failed:
                 self.stdout.write("\n" + "=" * 60)
                 self.stdout.write(
-                    self.style.ERROR(  # noqa: TRY003
-                        f"{header} batch {batch_num} failed. Stopping execution."  # noqa: EM102
+                    self.style.ERROR(
+                        f"{header} batch {batch_num} failed. Stopping execution."
                     )
                 )
                 failure_summary = (
