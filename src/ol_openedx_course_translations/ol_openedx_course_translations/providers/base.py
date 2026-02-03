@@ -96,7 +96,11 @@ def filter_glossary_for_subtitles(
             )
         )
 
-    return {term: translation for term, translation, pattern in compiled if pattern.search(corpus)}
+    return {
+        term: translation
+        for term, translation, pattern in compiled
+        if pattern.search(corpus)
+    }
 
 
 def format_glossary_for_prompt(glossary: dict[str, str]) -> str:
