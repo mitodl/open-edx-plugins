@@ -6,7 +6,7 @@ import re
 from collections import OrderedDict
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 import polib  # type: ignore[import-untyped]
 
@@ -541,16 +541,14 @@ def _extract_empty_keys_from_po_file(
                         "file_path": str(target_file.resolve()),
                         "po_file": po_file_name,
                         "is_plural": entry.msgid_plural is not None,
-                        "msgid_plural": (
-                            entry.msgid_plural if entry.msgid_plural else None
-                        ),
+                        "msgid_plural": entry.msgid_plural
+                        if entry.msgid_plural
+                        else None,
                         "msgctxt": msgctxt,
                     }
                 )
     except (OSError, polib.POFileError, ValueError) as e:
-        logger.warning(
-            "Skipping %s due to error loading PO file: %s", target_file, e
-        )
+        logger.warning("Skipping %s due to error loading PO file: %s", target_file, e)
     return empty_keys
 
 
