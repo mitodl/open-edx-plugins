@@ -4,8 +4,9 @@ import json
 import logging
 import re
 from collections import OrderedDict
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 import polib  # type: ignore[import-untyped]
 
@@ -540,14 +541,14 @@ def _extract_empty_keys_from_po_file(
                         "file_path": str(target_file.resolve()),
                         "po_file": po_file_name,
                         "is_plural": entry.msgid_plural is not None,
-                        "msgid_plural": entry.msgid_plural if entry.msgid_plural else None,
+                        "msgid_plural": entry.msgid_plural
+                        if entry.msgid_plural
+                        else None,
                         "msgctxt": msgctxt,
                     }
                 )
     except (OSError, polib.POFileError, ValueError) as e:
-        logger.warning(
-            "Skipping %s due to error loading PO file: %s", target_file, e
-        )
+        logger.warning("Skipping %s due to error loading PO file: %s", target_file, e)
     return empty_keys
 
 
@@ -602,9 +603,12 @@ def _extract_empty_keys_from_backend(base_dir: Path, backend_locale: str) -> lis
                 target_file, en_file, po_file_name, "edx-platform"
             )
         )
-    for module_name, en_file, target_file, po_file_name in _iter_backend_plugin_po_files(
-        base_dir, backend_locale
-    ):
+    for (
+        module_name,
+        en_file,
+        target_file,
+        po_file_name,
+    ) in _iter_backend_plugin_po_files(base_dir, backend_locale):
         if not target_file.exists():
             continue
         empty_keys.extend(
@@ -1220,9 +1224,12 @@ def _sync_backend_translations(
             continue
 
     # Backend plugin apps: sync translations/<repo_dir>/<module_name>/conf/locale/...
-    for _module_name, en_file, target_file, _po_file_name in _iter_backend_plugin_po_files(
-        base_dir, backend_locale
-    ):
+    for (
+        _module_name,
+        en_file,
+        target_file,
+        _po_file_name,
+    ) in _iter_backend_plugin_po_files(base_dir, backend_locale):
         try:
             stats = sync_or_create_po_file(
                 en_file, target_file, backend_locale, iso_code
