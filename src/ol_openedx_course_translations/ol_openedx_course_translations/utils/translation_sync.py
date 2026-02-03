@@ -5,11 +5,12 @@ import logging
 import re
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import polib  # type: ignore[import-untyped]
 
 from ol_openedx_course_translations.utils.constants import (
+    BACKEND_PLUGIN_APPS,
     BACKEND_PO_FILES,
     DEFAULT_JSON_INDENT,
     DEFAULT_PLURAL_FORM,
@@ -508,75 +509,109 @@ def _is_po_entry_empty(
     return not target_entry.msgstr or not target_entry.msgstr.strip()
 
 
-def _extract_empty_keys_from_backend(base_dir: Path, backend_locale: str) -> list[dict]:
-    """Extract empty keys from backend PO files."""
+def _extract_empty_keys_from_po_file(
+    target_file: Path, en_file: Path, po_file_name: str, app_name: str
+) -> list[dict]:
+    """Extract empty translation keys from a single PO file. Returns list of key dicts."""
     empty_keys = []
+    try:
+        target_po = polib.pofile(str(target_file))
+        en_po = polib.pofile(str(en_file))
+        target_entries_dict = {}
+        for entry in target_po:
+            if entry.msgid:
+                msgctxt = getattr(entry, "msgctxt", None) or None
+                key = (msgctxt, entry.msgid)
+                target_entries_dict[key] = entry
+        for entry in en_po:
+            if not entry.msgid:
+                continue
+            msgctxt = getattr(entry, "msgctxt", None) or None
+            entry_key = (msgctxt, entry.msgid)
+            target_entry = target_entries_dict.get(entry_key)
+            if _is_po_entry_empty(entry, target_entry):
+                empty_keys.append(
+                    {
+                        "app": app_name,
+                        "key": entry.msgid,
+                        "english": entry.msgid,
+                        "translation": "",
+                        "file_type": "po",
+                        "file_path": str(target_file.resolve()),
+                        "po_file": po_file_name,
+                        "is_plural": entry.msgid_plural is not None,
+                        "msgid_plural": entry.msgid_plural if entry.msgid_plural else None,
+                        "msgctxt": msgctxt,
+                    }
+                )
+    except (OSError, polib.POFileError, ValueError) as e:
+        logger.warning(
+            "Skipping %s due to error loading PO file: %s", target_file, e
+        )
+    return empty_keys
+
+
+def _plugin_locale_base(base_dir: Path, repo_dir: str, module_name: str) -> Path:
+    """Return conf/locale path for a backend plugin under translations/."""
+    return (
+        base_dir
+        / repo_dir
+        / module_name
+        / TRANSLATION_FILE_NAMES["conf_dir"]
+        / TRANSLATION_FILE_NAMES["locale_dir"]
+    )
+
+
+def _iter_backend_plugin_po_files(
+    base_dir: Path, backend_locale: str
+) -> Iterator[tuple[str, Path, Path, str]]:
+    """
+    Yield (module_name, en_file, target_file, po_file_name) for each backend
+    plugin PO file where the English source exists.
+    """
+    lc_messages = TRANSLATION_FILE_NAMES["lc_messages"]
+    for repo_dir, module_name in BACKEND_PLUGIN_APPS:
+        plugin_base = _plugin_locale_base(base_dir, repo_dir, module_name)
+        en_locale_dir = plugin_base / "en" / lc_messages
+        target_locale_dir = plugin_base / backend_locale / lc_messages
+        for po_file_name in BACKEND_PO_FILES:
+            en_file = en_locale_dir / po_file_name
+            if not en_file.exists():
+                continue
+            target_file = target_locale_dir / po_file_name
+            yield (module_name, en_file, target_file, po_file_name)
+
+
+def _extract_empty_keys_from_backend(base_dir: Path, backend_locale: str) -> list[dict]:
+    """Extract empty keys from backend PO files (edx-platform + backend plugins)."""
+    empty_keys = []
+    lc_messages = TRANSLATION_FILE_NAMES["lc_messages"]
     locale_dir = (
         base_dir
         / TRANSLATION_FILE_NAMES["edx_platform"]
         / TRANSLATION_FILE_NAMES["conf_dir"]
         / TRANSLATION_FILE_NAMES["locale_dir"]
-        / backend_locale
-        / TRANSLATION_FILE_NAMES["lc_messages"]
     )
-
     for po_file_name in BACKEND_PO_FILES:
-        target_file = locale_dir / po_file_name
-        en_file = (
-            base_dir
-            / TRANSLATION_FILE_NAMES["edx_platform"]
-            / TRANSLATION_FILE_NAMES["conf_dir"]
-            / TRANSLATION_FILE_NAMES["locale_dir"]
-            / "en"
-            / TRANSLATION_FILE_NAMES["lc_messages"]
-            / po_file_name
-        )
-
+        target_file = locale_dir / backend_locale / lc_messages / po_file_name
+        en_file = locale_dir / "en" / lc_messages / po_file_name
         if not target_file.exists() or not en_file.exists():
             continue
-
-        try:
-            target_po = polib.pofile(str(target_file))
-            en_po = polib.pofile(str(en_file))
-
-            # Dict keyed by (msgctxt, msgid) for entries with same msgid
-            target_entries_dict = {}
-            for entry in target_po:
-                if entry.msgid:
-                    msgctxt = getattr(entry, "msgctxt", None) or None
-                    key = (msgctxt, entry.msgid)
-                    target_entries_dict[key] = entry
-
-            for entry in en_po:
-                if not entry.msgid:  # Skip header
-                    continue
-
-                msgctxt = getattr(entry, "msgctxt", None) or None
-                entry_key = (msgctxt, entry.msgid)
-                target_entry = target_entries_dict.get(entry_key)
-                if _is_po_entry_empty(entry, target_entry):
-                    empty_keys.append(
-                        {
-                            "app": "edx-platform",
-                            "key": entry.msgid,
-                            "english": entry.msgid,
-                            "translation": "",
-                            "file_type": "po",
-                            "file_path": str(target_file.resolve()),
-                            "po_file": po_file_name,
-                            "is_plural": entry.msgid_plural is not None,
-                            "msgid_plural": entry.msgid_plural
-                            if entry.msgid_plural
-                            else None,
-                            "msgctxt": msgctxt,  # Include msgctxt for proper matching
-                        }
-                    )
-        except (OSError, polib.POFileError, ValueError) as e:
-            logger.warning(
-                "Skipping %s due to error loading PO file: %s", target_file, e
+        empty_keys.extend(
+            _extract_empty_keys_from_po_file(
+                target_file, en_file, po_file_name, "edx-platform"
             )
+        )
+    for module_name, en_file, target_file, po_file_name in _iter_backend_plugin_po_files(
+        base_dir, backend_locale
+    ):
+        if not target_file.exists():
             continue
-
+        empty_keys.extend(
+            _extract_empty_keys_from_po_file(
+                target_file, en_file, po_file_name, module_name
+            )
+        )
     return empty_keys
 
 
@@ -1176,6 +1211,18 @@ def _sync_backend_translations(
         if not en_file.exists():
             continue
 
+        try:
+            stats = sync_or_create_po_file(
+                en_file, target_file, backend_locale, iso_code
+            )
+            backend_stats["added"] += stats.get("added", 0)
+        except (OSError, polib.POFileError, ValueError):
+            continue
+
+    # Backend plugin apps: sync translations/<repo_dir>/<module_name>/conf/locale/...
+    for _module_name, en_file, target_file, _po_file_name in _iter_backend_plugin_po_files(
+        base_dir, backend_locale
+    ):
         try:
             stats = sync_or_create_po_file(
                 en_file, target_file, backend_locale, iso_code

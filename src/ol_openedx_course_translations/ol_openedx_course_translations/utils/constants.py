@@ -156,6 +156,15 @@ TYPO_PATTERNS = [
 # Backend PO file names
 BACKEND_PO_FILES = ["django.po", "djangojs.po"]
 
+# Backend plugin apps: (repo_dir, module_name) under translations/.
+# Used by sync_and_translate_language to sync/translate at
+# translations/<repo_dir>/<module_name>/conf/locale/<lang>/LC_MESSAGES/django.po.
+# When pulled in edx-platform (make pull_translations), these go to
+# conf/plugins-locale/plugins/<module_name>/.
+BACKEND_PLUGIN_APPS = [
+    ("open-edx-plugins", "ol_openedx_chat"),
+]
+
 # PO file header metadata
 PO_HEADER_PROJECT_VERSION = "0.1a"
 PO_HEADER_BUGS_EMAIL = "openedx-translation@googlegroups.com"
