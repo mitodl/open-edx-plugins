@@ -6,7 +6,7 @@ import re
 from collections import OrderedDict
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import polib  # type: ignore[import-untyped]
 
@@ -513,7 +513,7 @@ def _is_po_entry_empty(
 def _extract_empty_keys_from_po_file(
     target_file: Path, en_file: Path, po_file_name: str, app_name: str
 ) -> list[dict]:
-    """Extract empty keys from one PO file. Returns list of key dicts."""
+    """Extract empty translation keys from a single PO file. Returns list of key dicts."""
     empty_keys = []
     try:
         target_po = polib.pofile(str(target_file))
@@ -548,7 +548,9 @@ def _extract_empty_keys_from_po_file(
                     }
                 )
     except (OSError, polib.POFileError, ValueError) as e:
-        logger.warning("Skipping %s due to error loading PO file: %s", target_file, e)
+        logger.warning(
+            "Skipping %s due to error loading PO file: %s", target_file, e
+        )
     return empty_keys
 
 
