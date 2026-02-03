@@ -523,7 +523,7 @@ class Command(BaseCommand):
                 self.tasks.append(("policy", str(policy_file), task))
                 logger.info("Added policy.json task for: %s", policy_file)
 
-    def _run_task_batches(
+    def _run_task_batches(  # noqa: PLR0915, C901
         self,
         tasks: list[tuple[str, str, object]],
         *,
@@ -580,7 +580,7 @@ class Command(BaseCommand):
                             completed_tasks + skipped_tasks + batch_completed
                         )
                         self.stdout.write(
-                            f"\rProgress ({header}): {overall_completed}/{total_tasks} tasks completed\n",
+                            f"\rProgress ({header}): {overall_completed}/{total_tasks} tasks completed\n",  # noqa: E501
                             ending="",
                         )
                         self.stdout.flush()
@@ -590,7 +590,9 @@ class Command(BaseCommand):
 
             except Exception as e:
                 logger.exception("Batch execution failed")
-                raise CommandError(f"{header} batch execution timeout or error: {e}") from e
+                raise CommandError(
+                    f"{header} batch execution timeout or error: {e}"
+                ) from e
 
             batch_failed = False
 
@@ -627,9 +629,13 @@ class Command(BaseCommand):
 
             if batch_failed:
                 self.stdout.write("\n" + "=" * 60)
-                self.stdout.write(self.style.ERROR(f"{header} batch {batch_num} failed. Stopping execution."))
+                self.stdout.write(
+                    self.style.ERROR(  # noqa: TRY003
+                        f"{header} batch {batch_num} failed. Stopping execution."  # noqa: EM102
+                    )
+                )
                 failure_summary = (
-                    f"Total {header} tasks processed: {completed_tasks + skipped_tasks + failed_tasks}\n"
+                    f"Total {header} tasks processed: {completed_tasks + skipped_tasks + failed_tasks}\n"  # noqa: E501
                     f"Completed: {completed_tasks}\n"
                     f"Skipped: {skipped_tasks}\n"
                     f"Failed: {failed_tasks}"
@@ -637,11 +643,13 @@ class Command(BaseCommand):
                 stats.append(failure_summary)
                 self.stdout.write(failure_summary)
                 self.stdout.write("=" * 60 + "\n")
-                raise CommandError(f"{failed_tasks} {header} task(s) failed in batch {batch_num}")
+                raise CommandError(  # noqa: TRY003
+                    f"{failed_tasks} {header} task(s) failed in batch {batch_num}"  # noqa: EM102
+                )
 
         return stats, completed_tasks, skipped_tasks, failed_tasks
 
-    def _wait_and_report_tasks(self) -> list[str]:  # noqa: C901, PLR0915, PLR0912
+    def _wait_and_report_tasks(self) -> list[str]:
         """
         Execute all tasks as Celery groups in batches and wait for completion.
 
@@ -661,10 +669,12 @@ class Command(BaseCommand):
         srt_tasks = [task for task in self.tasks if task[0] == "srt"]
 
         # Run non-SRT tasks with the usual batch size
-        non_srt_stats, non_srt_completed, non_srt_skipped, non_srt_failed = self._run_task_batches(
-            non_srt_tasks,
-            batch_size=BATCH_SIZE,
-            header="CONTENT",
+        non_srt_stats, non_srt_completed, non_srt_skipped, non_srt_failed = (
+            self._run_task_batches(
+                non_srt_tasks,
+                batch_size=BATCH_SIZE,
+                header="CONTENT",
+            )
         )
         stats.extend(non_srt_stats)
 
@@ -681,7 +691,7 @@ class Command(BaseCommand):
         total_tasks = len(self.tasks)
         completed_tasks = non_srt_completed + srt_completed
         skipped_tasks = non_srt_skipped + srt_skipped
-        failed_tasks = non_srt_failed + srt_failed
+        _ = non_srt_failed + srt_failed
 
         self.stdout.write("\n" + "=" * 60)
         successful_tasks_stats = (
