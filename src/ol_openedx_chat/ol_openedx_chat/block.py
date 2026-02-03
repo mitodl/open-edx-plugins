@@ -170,7 +170,13 @@ class OLChatAside(XBlockAside):
                 ),
                 "chat": {
                     "chatId": block_id,
-                    "initialMessages": TUTOR_INITIAL_MESSAGES,
+                    "initialMessages": [
+                    {
+                        "content": gettext(msg["content"]),
+                        "role": msg["role"],
+                    }
+                    for msg in TUTOR_INITIAL_MESSAGES
+                ],
                     "apiUrl": f"{settings.MIT_LEARN_AI_API_URL}/{MIT_AI_CHAT_URL_PATHS[block_type]}",  # noqa: E501
                     "requestBody": request_body,
                     "userId": self.runtime.user_id,
