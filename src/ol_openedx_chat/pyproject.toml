@@ -34,7 +34,6 @@ packages = ["ol_openedx_chat"]
 include = [
   "ol_openedx_chat/**/*.py",
   "ol_openedx_chat/static/**/*",
-  "ol_openedx_chat/locale/**/*",
 ]
 
 [tool.hatch.build.targets.sdist]
