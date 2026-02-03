@@ -447,6 +447,8 @@ class Command(BaseCommand):
         )
 
         for file_path in translatable_file_paths:
+            # Tag SRT tasks separately so we can throttle them for Mistral.
+            task_type = "srt" if file_path.suffix == ".srt" else "file"
             task = translate_file_task.s(
                 str(file_path),
                 source_language,
@@ -460,7 +462,7 @@ class Command(BaseCommand):
                 self.translation_validation_provider_name,
                 self.translation_validation_model,
             )
-            self.tasks.append(("file", str(file_path), task))
+            self.tasks.append((task_type, str(file_path), task))
             logger.info("Added translation task for: %s", file_path)
 
     def _add_grading_policy_tasks(self, course_dir: Path, target_language: str) -> None:
@@ -547,7 +549,13 @@ class Command(BaseCommand):
         skipped_tasks = 0
 
         for batch_start in range(0, total_tasks, BATCH_SIZE):
-            batch_end = min(batch_start + BATCH_SIZE, total_tasks)
+            # If using Mistral for SRTs, force SRT tasks to execute one-at-a-time.
+            task_type_at_start, _, _task_sig = self.tasks[batch_start]
+            effective_batch_size = BATCH_SIZE
+            if task_type_at_start == "srt" and self.srt_provider_name == "mistral":
+                effective_batch_size = 1
+
+            batch_end = min(batch_start + effective_batch_size, total_tasks)
             batch_tasks = self.tasks[batch_start:batch_end]
             batch_num = (batch_start // BATCH_SIZE) + 1
             total_batches = (total_tasks + BATCH_SIZE - 1) // BATCH_SIZE

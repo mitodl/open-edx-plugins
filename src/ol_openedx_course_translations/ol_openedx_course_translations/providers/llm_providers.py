@@ -10,7 +10,13 @@ import srt
 from django.conf import settings
 from litellm import completion
 
-from .base import TranslationProvider, load_glossary
+from .base import (
+    TranslationProvider,
+    filter_glossary_for_subtitles,
+    format_glossary_for_prompt,
+    load_glossary,
+    load_glossary_dict,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -111,16 +117,19 @@ class LLMProvider(TranslationProvider):
         self,
         target_language: str,
         glossary_directory: str | None = None,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
     ) -> str:
         """
         Generate system prompt for subtitle translation.
 
-        Creates detailed prompts with rules for subtitle translation,
-        including glossary terms if provided.
+        Includes only glossary terms that actually appear in the subtitle content
+        (if subtitle_list is provided).
 
         Args:
             target_language: Target language code
             glossary_directory: Path to glossary directory (optional)
+            subtitle_list: List of subtitle objects (optional)
 
         Returns:
             System prompt string for subtitle translation
@@ -148,10 +157,21 @@ class LLMProvider(TranslationProvider):
             "6. If Source is a sentence fragment, Target must be a fragment.\n"
             "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
             "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
+            "9. NEVER complete or continue a sentence across multiple Source IDs.\n"
+            "10. Even if a sentence is split across lines, translate each line "
+            "independently and do NOT combine meaning.\n"
+            "11. If a Source line is incomplete, the Target must also be incomplete."
         )
 
         if glossary_directory:
-            glossary_terms = load_glossary(target_language, glossary_directory)
+            if subtitle_list:
+                glossary_dict = load_glossary_dict(target_language, glossary_directory)
+                filtered = filter_glossary_for_subtitles(subtitle_list, glossary_dict)
+                glossary_terms = format_glossary_for_prompt(filtered)
+            else:
+                # Fallback to previous behavior if subtitles aren't provided.
+                glossary_terms = load_glossary(target_language, glossary_directory)
+
             if glossary_terms:
                 system_prompt += (
                     f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
@@ -561,11 +581,7 @@ class LLMProvider(TranslationProvider):
         Returns:
             List of translated subtitle objects
         """
-        system_prompt = self._get_subtitle_system_prompt(
-            target_language, glossary_directory
-        )
-
-        max_attempts = MAX_CHUNK_RETRIES
+        max_attempts = 1
         batch_size = min(len(subtitle_list), self.srt_batch_size)
         for attempt in range(1, max_attempts + 1):
             logger.info(
@@ -585,6 +601,11 @@ class LLMProvider(TranslationProvider):
                     subtitle_batch = subtitle_list[
                         current_index : current_index + batch_size
                     ]
+                    system_prompt = self._get_subtitle_system_prompt(
+                        target_language,
+                        glossary_directory,
+                        subtitle_list=subtitle_batch,
+                    )
 
                     payload_parts = []
                     for s in subtitle_batch:
@@ -609,7 +630,7 @@ class LLMProvider(TranslationProvider):
                     if blank_cues:
                         has_blanks = True
                         logger.warning(
-                            "    Blank translations detected for cues: %s",
+                            " ❌ Blank translations detected for cues: %s",
                             blank_cues,
                         )
 
@@ -936,5 +957,6 @@ class MistralProvider(LLMProvider):
         super().__init__(
             primary_api_key,
             f"mistral/{model_name}",
-            srt_batch_size=50,
+            srt_batch_size=10,
+            timeout=600,
         )
