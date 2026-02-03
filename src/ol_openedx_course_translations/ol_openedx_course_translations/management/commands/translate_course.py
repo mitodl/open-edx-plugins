@@ -523,67 +523,56 @@ class Command(BaseCommand):
                 self.tasks.append(("policy", str(policy_file), task))
                 logger.info("Added policy.json task for: %s", policy_file)
 
-    def _wait_and_report_tasks(self) -> list[str]:  # noqa: C901, PLR0915, PLR0912
+    def _run_task_batches(
+        self,
+        tasks: list[tuple[str, str, object]],
+        *,
+        batch_size: int,
+        header: str,
+    ) -> tuple[list[str], int, int, int]:
         """
-        Execute all tasks as Celery groups in batches and wait for completion.
-
-        Processes tasks in batches of 20. If any task fails in a batch,
-        the command fails immediately.
-
-        Raises:
-            CommandError: If any tasks fail
+        Execute given tasks as Celery groups in batches and return:
+        (stats, completed, skipped, failed)
         """
-        stats = []
-        if not self.tasks:
-            self.stdout.write("No tasks to execute.")
-            return []
+        stats: list[str] = []
+        if not tasks:
+            self.stdout.write(f"No tasks to execute for {header}.")
+            return stats, 0, 0, 0
 
-        total_tasks = len(self.tasks)
+        total_tasks = len(tasks)
         self.stdout.write(
-            f"\nExecuting {total_tasks} translation tasks in batches of {BATCH_SIZE}...\n"  # noqa: E501
+            f"\n{header}: executing {total_tasks} tasks in batches of {batch_size}...\n"
         )
 
-        # Process tasks in batches
         completed_tasks = 0
         failed_tasks = 0
         skipped_tasks = 0
 
-        for batch_start in range(0, total_tasks, BATCH_SIZE):
-            # If using Mistral for SRTs, force SRT tasks to execute one-at-a-time.
-            task_type_at_start, _, _task_sig = self.tasks[batch_start]
-            effective_batch_size = BATCH_SIZE
-            if task_type_at_start == "srt" and self.srt_provider_name == "mistral":
-                effective_batch_size = 1
-
-            batch_end = min(batch_start + effective_batch_size, total_tasks)
-            batch_tasks = self.tasks[batch_start:batch_end]
-            batch_num = (batch_start // BATCH_SIZE) + 1
-            total_batches = (total_tasks + BATCH_SIZE - 1) // BATCH_SIZE
+        for batch_start in range(0, total_tasks, batch_size):
+            batch_end = min(batch_start + batch_size, total_tasks)
+            batch_tasks = tasks[batch_start:batch_end]
+            batch_num = (batch_start // batch_size) + 1
+            total_batches = (total_tasks + batch_size - 1) // batch_size
 
             self.stdout.write(
-                f"\nProcessing batch {batch_num}/{total_batches} "
+                f"\nProcessing {header} batch {batch_num}/{total_batches} "
                 f"(tasks {batch_start + 1}-{batch_end})..."
             )
 
-            # Extract task signatures and create mappings for this batch
             task_signatures = [task_sig for _, _, task_sig in batch_tasks]
             task_metadata = {
                 i: (task_type, file_path)
                 for i, (task_type, file_path, _) in enumerate(batch_tasks)
             }
 
-            # Create and execute group for this batch
             job = group(task_signatures)
             result = job.apply_async()
 
-            # Wait for batch to complete with progress reporting
             batch_completed = 0
             self.stdout.flush()
 
             try:
-                # Poll for completion and show progress
                 while not result.ready():
-                    # Count completed tasks in this batch
                     new_completed = sum(1 for r in result.results if r.ready())
                     if new_completed > batch_completed:
                         batch_completed = new_completed
@@ -591,23 +580,18 @@ class Command(BaseCommand):
                             completed_tasks + skipped_tasks + batch_completed
                         )
                         self.stdout.write(
-                            f"\rProgress: {overall_completed}/{total_tasks} tasks completed\n",  # noqa: E501
+                            f"\rProgress ({header}): {overall_completed}/{total_tasks} tasks completed\n",
                             ending="",
                         )
                         self.stdout.flush()
-
-                    # Sleep before next poll
                     time.sleep(TASK_POLL_INTERVAL_SECONDS)
 
-                # Get all results (propagate=False to handle errors manually)
                 results = result.get(timeout=TASK_TIMEOUT_SECONDS, propagate=False)
 
             except Exception as e:
                 logger.exception("Batch execution failed")
-                error_msg = f"Batch execution timeout or error: {e}"
-                raise CommandError(error_msg) from e
+                raise CommandError(f"{header} batch execution timeout or error: {e}") from e
 
-            # Process batch results
             batch_failed = False
 
             for i, task_result in enumerate(results):
@@ -626,21 +610,14 @@ class Command(BaseCommand):
                         msg = f"⊘ {task_type}: {file_path} - {reason}"
                         stats.append(msg)
                         self.stdout.write(self.style.WARNING(msg))
-                    elif status == "error":
-                        failed_tasks += 1
-                        batch_failed = True
-                        error = task_result.get("error", "Unknown error")
-                        msg = f"✗ {task_type}: {file_path} - {error}"
-                        stats.append(msg)
-                        self.stdout.write(self.style.ERROR(msg))
                     else:
                         failed_tasks += 1
                         batch_failed = True
-                        msg = f"✗ {task_type}: {file_path} - Unknown status: {status}"
+                        error = task_result.get("error", f"Unknown status: {status}")
+                        msg = f"✗ {task_type}: {file_path} - {error}"
                         stats.append(msg)
                         self.stdout.write(self.style.ERROR(msg))
                 else:
-                    # Task raised an exception
                     failed_tasks += 1
                     batch_failed = True
                     error_msg = str(task_result) if task_result else "Task failed"
@@ -648,14 +625,11 @@ class Command(BaseCommand):
                     stats.append(msg)
                     self.stdout.write(self.style.ERROR(msg))
 
-            # If any task in this batch failed, stop processing
             if batch_failed:
                 self.stdout.write("\n" + "=" * 60)
-                self.stdout.write(
-                    self.style.ERROR(f"Batch {batch_num} failed. Stopping execution.")
-                )
+                self.stdout.write(self.style.ERROR(f"{header} batch {batch_num} failed. Stopping execution."))
                 failure_summary = (
-                    f"Total tasks processed: {completed_tasks + skipped_tasks + failed_tasks}\n"  # noqa: E501
+                    f"Total {header} tasks processed: {completed_tasks + skipped_tasks + failed_tasks}\n"
                     f"Completed: {completed_tasks}\n"
                     f"Skipped: {skipped_tasks}\n"
                     f"Failed: {failed_tasks}"
@@ -663,12 +637,52 @@ class Command(BaseCommand):
                 stats.append(failure_summary)
                 self.stdout.write(failure_summary)
                 self.stdout.write("=" * 60 + "\n")
-                error_msg = (
-                    f"{failed_tasks} translation task(s) failed in batch {batch_num}"
-                )
-                raise CommandError(error_msg)
+                raise CommandError(f"{failed_tasks} {header} task(s) failed in batch {batch_num}")
 
-        # Print summary (only reached if all batches succeed)
+        return stats, completed_tasks, skipped_tasks, failed_tasks
+
+    def _wait_and_report_tasks(self) -> list[str]:  # noqa: C901, PLR0915, PLR0912
+        """
+        Execute all tasks as Celery groups in batches and wait for completion.
+
+        Processes tasks in batches of 20. If any task fails in a batch,
+        the command fails immediately.
+
+        Raises:
+            CommandError: If any tasks fail
+        """
+        stats = []
+        if not self.tasks:
+            self.stdout.write("No tasks to execute.")
+            return []
+
+        # Split into separate groups: non-SRT first, then SRTs
+        non_srt_tasks = [task for task in self.tasks if task[0] != "srt"]
+        srt_tasks = [task for task in self.tasks if task[0] == "srt"]
+
+        # Run non-SRT tasks with the usual batch size
+        non_srt_stats, non_srt_completed, non_srt_skipped, non_srt_failed = self._run_task_batches(
+            non_srt_tasks,
+            batch_size=BATCH_SIZE,
+            header="CONTENT",
+        )
+        stats.extend(non_srt_stats)
+
+        # Run SRT tasks separately with provider-specific throttling
+        srt_batch_size = 1 if self.srt_provider_name == "mistral" else BATCH_SIZE
+        srt_stats, srt_completed, srt_skipped, srt_failed = self._run_task_batches(
+            srt_tasks,
+            batch_size=srt_batch_size,
+            header="SRT",
+        )
+        stats.extend(srt_stats)
+
+        # Combined summary (only reached if all batches succeed)
+        total_tasks = len(self.tasks)
+        completed_tasks = non_srt_completed + srt_completed
+        skipped_tasks = non_srt_skipped + srt_skipped
+        failed_tasks = non_srt_failed + srt_failed
+
         self.stdout.write("\n" + "=" * 60)
         successful_tasks_stats = (
             f"Total tasks: {total_tasks}\nCompleted: {completed_tasks}"
