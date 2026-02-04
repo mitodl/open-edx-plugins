@@ -86,6 +86,7 @@ class LLMProvider(TranslationProvider):
         model_name: str | None = None,
         timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
         srt_batch_size: int = 50,
+        max_chunk_retries: int = MAX_CHUNK_RETRIES,
     ):
         """
         Initialize LLM provider with API key and model name.
@@ -100,6 +101,7 @@ class LLMProvider(TranslationProvider):
         self.model_name = model_name
         self.timeout = timeout
         self.srt_batch_size = srt_batch_size
+        self.max_chunk_retries = max_chunk_retries
         self._translation_cache: OrderedDict[tuple[str, str], str] = OrderedDict()
 
     def _cache_get(self, target_language: str, text: str) -> str | None:
@@ -157,6 +159,8 @@ class LLMProvider(TranslationProvider):
             "6. If Source is a sentence fragment, Target must be a fragment.\n"
             "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
             "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
+            "9. Even if you merge fragmented sentences in translation, maintain 1:1 "
+            "ID mapping by adding blank translation for the merged fragment.\n"
         )
 
         if glossary_directory:
@@ -600,7 +604,7 @@ class LLMProvider(TranslationProvider):
         Returns:
             List of translated subtitle objects
         """
-        max_attempts = 1
+        max_attempts = self.max_chunk_retries
         batch_size = min(len(subtitle_list), self.srt_batch_size)
         for attempt in range(1, max_attempts + 1):
             logger.info(
@@ -971,6 +975,7 @@ class MistralProvider(LLMProvider):
         super().__init__(
             primary_api_key,
             f"mistral/{model_name}",
-            srt_batch_size=10,
+            srt_batch_size=20,
             timeout=600,
+            max_chunk_retries=2,
         )
