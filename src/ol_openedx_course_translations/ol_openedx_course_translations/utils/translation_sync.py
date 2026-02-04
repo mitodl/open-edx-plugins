@@ -344,9 +344,8 @@ def _create_new_po_file(
     target_po.metadata = en_po.metadata.copy()
     target_po.metadata["Language"] = iso_code or lang_code
 
-    # Ensure Plural-Forms is set correctly for the target language
-    if "Plural-Forms" not in target_po.metadata:
-        target_po.metadata["Plural-Forms"] = _get_plural_form(lang_code)
+    # Set Plural-Forms for the target language (e.g. 2 forms for French)
+    target_po.metadata["Plural-Forms"] = _get_plural_form(lang_code)
 
     # Copy all entries with empty translations
     added_count = 0
@@ -1029,17 +1028,12 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
 def _expand_plural_forms_if_needed(entry: polib.POEntry, po: polib.POFile) -> bool:
     """Expand plural forms if entry has fewer forms than required by language.
 
-    Args:
-        entry: PO entry to potentially expand
-        po: PO file containing the entry (to read Plural-Forms metadata)
-
-    Returns:
-        True if entry was expanded, False otherwise
+    Required form count comes from the PO file's Plural-Forms header (apply
+    may set it from constants when lang_code is provided, to avoid empty msgstr).
     """
     if not entry.msgid_plural:
         return False
 
-    # Get required number of forms from PO file metadata
     plural_forms_str = po.metadata.get("Plural-Forms", "")
     if not plural_forms_str:
         return False
@@ -1051,11 +1045,9 @@ def _expand_plural_forms_if_needed(entry: polib.POEntry, po: polib.POFile) -> bo
     required_forms = int(nplurals_match.group(1))
     current_forms = len(entry.msgstr_plural) if entry.msgstr_plural else 0
 
-    # Expand if needed
     if current_forms < required_forms:
         if not entry.msgstr_plural:
             entry.msgstr_plural = {}
-        # Add missing forms with empty strings
         for form_index in range(current_forms, required_forms):
             entry.msgstr_plural[form_index] = ""
         return True
@@ -1102,19 +1094,26 @@ def _log_po_entry_result(
 def _save_po_if_updated(
     po: polib.POFile,
     file_path: Path,
-    applied: int,
-    skipped: int,
-    normalized_count: int,
+    counts: tuple[int, int, int],
+    *,
+    header_updated: bool = False,
 ) -> None:
-    """Save PO file and log result if any changes were made."""
-    if applied > 0 or normalized_count > 0:
+    """Save PO file and log result if any changes were made.
+
+    counts: (applied, skipped, normalized_count).
+    """
+    applied, skipped, normalized_count = counts
+    if applied > 0 or normalized_count > 0 or header_updated:
         po.save(str(file_path))
-        logger.info(
-            "Applied %d translation(s) to %s (%d skipped)",
-            applied,
-            file_path.name,
-            skipped,
-        )
+        if applied > 0 or normalized_count > 0:
+            logger.info(
+                "Applied %d translation(s) to %s (%d skipped)",
+                applied,
+                file_path.name,
+                skipped,
+            )
+        elif header_updated:
+            logger.debug("Updated Plural-Forms in %s", file_path.name)
     elif skipped > 0:
         logger.debug(
             "No translations applied to %s (%d entries skipped - "
@@ -1124,7 +1123,11 @@ def _save_po_if_updated(
         )
 
 
-def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
+def apply_po_translations(
+    file_path: Path,
+    translations: dict[str, Any],
+    lang_code: str | None = None,
+) -> int:
     """
     Apply translations to a PO file. Returns number of translations applied.
     Handles both singular and plural forms.
@@ -1136,10 +1139,20 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
     The translations dict is keyed by msgid. If entries have msgctxt, we try
     to match by msgid first, and if there are multiple matches, we prefer
     entries without msgctxt or with matching msgctxt.
+
+    When lang_code is provided, Plural-Forms is set from constants before
+    expand so we do not add empty msgstr[2] in djangojs.po (e.g. French = 2).
     """
     po = polib.pofile(str(file_path))
     applied = 0
     skipped = 0
+
+    header_updated = False
+    if lang_code:
+        correct_plural = _get_plural_form(lang_code)
+        if po.metadata.get("Plural-Forms") != correct_plural:
+            po.metadata["Plural-Forms"] = correct_plural
+            header_updated = True
 
     for entry in po:
         if entry.msgid_plural:
@@ -1160,7 +1173,12 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
         _log_po_entry_result(entry, file_path, applied=was_applied)
 
     normalized_count = _normalize_all_entries_in_po_file(po)
-    _save_po_if_updated(po, file_path, applied, skipped, normalized_count)
+    _save_po_if_updated(
+        po,
+        file_path,
+        (applied, skipped, normalized_count),
+        header_updated=header_updated,
+    )
     return applied
 
 
