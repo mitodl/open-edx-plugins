@@ -814,7 +814,7 @@ class Command(BaseCommand):
 
         self.stdout.write("\nApplying translations...")
         applied_count, applied_by_app = self._apply_translations(
-            translations, empty_keys, self.stdout
+            translations, empty_keys, self.stdout, lang_code
         )
         self.stdout.write(f"   Applied {applied_count} translations")
 
@@ -2112,6 +2112,7 @@ class Command(BaseCommand):
         file_translations: dict[str, Any],
         empty_keys: list[dict],
         stdout,
+        lang_code: str | None = None,
     ) -> tuple[int, str]:
         """Apply translations to a single file. Returns (count, app)."""
         if not file_path.exists():
@@ -2137,7 +2138,7 @@ class Command(BaseCommand):
         if key_info["file_type"] == "json":
             count = apply_json_translations(file_path, file_translations)
         elif key_info["file_type"] == "po":
-            count = apply_po_translations(file_path, file_translations)
+            count = apply_po_translations(file_path, file_translations, lang_code)
         else:
             logger.warning(
                 "Unknown file type '%s' for file: %s", key_info["file_type"], file_path
@@ -2156,6 +2157,7 @@ class Command(BaseCommand):
         translations: dict[str, Any],
         empty_keys: list[dict],
         stdout,
+        lang_code: str | None = None,
     ) -> tuple[int, dict[str, Any]]:
         """Apply translations to files."""
         translations_by_file = self._group_translations_by_file(
@@ -2173,7 +2175,7 @@ class Command(BaseCommand):
         for file_path_str, file_translations in translations_by_file.items():
             full_path = Path(file_path_str)
             count, app = self._apply_file_translations(
-                full_path, file_translations, empty_keys, stdout
+                full_path, file_translations, empty_keys, stdout, lang_code
             )
 
             applied += count
