@@ -85,7 +85,7 @@ class LLMProvider(TranslationProvider):
         primary_api_key: str,
         model_name: str | None = None,
         timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
-        srt_batch_size: int = 250,
+        srt_batch_size: int = 50,
     ):
         """
         Initialize LLM provider with API key and model name.
@@ -157,10 +157,6 @@ class LLMProvider(TranslationProvider):
             "6. If Source is a sentence fragment, Target must be a fragment.\n"
             "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
             "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
-            "9. NEVER complete or continue a sentence across multiple Source IDs.\n"
-            "10. Even if a sentence is split across lines, translate each line "
-            "independently and do NOT combine meaning.\n"
-            "11. If a Source line is incomplete, the Target must also be incomplete."
         )
 
         if glossary_directory:
@@ -560,6 +556,29 @@ class LLMProvider(TranslationProvider):
             subtitle_list, target_language, glossary_directory
         )
 
+    def detect_blank_cues(self, original, translated) -> list[int]:
+        """
+        Detect blank translations in subtitle cues.
+
+        Args:
+            original: List of original subtitle objects
+            translated: List of translated subtitle objects
+
+        Returns:
+            List of indices of cues with blank translations
+        """
+        blank_cue_indices = []
+        prev_blank = False
+        for orig, trans in zip(original, translated):
+            is_blank = orig.content.strip() and not trans.content.strip()
+            if is_blank:
+                if prev_blank:
+                    blank_cue_indices.append(orig.index)
+                prev_blank = True
+            else:
+                prev_blank = False
+        return blank_cue_indices
+
     def _translate_subtitle_list(
         self,
         subtitle_list: list[srt.Subtitle],
@@ -620,17 +639,14 @@ class LLMProvider(TranslationProvider):
                         llm_response_text, subtitle_batch
                     )
 
-                    # Check for blank translations
-                    blank_cues = [
-                        orig.index
-                        for orig, trans in zip(subtitle_batch, translated_batch)
-                        if orig.content.strip() and not trans.content.strip()
-                    ]
-
+                    # Check for blank translations, allow 1 blank but not 2 in a row
+                    blank_cues = self.detect_blank_cues(
+                        subtitle_batch, translated_batch
+                    )
                     if blank_cues:
                         has_blanks = True
                         logger.warning(
-                            " ❌ Blank translations detected for cues: %s",
+                            " ❌ 2 Blank translations detected in a row for cues: %s",
                             blank_cues,
                         )
 
@@ -643,16 +659,14 @@ class LLMProvider(TranslationProvider):
                     return translated_subtitle_list
 
                 # Had blanks - if more attempts remain, reduce batch size and retry
-                blank_cue_indices = [
-                    orig.index
-                    for orig, trans in zip(subtitle_list, translated_subtitle_list)
-                    if orig.content.strip() and not trans.content.strip()
-                ]
+                blank_cue_indices = self.detect_blank_cues(
+                    subtitle_list, translated_subtitle_list
+                )
 
                 if attempt < max_attempts:
                     batch_size = max(1, batch_size // 2)
                     logger.warning(
-                        "  %d blank cues detected: %s. Reducing batch size to %d...",
+                        "  %d 2 blank cues detected in a row: %s. Reducing batch size to %d...",  # noqa: E501
                         len(blank_cue_indices),
                         blank_cue_indices,
                         batch_size,

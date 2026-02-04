@@ -523,7 +523,88 @@ class Command(BaseCommand):
                 self.tasks.append(("policy", str(policy_file), task))
                 logger.info("Added policy.json task for: %s", policy_file)
 
-    def _run_task_batches(  # noqa: PLR0915, C901
+    def _render_progress(self, *, header: str, done: int, total: int) -> None:
+        """Render a single-line progress message."""
+        self.stdout.write(
+            f"\rProgress ({header}): {done}/{total} tasks completed\n",
+            ending="",
+        )
+        self.stdout.flush()
+
+    def _coerce_task_outcome(self, task_result: object) -> tuple[str, str]:
+        """
+        Normalize a task result into (outcome, detail).
+
+        outcome: "success" | "skipped" | "failed"
+        detail: reason/error string (may be empty for success)
+        """
+        if isinstance(task_result, dict):
+            status = task_result.get("status", "unknown")
+            if status == "success":
+                return "success", ""
+            if status == "skipped":
+                return "skipped", str(task_result.get("reason", "Skipped"))
+            return "failed", str(task_result.get("error", f"Unknown status: {status}"))
+        return "failed", str(task_result) if task_result else "Task failed"
+
+    def _await_group_result(
+        self,
+        *,
+        result,
+        header: str,
+        already_done: int,
+        total_tasks: int,
+    ) -> list[object]:
+        """
+        Wait for a Celery group result with periodic progress reporting.
+        Returns the group results list (propagate=False).
+        """
+        batch_completed = 0
+        self.stdout.flush()
+
+        try:
+            while not result.ready():
+                new_completed = sum(1 for r in result.results if r.ready())
+                if new_completed > batch_completed:
+                    batch_completed = new_completed
+                    self._render_progress(
+                        header=header,
+                        done=already_done + batch_completed,
+                        total=total_tasks,
+                    )
+                time.sleep(TASK_POLL_INTERVAL_SECONDS)
+
+            return result.get(timeout=TASK_TIMEOUT_SECONDS, propagate=False)
+        except Exception as e:
+            logger.exception("Batch execution failed")
+            error_msg = f"{header} batch execution timeout or error: {e}"
+            raise CommandError(error_msg) from e
+
+    def _print_batch_failure_summary(  # noqa: PLR0913
+        self,
+        *,
+        header: str,
+        batch_num: int,
+        completed: int,
+        skipped: int,
+        failed: int,
+        stats: list[str],
+    ) -> None:
+        self.stdout.write("\n" + "=" * 60)
+        self.stdout.write(
+            self.style.ERROR(f"{header} batch {batch_num} failed. Stopping execution.")
+        )
+        failure_summary = (
+            f"Total {header} tasks processed: {completed + skipped + failed}\n"
+            f"Completed: {completed}\n"
+            f"Skipped: {skipped}\n"
+            f"Failed: {failed}"
+        )
+        stats.append(failure_summary)
+        self.stdout.write(failure_summary)
+        self.stdout.write("=" * 60 + "\n")
+
+    def _run_task_batches(
         self,
         tasks: list[tuple[str, str, object]],
         *,
@@ -531,8 +612,9 @@ class Command(BaseCommand):
         header: str,
     ) -> tuple[list[str], int, int, int]:
         """
-        Execute given tasks as Celery groups in batches and return:
-        (stats, completed, skipped, failed)
+        Execute tasks as Celery groups in batches.
+
+        Returns (stats, completed, skipped, failed).
         """
         stats: list[str] = []
         if not tasks:
@@ -544,165 +626,112 @@ class Command(BaseCommand):
             f"\n{header}: executing {total_tasks} tasks in batches of {batch_size}...\n"
         )
 
-        completed_tasks = 0
-        failed_tasks = 0
-        skipped_tasks = 0
+        completed = skipped = failed = 0
+        total_batches = (total_tasks + batch_size - 1) // batch_size
 
-        for batch_start in range(0, total_tasks, batch_size):
+        for batch_index, batch_start in enumerate(
+            range(0, total_tasks, batch_size), start=1
+        ):
             batch_end = min(batch_start + batch_size, total_tasks)
             batch_tasks = tasks[batch_start:batch_end]
-            batch_num = (batch_start // batch_size) + 1
-            total_batches = (total_tasks + batch_size - 1) // batch_size
 
             self.stdout.write(
-                f"\nProcessing {header} batch {batch_num}/{total_batches} "
+                f"\nProcessing {header} batch {batch_index}/{total_batches} "
                 f"(tasks {batch_start + 1}-{batch_end})..."
             )
 
-            task_signatures = [task_sig for _, _, task_sig in batch_tasks]
-            task_metadata = {
-                i: (task_type, file_path)
-                for i, (task_type, file_path, _) in enumerate(batch_tasks)
-            }
+            sigs = [sig for _, _, sig in batch_tasks]
+            metadata = [
+                (task_type, file_path) for task_type, file_path, _ in batch_tasks
+            ]
 
-            job = group(task_signatures)
-            result = job.apply_async()
-
-            batch_completed = 0
-            self.stdout.flush()
-
-            try:
-                while not result.ready():
-                    new_completed = sum(1 for r in result.results if r.ready())
-                    if new_completed > batch_completed:
-                        batch_completed = new_completed
-                        overall_completed = (
-                            completed_tasks + skipped_tasks + batch_completed
-                        )
-                        self.stdout.write(
-                            f"\rProgress ({header}): {overall_completed}/{total_tasks} tasks completed\n",  # noqa: E501
-                            ending="",
-                        )
-                        self.stdout.flush()
-                    time.sleep(TASK_POLL_INTERVAL_SECONDS)
-
-                results = result.get(timeout=TASK_TIMEOUT_SECONDS, propagate=False)
-
-            except Exception as e:
-                logger.exception("Batch execution failed")
-                raise CommandError(  # noqa: TRY003
-                    f"{header} batch execution timeout or error: {e}"  # noqa: EM102
-                ) from e
+            result = group(sigs).apply_async()
+            results = self._await_group_result(
+                result=result,
+                header=header,
+                already_done=completed + skipped,
+                total_tasks=total_tasks,
+            )
 
             batch_failed = False
+            for (task_type, file_path), task_result in zip(
+                metadata, results, strict=False
+            ):
+                outcome, detail = self._coerce_task_outcome(task_result)
 
-            for i, task_result in enumerate(results):
-                task_type, file_path = task_metadata[i]
-
-                if isinstance(task_result, dict):
-                    status = task_result.get("status", "unknown")
-                    if status == "success":
-                        completed_tasks += 1
-                        msg = f"✓ {task_type}: {file_path}"
-                        stats.append(msg)
-                        self.stdout.write(self.style.SUCCESS(msg))
-                    elif status == "skipped":
-                        skipped_tasks += 1
-                        reason = task_result.get("reason", "Skipped")
-                        msg = f"⊘ {task_type}: {file_path} - {reason}"
-                        stats.append(msg)
-                        self.stdout.write(self.style.WARNING(msg))
-                    else:
-                        failed_tasks += 1
-                        batch_failed = True
-                        error = task_result.get("error", f"Unknown status: {status}")
-                        msg = f"✗ {task_type}: {file_path} - {error}"
-                        stats.append(msg)
-                        self.stdout.write(self.style.ERROR(msg))
+                if outcome == "success":
+                    completed += 1
+                    msg = f"✓ {task_type}: {file_path}"
+                    stats.append(msg)
+                    self.stdout.write(self.style.SUCCESS(msg))
+                elif outcome == "skipped":
+                    skipped += 1
+                    msg = f"⊘ {task_type}: {file_path} - {detail}"
+                    stats.append(msg)
+                    self.stdout.write(self.style.WARNING(msg))
                 else:
-                    failed_tasks += 1
+                    failed += 1
                     batch_failed = True
-                    error_msg = str(task_result) if task_result else "Task failed"
-                    msg = f"✗ {task_type}: {file_path} - {error_msg}"
+                    msg = f"✗ {task_type}: {file_path} - {detail}"
                     stats.append(msg)
                     self.stdout.write(self.style.ERROR(msg))
 
             if batch_failed:
-                self.stdout.write("\n" + "=" * 60)
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"{header} batch {batch_num} failed. Stopping execution."
-                    )
+                self._print_batch_failure_summary(
+                    header=header,
+                    batch_num=batch_index,
+                    completed=completed,
+                    skipped=skipped,
+                    failed=failed,
+                    stats=stats,
                 )
-                failure_summary = (
-                    f"Total {header} tasks processed: {completed_tasks + skipped_tasks + failed_tasks}\n"  # noqa: E501
-                    f"Completed: {completed_tasks}\n"
-                    f"Skipped: {skipped_tasks}\n"
-                    f"Failed: {failed_tasks}"
-                )
-                stats.append(failure_summary)
-                self.stdout.write(failure_summary)
-                self.stdout.write("=" * 60 + "\n")
-                raise CommandError(  # noqa: TRY003
-                    f"{failed_tasks} {header} task(s) failed in batch {batch_num}"  # noqa: EM102
-                )
+                error_msg = f"{failed} {header} task(s) failed in batch {batch_index}"
+                raise CommandError(error_msg)
 
-        return stats, completed_tasks, skipped_tasks, failed_tasks
+        return stats, completed, skipped, failed
 
     def _wait_and_report_tasks(self) -> list[str]:
         """
-        Execute all tasks as Celery groups in batches and wait for completion.
+        Run queued tasks in batches. Non-SRT tasks first, then SRT tasks.
 
-        Processes tasks in batches of 20. If any task fails in a batch,
-        the command fails immediately.
-
-        Raises:
-            CommandError: If any tasks fail
+        Fails fast if any batch contains failures.
         """
-        stats = []
         if not self.tasks:
             self.stdout.write("No tasks to execute.")
             return []
 
-        # Split into separate groups: non-SRT first, then SRTs
-        non_srt_tasks = [task for task in self.tasks if task[0] != "srt"]
-        srt_tasks = [task for task in self.tasks if task[0] == "srt"]
+        stats: list[str] = []
 
-        # Run non-SRT tasks with the usual batch size
-        non_srt_stats, non_srt_completed, non_srt_skipped, non_srt_failed = (
-            self._run_task_batches(
-                non_srt_tasks,
-                batch_size=BATCH_SIZE,
-                header="CONTENT",
-            )
+        non_srt_tasks = [t for t in self.tasks if t[0] != "srt"]
+        srt_tasks = [t for t in self.tasks if t[0] == "srt"]
+
+        non_srt_stats, non_srt_completed, non_srt_skipped, _ = self._run_task_batches(
+            non_srt_tasks,
+            batch_size=BATCH_SIZE,
+            header="CONTENT",
         )
         stats.extend(non_srt_stats)
 
-        # Run SRT tasks separately with provider-specific throttling
         srt_batch_size = 1 if self.srt_provider_name == "mistral" else BATCH_SIZE
-        srt_stats, srt_completed, srt_skipped, srt_failed = self._run_task_batches(
+        srt_stats, srt_completed, srt_skipped, _ = self._run_task_batches(
             srt_tasks,
             batch_size=srt_batch_size,
             header="SRT",
         )
         stats.extend(srt_stats)
 
-        # Combined summary (only reached if all batches succeed)
         total_tasks = len(self.tasks)
-        completed_tasks = non_srt_completed + srt_completed
-        skipped_tasks = non_srt_skipped + srt_skipped
-        _ = non_srt_failed + srt_failed
+        completed = non_srt_completed + srt_completed
+        skipped = non_srt_skipped + srt_skipped
 
         self.stdout.write("\n" + "=" * 60)
-        successful_tasks_stats = (
-            f"Total tasks: {total_tasks}\nCompleted: {completed_tasks}"
-        )
-        stats.append(successful_tasks_stats)
-        self.stdout.write(self.style.SUCCESS(successful_tasks_stats))
-        if skipped_tasks > 0:
-            skipped_tasks_stats = f"Skipped: {skipped_tasks}"
-            stats.append(skipped_tasks_stats)
-            self.stdout.write(self.style.WARNING(skipped_tasks_stats))
+        summary = f"Total tasks: {total_tasks}\nCompleted: {completed}"
+        stats.append(summary)
+        self.stdout.write(self.style.SUCCESS(summary))
+        if skipped:
+            skipped_msg = f"Skipped: {skipped}"
+            stats.append(skipped_msg)
+            self.stdout.write(self.style.WARNING(skipped_msg))
         self.stdout.write("=" * 60 + "\n")
 
         return stats
