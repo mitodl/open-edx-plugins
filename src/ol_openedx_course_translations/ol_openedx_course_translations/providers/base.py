@@ -265,15 +265,20 @@ class TranslationProvider(ABC):
                 f"translated {len(translated)}"
             )
         else:
+            previous_blank_line = False
             for i, (orig, trans) in enumerate(zip(original, translated)):
                 if orig.index != trans.index:
                     issues.append(
-                        f"Cue {i + 1}: index mismatch ({orig.index} vs {trans.index})"
+                        f"Cue {i}: index mismatch ({orig.index} vs {trans.index})"
                     )
                 if orig.start != trans.start or orig.end != trans.end:
-                    issues.append(f"Cue {i + 1}: timestamp mismatch")
+                    issues.append(f"Cue {i}: timestamp mismatch")
                 if orig.content.strip() and not trans.content.strip():
-                    issues.append(f"Cue {i + 1}: translation is BLANK")
+                    if previous_blank_line:
+                        issues.append(f"Cue {i}: 2 translated lines in a row are BLANK")
+                    previous_blank_line = True
+                else:
+                    previous_blank_line = False
 
         if issues:
             logger.warning("Translation validation found issues:")
