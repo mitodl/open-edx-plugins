@@ -2,6 +2,7 @@
 
 import logging
 import re
+from abc import abstractmethod
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,7 @@ LANGUAGE_DISPLAY_NAMES = {
     "en": "English",
     "de": "Deutsch",
     "es": "Español",
+    "es-419": "Spanish (Latin America)",
     "fr": "Français",
     "pt-br": "Português - Brasil",
     "ru": "Русский",
@@ -80,13 +82,14 @@ class LLMProvider(TranslationProvider):
     - For plain text inputs, it uses structured prompting with markers.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         primary_api_key: str,
         model_name: str | None = None,
-        timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
+        litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
         srt_batch_size: int = 50,
         max_chunk_retries: int = MAX_CHUNK_RETRIES,
+        temperature: float = 0.0,
     ):
         """
         Initialize LLM provider with API key and model name.
@@ -99,9 +102,10 @@ class LLMProvider(TranslationProvider):
         """
         super().__init__(primary_api_key)
         self.model_name = model_name
-        self.timeout = timeout
+        self.litellm_timeout = litellm_timeout
         self.srt_batch_size = srt_batch_size
         self.max_chunk_retries = max_chunk_retries
+        self.temperature = temperature
         self._translation_cache: OrderedDict[tuple[str, str], str] = OrderedDict()
 
     def _cache_get(self, target_language: str, text: str) -> str | None:
@@ -115,6 +119,32 @@ class LLMProvider(TranslationProvider):
         while len(self._translation_cache) > max_entries:
             self._translation_cache.popitem(last=False)
 
+    def _load_glossary_into_prompt(
+        self,
+        system_prompt: str,
+        glossary_directory: str,
+        target_language: str,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
+    ) -> str:
+        """
+        Load glossary terms into the system prompt.
+        """
+        if subtitle_list:
+            glossary_dict = load_glossary_dict(target_language, glossary_directory)
+            filtered = filter_glossary_for_subtitles(subtitle_list, glossary_dict)
+            glossary_terms = format_glossary_for_prompt(filtered)
+        else:
+            # Fallback to previous behavior if subtitles aren't provided.
+            glossary_terms = load_glossary(target_language, glossary_directory)
+
+        if glossary_terms:
+            system_prompt += (
+                f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
+            )
+        return system_prompt
+
+    @abstractmethod
     def _get_subtitle_system_prompt(
         self,
         target_language: str,
@@ -124,60 +154,7 @@ class LLMProvider(TranslationProvider):
     ) -> str:
         """
         Generate system prompt for subtitle translation.
-
-        Includes only glossary terms that actually appear in the subtitle content
-        (if subtitle_list is provided).
-
-        Args:
-            target_language: Target language code
-            glossary_directory: Path to glossary directory (optional)
-            subtitle_list: List of subtitle objects (optional)
-
-        Returns:
-            System prompt string for subtitle translation
         """
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
-            target_language, target_language
-        )
-
-        system_prompt = (
-            f"You are a professional subtitle translator. "
-            f"Translate English subtitles to {target_language_display_name}.\n\n"
-            "INPUT FORMAT:\n"
-            "Source [ID]: <srt_text>English text</srt_text>\n"
-            "Target [ID]: \n\n"
-            "OUTPUT FORMAT - Fill in each Target line:\n"
-            "Source [ID]: <srt_text>English text</srt_text>\n"
-            "Target [ID]: <srt_text>Translated text</srt_text>\n\n"
-            "CRITICAL RULES:\n"
-            "1. Fill in EVERY Target [ID] line with the translation.\n"
-            "2. Wrap ALL translations in <srt_text></srt_text> tags.\n"
-            "3. Each Target must translate ONLY its corresponding Source.\n"
-            "4. Do NOT merge or shift content between IDs.\n"
-            "5. If Source is a single word (e.g., 'Perfect.'), "
-            "Target must be just that word translated.\n"
-            "6. If Source is a sentence fragment, Target must be a fragment.\n"
-            "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
-            "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
-            "9. Even if you merge fragmented sentences in translation, maintain 1:1 "
-            "ID mapping by adding blank translation for the merged fragment.\n"
-        )
-
-        if glossary_directory:
-            if subtitle_list:
-                glossary_dict = load_glossary_dict(target_language, glossary_directory)
-                filtered = filter_glossary_for_subtitles(subtitle_list, glossary_dict)
-                glossary_terms = format_glossary_for_prompt(filtered)
-            else:
-                # Fallback to previous behavior if subtitles aren't provided.
-                glossary_terms = load_glossary(target_language, glossary_directory)
-
-            if glossary_terms:
-                system_prompt += (
-                    f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
-                )
-
-        return system_prompt
 
     def _get_text_system_prompt(
         self,
@@ -354,9 +331,9 @@ class LLMProvider(TranslationProvider):
             model=self.model_name,
             messages=llm_messages,
             api_key=self.primary_api_key,
-            timeout=self.timeout,
+            timeout=self.litellm_timeout,
+            temperature=self.temperature,
             **additional_kwargs,
-            temperature=0.0,
         )
         return llm_response.choices[0].message.content.strip()
 
@@ -520,6 +497,29 @@ class LLMProvider(TranslationProvider):
                 out.append(uniq_out[uniq_idx] or orig)
         return out
 
+    def detect_blank_cues(self, original, translated) -> list[int]:
+        """
+        Detect blank translations in subtitle cues.
+
+        Args:
+            original: List of original subtitle objects
+            translated: List of translated subtitle objects
+
+        Returns:
+            List of indices of cues with blank translations
+        """
+        blank_cue_indices = []
+        prev_blank = False
+        for orig, trans in zip(original, translated):
+            is_blank = orig.content.strip() and not trans.content.strip()
+            if is_blank:
+                if prev_blank:
+                    blank_cue_indices.append(orig.index)
+                prev_blank = True
+            else:
+                prev_blank = False
+        return blank_cue_indices
+
     def translate_subtitles(
         self,
         subtitle_list: list[srt.Subtitle],
@@ -559,29 +559,6 @@ class LLMProvider(TranslationProvider):
         return self._translate_subtitle_list(
             subtitle_list, target_language, glossary_directory
         )
-
-    def detect_blank_cues(self, original, translated) -> list[int]:
-        """
-        Detect blank translations in subtitle cues.
-
-        Args:
-            original: List of original subtitle objects
-            translated: List of translated subtitle objects
-
-        Returns:
-            List of indices of cues with blank translations
-        """
-        blank_cue_indices = []
-        prev_blank = False
-        for orig, trans in zip(original, translated):
-            is_blank = orig.content.strip() and not trans.content.strip()
-            if is_blank:
-                if prev_blank:
-                    blank_cue_indices.append(orig.index)
-                prev_blank = True
-            else:
-                prev_blank = False
-        return blank_cue_indices
 
     def _translate_subtitle_list(
         self,
@@ -882,7 +859,7 @@ class LLMProvider(TranslationProvider):
             f"{translated_content}\n"
         )
 
-        self.timeout = 90  # 90s timeout for the validation
+        self.litellm_timeout = 90  # 90s timeout for the validation
         llm_response = self._call_llm(system_prompt, user_payload)
         return self._parse_text_response(llm_response)
 
@@ -890,10 +867,14 @@ class LLMProvider(TranslationProvider):
 class OpenAIProvider(LLMProvider):
     """OpenAI translation provider."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         primary_api_key: str,
         model_name: str | None = None,
+        srt_batch_size: int = 50,
+        litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
+        max_chunk_retries: int = MAX_CHUNK_RETRIES,
+        temperature: float = 0.0,
     ):
         """
         Initialize OpenAI provider.
@@ -908,7 +889,14 @@ class OpenAIProvider(LLMProvider):
         if not model_name:
             msg = "model_name is required for OpenAIProvider"
             raise ValueError(msg)
-        super().__init__(primary_api_key, f"openai/{model_name}")
+        super().__init__(
+            primary_api_key,
+            f"openai/{model_name}",
+            srt_batch_size=srt_batch_size,
+            litellm_timeout=litellm_timeout,
+            max_chunk_retries=max_chunk_retries,
+            temperature=temperature,
+        )
 
     def _call_llm(
         self, system_prompt: str, user_content: str, **additional_kwargs: Any
@@ -926,14 +914,73 @@ class OpenAIProvider(LLMProvider):
         """
         return super()._call_llm(system_prompt, user_content, **additional_kwargs)
 
+    def _get_subtitle_system_prompt(
+        self,
+        target_language: str,
+        glossary_directory: str | None = None,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
+    ) -> str:
+        """
+        Generate system prompt for subtitle translation.
+
+        Includes only glossary terms that actually appear in the subtitle content
+        (if subtitle_list is provided).
+
+        Args:
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+            subtitle_list: List of subtitle objects (optional)
+
+        Returns:
+            System prompt string for subtitle translation
+        """
+        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+            target_language, target_language
+        )
+
+        system_prompt = (
+            f"You are a professional subtitle translator. "
+            f"Translate English subtitles to {target_language_display_name}.\n\n"
+            "INPUT FORMAT:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: \n\n"
+            "OUTPUT FORMAT - Fill in each Target line:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: <srt_text>Translated text</srt_text>\n\n"
+            "CRITICAL RULES:\n"
+            "1. Fill in EVERY Target [ID] line with the translation.\n"
+            "2. Wrap ALL translations in <srt_text></srt_text> tags.\n"
+            "3. Each Target must translate ONLY its corresponding Source.\n"
+            "4. Do NOT merge or shift content between IDs.\n"
+            "5. If Source is a single word (e.g., 'Perfect.'), "
+            "Target must be just that word translated.\n"
+            "6. If Source is a sentence fragment, Target must be a fragment.\n"
+            "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
+        )
+
+        if glossary_directory:
+            system_prompt = self._load_glossary_into_prompt(
+                system_prompt,
+                glossary_directory,
+                target_language,
+                subtitle_list=subtitle_list,
+            )
+        return system_prompt
+
 
 class GeminiProvider(LLMProvider):
     """Gemini translation provider."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         primary_api_key: str,
         model_name: str | None = None,
+        srt_batch_size: int = 50,
+        litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
+        max_chunk_retries: int = MAX_CHUNK_RETRIES,
+        temperature: float = 1.0,
     ):
         """
         Initialize Gemini provider.
@@ -948,16 +995,82 @@ class GeminiProvider(LLMProvider):
         if not model_name:
             msg = "model_name is required for GeminiProvider"
             raise ValueError(msg)
-        super().__init__(primary_api_key, f"gemini/{model_name}")
+        super().__init__(
+            primary_api_key,
+            f"gemini/{model_name}",
+            srt_batch_size=srt_batch_size,
+            litellm_timeout=litellm_timeout,
+            max_chunk_retries=max_chunk_retries,
+            temperature=temperature,
+        )
+
+    def _get_subtitle_system_prompt(
+        self,
+        target_language: str,
+        glossary_directory: str | None = None,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
+    ) -> str:
+        """
+        Generate system prompt for subtitle translation.
+
+        Includes only glossary terms that actually appear in the subtitle content
+        (if subtitle_list is provided).
+
+        Args:
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+            subtitle_list: List of subtitle objects (optional)
+
+        Returns:
+            System prompt string for subtitle translation
+        """
+        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+            target_language, target_language
+        )
+
+        system_prompt = (
+            f"You are a professional subtitle translator. "
+            f"Translate English subtitles to {target_language_display_name}.\n\n"
+            "INPUT FORMAT:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: \n\n"
+            "OUTPUT FORMAT - Fill in each Target line:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: <srt_text>Translated text</srt_text>\n\n"
+            "CRITICAL RULES:\n"
+            "1. Fill in EVERY Target [ID] line with the translation.\n"
+            "2. Wrap ALL translations in <srt_text></srt_text> tags.\n"
+            "3. Each Target must translate ONLY its corresponding Source.\n"
+            "4. Do NOT merge or shift content between IDs.\n"
+            "5. If Source is a single word (e.g., 'Perfect.'), "
+            "Target must be just that word translated.\n"
+            "6. If Source is a sentence fragment, Target must be a fragment.\n"
+            "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
+        )
+
+        if glossary_directory:
+            system_prompt = self._load_glossary_into_prompt(
+                system_prompt,
+                glossary_directory,
+                target_language,
+                subtitle_list=subtitle_list,
+            )
+        return system_prompt
 
 
 class MistralProvider(LLMProvider):
     """Mistral translation provider."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         primary_api_key: str,
         model_name: str | None = None,
+        srt_batch_size: int = 20,
+        litellm_timeout: int = 600,
+        max_chunk_retries: int = 2,
+        temperature: float = 0.0,
     ):
         """
         Initialize Mistral provider.
@@ -975,7 +1088,65 @@ class MistralProvider(LLMProvider):
         super().__init__(
             primary_api_key,
             f"mistral/{model_name}",
-            srt_batch_size=20,
-            timeout=600,
-            max_chunk_retries=2,
+            srt_batch_size=srt_batch_size,
+            litellm_timeout=litellm_timeout,
+            max_chunk_retries=max_chunk_retries,
+            temperature=temperature,
         )
+
+    def _get_subtitle_system_prompt(
+        self,
+        target_language: str,
+        glossary_directory: str | None = None,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
+    ) -> str:
+        """
+        Generate system prompt for subtitle translation.
+
+        Includes only glossary terms that actually appear in the subtitle content
+        (if subtitle_list is provided).
+
+        Args:
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+            subtitle_list: List of subtitle objects (optional)
+
+        Returns:
+            System prompt string for subtitle translation
+        """
+        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+            target_language, target_language
+        )
+
+        system_prompt = (
+            f"You are a professional subtitle translator. "
+            f"Translate English subtitles to {target_language_display_name}.\n\n"
+            "INPUT FORMAT:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: \n\n"
+            "OUTPUT FORMAT - Fill in each Target line:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: <srt_text>Translated text</srt_text>\n\n"
+            "CRITICAL RULES:\n"
+            "1. Fill in EVERY Target [ID] line with the translation.\n"
+            "2. Wrap ALL translations in <srt_text></srt_text> tags.\n"
+            "3. Each Target must translate ONLY its corresponding Source.\n"
+            "4. Do NOT merge or shift content between IDs.\n"
+            "5. If Source is a single word (e.g., 'Perfect.'), "
+            "Target must be just that word translated.\n"
+            "6. If Source is a sentence fragment, Target must be a fragment.\n"
+            "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
+            "9. Even if you merge fragmented sentences in translation, maintain 1:1 "
+            "ID mapping by adding blank translation for the merged fragment.\n"
+        )
+
+        if glossary_directory:
+            system_prompt = self._load_glossary_into_prompt(
+                system_prompt,
+                glossary_directory,
+                target_language,
+                subtitle_list=subtitle_list,
+            )
+        return system_prompt
