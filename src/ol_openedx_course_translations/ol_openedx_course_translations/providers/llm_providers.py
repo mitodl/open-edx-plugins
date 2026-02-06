@@ -20,7 +20,7 @@ LANGUAGE_DISPLAY_NAMES = {
     "en": "English",
     "de": "Deutsch",
     "es": "Español",
-    "es-419": "Spanish (Latin America)",
+    "es-419": "Latin American Spanish",
     "fr": "Français",
     "pt-br": "Português - Brasil",
     "ru": "Русский",
@@ -192,8 +192,8 @@ class LLMProvider(TranslationProvider):
             f"{TRANSLATION_MARKER_END}\n\n"
             "GENERAL TRANSLATION RULES:\n"
             "1. Output ONLY the translation between the markers.\n"
-            "2. Maintain the original formatting, spacing, line breaks, and indentation.\n"  # noqa: E501
-            "3. Keep proper nouns, brand names, acronyms, and product names unchanged.\n"  # noqa: E501
+            "2. Maintain the original formatting, spacing, line breaks, and indentation.\n"
+            "3. Keep proper nouns, brand names, acronyms, and product names unchanged.\n"
             "4. Do NOT include explanations, notes, or commentary.\n"
         )
 
@@ -656,7 +656,7 @@ class LLMProvider(TranslationProvider):
                 if attempt < max_attempts:
                     batch_size = max(1, batch_size // 2)
                     logger.warning(
-                        "  %d 2 blank cues detected in a row: %s. Reducing batch size to %d...",  # noqa: E501
+                        "  %d 2 blank cues detected in a row: %s. Reducing batch size to %d...",
                         len(blank_cue_indices),
                         blank_cue_indices,
                         batch_size,
@@ -818,12 +818,12 @@ class LLMProvider(TranslationProvider):
 
         return (
             "You are a professional language editor.\n\n"
-            "Review the following translated XML/HTML document and correct ONLY linguistic issues in the target language.\n\n"  # noqa: E501
+            "Review the following translated XML/HTML document and correct ONLY linguistic issues in the target language.\n\n"
             "ALLOWED CHANGES (ONLY THESE):\n"
             "- Grammar and article agreement\n"
             "- Spelling and punctuation\n"
-            "- Obvious encoding artifacts (e.g., broken characters, malformed symbols)\n"  # noqa: E501
-            "- Consistency in verb mood and tense where directly implied by the source text\n\n"  # noqa: E501
+            "- Obvious encoding artifacts (e.g., broken characters, malformed symbols)\n"
+            "- Consistency in verb mood and tense where directly implied by the source text\n\n"
             "ABSOLUTE RULES (NON-NEGOTIABLE):\n"
             "- DO NOT change, add, remove, or reorder any XML/HTML tags\n"
             "- DO NOT change indentation, line breaks, or spacing\n"
@@ -948,6 +948,7 @@ class OpenAIProvider(LLMProvider):
             target_language, target_language
         )
 
+        # V1
         system_prompt = (
             f"You are a professional subtitle translator. "
             f"Translate English subtitles to {target_language_display_name}.\n\n"
@@ -968,6 +969,41 @@ class OpenAIProvider(LLMProvider):
             "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
             "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
         )
+        # ruff: noqa: ERA001, E501
+        # V2
+        # system_prompt = (
+        #     f"You are an expert subtitle translator. Translate English subtitles to {target_language_display_name}.\n\n"
+        #     "GUIDELINES:\n"
+        #     "1. Idiomatic Flow: Prioritize natural, spoken phrasing over literal translation.\n"
+        #     "2. Brevity: Keep translations concise for reading speed.\n"
+        #     "3. Preservation: Do NOT translate proper nouns, brand names, or technical codes.\n"
+        #     "4. Tone: Match the source (e.g., fragments must remain fragments).\n\n"
+        #     "TECHNICAL RULES:\n"
+        #     "1. 1:1 Mapping: Every Source [ID] must have exactly one Target [ID]. No merging or skipping.\n"
+        #     "2. Tagging: Wrap ALL translations in <srt_text></srt_text> tags.\n"
+        #     "3. Structure: Maintain the exact Source/Target ID format provided.\n\n"
+        #     "INPUT:\n"
+        #     "Source [ID]: <srt_text>English text</srt_text>\n"
+        #     "Target [ID]: "
+        # )
+
+        # V3
+        # system_prompt = (
+        #     f"You are a professional audiovisual translator specializing in academic content. "
+        #     f"Translate English subtitles to {target_language_display_name}.\n\n"
+        #     "GUIDELINES:\n"
+        #     "1. Persona: Use the tone of a professional university lecturer—natural and engaging, yet authoritative. "
+        #     "Use 'dictar' for teaching a course where appropriate.\n"
+        #     "2. Subtitle Economy: Prioritize brevity and reading speed. Remove linguistic fillers while retaining meaning.\n"
+        #     "3. Grammatical Precision: Adhere to RAE standards (e.g., prefixes like 'super-' must be joined to the root word: 'superconfuso').\n"
+        #     "4. Natural Syntax: Use 'Me llamo' instead of 'Mi nombre es' and 'Llevo [tiempo] + gerund' for ongoing actions.\n\n"
+        #     "TECHNICAL RULES:\n"
+        #     "1. Constraints: 1:1 mapping for IDs. Do NOT translate proper nouns (EECS, Python, Ana Bell) or technical codes.\n"
+        #     "2. Format: Wrap ALL translations in <srt_text></srt_text> tags. Maintain the exact Source/Target ID format.\n\n"
+        #     "INPUT:\n"
+        #     "Source [ID]: <srt_text>English text</srt_text>\n"
+        #     "Target [ID]: "
+        # )
 
         if glossary_directory:
             system_prompt = self._load_glossary_into_prompt(
