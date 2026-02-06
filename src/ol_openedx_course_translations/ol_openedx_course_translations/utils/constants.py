@@ -161,7 +161,7 @@ BACKEND_PO_FILES = ["django.po", "djangojs.po"]
 # translations/<repo_dir>/<module_name>/conf/locale/<lang>/LC_MESSAGES/django.po.
 # When pulled in edx-platform (make pull_translations), these go to
 # conf/plugins-locale/plugins/<module_name>/.
-BACKEND_PLUGIN_APPS = [
+TRANSLATABLE_PLUGINS = [
     ("open-edx-plugins", "ol_openedx_chat"),
 ]
 
