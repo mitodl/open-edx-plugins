@@ -11,13 +11,7 @@ import srt
 from django.conf import settings
 from litellm import completion
 
-from ol_openedx_course_translations.utils.course_translations import (
-    TranslationProvider,
-    filter_glossary_for_subtitles,
-    format_glossary_for_prompt,
-    load_glossary,
-    load_glossary_dict,
-)
+from .base import TranslationProvider
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +124,13 @@ class LLMProvider(TranslationProvider):
         """
         Load glossary terms into the system prompt.
         """
+        from ol_openedx_course_translations.utils.course_translations import (  # noqa: PLC0415
+            filter_glossary_for_subtitles,
+            format_glossary_for_prompt,
+            load_glossary,
+            load_glossary_dict,
+        )
+
         if subtitle_list:
             glossary_dict = load_glossary_dict(target_language, glossary_directory)
             filtered = filter_glossary_for_subtitles(subtitle_list, glossary_dict)
@@ -174,6 +175,10 @@ class LLMProvider(TranslationProvider):
         Returns:
             System prompt string for text translation
         """
+        from ol_openedx_course_translations.utils.course_translations import (  # noqa: PLC0415
+            load_glossary,
+        )
+
         target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
             target_language, target_language
         )
@@ -374,6 +379,10 @@ class LLMProvider(TranslationProvider):
         - De-duplicates identical strings within the batch.
         - Uses an in-process LRU cache keyed by (target_language, text).
         """
+        from ol_openedx_course_translations.utils.course_translations import (  # noqa: PLC0415
+            load_glossary,
+        )
+
         # De-dupe (preserve order for stable output)
         uniq: list[str] = []
         index_map: list[int] = []
@@ -552,7 +561,7 @@ class LLMProvider(TranslationProvider):
 
         # Use direct ID-based translation (more reliable for structure preservation)
         logger.info(
-            "Translating %d subtitles (will try entire file first)...",
+            "Translating %d subtitles...",
             len(subtitle_list),
         )
 
