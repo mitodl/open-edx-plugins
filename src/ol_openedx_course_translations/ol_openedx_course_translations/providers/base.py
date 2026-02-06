@@ -45,16 +45,14 @@ def load_glossary(target_language: str, glossary_directory: str | None = None) -
 class TranslationProvider(ABC):
     """Abstract base class for translation providers."""
 
-    def __init__(self, primary_api_key: str, repair_api_key: str | None = None):
+    def __init__(self, primary_api_key: str):
         """
-        Initialize translation provider with API keys.
+        Initialize translation provider with API key.
 
         Args:
             primary_api_key: API key for primary translation service
-            repair_api_key: API key for repair service (DeepL API key)
         """
         self.primary_api_key = primary_api_key
-        self.repair_api_key = repair_api_key
 
     def translate_srt_with_validation(
         self,
@@ -64,10 +62,10 @@ class TranslationProvider(ABC):
         input_file_path: Path | None = None,
     ) -> list[srt.Subtitle]:
         """
-        Translate SRT subtitles with timestamp validation and repair.
+        Translate SRT subtitles with timestamp validation.
 
-        Performs translation, validates timestamps, and attempts repair
-        if validation fails using DeepL.
+        Performs translation and validates timestamps. If validation fails,
+        retries translation once before failing.
 
         Args:
             subtitle_list: List of subtitle objects to translate
@@ -122,23 +120,15 @@ class TranslationProvider(ABC):
                     path_str,
                 )
 
-        # All retries failed - try DeepL repair as last resort
-        log.info("  🔧 All attempts failed, trying DeepL repair for %s...", path_str)
-        repaired_subtitles = self._repair_timestamps_with_deepl(
-            subtitle_list, target_language
-        )
-
-        log.info("  🔍 Re-validating repaired subtitles for %s...", path_str)
-        if self._validate_timestamps(subtitle_list, repaired_subtitles):
-            log.info(
-                "  ✅ Timestamps repaired and validated successfully for %s.", path_str
-            )
-            return repaired_subtitles
-
+        # All retries failed - fail the task
         log.error(
-            "  ❌ Timestamp repair failed for %s. Translation cannot proceed.", path_str
+            "  ❌ All translation attempts failed for %s. Translation cannot proceed.",
+            path_str,
         )
-        msg = "Subtitle timestamp repair failed - timestamps could not be validated"
+        msg = (
+            f"Subtitle translation failed after {MAX_SUBTITLE_TRANSLATION_RETRIES} "
+            f"attempts - validation failed"
+        )
         raise ValueError(msg)
 
     def _validate_timestamps(
@@ -182,59 +172,6 @@ class TranslationProvider(ABC):
                 logger.warning("  ... and %s more issues", len(issues) - 10)
             return False
         return True
-
-    def _repair_timestamps_with_deepl(
-        self,
-        original: list[srt.Subtitle],
-        target_lang: str,
-    ) -> list[srt.Subtitle]:
-        """
-        Repair misaligned timestamps using DeepL translation.
-
-        Uses DeepL to retranslate subtitles with proper timestamp preservation.
-
-        Args:
-            original: Original subtitle list with correct timestamps
-            target_lang: Target language code
-
-        Returns:
-            List of repaired subtitles with corrected timestamps
-        """
-        if not self.repair_api_key:
-            logger.warning("   No repair API key available, skipping repair.")
-            return original
-
-        logger.info("  🔧 Repairing timestamps using DeepL...")
-
-        try:
-            # Import DeepL provider for repair
-            from ol_openedx_course_translations.providers.deepl_provider import (  # noqa: PLC0415
-                DeepLProvider,
-            )
-
-            # Create DeepL provider instance for repair
-            deepl_provider = DeepLProvider(self.repair_api_key, None)
-
-            # Use DeepL to translate with proper timestamp preservation
-            repaired_subtitles = deepl_provider.translate_subtitles(
-                original, target_lang, None
-            )
-
-            logger.info("  ✅ DeepL repair completed.")
-            return repaired_subtitles  # noqa: TRY300
-
-        except Exception as e:  # noqa: BLE001
-            logger.error("  ❌ DeepL repair failed: %s", e)  # noqa: TRY400
-            # Fallback: return original with empty content to preserve structure
-            return [
-                srt.Subtitle(
-                    index=sub.index,
-                    start=sub.start,
-                    end=sub.end,
-                    content="",
-                )
-                for sub in original
-            ]
 
     @abstractmethod
     def translate_subtitles(

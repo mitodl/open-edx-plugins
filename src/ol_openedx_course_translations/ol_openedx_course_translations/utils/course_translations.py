@@ -95,9 +95,9 @@ def get_translation_provider(
         ValueError: If provider configuration is invalid
     """
     # Handle DeepL
-    deepl_api_key = _get_deepl_api_key()
     if provider_name == PROVIDER_DEEPL:
-        return DeepLProvider(deepl_api_key, None)
+        deepl_api_key = _get_deepl_api_key()
+        return DeepLProvider(deepl_api_key)
 
     # Handle LLM providers
     providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
@@ -105,11 +105,11 @@ def get_translation_provider(
     api_key = provider_config["api_key"]
 
     if provider_name == PROVIDER_OPENAI:
-        return OpenAIProvider(api_key, deepl_api_key, model_name)
+        return OpenAIProvider(api_key, model_name)
     elif provider_name == PROVIDER_GEMINI:
-        return GeminiProvider(api_key, deepl_api_key, model_name)
+        return GeminiProvider(api_key, model_name)
     elif provider_name == PROVIDER_MISTRAL:
-        return MistralProvider(api_key, deepl_api_key, model_name)
+        return MistralProvider(api_key, model_name)
 
     msg = f"Unknown provider: {provider_name}"
     raise ValueError(msg)

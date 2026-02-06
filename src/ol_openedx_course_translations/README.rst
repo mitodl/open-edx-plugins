@@ -259,7 +259,7 @@ Format: One term per line as "source_term : translated_term"
 Subtitle Translation and Validation
 ====================================
 
-The course translation system includes robust subtitle (SRT) translation with automatic validation and repair mechanisms to ensure high-quality translations with preserved timing information.
+The course translation system includes robust subtitle (SRT) translation with automatic validation and retry mechanisms to ensure high-quality translations with preserved timing information.
 
 **Translation Process**
 
@@ -268,17 +268,7 @@ The subtitle translation follows a multi-stage process with built-in quality che
 1. **Initial Translation**: Subtitles are translated using your configured provider (DeepL or LLM)
 2. **Validation**: Timestamps, subtitle count, and content are validated to ensure integrity
 3. **Automatic Retry**: If validation fails, the system automatically retries translation (up to 1 additional attempt)
-4. **DeepL Repair Fallback**: If retries fail, the system automatically falls back to DeepL for repair
-
-**Why DeepL for Repair?**
-
-When subtitle translations fail validation (mismatched timestamps, incorrect subtitle counts, or blank translations), the system automatically uses **DeepL as a repair mechanism**, regardless of which provider was initially used. This design choice is based on extensive testing and production experience:
-
-- **Higher Reliability**: LLMs frequently fail to preserve subtitle structure and timestamps correctly, even with detailed prompting
-- **Consistent Formatting**: DeepL's specialized subtitle translation API maintains timing precision through XML tag handling
-- **Lower Failure Rate**: DeepL demonstrates significantly better success rates for subtitle translation compared to LLMs
-- **Timestamp Preservation**: DeepL's built-in XML tag handling ensures start and end times remain intact during translation
-
+4. **Task Failure**: If all retries fail validation, the translation task fails to prevent corrupted subtitle files
 
 **Validation Rules**
 
@@ -301,14 +291,13 @@ The system validates subtitle translations against these criteria:
        ✓ 150 subtitle blocks translated
        ✗ Validation failed: 2 blocks still have issues
 
-    3. DeepL Repair:
-       ✓ 150 subtitle blocks retranslated using DeepL
-       ✓ Validation passed: All timestamps and content validated
-       ✅ Translation completed successfully
+    3. Task Failure:
+       ❌ Translation failed after all retries
+       ❌ Task aborted to prevent corrupted subtitle files
 
 **Failure Handling**
 
-If subtitle repair fails after all attempts (including DeepL fallback):
+If subtitle translation fails after all attempts:
 
 - The translation task will fail with a ``ValueError``
 - The entire course translation will be aborted to prevent incomplete translations

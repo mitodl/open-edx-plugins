@@ -77,22 +77,20 @@ class LLMProvider(TranslationProvider):
     def __init__(
         self,
         primary_api_key: str,
-        repair_api_key: str | None = None,
         model_name: str | None = None,
         timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
         srt_batch_size: int = 250,
     ):
         """
-        Initialize LLM provider with API keys and model name.
+        Initialize LLM provider with API key and model name.
 
         Args:
             primary_api_key: API key for the LLM service
-            repair_api_key: API key for DeepL repair service (optional)
             model_name: Name of the LLM model to use
             timeout: Request timeout in seconds
             srt_batch_size: Batch size for subtitle translation
         """
-        super().__init__(primary_api_key, repair_api_key)
+        super().__init__(primary_api_key)
         self.model_name = model_name
         self.timeout = timeout
         self.srt_batch_size = srt_batch_size
@@ -856,7 +854,6 @@ class OpenAIProvider(LLMProvider):
     def __init__(
         self,
         primary_api_key: str,
-        repair_api_key: str | None = None,
         model_name: str | None = None,
     ):
         """
@@ -864,7 +861,6 @@ class OpenAIProvider(LLMProvider):
 
         Args:
             primary_api_key: OpenAI API key
-            repair_api_key: API key for DeepL repair service (optional)
             model_name: OpenAI model name (e.g., "gpt-5.2")
 
         Raises:
@@ -873,7 +869,7 @@ class OpenAIProvider(LLMProvider):
         if not model_name:
             msg = "model_name is required for OpenAIProvider"
             raise ValueError(msg)
-        super().__init__(primary_api_key, repair_api_key, f"openai/{model_name}")
+        super().__init__(primary_api_key, f"openai/{model_name}")
 
     def _call_llm(
         self, system_prompt: str, user_content: str, **additional_kwargs: Any
@@ -898,7 +894,6 @@ class GeminiProvider(LLMProvider):
     def __init__(
         self,
         primary_api_key: str,
-        repair_api_key: str | None = None,
         model_name: str | None = None,
     ):
         """
@@ -906,7 +901,6 @@ class GeminiProvider(LLMProvider):
 
         Args:
             primary_api_key: Gemini API key
-            repair_api_key: API key for DeepL repair service (optional)
             model_name: Gemini model name (e.g., "gemini-3-pro-preview")
 
         Raises:
@@ -915,7 +909,7 @@ class GeminiProvider(LLMProvider):
         if not model_name:
             msg = "model_name is required for GeminiProvider"
             raise ValueError(msg)
-        super().__init__(primary_api_key, repair_api_key, f"gemini/{model_name}")
+        super().__init__(primary_api_key, f"gemini/{model_name}")
 
 
 class MistralProvider(LLMProvider):
@@ -924,7 +918,6 @@ class MistralProvider(LLMProvider):
     def __init__(
         self,
         primary_api_key: str,
-        repair_api_key: str | None = None,
         model_name: str | None = None,
     ):
         """
@@ -932,7 +925,6 @@ class MistralProvider(LLMProvider):
 
         Args:
             primary_api_key: Mistral API key
-            repair_api_key: API key for DeepL repair service (optional)
             model_name: Mistral model name (e.g., "mistral-large-latest")
 
         Raises:
@@ -943,7 +935,6 @@ class MistralProvider(LLMProvider):
             raise ValueError(msg)
         super().__init__(
             primary_api_key,
-            repair_api_key,
             f"mistral/{model_name}",
             srt_batch_size=50,
         )

@@ -75,15 +75,14 @@ def _validate_batch_response(xml_matches: list, subtitle_batch: list) -> None:
 class DeepLProvider(TranslationProvider):
     """DeepL translation provider."""
 
-    def __init__(self, primary_api_key: str, repair_api_key: str | None = None):
+    def __init__(self, primary_api_key: str):
         """
         Initialize DeepL provider.
 
         Args:
             primary_api_key: DeepL API key
-            repair_api_key: API key for repair service (optional)
         """
-        super().__init__(primary_api_key, repair_api_key)
+        super().__init__(primary_api_key)
         self.deepl_translator = deepl.Translator(auth_key=primary_api_key)
 
     def translate_subtitles(
