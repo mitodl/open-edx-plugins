@@ -11,7 +11,7 @@ import srt
 from django.conf import settings
 from litellm import completion
 
-from .base import (
+from ol_openedx_course_translations.utils.course_translations import (
     TranslationProvider,
     filter_glossary_for_subtitles,
     format_glossary_for_prompt,
