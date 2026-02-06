@@ -11,7 +11,7 @@ from typing import Any
 import polib  # type: ignore[import-untyped]
 
 from ol_openedx_course_translations.utils.constants import (
-    BACKEND_PLUGIN_APPS,
+    TRANSLATABLE_PLUGINS,
     BACKEND_PO_FILES,
     DEFAULT_JSON_INDENT,
     DEFAULT_PLURAL_FORM,
@@ -571,7 +571,7 @@ def _iter_backend_plugin_po_files(
     plugin PO file where the English source exists.
     """
     lc_messages = TRANSLATION_FILE_NAMES["lc_messages"]
-    for repo_dir, module_name in BACKEND_PLUGIN_APPS:
+    for repo_dir, module_name in TRANSLATABLE_PLUGINS:
         plugin_base = _plugin_locale_base(base_dir, repo_dir, module_name)
         en_locale_dir = plugin_base / "en" / lc_messages
         target_locale_dir = plugin_base / backend_locale / lc_messages
