@@ -11,7 +11,6 @@ from typing import Any
 import polib  # type: ignore[import-untyped]
 
 from ol_openedx_course_translations.utils.constants import (
-    TRANSLATABLE_PLUGINS,
     BACKEND_PO_FILES,
     DEFAULT_JSON_INDENT,
     DEFAULT_PLURAL_FORM,
@@ -27,6 +26,7 @@ from ol_openedx_course_translations.utils.constants import (
     PO_HEADER_POT_CREATION_DATE,
     PO_HEADER_PROJECT_VERSION,
     PO_HEADER_TRANSIFEX_TEAM_BASE_URL,
+    TRANSLATABLE_PLUGINS,
     TRANSLATION_FILE_NAMES,
     TYPO_PATTERNS,
 )
