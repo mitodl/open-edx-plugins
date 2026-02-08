@@ -77,10 +77,10 @@ class Command(BaseCommand):
         parser.add_argument(
             "--source-language",
             dest="source_language",
-            default="EN",
+            default="en",
             help=(
                 "Specify the source language of the course content "
-                "in ISO format, e.g. `EN` for English."
+                "in ISO format, e.g. `en` for English."
             ),
         )
         parser.add_argument(
@@ -89,7 +89,7 @@ class Command(BaseCommand):
             required=True,
             help=(
                 "Specify the language code in ISO format "
-                "to translate the course content into. e.g `AR` for Arabic"
+                "to translate the course content into. e.g `ar` for Arabic"
             ),
         )
         parser.add_argument(
@@ -250,14 +250,14 @@ class Command(BaseCommand):
             if source_language != ENGLISH_LANGUAGE_CODE:
                 error_msg = (
                     f"Source language '{source_language}' is not supported. "
-                    f"Supported languages: {', '.join(settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.values())}"  # noqa: E501
+                    f"Only `en` is supported as source language at this time."
                 )
                 raise CommandError(error_msg)
 
             if target_language not in settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES:
                 error_msg = (
                     f"Target language '{target_language}' is not supported. "
-                    f"Supported languages: {', '.join(settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.values())}"  # noqa: E501
+                    f"Supported languages: {', '.join(settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.keys())}"  # noqa: E501
                 )
                 raise CommandError(error_msg)
 
