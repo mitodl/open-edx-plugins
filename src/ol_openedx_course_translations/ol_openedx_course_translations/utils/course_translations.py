@@ -172,8 +172,6 @@ def update_video_xml_transcripts(xml_content: str, target_language: str) -> str:
     """
     try:
         xml_root = ElementTree.fromstring(xml_content)
-        target_lang_code = target_language
-
         # Update transcripts attribute in <video> tag
         if xml_root.tag == "video" and "transcripts" in xml_root.attrib:
             transcripts_json_str = xml_root.attrib["transcripts"].replace("&quot;", '"')
@@ -183,10 +181,10 @@ def update_video_xml_transcripts(xml_content: str, target_language: str) -> str:
                 value = transcripts_dict[key]
                 new_value = re.sub(
                     r"-[a-zA-Z]{2}\.srt$",
-                    f"-{target_lang_code}.srt",
+                    f"-{target_language}.srt",
                     value,
                 )
-                transcripts_dict[target_lang_code] = new_value
+                transcripts_dict[target_language] = new_value
 
             xml_root.set(
                 "transcripts", json.dumps(transcripts_dict, ensure_ascii=False)
@@ -214,14 +212,14 @@ def update_course_language_attribute(course_dir: Path, target_language: str) -> 
             # Check if root tag is 'course' and has language attribute
             if xml_root.tag == "course" and "language" in xml_root.attrib:
                 current_language = xml_root.attrib["language"]
-                xml_root.set("language", target_language.lower())
+                xml_root.set("language", target_language)
                 updated_xml_content = ElementTree.tostring(xml_root, encoding="unicode")
                 xml_file.write_text(updated_xml_content, encoding="utf-8")
                 logger.debug(
                     "Updated language attribute in %s from %s to %s",
                     xml_file,
                     current_language,
-                    target_language.lower(),
+                    target_language,
                 )
         except (OSError, ElementTree.ParseError) as e:
             logger.warning("Failed to update language attribute in %s: %s", xml_file, e)
@@ -248,13 +246,13 @@ def translate_policy_fields(  # noqa: C901
         if field in course_policy_obj:
             translated = provider.translate_text(
                 course_policy_obj[field],
-                target_language.lower(),
+                target_language,
                 glossary_directory=glossary_directory,
             )
             course_policy_obj[field] = translated
 
     # Update language attribute
-    course_policy_obj["language"] = target_language.lower()
+    course_policy_obj["language"] = target_language
 
     # Translate discussion topics
     if "discussion_topics" in course_policy_obj:
@@ -263,7 +261,7 @@ def translate_policy_fields(  # noqa: C901
             translated_topics = {}
             for key, value in topics.items():
                 translated_key = provider.translate_text(
-                    key, target_language.lower(), glossary_directory=glossary_directory
+                    key, target_language, glossary_directory=glossary_directory
                 )
                 translated_topics[translated_key] = value
             course_policy_obj["discussion_topics"] = translated_topics
@@ -274,7 +272,7 @@ def translate_policy_fields(  # noqa: C901
     ):
         translated_info = [
             provider.translate_text(
-                item, target_language.lower(), glossary_directory=glossary_directory
+                item, target_language, glossary_directory=glossary_directory
             )
             for item in course_policy_obj["learning_info"]
         ]
@@ -286,7 +284,7 @@ def translate_policy_fields(  # noqa: C901
             if isinstance(tab, dict) and "name" in tab:
                 tab["name"] = provider.translate_text(
                     tab["name"],
-                    target_language.lower(),
+                    target_language,
                     glossary_directory=glossary_directory,
                 )
 
@@ -300,7 +298,7 @@ def translate_policy_fields(  # noqa: C901
             if xml_field_name in xml_attributes_dict:
                 translated_value = provider.translate_text(
                     xml_attributes_dict[xml_field_name],
-                    target_language.lower(),
+                    target_language,
                     glossary_directory=glossary_directory,
                 )
                 xml_attributes_dict[xml_field_name] = translated_value
@@ -317,16 +315,9 @@ def get_srt_output_filename(input_filename: str, target_language: str) -> str:
     Returns:
         Output filename with target language code
     """
-    # Use 'es' for Spanish regardless of es-419
-    output_lang_code = (
-        ES_LANGUAGE_CODE
-        if target_language.lower() == ES_419_LANGUAGE_CODE
-        else target_language.lower()
-    )
-
     if "-" in input_filename and input_filename.endswith(".srt"):
         filename_parts = input_filename.rsplit("-", 1)
-        return f"{filename_parts[0]}-{output_lang_code}.srt"
+        return f"{filename_parts[0]}-{target_language}.srt"
     return input_filename
 
 
@@ -497,19 +488,13 @@ def update_video_xml_complete(xml_content: str, target_language: str) -> str:  #
     """
     try:
         xml_root = ElementTree.fromstring(xml_content)
-        target_lang_code = (
-            ES_LANGUAGE_CODE
-            if target_language.lower() == ES_419_LANGUAGE_CODE
-            else target_language.lower()
-        )
-
         # Update transcripts attribute in <video>
         if xml_root.tag == "video" and "transcripts" in xml_root.attrib:
             transcripts_json_str = xml_root.attrib["transcripts"].replace("&quot;", '"')
             transcripts_dict = json.loads(transcripts_json_str)
             for transcript_key in list(transcripts_dict.keys()):
                 transcript_value = transcripts_dict[transcript_key]
-                new_transcript_key = target_lang_code
+                new_transcript_key = target_language
                 new_transcript_value = re.sub(
                     r"-[a-zA-Z]{2}\.srt$",
                     f"-{new_transcript_key}.srt",
@@ -528,7 +513,7 @@ def update_video_xml_complete(xml_content: str, target_language: str) -> str:  #
                     new_transcript_element.attrib = (
                         existing_transcript_element.attrib.copy()
                     )
-                new_transcript_element.set("language_code", target_lang_code)
+                new_transcript_element.set("language_code", target_language)
                 # Avoid duplicates
                 if not any(
                     transcript_elem.attrib == new_transcript_element.attrib
@@ -542,15 +527,15 @@ def update_video_xml_complete(xml_content: str, target_language: str) -> str:  #
             if transcript_src:
                 new_transcript_src = re.sub(
                     r"-[a-zA-Z]{2}\.srt$",
-                    f"-{target_lang_code}.srt",
+                    f"-{target_language}.srt",
                     transcript_src,
                 )
                 new_transcript_element = Element("transcript")
-                new_transcript_element.set("language", target_lang_code)
+                new_transcript_element.set("language", target_language)
                 new_transcript_element.set("src", new_transcript_src)
                 # Avoid duplicates
                 if not any(
-                    existing_transcript.get("language") == target_lang_code
+                    existing_transcript.get("language") == target_language
                     and existing_transcript.get("src") == new_transcript_src
                     for existing_transcript in xml_root.findall("transcript")
                 ):
@@ -1007,7 +992,7 @@ def load_glossary(target_language: str, glossary_directory: str | None = None) -
         logger.warning("Glossary directory not found: %s", glossary_dir_path)
         return ""
 
-    glossary_file_path = glossary_dir_path / f"{target_language.lower()}.txt"
+    glossary_file_path = glossary_dir_path / f"{target_language}.txt"
     if not glossary_file_path.exists():
         logger.warning(
             "Glossary file not found for language %s: %s",

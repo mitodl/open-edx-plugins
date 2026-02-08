@@ -15,26 +15,6 @@ from .base import TranslationProvider
 
 logger = logging.getLogger(__name__)
 
-# Human-readable language names for LLM prompts
-LANGUAGE_DISPLAY_NAMES = {
-    "en": "English",
-    "de": "Deutsch",
-    "es": "Español",
-    "es-419": "Latin American Spanish",
-    "fr": "Français",
-    "pt-br": "Português - Brasil",
-    "ru": "Русский",
-    "hi": "हिंदी",
-    "el": "ελληνικά",
-    "ja": "日本語",
-    "ar": "العربية",
-    "zh": "中文",
-    "tr": "Türkçe",
-    "sq": "Shqip",
-    "kr": "한국어",
-    "id": "Bahasa Indonesia",
-}
-
 # LLM error detection keywords
 LLM_ERROR_KEYWORDS = [
     "token",
@@ -179,13 +159,13 @@ class LLMProvider(TranslationProvider):
             load_glossary,
         )
 
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
             target_language, target_language
         )
 
         system_prompt = (
             f"Translate the following English text to "
-            f"{target_language_display_name}.\n\n"
+            f"{target_language_display_name} ({target_language}).\n\n"
             f"OUTPUT FORMAT (exactly):\n"
             f"{TRANSLATION_MARKER_START}\n"
             "Your translated text here\n"
@@ -428,12 +408,12 @@ class LLMProvider(TranslationProvider):
             return "\n".join(parts)
 
         # Prompt specifically for batches of plain strings
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
             target_language, target_language
         )
         system_prompt = (
             f"You are a professional translator. "
-            f"Translate English to {target_language_display_name}.\n\n"
+            f"Translate English to {target_language_display_name} ({target_language}).\n\n"
             "INPUT FORMAT:\n"
             ":::ID:::\n"
             "Text\n\n"
@@ -809,10 +789,10 @@ class LLMProvider(TranslationProvider):
         source_language: str,
         target_language: str,
     ) -> str:
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
             target_language, target_language
         )
-        source_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+        source_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
             source_language, source_language
         )
 
@@ -832,8 +812,8 @@ class LLMProvider(TranslationProvider):
             "- DO NOT change meaning, tone, or register\n"
             "- Only edit visible text nodes and approved user-facing attribute VALUES\n"
             "- Attribute NAMES must never be changed\n\n"
-            f"SOURCE LANGUAGE: {source_language_display_name}\n"
-            f"TARGET LANGUAGE: {target_language_display_name}\n\n"
+            f"SOURCE LANGUAGE: {source_language_display_name} ({source_language})\n"
+            f"TARGET LANGUAGE: {target_language_display_name} ({target_language})\n\n"
             "OUTPUT FORMAT (exactly):\n"
             f"{TRANSLATION_MARKER_START}\n"
             "<Corrected XML/HTML content>\n"
@@ -857,8 +837,8 @@ class LLMProvider(TranslationProvider):
             return translated_content
 
         system_prompt = self._get_translation_validation_system_prompt(
-            source_language=source_language.lower(),
-            target_language=target_language.lower(),
+            source_language=source_language,
+            target_language=target_language,
         )
 
         user_payload = (
@@ -944,14 +924,14 @@ class OpenAIProvider(LLMProvider):
         Returns:
             System prompt string for subtitle translation
         """
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
             target_language, target_language
         )
 
         # V1
         system_prompt = (
             f"You are a professional subtitle translator. "
-            f"Translate English subtitles to {target_language_display_name}.\n\n"
+            f"Translate English subtitles to {target_language_display_name} ({target_language}).\n\n"
             "INPUT FORMAT:\n"
             "Source [ID]: <srt_text>English text</srt_text>\n"
             "Target [ID]: \n\n"
@@ -1070,13 +1050,13 @@ class GeminiProvider(LLMProvider):
         Returns:
             System prompt string for subtitle translation
         """
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
             target_language, target_language
         )
 
         system_prompt = (
             f"You are a professional subtitle translator. "
-            f"Translate English subtitles to {target_language_display_name}.\n\n"
+            f"Translate English subtitles to {target_language_display_name} ({target_language}).\n\n"
             "INPUT FORMAT:\n"
             "Source [ID]: <srt_text>English text</srt_text>\n"
             "Target [ID]: \n\n"
@@ -1160,13 +1140,13 @@ class MistralProvider(LLMProvider):
         Returns:
             System prompt string for subtitle translation
         """
-        target_language_display_name = LANGUAGE_DISPLAY_NAMES.get(
+        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
             target_language, target_language
         )
 
         system_prompt = (
             f"You are a professional subtitle translator. "
-            f"Translate English subtitles to {target_language_display_name}.\n\n"
+            f"Translate English subtitles to {target_language_display_name} ({target_language}).\n\n"
             "INPUT FORMAT:\n"
             "Source [ID]: <srt_text>English text</srt_text>\n"
             "Target [ID]: \n\n"

@@ -32,6 +32,8 @@ from ol_openedx_course_translations.utils.course_translations import (
     validate_course_inputs,
 )
 
+from ol_openedx_course_translations.utils.constants import ENGLISH_LANGUAGE_CODE
+
 logger = logging.getLogger(__name__)
 
 # Task configuration
@@ -234,12 +236,30 @@ class Command(BaseCommand):
         try:
             start_time = time.perf_counter()
             course_archive_path = Path(options["course_archive_path"])
-            source_language = options["source_language"].upper()
-            target_language = options["target_language"].upper()
+            source_language = options["source_language"]
+            target_language = options["target_language"]
 
-            # Normalize Spanish language codes to es-419
-            if target_language in (ES_LANGUAGE_CODE, ES_419_LANGUAGE_CODE):
-                target_language = ES_419_LANGUAGE_CODE
+            # Currently we only support English as source language
+            # because of the complexity of handling multiple source
+            # languages and the fact that most courses are in English.
+            # We can add support for more source languages in the future
+            # if needed, but it will require additional validation and
+            # testing to ensure quality translations. For now, we enforce
+            # this constraint to focus on delivering high-quality
+            # translations from English to supported target languages.
+            if source_language != ENGLISH_LANGUAGE_CODE:
+                error_msg = (
+                    f"Source language '{source_language}' is not supported. "
+                    f"Supported languages: {', '.join(settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.values())}"  # noqa: E501
+                )
+                raise CommandError(error_msg)
+
+            if target_language not in settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES:
+                error_msg = (
+                    f"Target language '{target_language}' is not supported. "
+                    f"Supported languages: {', '.join(settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.values())}"  # noqa: E501
+                )
+                raise CommandError(error_msg)
 
             content_provider_spec = options["content_translation_provider"]
             srt_provider_spec = options["srt_translation_provider"]

@@ -35,11 +35,7 @@ class AddDestLangForVideoBlock(PipelineStep):
                     context.get("course", None), "language", ENGLISH_LANGUAGE_CODE
                 )
                 # Use 'es' for Spanish regardless of es-419
-                dest_lang = (
-                    ES_LANGUAGE_CODE
-                    if course_lang == ES_419_LANGUAGE_CODE
-                    else course_lang
-                )
+                dest_lang = course_lang
                 if (
                     transcripts_info
                     and transcripts_info.get("transcripts", {})

@@ -84,3 +84,22 @@ def apply_common_settings(settings):
     # Base directory where translate_course extracts archives and writes
     # translated .tar.gz output. Directory is created at runtime if missing.
     settings.COURSE_TRANSLATIONS_BASE_DIR = "/openedx/data/course_translations/"
+
+    settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES = {
+        "ar": "Arabic",
+        "de": "German",
+        "de_DE": "German (Germany)",
+        "el": "Greek",
+        "en": "English",
+        "es": "Spanish",
+        "es_419": "Spanish (Latin America)",
+        "fr": "French",
+        "hi": "Hindi",
+        "ja": "Japanese",
+        "pt": "Portuguese",
+        "pt_BR": "Portuguese (Brazil)",
+        "ru": "Russian",
+        "zh": "Chinese",
+        "zh_HANS": "Chinese (Simplified)",
+        "zh_HANT": "Chinese (Traditional)",
+    }
