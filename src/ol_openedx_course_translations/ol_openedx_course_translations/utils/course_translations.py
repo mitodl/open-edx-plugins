@@ -32,8 +32,6 @@ from ol_openedx_course_translations.providers.llm_providers import (
     OpenAIProvider,
 )
 from ol_openedx_course_translations.utils.constants import (
-    ES_419_LANGUAGE_CODE,
-    ES_LANGUAGE_CODE,
     NEVER_TRANSLATE_ATTRS,
     PROVIDER_DEEPL,
     PROVIDER_GEMINI,

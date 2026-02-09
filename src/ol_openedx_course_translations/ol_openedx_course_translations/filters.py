@@ -7,8 +7,6 @@ from xmodule.modulestore.django import modulestore
 
 from ol_openedx_course_translations.utils.constants import (
     ENGLISH_LANGUAGE_CODE,
-    ES_419_LANGUAGE_CODE,
-    ES_LANGUAGE_CODE,
 )
 
 VIDEO_BLOCK_TYPE = "video"

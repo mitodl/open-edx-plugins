@@ -159,8 +159,10 @@ class LLMProvider(TranslationProvider):
             load_glossary,
         )
 
-        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
-            target_language, target_language
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
         )
 
         system_prompt = (
@@ -408,8 +410,10 @@ class LLMProvider(TranslationProvider):
             return "\n".join(parts)
 
         # Prompt specifically for batches of plain strings
-        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
-            target_language, target_language
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
         )
         system_prompt = (
             f"You are a professional translator. "
@@ -789,11 +793,15 @@ class LLMProvider(TranslationProvider):
         source_language: str,
         target_language: str,
     ) -> str:
-        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
-            target_language, target_language
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
         )
-        source_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
-            source_language, source_language
+        source_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                source_language, source_language
+            )
         )
 
         return (
@@ -924,8 +932,10 @@ class OpenAIProvider(LLMProvider):
         Returns:
             System prompt string for subtitle translation
         """
-        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
-            target_language, target_language
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
         )
 
         # V1
@@ -1050,8 +1060,10 @@ class GeminiProvider(LLMProvider):
         Returns:
             System prompt string for subtitle translation
         """
-        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
-            target_language, target_language
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
         )
 
         system_prompt = (
@@ -1140,8 +1152,10 @@ class MistralProvider(LLMProvider):
         Returns:
             System prompt string for subtitle translation
         """
-        target_language_display_name = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
-            target_language, target_language
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
         )
 
         system_prompt = (

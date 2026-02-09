@@ -18,8 +18,7 @@ from ol_openedx_course_translations.tasks import (
     translate_policy_json_task,
 )
 from ol_openedx_course_translations.utils.constants import (
-    ES_419_LANGUAGE_CODE,
-    ES_LANGUAGE_CODE,
+    ENGLISH_LANGUAGE_CODE,
     PROVIDER_DEEPL,
 )
 from ol_openedx_course_translations.utils.course_translations import (
@@ -31,8 +30,6 @@ from ol_openedx_course_translations.utils.course_translations import (
     update_course_language_attribute,
     validate_course_inputs,
 )
-
-from ol_openedx_course_translations.utils.constants import ENGLISH_LANGUAGE_CODE
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +228,7 @@ class Command(BaseCommand):
 
         return provider_name, default_model
 
-    def handle(self, **options) -> None:  # noqa: PLR0915
+    def handle(self, **options) -> None:  # noqa: PLR0915, PLR0912, C901
         """Handle the translate_course command."""
         try:
             start_time = time.perf_counter()
@@ -252,14 +249,14 @@ class Command(BaseCommand):
                     f"Source language '{source_language}' is not supported. "
                     f"Only `en` is supported as source language at this time."
                 )
-                raise CommandError(error_msg)
+                raise CommandError(error_msg)  # noqa: TRY301
 
             if target_language not in settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES:
                 error_msg = (
                     f"Target language '{target_language}' is not supported. "
                     f"Supported languages: {', '.join(settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.keys())}"  # noqa: E501
                 )
-                raise CommandError(error_msg)
+                raise CommandError(error_msg)  # noqa: TRY301
 
             content_provider_spec = options["content_translation_provider"]
             srt_provider_spec = options["srt_translation_provider"]
