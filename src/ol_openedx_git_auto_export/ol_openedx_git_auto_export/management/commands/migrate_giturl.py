@@ -314,9 +314,15 @@ class Command(BaseCommand):
 
         message_formats = {
             "existing": lambda data: f"  • {data['course_id']}: {data['giturl']}",
-            "success": lambda data: f"  • {data['course_id']}: {data['ssh_url']} (reason: {data['reason']})",  # noqa: E501
-            "failed": lambda data: f"  • {data['course_id']}: Creation failed (reason: {data['reason']})",  # noqa: E501
-            "duplicate": lambda data: f"  • {data['course_id']}: Had duplicate URL {data['duplicate_giturl']}",  # noqa: E501
+            "success": lambda data: (
+                f"  • {data['course_id']}: {data['ssh_url']} (reason: {data['reason']})"
+            ),
+            "failed": lambda data: (
+                f"  • {data['course_id']}: Creation failed (reason: {data['reason']})"
+            ),
+            "duplicate": lambda data: (
+                f"  • {data['course_id']}: Had duplicate URL {data['duplicate_giturl']}"
+            ),
         }
 
         count = len(repo_stats)
