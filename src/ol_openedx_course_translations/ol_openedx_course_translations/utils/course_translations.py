@@ -204,6 +204,7 @@ def update_course_language_attribute(course_dir: Path, target_language: str) -> 
         course_dir: Parent course directory path
         target_language: Target language code
     """
+    target_language = target_language.lower().replace("_", "-")
     for xml_file in (course_dir / "course").glob("*.xml"):
         try:
             xml_content = xml_file.read_text(encoding="utf-8")
@@ -252,7 +253,7 @@ def translate_policy_fields(  # noqa: C901
             course_policy_obj[field] = translated
 
     # Update language attribute
-    course_policy_obj["language"] = target_language
+    course_policy_obj["language"] = target_language.lower().replace("_", "-")
 
     # Translate discussion topics
     if "discussion_topics" in course_policy_obj:
@@ -488,6 +489,7 @@ def update_video_xml_complete(xml_content: str, target_language: str) -> str:  #
     """
     try:
         xml_root = ElementTree.fromstring(xml_content)
+        target_language = target_language.lower().replace("_", "-")
         # Update transcripts attribute in <video>
         if xml_root.tag == "video" and "transcripts" in xml_root.attrib:
             transcripts_json_str = xml_root.attrib["transcripts"].replace("&quot;", '"')

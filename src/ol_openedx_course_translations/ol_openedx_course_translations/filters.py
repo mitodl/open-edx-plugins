@@ -31,11 +31,9 @@ class AddDestLangForVideoBlock(PipelineStep):
                 )
                 video_block = modulestore().get_item(child)
                 transcripts_info = video_block.get_transcripts_info()
-                course_lang = getattr(
+                dest_lang = getattr(
                     context.get("course", None), "language", ENGLISH_LANGUAGE_CODE
                 )
-                # Use 'es' for Spanish regardless of es-419
-                dest_lang = course_lang
                 if (
                     transcripts_info
                     and transcripts_info.get("transcripts", {})
