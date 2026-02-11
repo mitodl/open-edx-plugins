@@ -8,6 +8,7 @@ from xmodule.modulestore.django import modulestore
 from ol_openedx_course_translations.utils.constants import (
     ENGLISH_LANGUAGE_CODE,
 )
+from ol_openedx_course_translations.utils.course_translations import LanguageCode
 
 VIDEO_BLOCK_TYPE = "video"
 
@@ -32,6 +33,7 @@ class AddDestLangForVideoBlock(PipelineStep):
                 dest_lang = getattr(
                     context.get("course", None), "language", ENGLISH_LANGUAGE_CODE
                 )
+                dest_lang = LanguageCode(dest_lang).to_bcp47()
                 if (
                     transcripts_info
                     and transcripts_info.get("transcripts", {})

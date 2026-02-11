@@ -202,7 +202,6 @@ def update_course_language_attribute(course_dir: Path, target_language: str) -> 
         course_dir: Parent course directory path
         target_language: Target language code
     """
-    target_language = target_language.lower().replace("_", "-")
     for xml_file in (course_dir / "course").glob("*.xml"):
         try:
             xml_content = xml_file.read_text(encoding="utf-8")
@@ -251,7 +250,7 @@ def translate_policy_fields(  # noqa: C901
             course_policy_obj[field] = translated
 
     # Update language attribute
-    course_policy_obj["language"] = target_language.lower().replace("_", "-")
+    course_policy_obj["language"] = target_language
 
     # Translate discussion topics
     if "discussion_topics" in course_policy_obj:
@@ -314,6 +313,7 @@ def get_srt_output_filename(input_filename: str, target_language: str) -> str:
     Returns:
         Output filename with target language code
     """
+    target_language = LanguageCode(target_language).to_bcp47()
     if "-" in input_filename and input_filename.endswith(".srt"):
         filename_parts = input_filename.rsplit("-", 1)
         return f"{filename_parts[0]}-{target_language}.srt"
@@ -487,7 +487,7 @@ def update_video_xml_complete(xml_content: str, target_language: str) -> str:  #
     """
     try:
         xml_root = ElementTree.fromstring(xml_content)
-        target_language = target_language.lower().replace("_", "-")
+        target_language = LanguageCode(target_language).to_bcp47()
         # Update transcripts attribute in <video>
         if xml_root.tag == "video" and "transcripts" in xml_root.attrib:
             transcripts_json_str = xml_root.attrib["transcripts"].replace("&quot;", '"')
@@ -1011,3 +1011,94 @@ def load_glossary_dict(
     Load and parse the glossary file for a language into a dict.
     """
     return parse_glossary_text(load_glossary(target_language, glossary_directory))
+
+
+class LanguageCode:
+    """
+    Utility class for handling language code conversions between
+    Django/Open edX style and BCP47.
+    """
+
+    def __init__(self, lang_code):
+        self.lang_code = lang_code
+
+    def to_bcp47(self) -> str:
+        """
+        Convert Django / Open edX style language codes to BCP47.
+
+        Examples:
+            zh_HANS     -> zh-Hans
+            zh_HANT     -> zh-Hant
+            zh_HANS_CN  -> zh-Hans-CN
+            en_US       -> en-US
+            es_419      -> es-419
+            pt_br       -> pt-BR
+        """
+        if not self.lang_code:
+            return self.lang_code
+
+        parts = self.lang_code.replace("_", "-").split("-")
+        result = []
+        for idx, part in enumerate(parts):
+            if idx == 0:
+                # Language
+                result.append(part.lower())
+
+            elif re.fullmatch(r"[A-Za-z]{4}", part):
+                # Script (Hans, Hant, Latn, Cyrl, etc.)
+                result.append(part.title())
+
+            elif re.fullmatch(r"[A-Za-z]{2}", part):
+                # Region i.e US, PK, CN
+                result.append(part.upper())
+
+            elif re.fullmatch(r"\d{3}", part):
+                # Numeric region (419)
+                result.append(part)
+
+            else:
+                # Variants/extensions
+                result.append(part.lower())
+
+        return "-".join(result)
+
+    def to_django(self) -> str:
+        """
+        Convert BCP47 language tags to Django / Open edX style.
+
+        Examples:
+            zh-Hans     -> zh_HANS
+            zh-Hant     -> zh_HANT
+            zh-Hans-CN  -> zh_HANS_CN
+            en-US       -> en_US
+            es-419      -> es_419
+            pt-BR       -> pt_BR
+        """
+        if not self.lang_code:
+            return self.lang_code
+
+        parts = self.lang_code.replace("_", "-").split("-")
+        result = []
+
+        for idx, part in enumerate(parts):
+            if idx == 0:
+                # Language
+                result.append(part.lower())
+
+            elif re.fullmatch(r"[A-Za-z]{4}", part):
+                # Script
+                result.append(part.upper())
+
+            elif re.fullmatch(r"[A-Za-z]{2}", part):
+                # Region
+                result.append(part.upper())
+
+            elif re.fullmatch(r"\d{3}", part):
+                # Numeric region
+                result.append(part)
+
+            else:
+                # Variants/extensions
+                result.append(part.lower())
+
+        return "_".join(result)

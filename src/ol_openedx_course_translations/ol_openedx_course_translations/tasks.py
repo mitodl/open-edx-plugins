@@ -144,9 +144,7 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, C901
                     "reason": "Not source language SRT",
                 }
 
-            output_filename = get_srt_output_filename(
-                file_path.name, target_language.lower().replace("_", "-")
-            )
+            output_filename = get_srt_output_filename(file_path.name, target_language)
             output_file_path = file_path.parent / output_filename
 
             provider.translate_document(
