@@ -110,7 +110,7 @@ You can specify providers in three ways:
 .. code-block:: bash
 
     ./manage.py cms translate_course \
-        --target-language AR \
+        --target-language ar \
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai \
         --srt-translation-provider gemini
@@ -120,7 +120,7 @@ You can specify providers in three ways:
 .. code-block:: bash
 
     ./manage.py cms translate_course \
-        --target-language AR \
+        --target-language ar \
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai/gpt-5.2 \
         --srt-translation-provider gemini/gemini-3-pro-preview
@@ -130,7 +130,7 @@ You can specify providers in three ways:
 .. code-block:: bash
 
     ./manage.py cms translate_course \
-        --target-language AR \
+        --target-language ar \
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider deepl \
         --srt-translation-provider deepl
@@ -148,8 +148,8 @@ Translating a Course
    .. code-block:: bash
 
         ./manage.py cms translate_course \
-            --source-language EN \
-            --target-language AR \
+            --source-language en \
+            --target-language ar \
             --course-dir /path/to/course.tar.gz \
             --content-translation-provider openai \
             --srt-translation-provider gemini \
@@ -159,7 +159,7 @@ Translating a Course
 
 **Command Options:**
 
-- ``--source-language``: Source language code (default: EN)
+- ``--source-language``: Source language code (default: en)
 - ``--target-language``: Target language code (required)
 - ``--course-dir``: Path to exported course tar.gz file (required)
 - ``--content-translation-provider``: Translation provider for content (XML/HTML and text) (required).
@@ -181,28 +181,28 @@ Translating a Course
 
     # Use DeepL for both content and subtitles
     ./manage.py cms translate_course \
-        --target-language AR \
+        --target-language ar \
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider deepl \
         --srt-translation-provider deepl
 
     # Use OpenAI and Gemini with default models from settings
     ./manage.py cms translate_course \
-        --target-language FR \
+        --target-language fr \
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai \
         --srt-translation-provider gemini
 
     # Use OpenAI with specific model for content, Gemini with default for subtitles
     ./manage.py cms translate_course \
-        --target-language FR \
+        --target-language fr \
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai/gpt-5.2 \
         --srt-translation-provider gemini
 
     # Use Mistral with specific model and separate glossaries for content and SRT
     ./manage.py cms translate_course \
-        --target-language ES \
+        --target-language es \
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider mistral/mistral-large-latest \
         --srt-translation-provider mistral/mistral-large-latest \
@@ -211,7 +211,7 @@ Translating a Course
 
     # Use different glossaries for content vs subtitles
     ./manage.py cms translate_course \
-        --target-language AR \
+        --target-language es \
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai \
         --srt-translation-provider gemini \
@@ -245,7 +245,7 @@ Format: One term per line as "source_term : translated_term"
 
 .. code-block:: text
 
-    # ES HINTS
+    # es HINTS
     ## TERM MAPPINGS
     These are preferred terminology choices for this language. Use them whenever they sound natural; adapt freely if context requires.
 

@@ -136,8 +136,8 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, C901
         if file_path.suffix == ".srt":
             provider = get_translation_provider(srt_provider_name, srt_model)
 
-            source_lang_pattern = f"-{source_language.lower()}.srt"
-            if not file_path.name.lower().endswith(source_lang_pattern):
+            source_lang_pattern = f"-{source_language}.srt"
+            if not file_path.name.endswith(source_lang_pattern):
                 return {
                     "status": "skipped",
                     "file": file_path_str,
@@ -171,7 +171,7 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, C901
         provider = get_translation_provider(content_provider_name, content_model)
         translated_content = provider.translate_text(
             file_content,
-            target_language.lower(),
+            target_language,
             tag_handling=tag_handling_mode,
             glossary_directory=content_glossary,
         )
@@ -299,7 +299,7 @@ def translate_grading_policy_task(
                 if key in grader_item:
                     translated_label = provider.translate_text(
                         grader_item[key],
-                        target_language.lower(),
+                        target_language,
                         glossary_directory=content_glossary,
                     )
                     grader_item[key] = translated_label

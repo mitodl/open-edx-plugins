@@ -12,6 +12,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from ol_openedx_course_translations.utils.course_translations import LanguageCode
+
 log = logging.getLogger(__name__)
 
 
@@ -70,4 +72,5 @@ class CourseLanguageView(APIView):
                 {"error": "An unexpected error occurred."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        return Response({"language": course.language})
+        language = LanguageCode(course.language).to_bcp47()
+        return Response({"language": language})
