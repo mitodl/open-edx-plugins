@@ -21,6 +21,8 @@ from ol_openedx_course_sync.utils import (
     get_syncable_course_mappings,
     sync_discussions_configuration,
     update_default_tabs,
+    sync_course_handouts,
+    sync_course_updates,
 )
 from openedx.core.djangoapps.content.course_overviews.tests.factories import (
     CourseOverviewFactory,
@@ -119,6 +121,12 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             if tab.type != "progress":
                 continue
             assert tab.is_hidden is True
+
+    def test_sync_course_updates(self):
+        pass
+
+    def test_sync_course_handouts(self):
+        pass
 
     @data(
         [
