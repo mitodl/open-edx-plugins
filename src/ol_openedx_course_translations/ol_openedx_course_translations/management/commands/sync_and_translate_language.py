@@ -66,12 +66,29 @@ from ol_openedx_course_translations.utils.translation_sync import (
     apply_json_translations,
     apply_po_translations,
     extract_empty_keys,
+    get_nplurals_from_po_file,
     load_glossary,
     match_glossary_term,
+    plural_source_has_placeholders_not_in_singular,
     sync_all_translations,
 )
 
 logger = logging.getLogger(__name__)
+
+# Max number of rejected brace-format entries to list in PR description.
+MAX_REJECTED_BRACE_DISPLAY = 50
+
+
+class _PluralInstructionParams(TypedDict):
+    """Parameters for _build_plural_instructions."""
+
+    json_plural_info: dict[str, Any]
+    plural_count: int
+    key_batch: list[dict]
+    icu_categories_str: str
+    lang_code: str
+    po_plural_count_override: int | None
+
 
 # Plural-instruction prompts for LLM (used in _build_plural_instructions).
 # Format with .format(json_plural_count=..., icu_categories_str=..., etc.).
@@ -181,6 +198,30 @@ _PROMPT_PO_PLURAL_SINGULAR_PLURAL = (
     "NOT ICU MessageFormat syntax. "
     "Preserve placeholders like {{count}}, %(count)s, etc. "
     "in the plain strings."
+)
+
+# PO plurals: language has only 1 form (e.g. Chinese, Japanese, Korean).
+# We need BOTH singular and plural; we choose which to use for the single form.
+_PROMPT_PO_PLURAL_ONE_FORM = (
+    "CRITICAL - PO FILE PLURAL ENTRIES "
+    "({plural_count} entry/entries): "
+    "These are for PO files (NOT JSON files). "
+    "This language has only ONE plural form (e.g. Chinese, Japanese). "
+    "Always return an object with BOTH 'singular' and 'plural' keys. "
+    "For entries where the PLURAL source has a variable (e.g. %(num_selected)s) "
+    "that the SINGULAR source does not, we use your 'singular' for the single form "
+    "(to avoid runtime errors). So provide a natural singular WITHOUT that variable. "
+    "For other entries we use your 'plural' for the single form. "
+    "\n"
+    "CORRECT (variable only in plural): "
+    "{{'singular': 'translation without the variable', "
+    "'plural': 'translation with %(num_selected)s etc.'}} "
+    "\n"
+    "CORRECT (same variable in both): "
+    "{{'singular': 'translation with %(count)s', "
+    "'plural': 'translation with %(count)s'}} "
+    "\n"
+    "Each value must be a simple translated string. Preserve placeholders."
 )
 
 
@@ -622,6 +663,7 @@ class PullRequestData(TypedDict):
     applied_by_app: dict[str, Any]
     provider: str
     model: str
+    rejected_brace_format_entries: list[dict[str, str]]
 
 
 class TranslationParams(TypedDict):
@@ -814,7 +856,7 @@ class Command(BaseCommand):
 
         self.stdout.write("\nApplying translations...")
         applied_count, applied_by_app = self._apply_translations(
-            translations, empty_keys, self.stdout
+            translations, empty_keys, self.stdout, lang_code
         )
         self.stdout.write(f"   Applied {applied_count} translations")
 
@@ -839,6 +881,9 @@ class Command(BaseCommand):
                 applied_by_app=applied_by_app,
                 provider=provider,
                 model=model,
+                rejected_brace_format_entries=applied_by_app.get(
+                    "rejected_brace_format_entries", []
+                ),
             )
             pr_url = self._create_pull_request(
                 repo_path,
@@ -1135,10 +1180,13 @@ class Command(BaseCommand):
         glossary: dict[str, Any] | None,
         batch_size: int,
         max_retries: int,
+        po_nplurals_override: int | None = None,
     ) -> tuple[int, int, dict[str, int]]:
         """Translate keys using LLM with batch processing.
 
         Returns (llm_translations, llm_errors, errors_by_app).
+        When po_nplurals_override is set (from translation file's Plural-Forms),
+        it is used for PO plural prompt instructions instead of the constant-based rule.
         """
         llm_translations = 0
         llm_errors = 0
@@ -1165,7 +1213,12 @@ class Command(BaseCommand):
             for attempt in range(max_retries + 1):  # +1 for initial attempt
                 try:
                     batch_translations = self._call_llm_batch(
-                        batch, lang_code, provider, model, glossary
+                        batch,
+                        lang_code,
+                        provider,
+                        model,
+                        glossary,
+                        po_nplurals_override=po_nplurals_override,
                     )
                     batch_successes, batch_errors, batch_errors_by_app = (
                         self._process_batch_results(
@@ -1370,6 +1423,15 @@ class Command(BaseCommand):
             model,
             batch_size,
         )
+        # Prefer nplurals from the first PO file in the translation repo
+        po_nplurals_override = None
+        for key_info in empty_keys:
+            if key_info.get("file_type") == "po" and key_info.get("file_path"):
+                n = get_nplurals_from_po_file(Path(key_info["file_path"]))
+                if n is not None:
+                    po_nplurals_override = n
+                    break
+
         llm_translations, llm_errors, errors_by_app = self._translate_with_llm(
             keys_needing_llm,
             translations,
@@ -1379,6 +1441,7 @@ class Command(BaseCommand):
             glossary,
             batch_size,
             max_retries,
+            po_nplurals_override=po_nplurals_override,
         )
         logger.info(
             "LLM translation completed: %d translated, %d errors",
@@ -1555,16 +1618,21 @@ class Command(BaseCommand):
             """
         return textwrap.dedent(glossary_template)
 
-    def _build_plural_instructions(
-        self,
-        json_plural_info: dict[str, Any],
-        plural_count: int,
-        key_batch: list[dict],
-        icu_categories_str: str,
-        lang_code: str,
-    ) -> str:
-        """Build plural handling instructions for LLM prompt."""
+    def _build_plural_instructions(self, params: _PluralInstructionParams) -> str:
+        """Build plural handling instructions for LLM prompt.
+
+        When po_plural_count_override is set (e.g. from the translation file's
+        Plural-Forms header), it is used for PO plural form count instead of
+        the constant-based _get_po_plural_count(lang_code).
+        """
         instructions = []
+        json_plural_info = params["json_plural_info"]
+        key_batch = params["key_batch"]
+        icu_categories_str = params["icu_categories_str"]
+        lang_code = params["lang_code"]
+        po_plural_count_override = params["po_plural_count_override"]
+        plural_count = params["plural_count"]
+
         json_plural_count = json_plural_info.get("count", 0)
         json_plural_entries = json_plural_info.get("entries", {})
 
@@ -1613,8 +1681,12 @@ class Command(BaseCommand):
                     )
 
         if plural_count > 0:
-            # Get number of plural forms needed for this language
-            po_plural_count = _get_po_plural_count(lang_code)
+            # Prefer nplurals from file; fall back to constant-based rule
+            po_plural_count = (
+                po_plural_count_override
+                if po_plural_count_override is not None
+                else _get_po_plural_count(lang_code)
+            )
             if po_plural_count > PLURAL_CATEGORIES_TWO:
                 instructions.append(
                     _PROMPT_PO_PLURAL_MULTI_FORM.format(
@@ -1623,6 +1695,27 @@ class Command(BaseCommand):
                         po_plural_count_minus_1=po_plural_count - 1,
                     )
                 )
+            elif po_plural_count == 1:
+                instructions.append(
+                    _PROMPT_PO_PLURAL_ONE_FORM.format(plural_count=plural_count)
+                )
+                # If any PO plural entry has a placeholder only in the plural source,
+                # add a note so the LLM provides a safe singular (no such placeholder).
+                if any(
+                    key_info.get("is_plural")
+                    and key_info.get("msgid_plural")
+                    and plural_source_has_placeholders_not_in_singular(
+                        key_info.get("english", ""),
+                        key_info.get("msgid_plural", ""),
+                    )
+                    for key_info in key_batch
+                ):
+                    instructions.append(
+                        "Some of the above PO plural entries have a variable only in "
+                        "the plural source (e.g. %(num_selected)s). For those, we use "
+                        "your 'singular' for the single form—so provide a natural "
+                        "singular translation WITHOUT that variable."
+                    )
             else:
                 instructions.append(
                     _PROMPT_PO_PLURAL_SINGULAR_PLURAL.format(plural_count=plural_count)
@@ -1638,6 +1731,7 @@ class Command(BaseCommand):
         model: str,
         glossary: dict[str, Any] | None = None,
         timeout: int = 120,
+        po_nplurals_override: int | None = None,
     ) -> list[str | dict[str, str] | None]:
         """Call LLM API to translate multiple texts in a single request.
 
@@ -1681,19 +1775,33 @@ class Command(BaseCommand):
         glossary_section = self._format_glossary_for_prompt(glossary)
         icu_categories_str = ", ".join(self._get_icu_plural_categories(lang_code))
         plural_instructions = self._build_plural_instructions(
-            {"count": json_plural_count, "entries": json_plural_entries},
-            plural_count,
-            key_batch,
-            icu_categories_str,
-            lang_code,
+            {
+                "json_plural_info": {
+                    "count": json_plural_count,
+                    "entries": json_plural_entries,
+                },
+                "plural_count": plural_count,
+                "key_batch": key_batch,
+                "icu_categories_str": icu_categories_str,
+                "lang_code": lang_code,
+                "po_plural_count_override": po_nplurals_override,
+            }
         )
 
         prompt_template = (
             f"""Translate the following {len(key_batch)} text(s) to {lang_name} """
             f"""(language code: {lang_code}).
             Context: These are from an educational platform.
-            Preserve any placeholders like {{variable}}, {{0}}, %s, etc.
-            Preserve HTML tags and formatting.
+
+            CRITICAL - Placeholders and variables (NEVER translate these):
+            - Copy every placeholder EXACTLY from source to translation: same spelling,
+              same braces and brackets. Do NOT translate, rename, add, or remove any
+              placeholder. This includes: {{variable_name}}, %(name)s, %s, {{0}}, and
+              HTML-like tags such as <{{tag}}> or </{{strong}}>.
+            - For strings containing {{variable_name}}: keep every {{variable_name}}
+              character-for-character in the translation. A single missing }} or wrong
+              name will break the build. Translate only the surrounding text.
+            - Preserve HTML tags and formatting.
             {glossary_section}
             {plural_instructions}
 
@@ -2112,11 +2220,15 @@ class Command(BaseCommand):
         file_translations: dict[str, Any],
         empty_keys: list[dict],
         stdout,
-    ) -> tuple[int, str]:
-        """Apply translations to a single file. Returns (count, app)."""
+        lang_code: str | None = None,
+    ) -> tuple[int, str, list[dict[str, str]]]:
+        """Apply translations to a single file.
+
+        Returns (count, app, rejected_brace_entries).
+        """
         if not file_path.exists():
             stdout.write(self.style.WARNING(f"   WARNING: File not found: {file_path}"))
-            return 0, "unknown"
+            return 0, "unknown", []
 
         # Normalize paths for comparison
         normalized_file_path = str(file_path.resolve())
@@ -2134,49 +2246,62 @@ class Command(BaseCommand):
             key_info["file_type"],
             app,
         )
+        rejected_brace_entries: list[dict[str, str]] = []
         if key_info["file_type"] == "json":
             count = apply_json_translations(file_path, file_translations)
         elif key_info["file_type"] == "po":
-            count = apply_po_translations(file_path, file_translations)
+            count = apply_po_translations(
+                file_path,
+                file_translations,
+                lang_code,
+                rejected_brace_entries=rejected_brace_entries,
+            )
         else:
             logger.warning(
                 "Unknown file type '%s' for file: %s", key_info["file_type"], file_path
             )
-            return 0, app
+            return 0, app, []
 
         if count > 0:
             logger.info(
                 "Applied %d translation(s) to %s (app: %s)", count, file_path.name, app
             )
 
-        return count, app
+        return count, app, rejected_brace_entries
 
     def _apply_translations(
         self,
         translations: dict[str, Any],
         empty_keys: list[dict],
         stdout,
+        lang_code: str | None = None,
     ) -> tuple[int, dict[str, Any]]:
-        """Apply translations to files."""
+        """Apply translations to files.
+
+        Returns (applied_count, applied_by_app dict with details and
+        rejected_brace_format_entries).
+        """
         translations_by_file = self._group_translations_by_file(
             translations, empty_keys
         )
 
         if not translations_by_file:
             stdout.write(self.style.WARNING("   WARNING: No translations to apply"))
-            return 0, {"by_app": {}, "details": []}
+            return 0, {"by_app": {}, "details": [], "rejected_brace_format_entries": []}
 
         applied = 0
         applied_by_app: dict[str, int] = {}
         applied_details: list[dict[str, Any]] = []
+        all_rejected_brace: list[dict[str, str]] = []
 
         for file_path_str, file_translations in translations_by_file.items():
             full_path = Path(file_path_str)
-            count, app = self._apply_file_translations(
-                full_path, file_translations, empty_keys, stdout
+            count, app, rejected_brace_entries = self._apply_file_translations(
+                full_path, file_translations, empty_keys, stdout, lang_code
             )
 
             applied += count
+            all_rejected_brace.extend(rejected_brace_entries)
             if count > 0:
                 applied_by_app[app] = applied_by_app.get(app, 0) + count
                 applied_details.append(
@@ -2192,7 +2317,11 @@ class Command(BaseCommand):
             )
             stdout.write(f"   Summary by app: {app_summary}")
 
-        return applied, {"by_app": applied_by_app, "details": applied_details}
+        return applied, {
+            "by_app": applied_by_app,
+            "details": applied_details,
+            "rejected_brace_format_entries": all_rejected_brace,
+        }
 
     def _cleanup_failed_branch(self, repo: GitRepository, branch_name: str) -> None:
         """Clean up branch if PR creation fails."""
@@ -2375,6 +2504,29 @@ class Command(BaseCommand):
             )
         return f"Summary - LLM translations: {llm_translations}, Errors: {errors}"
 
+    def _generate_rejected_brace_section(
+        self, rejected_brace_format_entries: list[dict[str, str]]
+    ) -> str:
+        """Generate PR section for rejected brace-format translations."""
+        if not rejected_brace_format_entries:
+            return ""
+        lines = [
+            "### Rejected brace-format translations",
+            "",
+            "The following entries had invalid python-brace-format translations "
+            "(e.g. missing or mismatched `{placeholders}`) and were not applied. "
+            "They remain untranslated for manual review:",
+            "",
+        ]
+        for item in rejected_brace_format_entries[:MAX_REJECTED_BRACE_DISPLAY]:
+            msgid = (item.get("msgid") or "").replace("|", "\\|")[:100]
+            file_name = item.get("file", "")
+            lines.append(f"- `{file_name}`: {msgid!r}")
+        if len(rejected_brace_format_entries) > MAX_REJECTED_BRACE_DISPLAY:
+            extra = len(rejected_brace_format_entries) - MAX_REJECTED_BRACE_DISPLAY
+            lines.append(f"- ... and {extra} more.")
+        return "\n".join(lines) + "\n\n"
+
     def _generate_pr_body(self, pr_data: PullRequestData) -> str:
         """Generate PR description."""
         lang_code = pr_data["lang_code"]
@@ -2385,6 +2537,7 @@ class Command(BaseCommand):
         applied_by_app = pr_data["applied_by_app"]
         provider = pr_data["provider"]
         model = pr_data["model"]
+        rejected_brace_format_entries = pr_data.get("rejected_brace_format_entries", [])
 
         glossary_matches = translation_stats.get("glossary_matches", 0)
         llm_translations = translation_stats.get("llm_translations", 0)
@@ -2397,6 +2550,9 @@ class Command(BaseCommand):
             glossary_matches, llm_translations, errors
         )
         error_section = self._generate_error_section(errors, errors_by_app)
+        rejected_brace_section = self._generate_rejected_brace_section(
+            rejected_brace_format_entries
+        )
 
         applied_details = applied_by_app.get("details", [])
         breakdown_lines = [
@@ -2417,6 +2573,11 @@ class Command(BaseCommand):
             changes_lines.append(
                 f"- **Translation errors**: {errors} keys failed to translate"
             )
+        if rejected_brace_format_entries:
+            changes_lines.append(
+                f"- **Rejected brace-format**: {len(rejected_brace_format_entries)} "
+                "entries not applied (invalid placeholders; see section below)"
+            )
 
         # Build statistics section with conditional error line
         statistics_lines = [
@@ -2434,6 +2595,11 @@ class Command(BaseCommand):
             next_steps_lines.append(
                 "- Address failed translations (see error section above)"
             )
+        if rejected_brace_format_entries:
+            next_steps_lines.append(
+                "- Manually fix or translate entries with rejected brace-format "
+                "(see rejected brace-format section above)"
+            )
         next_steps_lines.extend(
             [
                 "- Test in staging environment",
@@ -2449,6 +2615,7 @@ class Command(BaseCommand):
                 provider_display
             } provider and model {model}.
             {error_section}
+            {rejected_brace_section}
             ### Changes
 
             {chr(10).join(changes_lines)}
