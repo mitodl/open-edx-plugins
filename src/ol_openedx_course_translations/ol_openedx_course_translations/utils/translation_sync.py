@@ -159,11 +159,124 @@ def _get_po_plural_count(lang_code: str) -> int:
     return int(nplurals_match.group(1))
 
 
+def get_nplurals_from_po_file(file_path: Path) -> int | None:
+    """Read nplurals from a PO file's Plural-Forms header.
+
+    Returns None if missing or unreadable.
+    """
+    if not file_path.exists():
+        return None
+    try:
+        po = polib.pofile(str(file_path))
+        plural_forms_str = po.metadata.get("Plural-Forms", "")
+        if not plural_forms_str:
+            return None
+        nplurals_match = re.search(r"nplurals=(\d+)", plural_forms_str)
+        if not nplurals_match:
+            return None
+        return int(nplurals_match.group(1))
+    except (OSError, polib.POFileError, ValueError):
+        return None
+
+
 def _get_numeric_plural_keys(translation: dict) -> list:
     """Return keys that are int or digit-string (plural form indices)."""
     return [
         key for key in translation if isinstance(key, (int, str)) and str(key).isdigit()
     ]
+
+
+# Python-format placeholders as in Django: %(name)s, %(count)d, etc.
+_PYTHON_FORMAT_PLACEHOLDER_RE = re.compile(r"%\(\s*(\w+)\s*\)[sdcouxXeEfFgGin%]")
+
+# Python brace-format placeholders: {variable_name} (Django/python-brace-format)
+_PYTHON_BRACE_FORMAT_PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
+
+
+def _get_brace_format_placeholders(text: str) -> set[str]:
+    """Return set of placeholder names in a Python brace-format string."""
+    if not text:
+        return set()
+    return set(_PYTHON_BRACE_FORMAT_PLACEHOLDER_RE.findall(text))
+
+
+def _is_valid_brace_format_translation(source: str, translation: str) -> bool:
+    """
+    Return True if translation is a valid Python brace-format string matching source.
+
+    Ensures: same set of {name} placeholders as source, and no unterminated
+    format directives (so msgfmt won't fail).
+    """
+    if not translation:
+        return True
+    source_placeholders = _get_brace_format_placeholders(source)
+    trans_placeholders = _get_brace_format_placeholders(translation)
+    if source_placeholders != trans_placeholders:
+        return False
+    try:
+        # Placeholders like {0}, {1} are positional; {name} is keyword.
+        # If all placeholders are digit strings, use positional args.
+        if source_placeholders and all(p.isdigit() for p in source_placeholders):
+            max_index = max(int(p) for p in source_placeholders)
+            positional = [""] * (max_index + 1)
+            translation.format(*positional)
+        else:
+            dummy = dict.fromkeys(source_placeholders, "")
+            translation.format(**dummy)
+    except (ValueError, KeyError, IndexError):
+        return False
+    else:
+        return True
+
+
+def _get_python_format_placeholders(text: str) -> set[str]:
+    """Return set of placeholder names in a python-format string."""
+    if not text:
+        return set()
+    return set(_PYTHON_FORMAT_PLACEHOLDER_RE.findall(text))
+
+
+def plural_source_has_placeholders_not_in_singular(
+    msgid: str, msgid_plural: str
+) -> bool:
+    """
+    Return True if msgid_plural has python-format placeholders that msgid does not.
+
+    For nplurals=1 we must then use the singular translation for the single form
+    to avoid KeyError at runtime when n=1.
+    """
+    if not msgid_plural:
+        return False
+    singular_placeholders = _get_python_format_placeholders(msgid)
+    plural_placeholders = _get_python_format_placeholders(msgid_plural)
+    return bool(plural_placeholders - singular_placeholders)
+
+
+def _plural_has_placeholders_not_in_singular(entry: polib.POEntry) -> bool:
+    """Return True if plural has python-format placeholders that singular lacks.
+
+    Used to choose singular vs plural source when nplurals=1.
+    """
+    if not entry.msgid_plural or "python-format" not in (entry.flags or []):
+        return False
+    return plural_source_has_placeholders_not_in_singular(
+        entry.msgid or "", entry.msgid_plural or ""
+    )
+
+
+def _entry_has_asymmetric_placeholders(entry: polib.POEntry) -> bool:
+    """
+    Return True if this is a python-format plural with asymmetric placeholders.
+
+    Singular/plural have different placeholders (one has a variable the other
+    doesn't). For such entries we keep both msgstr[0] and msgstr[1] even when
+    the locale has nplurals=1, so msgfmt and runtime work correctly.
+    """
+    if not entry.msgid_plural or "python-format" not in (entry.flags or []):
+        return False
+    singular_placeholders = _get_python_format_placeholders(entry.msgid or "")
+    plural_placeholders = _get_python_format_placeholders(entry.msgid_plural or "")
+    return singular_placeholders != plural_placeholders
 
 
 def create_po_file_header(lang_code: str, iso_code: str | None = None) -> str:
@@ -249,7 +362,9 @@ def parse_po_file_with_metadata(po_file: Path) -> dict[str, dict]:
 
 
 def _create_po_entry_from_en(
-    entry: polib.POEntry, lang_code: str | None = None
+    entry: polib.POEntry,
+    lang_code: str | None = None,
+    nplurals_from_file: int | None = None,
 ) -> polib.POEntry:
     """Create a new PO entry from an English entry with empty translation.
 
@@ -262,6 +377,9 @@ def _create_po_entry_from_en(
         entry: English PO entry to copy from
         lang_code: Target language code to determine number of plural forms.
             If None, uses the number of forms from the English entry.
+        nplurals_from_file: When set, use this as the number of plural forms
+            (takes priority over lang_code). Use the translation file's
+            Plural-Forms header when syncing into an existing PO file.
     """
     new_entry = polib.POEntry(
         msgid=entry.msgid,
@@ -274,13 +392,17 @@ def _create_po_entry_from_en(
         new_entry.msgctxt = entry.msgctxt
 
     if entry.msgid_plural:
-        # Determine number of plural forms needed
-        if lang_code:
-            # Use target language's plural form count
+        # Prefer nplurals from file, then lang rule, then English entry
+        if nplurals_from_file is not None:
+            num_forms = nplurals_from_file
+        elif lang_code:
             num_forms = _get_po_plural_count(lang_code)
         else:
-            # Fallback to English entry's form count
             num_forms = max(2, len(entry.msgstr_plural) if entry.msgstr_plural else 2)
+        # Special case: when singular/plural have different placeholders (e.g. variable
+        # only in plural), keep both [0] and [1] even if locale has nplurals=1
+        if _entry_has_asymmetric_placeholders(entry):
+            num_forms = max(num_forms, 2)
         new_entry.msgstr_plural = dict.fromkeys(range(num_forms), "")
     else:
         new_entry.msgstr = ""
@@ -293,7 +415,20 @@ def _sync_existing_po_file(
     target_file: Path,
     lang_code: str | None = None,
 ) -> int:
-    """Sync existing PO file by adding missing entries. Returns count added."""
+    """Sync existing PO file by adding missing entries. Returns count added.
+
+    Uses the target PO file's Plural-Forms header for the number of plural
+    forms when adding new entries; falls back to lang_code-based rule if
+    the header is missing.
+    """
+    # Prefer nplurals from the existing translation file
+    nplurals_from_file: int | None = None
+    plural_forms_str = target_po.metadata.get("Plural-Forms", "")
+    if plural_forms_str:
+        nplurals_match = re.search(r"nplurals=(\d+)", plural_forms_str)
+        if nplurals_match:
+            nplurals_from_file = int(nplurals_match.group(1))
+
     # Create a set of existing entries using (msgctxt, msgid, msgid_plural) tuple
     # msgctxt is included because same msgid can have different contexts
     existing_entries = set()
@@ -320,7 +455,9 @@ def _sync_existing_po_file(
             entry.msgid_plural if entry.msgid_plural else None,
         )
         if entry_key not in existing_entries:
-            new_entry = _create_po_entry_from_en(entry, lang_code)
+            new_entry = _create_po_entry_from_en(
+                entry, lang_code, nplurals_from_file=nplurals_from_file
+            )
             target_po.append(new_entry)
             added_count += 1
 
@@ -344,9 +481,8 @@ def _create_new_po_file(
     target_po.metadata = en_po.metadata.copy()
     target_po.metadata["Language"] = iso_code or lang_code
 
-    # Ensure Plural-Forms is set correctly for the target language
-    if "Plural-Forms" not in target_po.metadata:
-        target_po.metadata["Plural-Forms"] = _get_plural_form(lang_code)
+    # Set Plural-Forms for the target language (e.g. 2 forms for French)
+    target_po.metadata["Plural-Forms"] = _get_plural_form(lang_code)
 
     # Copy all entries with empty translations
     added_count = 0
@@ -545,6 +681,7 @@ def _extract_empty_keys_from_po_file(
                             entry.msgid_plural if entry.msgid_plural else None
                         ),
                         "msgctxt": msgctxt,
+                        "flags": list(entry.flags) if entry.flags else [],
                     }
                 )
     except (OSError, polib.POFileError, ValueError) as e:
@@ -897,66 +1034,190 @@ def _normalize_singular_entry(entry: polib.POEntry) -> bool:
     return False
 
 
-def _apply_plural_dict_translation(
-    entry: polib.POEntry, translation: dict[str, str]
-) -> bool:
-    """Apply plural translation from dict. Returns True if applied."""
-    plural_applied = False
+def _entry_has_brace_format(entry: polib.POEntry) -> bool:
+    """Return True if entry is python-brace-format (uses {variable} placeholders)."""
+    return bool(entry.flags and "python-brace-format" in entry.flags)
 
-    # Check if translation uses numeric keys (multiple forms: 0, 1, 2 or "0", "1", "2")
-    numeric_keys = _get_numeric_plural_keys(translation)
-    if numeric_keys:
-        # Multiple plural forms - apply each form to its corresponding index
-        for key in numeric_keys:
-            form_index = int(key) if isinstance(key, str) else key
-            if (
-                form_index < len(entry.msgstr_plural)
-                and not entry.msgstr_plural.get(form_index, "").strip()
-            ):
-                # Normalize translation - use msgid for form 0, msgid_plural for others
-                reference = entry.msgid if form_index == 0 else entry.msgid_plural
-                normalized = _normalize_translation_newlines(
-                    reference or entry.msgid, str(translation[key]).strip()
-                )
-                entry.msgstr_plural[form_index] = normalized
-                plural_applied = True
-    elif "singular" in translation and "plural" in translation:
-        # Traditional singular/plural format - apply to forms 0 and 1+
-        # Apply singular to form 0
-        if not entry.msgstr_plural.get(0, "").strip():
-            # Normalize singular translation to match msgid structure
-            normalized_singular = _normalize_translation_newlines(
-                entry.msgid, translation["singular"]
+
+def _apply_numeric_plural_forms(
+    entry: polib.POEntry,
+    translation: dict[str, str],
+    numeric_keys: list,
+) -> tuple[bool, bool]:
+    """Apply plural forms when translation has numeric keys (e.g. 0, 1, 2).
+
+    Returns (applied, rejected_brace_format).
+    """
+    plural_applied = False
+    rejected_brace = False
+    for key in numeric_keys:
+        form_index = int(key) if isinstance(key, str) else key
+        if (
+            form_index >= len(entry.msgstr_plural)
+            or entry.msgstr_plural.get(form_index, "").strip()
+        ):
+            continue
+        reference = entry.msgid if form_index == 0 else entry.msgid_plural
+        normalized = _normalize_translation_newlines(
+            reference or entry.msgid, str(translation[key]).strip()
+        )
+        if _entry_has_brace_format(entry) and not _is_valid_brace_format_translation(
+            reference or entry.msgid or "", normalized
+        ):
+            logger.warning(
+                "Rejected plural form %s for brace-format entry "
+                "(invalid placeholders): msgid=%r",
+                form_index,
+                (entry.msgid or "")[:60],
             )
+            rejected_brace = True
+        else:
+            entry.msgstr_plural[form_index] = normalized
+            plural_applied = True
+    return plural_applied, rejected_brace
+
+
+def _apply_singular_plural_one_form(
+    entry: polib.POEntry, translation: dict[str, str]
+) -> tuple[bool, bool]:
+    """Apply singular/plural dict when locale has nplurals=1."""
+    if entry.msgstr_plural.get(0, "").strip():
+        return False, False
+    if _plural_has_placeholders_not_in_singular(entry):
+        normalized = _normalize_translation_newlines(
+            entry.msgid, translation["singular"]
+        )
+        ref = entry.msgid
+    else:
+        normalized = _normalize_translation_newlines(
+            entry.msgid_plural or entry.msgid, translation["plural"]
+        )
+        ref = entry.msgid_plural or entry.msgid
+    if _entry_has_brace_format(entry) and not _is_valid_brace_format_translation(
+        ref or "", normalized
+    ):
+        logger.warning(
+            "Rejected plural form 0 for brace-format entry: msgid=%r",
+            (entry.msgid or "")[:60],
+        )
+        return False, True
+    entry.msgstr_plural[0] = normalized
+    return True, False
+
+
+def _apply_singular_plural_multi_form(
+    entry: polib.POEntry, translation: dict[str, str], num_forms: int
+) -> tuple[bool, bool]:
+    """Apply singular/plural dict when locale has two or more plural forms."""
+    plural_applied = False
+    rejected_brace = False
+    if not entry.msgstr_plural.get(0, "").strip():
+        normalized_singular = _normalize_translation_newlines(
+            entry.msgid, translation["singular"]
+        )
+        if _entry_has_brace_format(entry) and not _is_valid_brace_format_translation(
+            entry.msgid or "", normalized_singular
+        ):
+            logger.warning(
+                "Rejected singular form for brace-format entry: msgid=%r",
+                (entry.msgid or "")[:60],
+            )
+            rejected_brace = True
+        else:
             entry.msgstr_plural[0] = normalized_singular
             plural_applied = True
-        # Apply plural to all remaining empty forms (for languages with >2 forms)
-        for form_index in range(1, len(entry.msgstr_plural)):
-            if not entry.msgstr_plural.get(form_index, "").strip():
-                # Normalize plural translation to match msgid_plural structure
-                normalized_plural = _normalize_translation_newlines(
-                    entry.msgid_plural or entry.msgid, translation["plural"]
+
+    plural_val = (translation.get("plural") or "").strip()
+    if _plural_has_placeholders_not_in_singular(entry):
+        required = _get_python_format_placeholders(entry.msgid_plural or "")
+        existing = _get_python_format_placeholders(plural_val)
+        missing = required - existing
+        if missing:
+            suffix = " ".join(f"%({k})s" for k in sorted(missing))
+            plural_val = f"{plural_val} {suffix}" if plural_val else suffix
+    if (
+        not plural_val
+        and not _plural_has_placeholders_not_in_singular(entry)
+        and (translation.get("singular") or "").strip()
+    ):
+        plural_val = (translation.get("singular") or "").strip()
+
+    for form_index in range(1, num_forms):
+        if not entry.msgstr_plural.get(form_index, "").strip() and plural_val:
+            normalized_plural = _normalize_translation_newlines(
+                entry.msgid_plural or entry.msgid, plural_val
+            )
+            ref_plural = entry.msgid_plural or entry.msgid or ""
+            if _entry_has_brace_format(
+                entry
+            ) and not _is_valid_brace_format_translation(ref_plural, normalized_plural):
+                logger.warning(
+                    "Rejected plural form %s for brace-format entry: msgid_plural=%r",
+                    form_index,
+                    (ref_plural or "")[:60],
                 )
+                rejected_brace = True
+            else:
                 entry.msgstr_plural[form_index] = normalized_plural
                 plural_applied = True
+    return plural_applied, rejected_brace
 
-    return plural_applied
+
+def _apply_plural_dict_translation(
+    entry: polib.POEntry, translation: dict[str, str]
+) -> tuple[bool, bool]:
+    """Apply plural translation from dict. Returns (applied, rejected_brace_format)."""
+    numeric_keys = _get_numeric_plural_keys(translation)
+    if numeric_keys:
+        return _apply_numeric_plural_forms(entry, translation, numeric_keys)
+    if "singular" in translation and "plural" in translation:
+        num_forms = len(entry.msgstr_plural)
+        if num_forms == 1:
+            return _apply_singular_plural_one_form(entry, translation)
+        return _apply_singular_plural_multi_form(entry, translation, num_forms)
+    return False, False
 
 
-def _apply_plural_string_translation(entry: polib.POEntry, translation: str) -> bool:
-    """Apply plural translation from string. Returns True if applied."""
+def _apply_plural_string_translation(
+    entry: polib.POEntry, translation: str
+) -> tuple[bool, bool]:
+    """Apply plural translation from string.
+
+    Returns (applied, rejected_brace_format).
+    """
     plural_applied = False
+    rejected_brace = False
     # Normalize translation to match msgid structure
     normalized_translation = _normalize_translation_newlines(entry.msgid, translation)
     for form_index in range(len(entry.msgstr_plural)):
         if not entry.msgstr_plural.get(form_index, "").strip():
-            entry.msgstr_plural[form_index] = normalized_translation
-            plural_applied = True
-    return plural_applied
+            reference = (
+                entry.msgid if form_index == 0 else (entry.msgid_plural or entry.msgid)
+            )
+            if _entry_has_brace_format(
+                entry
+            ) and not _is_valid_brace_format_translation(
+                reference or "", normalized_translation
+            ):
+                logger.warning(
+                    "Rejected plural string for brace-format entry (form %s): msgid=%r",
+                    form_index,
+                    (entry.msgid or "")[:60],
+                )
+                rejected_brace = True
+            else:
+                entry.msgstr_plural[form_index] = normalized_translation
+                plural_applied = True
+    return plural_applied, rejected_brace
 
 
-def _apply_translation_to_plural_entry(entry: polib.POEntry, translation: Any) -> bool:
-    """Apply translation to a plural PO entry. Returns True if applied."""
+def _apply_translation_to_plural_entry(
+    entry: polib.POEntry, translation: Any
+) -> tuple[bool, bool]:
+    """Apply translation to a plural PO entry.
+
+    Returns (applied, rejected_brace_format).
+    """
     # Check if translation is a string representation of a dict
     if (
         isinstance(translation, str)
@@ -966,25 +1227,27 @@ def _apply_translation_to_plural_entry(entry: polib.POEntry, translation: Any) -
         try:
             translation = json.loads(translation.strip())
         except (json.JSONDecodeError, ValueError):
-            return bool(
-                translation and _apply_plural_string_translation(entry, translation)
-            )
+            if translation:
+                applied, rejected = _apply_plural_string_translation(entry, translation)
+                return applied, rejected
+            return False, False
 
     if isinstance(translation, dict):
         numeric_keys = _get_numeric_plural_keys(translation)
         if numeric_keys or "singular" in translation:
             return _apply_plural_dict_translation(entry, translation)
-    return bool(
-        isinstance(translation, str)
-        and translation
-        and _apply_plural_string_translation(entry, translation)
-    )
+    if isinstance(translation, str) and translation:
+        return _apply_plural_string_translation(entry, translation)
+    return False, False
 
 
 def _apply_translation_to_singular_entry(
     entry: polib.POEntry, translation: Any
-) -> bool:
-    """Apply translation to a singular PO entry. Returns True if applied."""
+) -> tuple[bool, bool]:
+    """Apply translation to a singular PO entry.
+
+    Returns (applied, rejected_brace_format).
+    """
     if isinstance(translation, dict) and "singular" in translation:
         logger.info(
             "LLM returned dict for singular entry; msgid=%r msgctxt=%r",
@@ -996,20 +1259,42 @@ def _apply_translation_to_singular_entry(
             normalized_translation = _normalize_translation_newlines(
                 entry.msgid, translation_str
             )
+            if _entry_has_brace_format(
+                entry
+            ) and not _is_valid_brace_format_translation(
+                entry.msgid or "", normalized_translation
+            ):
+                logger.warning(
+                    "Rejected translation for brace-format msgid (invalid placeholders "
+                    "or unterminated directive): msgid=%r",
+                    (entry.msgid or "")[:80],
+                )
+                return False, True
             entry.msgstr = normalized_translation
-            return True
+            return True, False
     if isinstance(translation, str) and translation:
         normalized_translation = _normalize_translation_newlines(
             entry.msgid, translation
         )
+        if _entry_has_brace_format(entry) and not _is_valid_brace_format_translation(
+            entry.msgid or "", normalized_translation
+        ):
+            logger.warning(
+                "Rejected translation for brace-format msgid (invalid placeholders "
+                "or unterminated directive): msgid=%r",
+                (entry.msgid or "")[:80],
+            )
+            return False, True
         entry.msgstr = normalized_translation
-        return True
-    return False
+        return True, False
+    return False, False
 
 
-def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
+def _apply_translation_to_entry(
+    entry: polib.POEntry, translation: Any
+) -> tuple[bool, bool]:
     """
-    Apply translation to a PO entry. Returns True if translation was applied.
+    Apply translation to a PO entry. Returns (applied, rejected_brace_format).
 
     Args:
         entry: The PO entry to apply translation to.
@@ -1017,29 +1302,24 @@ def _apply_translation_to_entry(entry: polib.POEntry, translation: Any) -> bool:
             or numeric keys '0', '1', '2', etc. for multiple forms).
 
     Returns:
-        True if translation was applied, False otherwise.
+        (True if translation was applied, True if rejected due to invalid brace format).
     """
     if entry.msgid_plural:
         return _apply_translation_to_plural_entry(entry, translation)
     if not entry.msgstr or not entry.msgstr.strip():
         return _apply_translation_to_singular_entry(entry, translation)
-    return False
+    return False, False
 
 
 def _expand_plural_forms_if_needed(entry: polib.POEntry, po: polib.POFile) -> bool:
     """Expand plural forms if entry has fewer forms than required by language.
 
-    Args:
-        entry: PO entry to potentially expand
-        po: PO file containing the entry (to read Plural-Forms metadata)
-
-    Returns:
-        True if entry was expanded, False otherwise
+    Required form count comes from the PO file's Plural-Forms header (apply
+    may set it from constants when lang_code is provided, to avoid empty msgstr).
     """
     if not entry.msgid_plural:
         return False
 
-    # Get required number of forms from PO file metadata
     plural_forms_str = po.metadata.get("Plural-Forms", "")
     if not plural_forms_str:
         return False
@@ -1049,13 +1329,15 @@ def _expand_plural_forms_if_needed(entry: polib.POEntry, po: polib.POFile) -> bo
         return False
 
     required_forms = int(nplurals_match.group(1))
+    # Special case: when singular/plural have different placeholders, keep both
+    # msgstr[0] and msgstr[1] even if locale has nplurals=1
+    if _entry_has_asymmetric_placeholders(entry):
+        required_forms = max(required_forms, 2)
     current_forms = len(entry.msgstr_plural) if entry.msgstr_plural else 0
 
-    # Expand if needed
     if current_forms < required_forms:
         if not entry.msgstr_plural:
             entry.msgstr_plural = {}
-        # Add missing forms with empty strings
         for form_index in range(current_forms, required_forms):
             entry.msgstr_plural[form_index] = ""
         return True
@@ -1102,19 +1384,26 @@ def _log_po_entry_result(
 def _save_po_if_updated(
     po: polib.POFile,
     file_path: Path,
-    applied: int,
-    skipped: int,
-    normalized_count: int,
+    counts: tuple[int, int, int],
+    *,
+    header_updated: bool = False,
 ) -> None:
-    """Save PO file and log result if any changes were made."""
-    if applied > 0 or normalized_count > 0:
+    """Save PO file and log result if any changes were made.
+
+    counts: (applied, skipped, normalized_count).
+    """
+    applied, skipped, normalized_count = counts
+    if applied > 0 or normalized_count > 0 or header_updated:
         po.save(str(file_path))
-        logger.info(
-            "Applied %d translation(s) to %s (%d skipped)",
-            applied,
-            file_path.name,
-            skipped,
-        )
+        if applied > 0 or normalized_count > 0:
+            logger.info(
+                "Applied %d translation(s) to %s (%d skipped)",
+                applied,
+                file_path.name,
+                skipped,
+            )
+        elif header_updated:
+            logger.debug("Updated Plural-Forms in %s", file_path.name)
     elif skipped > 0:
         logger.debug(
             "No translations applied to %s (%d entries skipped - "
@@ -1124,7 +1413,12 @@ def _save_po_if_updated(
         )
 
 
-def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
+def apply_po_translations(
+    file_path: Path,
+    translations: dict[str, Any],
+    lang_code: str | None = None,
+    rejected_brace_entries: list[dict[str, str]] | None = None,
+) -> int:
     """
     Apply translations to a PO file. Returns number of translations applied.
     Handles both singular and plural forms.
@@ -1136,10 +1430,27 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
     The translations dict is keyed by msgid. If entries have msgctxt, we try
     to match by msgid first, and if there are multiple matches, we prefer
     entries without msgctxt or with matching msgctxt.
+
+    Plural-Forms: We give priority to the nplurals/Plural-Forms already in the
+    translation file (e.g. from the cloned repo or Transifex). We only set
+    Plural-Forms from our constants when the file has no Plural-Forms header.
+
+    If rejected_brace_entries is provided, entries whose translation was
+    rejected due to invalid python-brace-format are appended as
+    {"msgid": ..., "file": ...} for PR description logging.
     """
     po = polib.pofile(str(file_path))
     applied = 0
     skipped = 0
+
+    header_updated = False
+    if lang_code:
+        existing_plural = po.metadata.get("Plural-Forms", "").strip()
+        if not existing_plural:
+            # File has no Plural-Forms: fall back to our constant
+            po.metadata["Plural-Forms"] = _get_plural_form(lang_code)
+            header_updated = True
+        # If file already has Plural-Forms, we do not overwrite it
 
     for entry in po:
         if entry.msgid_plural:
@@ -1152,7 +1463,11 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
             skipped += 1
             continue
 
-        was_applied = _apply_translation_to_entry(entry, translation)
+        was_applied, rejected_brace = _apply_translation_to_entry(entry, translation)
+        if rejected_brace and rejected_brace_entries is not None:
+            rejected_brace_entries.append(
+                {"msgid": (entry.msgid or "")[:200], "file": file_path.name}
+            )
         if was_applied:
             applied += 1
         else:
@@ -1160,7 +1475,12 @@ def apply_po_translations(file_path: Path, translations: dict[str, Any]) -> int:
         _log_po_entry_result(entry, file_path, applied=was_applied)
 
     normalized_count = _normalize_all_entries_in_po_file(po)
-    _save_po_if_updated(po, file_path, applied, skipped, normalized_count)
+    _save_po_if_updated(
+        po,
+        file_path,
+        (applied, skipped, normalized_count),
+        header_updated=header_updated,
+    )
     return applied
 
 
