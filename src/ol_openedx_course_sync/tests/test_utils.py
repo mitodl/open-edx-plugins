@@ -5,6 +5,10 @@ Tests for ol-openedx-course-sync utils.
 from unittest import mock
 
 import pytest
+from cms.djangoapps.contentstore.course_info_model import (
+    get_course_updates,
+    save_course_update_items,
+)
 from common.djangoapps.student.tests.factories import UserFactory
 from ddt import data, ddt, unpack
 from django.core.exceptions import ImproperlyConfigured
@@ -19,18 +23,19 @@ from ol_openedx_course_sync.utils import (
     copy_static_tabs,
     get_course_sync_service_user,
     get_syncable_course_mappings,
+    sync_course_updates,
     sync_discussions_configuration,
     update_default_tabs,
-    sync_course_handouts,
-    sync_course_updates,
 )
 from openedx.core.djangoapps.content.course_overviews.tests.factories import (
     CourseOverviewFactory,
 )
 from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
 from openedx.core.djangolib.testing.utils import skip_unless_cms
+from xmodule.html_block import CourseInfoBlock
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.modulestore.tests.factories import BlockFactory
 from xmodule.tabs import StaticTab
 
@@ -123,7 +128,61 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             assert tab.is_hidden is True
 
     def test_sync_course_updates(self):
-        pass
+        """
+        Test the sync_course_updates function.
+        """
+        source_course_key = self.source_course.usage_key.course_key
+        target_course_key = self.target_course.usage_key.course_key
+        source_location = source_course_key.make_usage_key("course_info", "updates")
+        target_location = target_course_key.make_usage_key("course_info", "updates")
+        try:
+            source_updates = self.store.get_item(source_location)
+        except ItemNotFoundError:
+            source_updates = self.store.create_item(
+                self.user.id,
+                source_location.course_key,
+                source_location.block_type,
+                source_location.block_id,
+            )
+        source_items = [
+            {
+                "id": update["id"],
+                "date": update["date"],
+                "content": update["content"],
+                "status": CourseInfoBlock.STATUS_VISIBLE,
+            }
+            for update in (source_updates.items or [])
+        ]
+        source_items.append(
+            {
+                "id": 999,
+                "date": "2024-01-01T00:00:00Z",
+                "content": "Test course update",
+                "status": CourseInfoBlock.STATUS_VISIBLE,
+            }
+        )
+        save_course_update_items(
+            source_location, source_updates, source_items, self.user
+        )
+        sync_course_updates(source_course_key, target_course_key, self.user)
+
+        target_updates = get_course_updates(
+            target_location, provided_id=None, user_id=self.user.id
+        )
+        assert target_updates is not None
+
+        target_items = [
+            {
+                "id": update["id"],
+                "date": update["date"],
+                "content": update["content"],
+                "status": CourseInfoBlock.STATUS_VISIBLE,
+            }
+            for update in target_updates
+        ]
+        assert len(target_items) == len(source_items)
+        for item in source_items:
+            assert item in target_items
 
     def test_sync_course_handouts(self):
         pass

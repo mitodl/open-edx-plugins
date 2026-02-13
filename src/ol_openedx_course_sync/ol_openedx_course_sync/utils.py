@@ -270,12 +270,28 @@ def sync_course_handouts(source_course_key, target_course_key, user):
         user (User): The user performing the update.
     """
     store = modulestore()
-    source_handouts = store.get_item(
-        source_course_key.make_usage_key("course_info", "handouts")
-    )
-    target_handouts = store.get_item(
-        target_course_key.make_usage_key("course_info", "handouts")
-    )
+    try:
+        source_handouts = store.get_item(
+            source_course_key.make_usage_key("course_info", "handouts")
+        )
+    except ItemNotFoundError:
+        log.info(
+            "No handouts found for course %s. Skipping handouts sync.",
+            str(source_course_key),
+        )
+        return
+
+    try:
+        target_handouts = store.get_item(
+            target_course_key.make_usage_key("course_info", "handouts")
+        )
+    except ItemNotFoundError:
+        target_handouts = store.create_item(
+            user.id,
+            target_course_key,
+            "course_info",
+            "handouts",
+        )
     target_handouts.data = source_handouts.data
     store.update_item(target_handouts, user.id)
 
