@@ -5,10 +5,6 @@ Utilities for the ol-openedx-course-sync plugin
 import logging
 from uuid import uuid4
 
-from cms.djangoapps.contentstore.course_info_model import (
-    get_course_updates,
-    save_course_update_items,
-)
 from cms.djangoapps.contentstore.utils import duplicate_block
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -18,7 +14,6 @@ from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
 from openedx.core.djangoapps.django_comment_common.models import (
     CourseDiscussionSettings,
 )
-from xmodule.html_block import CourseInfoBlock
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.tabs import CourseTabList, StaticTab
@@ -232,10 +227,16 @@ def sync_course_updates(source_course_key, target_course_key, user):
     source_location = source_course_key.make_usage_key("course_info", "updates")
     target_location = target_course_key.make_usage_key("course_info", "updates")
 
-    source_updates = get_course_updates(
-        source_location, provided_id=None, user_id=user.id
-    )
     store = modulestore()
+    try:
+        source_updates = store.get_item(source_location)
+    except ItemNotFoundError:
+        log.info(
+            "No course updates found for course %s. Skipping course updates sync.",
+            str(source_course_key),
+        )
+        return
+
     try:
         target_course_updates = store.get_item(target_location)
     except ItemNotFoundError:
@@ -245,22 +246,9 @@ def sync_course_updates(source_course_key, target_course_key, user):
             target_location.block_type,
             target_location.block_id,
         )
-
-    target_course_updates.data = ""
+    target_course_updates.data = source_updates.data
+    target_course_updates.items = source_updates.items
     store.update_item(target_course_updates, user.id)
-
-    # Persist items in the same internal shape (include 'status' key as 'visible').
-    target_items = [
-        {
-            "id": update["id"],
-            "date": update["date"],
-            "content": update["content"],
-            "status": CourseInfoBlock.STATUS_VISIBLE,
-        }
-        for update in (source_updates or [])
-    ]
-
-    save_course_update_items(target_location, target_course_updates, target_items, user)
 
 
 def sync_course_handouts(source_course_key, target_course_key, user):
