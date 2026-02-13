@@ -64,11 +64,12 @@ jobs:
       run: |
         if [[ "${{ matrix.edx_branch }}" == "master" ]]; then
           DEV="tutor_main_dev"
+          DIRECTORY="tutor-main"
         else
           DEV="tutor_dev"
+          DIRECTORY="tutor"
         fi
-        EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/tutor/env/local/docker-compose.yml -f /home/runner/.local/share/tutor/env/dev/docker-compose.yml --project-name $DEV run -v $PWD:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh --mount-dir /openedx/open-edx-plugins
-
+        EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name $DEV run -v $PWD:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh --mount-dir /openedx/open-edx-plugins
     - name: Upload coverage to CodeCov
       uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
       with:
