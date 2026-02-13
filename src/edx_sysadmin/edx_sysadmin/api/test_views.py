@@ -111,8 +111,6 @@ class GitReloadAPIViewTestCase(TestCase):
 
     @override_settings(SYSADMIN_GITHUB_WEBHOOK_KEY=SYSADMIN_GITHUB_WEBHOOK_KEY)
     @override_settings(SYSADMIN_DEFAULT_BRANCH="master")
-    @patch("edx_sysadmin.api.views.get_local_course_repo", return_value=None)
-    @patch("edx_sysadmin.api.views.add_repo")
     @ddt.data(
         (
             "d3a2424a1ad48d8441712400fd75392d56707a7b3e1dc4869239d87ee381cfa9",  # pragma: allowlist secret  # noqa: E501
@@ -148,8 +146,6 @@ class GitReloadAPIViewTestCase(TestCase):
         repo_name,
         ssh_url,
         status,
-        mocked_get_local_course_repo,
-        mocked_add_repo,
     ):
         """
         Test GitReloadAPIView with Signature and Payload
@@ -161,20 +157,31 @@ class GitReloadAPIViewTestCase(TestCase):
             },
             "ref": git_ref,
         }
-        response = self.client.post(
-            reverse("sysadmin:api:git-reload"),
-            payload,
-            format="json",
-            headers={
-                "x-hub-signature-256": f"sha256={signature}",
-                "x-github-event": event,
-            },
-        )
-        assert response.status_code == status
-        mocked_get_local_course_repo.assert_called_once_with("repo_name")
+        with (
+            patch(
+                "edx_sysadmin.api.views.get_local_course_repo"
+            ) as mocked_get_local_course_repo,
+            patch("edx_sysadmin.api.views.add_repo") as mocked_add_repo,
+            patch(
+                "edx_sysadmin.api.views.get_local_active_branch", return_value=git_ref
+            ),
+        ):
+            response = self.client.post(
+                reverse("sysadmin:api:git-reload"),
+                payload,
+                format="json",
+                headers={
+                    "x-hub-signature-256": f"sha256={signature}",
+                    "x-github-event": event,
+                },
+            )
 
-        if response.status_code == _status.HTTP_200_OK:
-            assert mocked_add_repo.assert_called
+            assert response.status_code == status
+            if git_ref == "refs/heads/master" and ssh_url:
+                mocked_get_local_course_repo.assert_called_once_with(repo_name)
+
+            if response.status_code == _status.HTTP_200_OK:
+                assert mocked_add_repo.assert_called
 
     # Should return a bad request when "SYSADMIN_DEFAULT_BRANCH" is not configured
     @override_settings(SYSADMIN_GITHUB_WEBHOOK_KEY=SYSADMIN_GITHUB_WEBHOOK_KEY)
