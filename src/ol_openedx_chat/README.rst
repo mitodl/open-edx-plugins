@@ -124,7 +124,7 @@ Translations
 Only **Ask TIM** is not translated (brand). All other user-facing strings are
 translatable.
 
-Translations live in the translations repo (e.g. mitxonline-translations) at
+Translations live in the translations repo (e.g. https://github.com/mitodl/mitxonline-translations) at
 ``translations/open-edx-plugins/ol_openedx_chat/conf/locale/``. For any
 language, run ``sync_and_translate_language`` to create or update the .po
 files there; then run ``make pull_translations`` in edx-platform to pull and

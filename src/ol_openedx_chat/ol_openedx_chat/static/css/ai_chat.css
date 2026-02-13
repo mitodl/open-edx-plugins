@@ -3,8 +3,17 @@
     height: 600px;
 }
 
+.problem-block-chat-button-container {
+    display: flex;
+    width: 100%;
+    justify-content: flex-end;
+}
+
 .video-block-chat-button-container {
     background: whitesmoke;
+    display: flex;
+    width: 100%;
+    justify-content: flex-end;
     box-shadow:
             0 -50px 0 12px whitesmoke,
             -12px 12px 0 0 whitesmoke,
@@ -18,7 +27,6 @@
     flex-direction: row;
     position: relative;
     bottom: 70px;
-    left: 72%;
     width: fit-content;
     cursor: pointer;
     z-index: 1000;
@@ -51,8 +59,7 @@
     }
 
     &.video-block-chat-button {
-        bottom: 0;
-        margin-top: 50px;
+        top: 0;
 
         p {
             line-height: 20px;
@@ -67,16 +74,28 @@
     }
 
     &:active {
-        border: 1px solid #212326;
+        border: 2px solid #c00 !important;
         background: #FFF !important;
         box-shadow: none !important;
+    }
+
+    &:focus,
+    &:focus-visible {
+        border: 2px solid #c00 !important;
+        background: #FFF !important;
+        box-shadow: none !important;
+        outline: none;
     }
 }
 
 @media screen and (max-width: 768px) {
+    .video-block-chat-button-container,
+    .problem-block-chat-button-container {
+        justify-content: flex-start;
+    }
+
     .ai-chat-button {
-        bottom: 65px;
-        left: 62%;
+        top:0px;
 
         &.video-block-chat-button {
             margin-top: 10px;
