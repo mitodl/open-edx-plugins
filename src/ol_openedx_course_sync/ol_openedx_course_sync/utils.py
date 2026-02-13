@@ -246,6 +246,9 @@ def sync_course_updates(source_course_key, target_course_key, user):
             target_location.block_id,
         )
 
+    target_course_updates.data = ""
+    store.update_item(target_course_updates, user.id)
+
     # Persist items in the same internal shape (include 'status' key as 'visible').
     target_items = [
         {
