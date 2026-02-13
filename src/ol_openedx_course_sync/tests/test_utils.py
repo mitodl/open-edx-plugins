@@ -23,6 +23,7 @@ from ol_openedx_course_sync.utils import (
     copy_static_tabs,
     get_course_sync_service_user,
     get_syncable_course_mappings,
+    sync_course_handouts,
     sync_course_updates,
     sync_discussions_configuration,
     update_default_tabs,
@@ -185,7 +186,36 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             assert item in target_items
 
     def test_sync_course_handouts(self):
-        pass
+        """
+        Test the sync_course_handouts function.
+        """
+        source_course_key = self.source_course.usage_key.course_key
+        target_course_key = self.target_course.usage_key.course_key
+        try:
+            source_handouts = self.store.get_item(
+                source_course_key.make_usage_key("course_info", "handouts")
+            )
+        except ItemNotFoundError:
+            source_handouts = self.store.create_item(
+                self.user.id,
+                source_course_key,
+                "course_info",
+                "handouts",
+            )
+        source_handouts.data = "Test course handouts"
+        self.store.update_item(source_handouts, self.user.id)
+
+        sync_course_handouts(source_course_key, target_course_key, self.user)
+
+        try:
+            target_handouts = self.store.get_item(
+                target_course_key.make_usage_key("course_info", "handouts")
+            )
+        except ItemNotFoundError:
+            target_handouts = None
+
+        assert target_handouts is not None
+        assert target_handouts.data == source_handouts.data
 
     @data(
         [
