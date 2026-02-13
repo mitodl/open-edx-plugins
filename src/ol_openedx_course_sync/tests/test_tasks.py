@@ -45,6 +45,12 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
             mock.patch(
                 "ol_openedx_course_sync.tasks.sync_discussions_configuration",
             ) as mock_sync_discussions_configuration,
+            mock.patch(
+                "ol_openedx_course_sync.tasks.sync_course_updates",
+            ) as mock_sync_course_updates,
+            mock.patch(
+                "ol_openedx_course_sync.tasks.sync_course_handouts",
+            ) as mock_sync_course_handouts,
         ):
             mock_copy_all_course_assets = mock.Mock()
             mock_delete_all_course_assets = mock.Mock()
@@ -88,6 +94,8 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
             mock_copy_static_tabs.assert_called_once()
             mock_update_default_tabs.assert_called_once()
             mock_sync_discussions_configuration.assert_called_once()
+            mock_sync_course_updates.assert_called_once()
+            mock_sync_course_handouts.assert_called_once()
 
     @skip_unless_cms
     def test_async_discussions_configuration_sync(self):
