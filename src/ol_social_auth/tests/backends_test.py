@@ -84,7 +84,7 @@ def test_get_metadata_without_discovery_url(mocker, backend):
     mocker.patch.object(
         backend,
         "setting",
-        side_effect=lambda key: {
+        side_effect=lambda key: {  # noqa: PLW0108
             "AUTHORIZATION_URL": "https://example.com/auth",
             "ACCESS_TOKEN_URL": "https://example.com/token",
             "DISCOVERY_URL": None,
@@ -109,7 +109,7 @@ def test_get_metadata_with_discovery_url_and_cache(mocker, backend):
     mocker.patch.object(
         backend,
         "setting",
-        side_effect=lambda key: {
+        side_effect=lambda key: {  # noqa: PLW0108
             "DISCOVERY_URL": "https://example.com/.well-known/openid-configuration"
         }.get(key),
     )

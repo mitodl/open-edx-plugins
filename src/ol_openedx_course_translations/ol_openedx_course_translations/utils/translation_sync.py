@@ -141,7 +141,7 @@ def sync_or_create_json_file(en_file: Path, target_file: Path) -> dict:
 
 def _get_base_lang(lang_code: str) -> str:
     """Extract base language code from locale code (e.g., 'es_ES' -> 'es')."""
-    return lang_code.split("_")[0] if "_" in lang_code else lang_code
+    return lang_code.split("_", maxsplit=1)[0] if "_" in lang_code else lang_code
 
 
 def _get_plural_form(lang_code: str) -> str:
