@@ -909,7 +909,7 @@ def parse_glossary_text(glossary_text: str) -> dict[str, str]:
     return out
 
 
-def _normalize_for_match(value: str) -> str:
+def _normalize_for_glossary_match(value: str) -> str:
     """
     Normalize for matching:
     - trim outer whitespace
@@ -937,15 +937,16 @@ def filter_glossary_for_subtitles(
     if not subtitles or not glossary:
         return {}
 
-    # Efficient: join once, normalize once.
-    corpus = _normalize_for_match(" ".join((s.content or "") for s in subtitles))
+    corpus = _normalize_for_glossary_match(
+        " ".join((s.content or "") for s in subtitles)
+    )
     if not corpus:
         return {}
 
     # Compile patterns once per glossary entry (helps for large glossaries).
     compiled: list[tuple[str, str, re.Pattern[str]]] = []
     for term, translation in glossary.items():
-        norm_term = _normalize_for_match(term)
+        norm_term = _normalize_for_glossary_match(term)
         if not norm_term:
             continue
         compiled.append(

@@ -7,6 +7,7 @@ import json
 import logging
 import shutil
 import time
+from enum import StrEnum
 from pathlib import Path
 
 from celery import group
@@ -23,6 +24,7 @@ from ol_openedx_course_translations.tasks import (
 from ol_openedx_course_translations.utils.constants import (
     ENGLISH_LANGUAGE_CODE,
     PROVIDER_DEEPL,
+    PROVIDER_MISTRAL,
 )
 from ol_openedx_course_translations.utils.course_translations import (
     create_translated_archive,
@@ -40,6 +42,17 @@ logger = logging.getLogger(__name__)
 TASK_TIMEOUT_SECONDS = 3600 * 2  # 2 hour total timeout for all tasks
 TASK_POLL_INTERVAL_SECONDS = 2  # Poll every 2 seconds for task completion
 BATCH_SIZE = 20  # Process 20 tasks at a time
+
+# constants
+SRT_TRANSLATION_TASK_TYPE = "srt_translation"
+FILE_TRANSLATION_TASK_TYPE = "file_translation"
+
+
+class TaskStatus(StrEnum):
+    SUCCESS = "success"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+    UNKNOWN = "unknown"
 
 
 class Command(BaseCommand):
@@ -484,7 +497,11 @@ class Command(BaseCommand):
 
         for file_path in translatable_file_paths:
             # Tag SRT tasks separately so we can throttle them for Mistral.
-            task_type = "srt" if file_path.suffix == ".srt" else "file"
+            task_type = (
+                SRT_TRANSLATION_TASK_TYPE
+                if file_path.suffix == ".srt"
+                else FILE_TRANSLATION_TASK_TYPE
+            )
             task = translate_file_task.s(
                 str(file_path),
                 source_language,
@@ -575,13 +592,17 @@ class Command(BaseCommand):
         detail: reason/error string (may be empty for success)
         """
         if isinstance(task_result, dict):
-            status = task_result.get("status", "unknown")
-            if status == "success":
-                return "success", ""
-            if status == "skipped":
-                return "skipped", str(task_result.get("reason", "Skipped"))
-            return "failed", str(task_result.get("error", f"Unknown status: {status}"))
-        return "failed", str(task_result) if task_result else "Task failed"
+            status = task_result.get("status", TaskStatus.UNKNOWN)
+            if status == TaskStatus.SUCCESS:
+                return TaskStatus.SUCCESS, ""
+            if status == TaskStatus.SKIPPED:
+                return TaskStatus.SKIPPED, str(
+                    task_result.get("reason", TaskStatus.SKIPPED)
+                )
+            return TaskStatus.FAILED, str(
+                task_result.get("error", f"Unknown status: {status}")
+            )
+        return TaskStatus.FAILED, str(task_result) if task_result else "Task failed"
 
     def _await_group_result(
         self,
@@ -676,12 +697,12 @@ class Command(BaseCommand):
                 f"(tasks {batch_start + 1}-{batch_end})..."
             )
 
-            sigs = [sig for _, _, sig in batch_tasks]
+            task_signatures = [signature for _, _, signature in batch_tasks]
             metadata = [
                 (task_type, file_path) for task_type, file_path, _ in batch_tasks
             ]
 
-            result = group(sigs).apply_async()
+            result = group(task_signatures).apply_async()
             results = self._await_group_result(
                 result=result,
                 header=header,
@@ -695,12 +716,12 @@ class Command(BaseCommand):
             ):
                 outcome, detail = self._coerce_task_outcome(task_result)
 
-                if outcome == "success":
+                if outcome == TaskStatus.SUCCESS:
                     completed += 1
                     msg = f"✓ {task_type}: {file_path}"
                     stats.append(msg)
                     self.stdout.write(self.style.SUCCESS(msg))
-                elif outcome == "skipped":
+                elif outcome == TaskStatus.SKIPPED:
                     skipped += 1
                     msg = f"⊘ {task_type}: {file_path} - {detail}"
                     stats.append(msg)
@@ -738,17 +759,25 @@ class Command(BaseCommand):
 
         stats: list[str] = []
 
-        non_srt_tasks = [t for t in self.tasks if t[0] != "srt"]
-        srt_tasks = [t for t in self.tasks if t[0] == "srt"]
+        non_srt_tasks = []
+        srt_tasks = []
+        for task in self.tasks:
+            if task[0] == SRT_TRANSLATION_TASK_TYPE:
+                srt_tasks.append(task)
+            else:
+                non_srt_tasks.append(task)
 
         non_srt_stats, non_srt_completed, non_srt_skipped, _ = self._run_task_batches(
             non_srt_tasks,
             batch_size=BATCH_SIZE,
-            header="CONTENT",
+            header="CONTENT(TEXT/XML)",
         )
         stats.extend(non_srt_stats)
 
-        srt_batch_size = 1 if self.srt_provider_name == "mistral" else BATCH_SIZE
+        # Mistral has rate limits and can fail if we send too many requests in parallel,
+        # so we process SRT tasks one at a time for Mistral.
+        # For other providers, we can use the normal batch size.
+        srt_batch_size = 1 if self.srt_provider_name == PROVIDER_MISTRAL else BATCH_SIZE
         srt_stats, srt_completed, srt_skipped, _ = self._run_task_batches(
             srt_tasks,
             batch_size=srt_batch_size,

@@ -959,6 +959,13 @@ class OpenAIProvider(LLMProvider):
             "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
             "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
         )
+
+        #######################################################################
+        # NOTE: We created these 2 variants of the subtitle system prompt to experiment
+        # with more detailed instructions. We have sent the generated translations
+        # with these prompts to human reviewers and are currently evaluating the results.
+        #######################################################################
+
         # ruff: noqa: ERA001, E501
         # V2
         # system_prompt = (
