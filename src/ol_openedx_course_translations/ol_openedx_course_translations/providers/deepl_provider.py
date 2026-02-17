@@ -18,11 +18,11 @@ DEEPL_ENABLE_BETA_LANGUAGES = True
 DEEPL_LANGUAGE_CODES = {
     "fr": "FR",
     "de": "DE",
-    "es-419": "ES-419",
+    "es_419": "ES-419",
     "es": "ES-419",
-    "es-ES": "ES",
+    "es_ES": "ES",
     "pt": "PT-PT",
-    "pt-br": "PT-BR",
+    "pt_BR": "PT-BR",
     "hi": "HI",
     "ar": "AR",
     "zh": "ZH",
@@ -108,7 +108,7 @@ class DeepLProvider(TranslationProvider):
         Raises:
             ValueError: If target language is not supported by DeepL
         """
-        deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language.lower())
+        deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language)
         if not deepl_target_code:
             error_msg = f"DeepL does not support language '{target_language}'."
             raise ValueError(error_msg)
@@ -223,7 +223,7 @@ class DeepLProvider(TranslationProvider):
         if not source_text or not source_text.strip():
             return source_text
 
-        deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language.lower())
+        deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language)
         if not deepl_target_code:
             error_msg = f"DeepL does not support language '{target_language}'."
             raise ValueError(error_msg)
@@ -265,7 +265,7 @@ class DeepLProvider(TranslationProvider):
         Raises:
             ValueError: If target language is not supported by DeepL
         """
-        deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language.lower())
+        deepl_target_code = DEEPL_LANGUAGE_CODES.get(target_language)
         if not deepl_target_code:
             error_msg = f"DeepL does not support language '{target_language}'."
             raise ValueError(error_msg)

@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from xml.etree.ElementTree import Element
 
+import srt
 from defusedxml import ElementTree
 from django.conf import settings
 from django.core.management.base import CommandError
@@ -31,8 +32,6 @@ from ol_openedx_course_translations.providers.llm_providers import (
     OpenAIProvider,
 )
 from ol_openedx_course_translations.utils.constants import (
-    ES_419_LANGUAGE_CODE,
-    ES_LANGUAGE_CODE,
     NEVER_TRANSLATE_ATTRS,
     PROVIDER_DEEPL,
     PROVIDER_GEMINI,
@@ -171,8 +170,6 @@ def update_video_xml_transcripts(xml_content: str, target_language: str) -> str:
     """
     try:
         xml_root = ElementTree.fromstring(xml_content)
-        target_lang_code = target_language
-
         # Update transcripts attribute in <video> tag
         if xml_root.tag == "video" and "transcripts" in xml_root.attrib:
             transcripts_json_str = xml_root.attrib["transcripts"].replace("&quot;", '"')
@@ -182,10 +179,10 @@ def update_video_xml_transcripts(xml_content: str, target_language: str) -> str:
                 value = transcripts_dict[key]
                 new_value = re.sub(
                     r"-[a-zA-Z]{2}\.srt$",
-                    f"-{target_lang_code}.srt",
+                    f"-{target_language}.srt",
                     value,
                 )
-                transcripts_dict[target_lang_code] = new_value
+                transcripts_dict[target_language] = new_value
 
             xml_root.set(
                 "transcripts", json.dumps(transcripts_dict, ensure_ascii=False)
@@ -213,14 +210,14 @@ def update_course_language_attribute(course_dir: Path, target_language: str) -> 
             # Check if root tag is 'course' and has language attribute
             if xml_root.tag == "course" and "language" in xml_root.attrib:
                 current_language = xml_root.attrib["language"]
-                xml_root.set("language", target_language.lower())
+                xml_root.set("language", target_language)
                 updated_xml_content = ElementTree.tostring(xml_root, encoding="unicode")
                 xml_file.write_text(updated_xml_content, encoding="utf-8")
                 logger.debug(
                     "Updated language attribute in %s from %s to %s",
                     xml_file,
                     current_language,
-                    target_language.lower(),
+                    target_language,
                 )
         except (OSError, ElementTree.ParseError) as e:
             logger.warning("Failed to update language attribute in %s: %s", xml_file, e)
@@ -247,13 +244,13 @@ def translate_policy_fields(  # noqa: C901
         if field in course_policy_obj:
             translated = provider.translate_text(
                 course_policy_obj[field],
-                target_language.lower(),
+                target_language,
                 glossary_directory=glossary_directory,
             )
             course_policy_obj[field] = translated
 
     # Update language attribute
-    course_policy_obj["language"] = target_language.lower()
+    course_policy_obj["language"] = target_language
 
     # Translate discussion topics
     if "discussion_topics" in course_policy_obj:
@@ -262,7 +259,7 @@ def translate_policy_fields(  # noqa: C901
             translated_topics = {}
             for key, value in topics.items():
                 translated_key = provider.translate_text(
-                    key, target_language.lower(), glossary_directory=glossary_directory
+                    key, target_language, glossary_directory=glossary_directory
                 )
                 translated_topics[translated_key] = value
             course_policy_obj["discussion_topics"] = translated_topics
@@ -273,7 +270,7 @@ def translate_policy_fields(  # noqa: C901
     ):
         translated_info = [
             provider.translate_text(
-                item, target_language.lower(), glossary_directory=glossary_directory
+                item, target_language, glossary_directory=glossary_directory
             )
             for item in course_policy_obj["learning_info"]
         ]
@@ -285,7 +282,7 @@ def translate_policy_fields(  # noqa: C901
             if isinstance(tab, dict) and "name" in tab:
                 tab["name"] = provider.translate_text(
                     tab["name"],
-                    target_language.lower(),
+                    target_language,
                     glossary_directory=glossary_directory,
                 )
 
@@ -299,7 +296,7 @@ def translate_policy_fields(  # noqa: C901
             if xml_field_name in xml_attributes_dict:
                 translated_value = provider.translate_text(
                     xml_attributes_dict[xml_field_name],
-                    target_language.lower(),
+                    target_language,
                     glossary_directory=glossary_directory,
                 )
                 xml_attributes_dict[xml_field_name] = translated_value
@@ -316,16 +313,10 @@ def get_srt_output_filename(input_filename: str, target_language: str) -> str:
     Returns:
         Output filename with target language code
     """
-    # Use 'es' for Spanish regardless of es-419
-    output_lang_code = (
-        ES_LANGUAGE_CODE
-        if target_language.lower() == ES_419_LANGUAGE_CODE
-        else target_language.lower()
-    )
-
+    target_language = LanguageCode(target_language).to_bcp47()
     if "-" in input_filename and input_filename.endswith(".srt"):
         filename_parts = input_filename.rsplit("-", 1)
-        return f"{filename_parts[0]}-{output_lang_code}.srt"
+        return f"{filename_parts[0]}-{target_language}.srt"
     return input_filename
 
 
@@ -496,19 +487,14 @@ def update_video_xml_complete(xml_content: str, target_language: str) -> str:  #
     """
     try:
         xml_root = ElementTree.fromstring(xml_content)
-        target_lang_code = (
-            ES_LANGUAGE_CODE
-            if target_language.lower() == ES_419_LANGUAGE_CODE
-            else target_language.lower()
-        )
-
+        target_language = LanguageCode(target_language).to_bcp47()
         # Update transcripts attribute in <video>
         if xml_root.tag == "video" and "transcripts" in xml_root.attrib:
             transcripts_json_str = xml_root.attrib["transcripts"].replace("&quot;", '"')
             transcripts_dict = json.loads(transcripts_json_str)
             for transcript_key in list(transcripts_dict.keys()):
                 transcript_value = transcripts_dict[transcript_key]
-                new_transcript_key = target_lang_code
+                new_transcript_key = target_language
                 new_transcript_value = re.sub(
                     r"-[a-zA-Z]{2}\.srt$",
                     f"-{new_transcript_key}.srt",
@@ -527,7 +513,7 @@ def update_video_xml_complete(xml_content: str, target_language: str) -> str:  #
                     new_transcript_element.attrib = (
                         existing_transcript_element.attrib.copy()
                     )
-                new_transcript_element.set("language_code", target_lang_code)
+                new_transcript_element.set("language_code", target_language)
                 # Avoid duplicates
                 if not any(
                     transcript_elem.attrib == new_transcript_element.attrib
@@ -541,15 +527,15 @@ def update_video_xml_complete(xml_content: str, target_language: str) -> str:  #
             if transcript_src:
                 new_transcript_src = re.sub(
                     r"-[a-zA-Z]{2}\.srt$",
-                    f"-{target_lang_code}.srt",
+                    f"-{target_language}.srt",
                     transcript_src,
                 )
                 new_transcript_element = Element("transcript")
-                new_transcript_element.set("language", target_lang_code)
+                new_transcript_element.set("language", target_language)
                 new_transcript_element.set("src", new_transcript_src)
                 # Avoid duplicates
                 if not any(
-                    existing_transcript.get("language") == target_lang_code
+                    existing_transcript.get("language") == target_language
                     and existing_transcript.get("src") == new_transcript_src
                     for existing_transcript in xml_root.findall("transcript")
                 ):
@@ -884,3 +870,236 @@ class HtmlXmlTranslationHelper:
             encoding="unicode",
             method="xml" if self.is_xml else "html",
         )
+
+
+def parse_glossary_text(glossary_text: str) -> dict[str, str]:
+    """
+    Parse a glossary text blob into a dict[term, translation].
+
+    Supports lines like:
+      - 'term' -> 'translation'
+    Ignores comments/blank lines and preserves original (un-normalized) strings.
+    """
+    if not glossary_text:
+        return {}
+
+    out: dict[str, str] = {}
+    for raw_line in glossary_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        # Bullet prefix is optional
+        if line.startswith("-"):
+            line = line[1:].strip()
+
+        # Split on the first arrow only
+        if "->" not in line:
+            continue
+        left, right = (part.strip() for part in line.split("->", 1))
+        if not left or not right:
+            continue
+
+        # Strip optional wrapping quotes
+        left = left.strip("'\"").strip()
+        right = right.strip("'\"").strip()
+        if left:
+            out[left] = right
+
+    return out
+
+
+def _normalize_for_glossary_match(value: str) -> str:
+    """
+    Normalize for matching:
+    - trim outer whitespace
+    - case-insensitive
+    - collapse all whitespace runs (incl newlines) to a single space
+    """
+    # Collapse whitespace so multi-word glossary terms match across line breaks.
+    return re.sub(r"\s+", " ", (value or "").strip().lower())
+
+
+def filter_glossary_for_subtitles(
+    subtitles: list[srt.Subtitle],
+    glossary: dict[str, str],
+) -> dict[str, str]:
+    """
+    Return only glossary entries whose terms appear in subtitle content.
+
+    Matching rules:
+    - case-insensitive
+    - trims whitespace
+    - collapses whitespace (so phrases match across subtitle newlines)
+    - avoids partial-word false positives via non-word boundaries
+      (e.g. 'art' won't match 'cart')
+    """
+    if not subtitles or not glossary:
+        return {}
+
+    corpus = _normalize_for_glossary_match(
+        " ".join((s.content or "") for s in subtitles)
+    )
+    if not corpus:
+        return {}
+
+    # Compile patterns once per glossary entry (helps for large glossaries).
+    compiled: list[tuple[str, str, re.Pattern[str]]] = []
+    for term, translation in glossary.items():
+        norm_term = _normalize_for_glossary_match(term)
+        if not norm_term:
+            continue
+        compiled.append(
+            (
+                term,
+                translation,
+                re.compile(rf"(?<!\w){re.escape(norm_term)}(?!\w)"),
+            )
+        )
+
+    return {
+        term: translation
+        for term, translation, pattern in compiled
+        if pattern.search(corpus)
+    }
+
+
+def format_glossary_for_prompt(glossary: dict[str, str]) -> str:
+    """
+    Format a dict glossary to prompt-friendly lines.
+    Keeps original keys/values; returns "" if empty.
+    """
+    if not glossary:
+        return ""
+    return "\n".join(f"- '{k}' -> '{v}'" for k, v in glossary.items())
+
+
+def load_glossary(target_language: str, glossary_directory: str | None = None) -> str:
+    """
+    Load a glossary for the given language from the glossary directory.
+
+    Args:
+        target_language: Target language code
+        glossary_directory: Path to glossary directory
+
+    Returns:
+        Glossary content as string, empty if not found or directory not provided
+    """
+    if not glossary_directory:
+        return ""
+
+    glossary_dir_path = Path(glossary_directory)
+    if not glossary_dir_path.exists() or not glossary_dir_path.is_dir():
+        logger.warning("Glossary directory not found: %s", glossary_dir_path)
+        return ""
+
+    glossary_file_path = glossary_dir_path / f"{target_language}.txt"
+    if not glossary_file_path.exists():
+        logger.warning(
+            "Glossary file not found for language %s: %s",
+            target_language,
+            glossary_file_path,
+        )
+        return ""
+
+    return glossary_file_path.read_text(encoding="utf-8-sig").strip()
+
+
+def load_glossary_dict(
+    target_language: str, glossary_directory: str | None = None
+) -> dict[str, str]:
+    """
+    Load and parse the glossary file for a language into a dict.
+    """
+    return parse_glossary_text(load_glossary(target_language, glossary_directory))
+
+
+class LanguageCode:
+    """
+    Utility class for handling language code conversions between
+    Django/Open edX style and BCP47.
+    """
+
+    def __init__(self, lang_code):
+        self.lang_code = lang_code
+
+    def to_bcp47(self) -> str:
+        """
+        Convert Django / Open edX style language codes to BCP47.
+
+        Examples:
+            zh_HANS     -> zh-Hans
+            zh_HANT     -> zh-Hant
+            zh_HANS_CN  -> zh-Hans-CN
+            en_US       -> en-US
+            es_419      -> es-419
+            pt_br       -> pt-BR
+        """
+        if not self.lang_code:
+            return self.lang_code
+
+        parts = self.lang_code.replace("_", "-").split("-")
+        result = []
+        for idx, part in enumerate(parts):
+            if idx == 0:
+                # Language
+                result.append(part.lower())
+
+            elif re.fullmatch(r"[A-Za-z]{4}", part):
+                # Script (Hans, Hant, Latn, Cyrl, etc.)
+                result.append(part.title())
+
+            elif re.fullmatch(r"[A-Za-z]{2}", part):
+                # Region i.e US, PK, CN
+                result.append(part.upper())
+
+            elif re.fullmatch(r"\d{3}", part):
+                # Numeric region (419)
+                result.append(part)
+
+            else:
+                # Variants/extensions
+                result.append(part.lower())
+
+        return "-".join(result)
+
+    def to_django(self) -> str:
+        """
+        Convert BCP47 language tags to Django / Open edX style.
+
+        Examples:
+            zh-Hans     -> zh_HANS
+            zh-Hant     -> zh_HANT
+            zh-Hans-CN  -> zh_HANS_CN
+            en-US       -> en_US
+            es-419      -> es_419
+            pt-BR       -> pt_BR
+        """
+        if not self.lang_code:
+            return self.lang_code
+
+        parts = self.lang_code.replace("_", "-").split("-")
+        result = []
+
+        for idx, part in enumerate(parts):
+            if idx == 0:
+                # Language
+                result.append(part.lower())
+
+            elif re.fullmatch(r"[A-Za-z]{4}", part):
+                # Script
+                result.append(part.upper())
+
+            elif re.fullmatch(r"[A-Za-z]{2}", part):
+                # Region
+                result.append(part.upper())
+
+            elif re.fullmatch(r"\d{3}", part):
+                # Numeric region
+                result.append(part)
+
+            else:
+                # Variants/extensions
+                result.append(part.lower())
+
+        return "_".join(result)
