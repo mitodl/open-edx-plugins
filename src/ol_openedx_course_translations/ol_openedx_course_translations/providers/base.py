@@ -11,37 +11,6 @@ logger = logging.getLogger(__name__)
 MAX_SUBTITLE_TRANSLATION_RETRIES = 1
 
 
-def load_glossary(target_language: str, glossary_directory: str | None = None) -> str:
-    """
-    Load a glossary for the given language from the glossary directory.
-
-    Args:
-        target_language: Target language code
-        glossary_directory: Path to glossary directory
-
-    Returns:
-        Glossary content as string, empty if not found or directory not provided
-    """
-    if not glossary_directory:
-        return ""
-
-    glossary_dir_path = Path(glossary_directory)
-    if not glossary_dir_path.exists() or not glossary_dir_path.is_dir():
-        logger.warning("Glossary directory not found: %s", glossary_dir_path)
-        return ""
-
-    glossary_file_path = glossary_dir_path / f"{target_language.lower()}.txt"
-    if not glossary_file_path.exists():
-        logger.warning(
-            "Glossary file not found for language %s: %s",
-            target_language,
-            glossary_file_path,
-        )
-        return ""
-
-    return glossary_file_path.read_text(encoding="utf-8-sig").strip()
-
-
 class TranslationProvider(ABC):
     """Abstract base class for translation providers."""
 
@@ -154,15 +123,20 @@ class TranslationProvider(ABC):
                 f"translated {len(translated)}"
             )
         else:
+            previous_blank_line = False
             for i, (orig, trans) in enumerate(zip(original, translated)):
                 if orig.index != trans.index:
                     issues.append(
-                        f"Cue {i + 1}: index mismatch ({orig.index} vs {trans.index})"
+                        f"Cue {i}: index mismatch ({orig.index} vs {trans.index})"
                     )
                 if orig.start != trans.start or orig.end != trans.end:
-                    issues.append(f"Cue {i + 1}: timestamp mismatch")
+                    issues.append(f"Cue {i}: timestamp mismatch")
                 if orig.content.strip() and not trans.content.strip():
-                    issues.append(f"Cue {i + 1}: translation is BLANK")
+                    if previous_blank_line:
+                        issues.append(f"Cue {i}: 2 translated lines in a row are BLANK")
+                    previous_blank_line = True
+                else:
+                    previous_blank_line = False
 
         if issues:
             logger.warning("Translation validation found issues:")

@@ -15,6 +15,7 @@ from openedx.core.djangoapps.lang_pref import helpers as lang_pref_helpers
 from openedx.core.djangoapps.user_api.preferences.api import set_user_preference
 
 from ol_openedx_course_translations.utils.constants import ENGLISH_LANGUAGE_CODE
+from ol_openedx_course_translations.utils.course_translations import LanguageCode
 
 
 def should_process_request(request):
@@ -116,6 +117,7 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
         """
         Apply the course language if it differs from the current cookie value.
         """
+        language = LanguageCode(language).to_bcp47()
         cookie_val = lang_pref_helpers.get_language_cookie(request)
         if cookie_val != language:
             set_language(request, response, language)
