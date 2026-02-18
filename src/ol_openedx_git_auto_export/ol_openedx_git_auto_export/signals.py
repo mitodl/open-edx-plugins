@@ -1,9 +1,9 @@
 """
 Signal handlers for the git auto-export plugin.
 
-This module contains Django signal handlers that respond to course publishing,
+This module contains Django signal handlers that respond to course/library publishing,
 creation, and rerun events to automatically create GitHub repositories and
-export course content to them.
+export content to them.
 """
 
 import logging
@@ -20,6 +20,7 @@ from ol_openedx_git_auto_export.tasks import (
 )
 from ol_openedx_git_auto_export.utils import (
     export_course_to_git,
+    export_library_to_git,
     is_auto_repo_creation_enabled,
 )
 
@@ -57,4 +58,113 @@ def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa
         return
 
     if is_auto_repo_creation_enabled():
-        async_create_github_repo.delay(str(instance.course_key), export_course=True)
+        async_create_github_repo.delay(str(instance.course_key), export_content=True)
+
+
+# Library Signal Receivers
+def listen_for_library_updated(sender, library_key, **kwargs):  # noqa: ARG001
+    """
+    Receives library update signal and performs export workflow.
+
+    This is triggered when a library is updated/published in Studio.
+
+    Args:
+        sender: The signal sender
+        library_key: LibraryLocator - The key of the library that was updated
+        **kwargs: Additional signal parameters
+    """
+    log.info("Library v1 updated signal received for library: %s", library_key)
+    export_library_to_git(library_key)
+
+
+def listen_for_library_v2_created(**kwargs):
+    """
+    Handle library v2 created signal to create a GitHub repository for the library.
+
+    NOTE: This is ONLY for Library v2 (lib:org:slug format).
+    Library v1 (library-v1:org+library format) does NOT have a creation signal.
+
+    This is triggered when a new library v2 is created in Studio via the
+    CONTENT_LIBRARY_CREATED signal from openedx_events.
+
+    Args:
+        **kwargs: Signal parameters including 'content_library' with ContentLibraryData
+    """
+    content_library = kwargs.get("content_library")
+    if content_library:
+        library_key = content_library.library_key
+        log.info("Library v2 created signal received for library: %s", library_key)
+
+        if is_auto_repo_creation_enabled(is_library=True):
+            async_create_github_repo.delay(str(library_key), export_content=True)
+
+
+def listen_for_library_v2_updated(**kwargs):
+    """
+    Handle library v2 metadata updated signal to export content to GitHub repository.
+
+    This is triggered when a library v2 metadata (title, description, etc.) is updated
+    in Studio via the CONTENT_LIBRARY_UPDATED signal from openedx_events.
+
+    Note: This does NOT fire when blocks/components are added or modified.
+    For block changes, use listen_for_library_block_updated.
+
+    Args:
+        **kwargs: Signal parameters including 'content_library' with ContentLibraryData
+    """
+    content_library = kwargs.get("content_library")
+    if content_library:
+        library_key = content_library.library_key
+        log.info(
+            "Library v2 metadata updated signal received for library: %s", library_key
+        )
+
+        export_library_to_git(library_key)
+
+
+def listen_for_library_block_created(**kwargs):
+    """
+    Handle library block created signal to export content to GitHub repository.
+
+    This is triggered when a new block/component is added to a v2 library
+    via the LIBRARY_BLOCK_CREATED signal from openedx_events.
+
+    Args:
+        **kwargs: Signal parameters including 'library_block' with LibraryBlockData
+    """
+    library_block = kwargs.get("library_block")
+    if library_block:
+        # Extract library key from the usage key
+        usage_key = library_block.usage_key
+        library_key = usage_key.context_key
+        log.info(
+            "Library block created signal received for block %s in library: %s",
+            usage_key,
+            library_key,
+        )
+
+        export_library_to_git(library_key)
+
+
+def listen_for_library_block_updated(**kwargs):
+    """
+    Handle library block updated signal to export content to GitHub repository.
+
+    This is triggered when a block/component in a v2 library is modified
+    via the LIBRARY_BLOCK_UPDATED signal from openedx_events.
+
+    Args:
+        **kwargs: Signal parameters including 'library_block' with LibraryBlockData
+    """
+    library_block = kwargs.get("library_block")
+    if library_block:
+        # Extract library key from the usage key
+        usage_key = library_block.usage_key
+        library_key = usage_key.context_key
+        log.info(
+            "Library block updated signal received for block %s in library: %s",
+            usage_key,
+            library_key,
+        )
+
+        export_library_to_git(library_key)
