@@ -1,9 +1,9 @@
 """
 Django management command for migrating git URLs
-from course advance settings to CourseGitRepository model.
+from course advance settings to ContentGitRepository model.
 
 This command scans existing courses in the modulestore for git URLs and migrates them
-to the CourseGitRepository model. It handles duplicate git URLs by creating new
+to the ContentGitRepository model. It handles duplicate git URLs by creating new
 GitHub repositories for courses that would otherwise share the same repository.
 
 Usage:
@@ -20,7 +20,7 @@ Examples:
 The command will:
 1. Query all courses (or specified courses) from CourseOverview
 2. Extract git URLs from the course modulestore data
-3. Create CourseGitRepository records for courses with git URLs
+3. Create ContentGitRepository records for courses with git URLs
 4. Handle duplicate git URLs by creating new GitHub repositories
 5. Create new GitHub repositories for courses without git URLs
 
@@ -33,7 +33,7 @@ from pathlib import Path
 
 from celery import group
 from django.core.management.base import BaseCommand
-from ol_openedx_git_auto_export.models import CourseGitRepository
+from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.tasks import (
     async_create_github_repo,
 )
@@ -44,7 +44,7 @@ from xmodule.modulestore.django import modulestore
 
 class Command(BaseCommand):
     help = """
-    Migrate git URL from course(s) advanced settings to CourseGitRepository model
+    Migrate git URL from course(s) advanced settings to ContentGitRepository model
     """
 
     def add_arguments(self, parser):
@@ -126,8 +126,8 @@ class Command(BaseCommand):
                 migration_logs["existing_repos"].append(
                     {"course_id": str(course.id), "giturl": giturl}
                 )
-                CourseGitRepository.objects.get_or_create(
-                    course_key=course.id,
+                ContentGitRepository.objects.get_or_create(
+                    content_key=course.id,
                     defaults={"git_url": giturl},
                 )
                 continue
