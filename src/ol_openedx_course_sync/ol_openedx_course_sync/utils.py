@@ -215,6 +215,78 @@ def sync_discussions_configuration(source_course_key, target_course_key, user):
     module_store.update_item(target_course, user.id)
 
 
+def sync_course_updates(source_course_key, target_course_key, user):
+    """
+    Sync all *visible* course updates from source course to target course.
+
+    Args:
+        source_course_key (CourseKey): source course key
+        target_course_key (CourseKey): target course key
+        user (User): user performing the operation (used for create/update author)
+    """
+    source_location = source_course_key.make_usage_key("course_info", "updates")
+    target_location = target_course_key.make_usage_key("course_info", "updates")
+
+    store = modulestore()
+    try:
+        source_updates = store.get_item(source_location)
+    except ItemNotFoundError:
+        log.info(
+            "No course updates found for course %s. Skipping course updates sync.",
+            str(source_course_key),
+        )
+        return
+
+    try:
+        target_course_updates = store.get_item(target_location)
+    except ItemNotFoundError:
+        target_course_updates = store.create_item(
+            user.id,
+            target_location.course_key,
+            target_location.block_type,
+            target_location.block_id,
+        )
+    target_course_updates.data = source_updates.data
+    target_course_updates.items = source_updates.items
+    store.update_item(target_course_updates, user.id)
+
+
+def sync_course_handouts(source_course_key, target_course_key, user):
+    """
+    Sync course handouts from source course to target course.
+
+    Args:
+        source_course_key (CourseKey): The key for the source course.
+        target_course_key (CourseKey): The key for the target course.
+        user (User): The user performing the update.
+    """
+    store = modulestore()
+    try:
+        source_handouts = store.get_item(
+            source_course_key.make_usage_key("course_info", "handouts")
+        )
+    except ItemNotFoundError:
+        log.info(
+            "No handouts found for course %s. Skipping handouts sync.",
+            str(source_course_key),
+        )
+        return
+
+    try:
+        target_handouts = store.get_item(
+            target_course_key.make_usage_key("course_info", "handouts")
+        )
+    except ItemNotFoundError:
+        target_handouts = store.create_item(
+            user.id,
+            target_course_key,
+            "course_info",
+            "handouts",
+        )
+    target_handouts.data = source_handouts.data
+    store.update_item(target_handouts, user.id)
+
+
 def get_course_sync_service_user():
     """
     Retrieve the service user for course sync operations.

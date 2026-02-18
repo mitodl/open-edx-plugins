@@ -16,6 +16,8 @@ from ol_openedx_course_sync.utils import (
     copy_course_content,
     copy_static_tabs,
     get_course_sync_service_user,
+    sync_course_handouts,
+    sync_course_updates,
     sync_discussions_configuration,
     update_default_tabs,
 )
@@ -85,6 +87,8 @@ def async_course_sync(source_course_id, dest_course_id):
     copy_static_tabs(source_course_key, dest_course_key, user)
     update_default_tabs(source_course_key, dest_course_key, user)
     sync_discussions_configuration(source_course_key, dest_course_key, user)
+    sync_course_updates(source_course_key, dest_course_key, user)
+    sync_course_handouts(source_course_key, dest_course_key, user)
 
     # trigger course publish signal to trigger outline and relevant updates
     SignalHandler.course_published.send(
