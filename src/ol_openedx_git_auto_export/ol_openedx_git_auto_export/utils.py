@@ -6,14 +6,20 @@ import logging
 import os
 import re
 
+from cms.djangoapps.contentstore.git_export_utils import (
+    export_to_git as platform_export_to_git,
+)
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ImproperlyConfigured
+from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import (
+    ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION,
     ENABLE_AUTO_GITHUB_REPO_CREATION,
     ENABLE_GIT_AUTO_EXPORT,
+    ENABLE_GIT_AUTO_LIBRARY_EXPORT,
     REPOSITORY_NAME_MAX_LENGTH,
 )
 
@@ -103,12 +109,57 @@ def export_course_to_git(course_key):
         async_export_to_git.delay(str(course_key), user)
 
 
-def is_auto_repo_creation_enabled():
+def export_library_to_git(library_key):
+    """
+    Export the library to a Git repository.
+
+    Args:
+        library_key (LibraryLocator | LibraryLocatorV2): The library key to export.
+    """
+    from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
+
+    # Check library-specific flag
+    library_export_enabled = settings.FEATURES.get(
+        ENABLE_GIT_AUTO_LIBRARY_EXPORT,
+        False,
+    )
+
+    if settings.FEATURES.get("ENABLE_EXPORT_GIT") and library_export_enabled:
+        get_or_create_git_export_repo_dir()
+        log.info(
+            "Library updated with auto-export enabled. Starting export... (library id: %s)",  # noqa: E501
+            library_key,
+        )
+
+        # Libraries don't have published_by field, so we don't pass user
+        async_export_to_git.delay(str(library_key), user=None)
+    else:
+        log.info(
+            "Library auto-export is disabled. Skipping export for library: %s",
+            library_key,
+        )
+
+
+def export_content_to_git(content_key):
+    """
+    Export either a course or library to a Git repository.
+
+    Args:
+        content_key: CourseKey, LibraryLocator, or LibraryLocatorV2 - The key
+          of the content to export.
+    """
+    if isinstance(content_key, (LibraryLocator, LibraryLocatorV2)):
+        export_library_to_git(content_key)
+    else:
+        export_course_to_git(content_key)
+
+
+def is_auto_repo_creation_enabled(is_library=False):  # noqa: FBT002
     """
     Check if automatic GitHub repository creation is enabled.
 
     Args:
-        course_key (CourseKey): The course key of the course to check.
+        is_library (bool): Whether checking for library (True) or course (False).
 
     Returns:
         bool: True if automatic GitHub repository creation is enabled, False otherwise.
@@ -116,7 +167,19 @@ def is_auto_repo_creation_enabled():
     Raises:
         ImproperlyConfigured: If GITHUB_ORG_API_URL or GITHUB_ACCESS_TOKEN is not set.
     """
-    if not settings.FEATURES.get(ENABLE_AUTO_GITHUB_REPO_CREATION):
+    # Check library-specific flag first if it's a library
+    if is_library:
+        library_repo_enabled = settings.FEATURES.get(
+            ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION,
+            settings.FEATURES.get(ENABLE_AUTO_GITHUB_REPO_CREATION, False),
+        )
+        if not library_repo_enabled:
+            log.info(
+                "GitHub library repo creation is disabled. "
+                "Skipping library repo creation ...",
+            )
+            return False
+    elif not settings.FEATURES.get(ENABLE_AUTO_GITHUB_REPO_CREATION):
         log.info(
             "GitHub repo creation is disabled. Skipping GitHub repo creation ...",
         )
@@ -127,3 +190,28 @@ def is_auto_repo_creation_enabled():
         raise ImproperlyConfigured(error_msg)
 
     return True
+
+
+def export_to_git(content_key, repo, user=None, rdir=None):
+    """
+    Export course or library content to a git repository.
+
+    This function wraps the platform's git export functionality from
+    cms.djangoapps.contentstore.git_export_utils.
+
+    Args:
+        content_key: CourseKey or LibraryLocator for the content to export
+        repo (str): Git repository URL (e.g., 'git@github.com:org/repo.git')
+        user: Optional username for git commit identity
+        rdir: Optional custom directory name for the repository
+
+    Raises:
+        GitExportError: For various git operation failures
+    """
+
+    return platform_export_to_git(
+        content_key=content_key,
+        repo=repo,
+        user=user or "",
+        rdir=rdir,
+    )
