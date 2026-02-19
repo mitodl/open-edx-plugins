@@ -81,7 +81,7 @@ Library v1 (Legacy Libraries)
          "ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION": true
      }
 
-2. Make changes to your library and publish - on the first update, a GitHub repository will be automatically created and the changes will be exported to git
+2. Make changes to your library and publish
 
 Library v2 (Content Libraries)
 -------------------------------
