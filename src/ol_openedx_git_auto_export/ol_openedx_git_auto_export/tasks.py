@@ -124,12 +124,11 @@ def async_create_github_repo(self, content_key_str, export_content=False):  # no
         content_key = LearningContextKey.from_string(content_key_str)
         is_v1_library = isinstance(content_key, LibraryLocator)
         is_v2_library = isinstance(content_key, LibraryLocatorV2)
-        is_library = is_v1_library or is_v2_library
     except Exception:
         LOGGER.exception("Failed to parse content key: %s", content_key_str)
         return False, f"Invalid content key: {content_key_str}"
 
-    content_type = "library" if is_library else "course"
+    content_type = "library" if is_v1_library or is_v2_library else "course"
     content_id_slugified = github_repo_name_format(str(content_key))
 
     response_msg = ""

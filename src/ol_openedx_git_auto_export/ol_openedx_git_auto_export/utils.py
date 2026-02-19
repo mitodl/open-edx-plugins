@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ImproperlyConfigured
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
+from openedx.core.djangoapps.content_libraries.api import get_library
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import (
@@ -131,8 +132,19 @@ def export_library_to_git(library_key):
             library_key,
         )
 
-        # Libraries don't have published_by field, so we don't pass user
-        async_export_to_git.delay(str(library_key), user=None)
+        # Get publisher username
+        user = None
+        if isinstance(library_key, LibraryLocatorV2):
+            # V2 libraries have published_by in their metadata
+            library_metadata = get_library(library_key)
+            user = (
+                library_metadata.published_by if library_metadata.published_by else None
+            )
+        else:
+            # V1 libraries don't have published_by field
+            pass
+
+        async_export_to_git.delay(str(library_key), user=user)
     else:
         log.info(
             "Library auto-export is disabled. Skipping export for library: %s",
