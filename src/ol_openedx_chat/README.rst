@@ -118,6 +118,32 @@ LMS Chat Drawer View
 ----------------------------------
 If you want to disable it for a few videos/problems then you disable the ``Enable AI Chat Assistant`` checkbox against the block in CMS.
 
+Translations
+============
+
+Only **Ask TIM** is not translated (brand). All other user-facing strings are
+translatable.
+
+Translations live in the translations repo (e.g. https://github.com/mitodl/mitxonline-translations) at
+``translations/open-edx-plugins/ol_openedx_chat/conf/locale/``. For any
+language, run ``sync_and_translate_language`` to create or update the .po
+files there; then run ``make pull_translations`` in edx-platform to pull and
+compile them into ``conf/plugins-locale/plugins/ol_openedx_chat/``. Until
+``make pull_translations`` is run, the UI shows English (msgid fallback).
+
+Why no ``conf/locale/config.yaml`` or Makefile (unlike edx-bulk-grades)?
+------------------------------------------------------------------------
+
+Plugins like `edx-bulk-grades
+<https://github.com/openedx/edx-bulk-grades/tree/master/bulk_grades/conf/locale>`_
+use ``conf/locale/config.yaml`` and a Makefile (extract_translations,
+compile_translations, pull_translations) because *that plugin repo* is the
+source for Transifex/Atlas. For ol_openedx_chat we use a different flow: the
+*translations repo* holds the .po files; ``sync_and_translate_language`` syncs
+and translates there, and edx-platform's ``make pull_translations`` pulls into
+``conf/plugins-locale/plugins/ol_openedx_chat/``. This plugin repo never runs
+Atlas or Transifex, so ``config.yaml`` and a Makefile here would be unused.
+
 Documentation
 =============
 

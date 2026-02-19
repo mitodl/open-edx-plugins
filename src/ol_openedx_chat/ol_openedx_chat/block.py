@@ -4,6 +4,7 @@ from urllib.parse import quote as urlquote
 import pkg_resources
 from django.conf import settings
 from django.template import Context, Template
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from eventtracking import tracker
 from rest_framework import status as api_status
@@ -112,6 +113,8 @@ class OLChatAside(XBlockAside):
                     "block_id": block_id,
                     "block_usage_key": block_usage_key,
                     "block_type": block_type,
+                    "about_block": gettext("about this %(block_type)s")
+                    % {"block_type": block_type},
                 },
             )
         )
@@ -160,11 +163,20 @@ class OLChatAside(XBlockAside):
                 "blockUsageKey": str(block_usage_key),
                 "trackingUrl": f"{settings.LMS_ROOT_URL}{self.runtime.handler_url(self, 'track_user_events')}",  # noqa: E501
                 "blockType": block_type,
-                # Frontend will style AskTIM slightly
-                "title": f"AskTIM about {block.display_name}",
+                "title": "AskTIM "
+                + (
+                    gettext("about %(display_name)s")
+                    % {"display_name": block.display_name}
+                ),
                 "chat": {
                     "chatId": block_id,
-                    "initialMessages": TUTOR_INITIAL_MESSAGES,
+                    "initialMessages": [
+                        {
+                            "content": gettext(msg["content"]),
+                            "role": msg["role"],
+                        }
+                        for msg in TUTOR_INITIAL_MESSAGES
+                    ],
                     "apiUrl": f"{settings.MIT_LEARN_AI_API_URL}/{MIT_AI_CHAT_URL_PATHS[block_type]}",  # noqa: E501
                     "requestBody": request_body,
                     "userId": self.runtime.user_id,
