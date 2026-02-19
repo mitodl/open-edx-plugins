@@ -5,7 +5,7 @@ Django admin pages for git-auto-export plugin
 from django.contrib import admin
 from django.contrib.admin import SimpleListFilter
 from django.db.models import Q
-from opaque_keys.edx.locator import LibraryLocator
+from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
 
 from ol_openedx_git_auto_export.models import ContentGitRepository
 
@@ -60,7 +60,7 @@ class ContentGitRepositoryAdmin(admin.ModelAdmin):
     @admin.display(description="Content Type")
     def content_type_display(self, obj):
         """Display whether the content is a course or library."""
-        if isinstance(obj.content_key, LibraryLocator):
+        if isinstance(obj.content_key, (LibraryLocator, LibraryLocatorV2)):
             return "Library"
         return "Course"
 
