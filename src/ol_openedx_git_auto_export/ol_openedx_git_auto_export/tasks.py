@@ -89,7 +89,7 @@ def async_export_to_git(content_key_string, user=None):
             content_type,
             content_key_string,
         )
-        if is_auto_repo_creation_enabled():
+        if is_auto_repo_creation_enabled(is_library=is_v1_library or is_v2_library):
             async_create_github_repo.delay(str(content_key), export_content=True)
     except Exception:
         LOGGER.exception(

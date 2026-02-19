@@ -182,8 +182,7 @@ def is_auto_repo_creation_enabled(is_library=False):  # noqa: FBT002
     # Check library-specific flag first if it's a library
     if is_library:
         library_repo_enabled = settings.FEATURES.get(
-            ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION,
-            settings.FEATURES.get(ENABLE_AUTO_GITHUB_REPO_CREATION, False),
+            ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION, False
         )
         if not library_repo_enabled:
             log.info(
@@ -191,7 +190,7 @@ def is_auto_repo_creation_enabled(is_library=False):  # noqa: FBT002
                 "Skipping library repo creation ...",
             )
             return False
-    elif not settings.FEATURES.get(ENABLE_AUTO_GITHUB_REPO_CREATION):
+    elif not settings.FEATURES.get(ENABLE_AUTO_GITHUB_REPO_CREATION, False):
         log.info(
             "GitHub repo creation is disabled. Skipping GitHub repo creation ...",
         )

@@ -107,7 +107,6 @@ def listen_for_library_v2_updated(**kwargs):
     in Studio via the CONTENT_LIBRARY_UPDATED signal from openedx_events.
 
     Note: This does NOT fire when blocks/components are added or modified.
-    For block changes, use listen_for_library_block_updated.
 
     Args:
         **kwargs: Signal parameters including 'content_library' with ContentLibraryData

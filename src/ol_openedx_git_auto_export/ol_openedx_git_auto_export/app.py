@@ -68,6 +68,8 @@ class GitAutoExportConfig(AppConfig):
                         PluginSignals.SIGNAL_PATH: "openedx_events.content_authoring.signals.LIBRARY_BLOCK_UPDATED",  # noqa: E501
                         PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_library_block_updated",  # noqa: E501
                     },
+                    # NOTE: There are many other signals as well which we might have to add  # noqa: E501
+                    # see: https://github.com/openedx/openedx-events/blob/main/openedx_events/content_authoring/signals.py
                 ],
             },
         },
