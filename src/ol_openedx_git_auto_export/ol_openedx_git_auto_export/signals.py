@@ -138,7 +138,7 @@ def listen_for_library_block_created(**kwargs):
         usage_key = library_block.usage_key
         library_key = usage_key.context_key
         log.info(
-            "Library block created signal received for block %s in library: %s",
+            "Library v2 block created signal received for block %s in library: %s",
             usage_key,
             library_key,
         )
@@ -162,7 +162,7 @@ def listen_for_library_block_updated(**kwargs):
         usage_key = library_block.usage_key
         library_key = usage_key.context_key
         log.info(
-            "Library block updated signal received for block %s in library: %s",
+            "Library v2 block updated signal received for block %s in library: %s",
             usage_key,
             library_key,
         )
