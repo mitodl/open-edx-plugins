@@ -6,13 +6,10 @@ import logging
 import os
 import re
 
-from cms.djangoapps.contentstore.git_export_utils import (
-    export_to_git as platform_export_to_git,
-)
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ImproperlyConfigured
-from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
+from opaque_keys.edx.locator import LibraryLocatorV2
 from openedx.core.djangoapps.content_libraries.api import get_library
 from xmodule.modulestore.django import modulestore
 
@@ -96,9 +93,7 @@ def export_course_to_git(course_key):
     """
     from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
 
-    if settings.FEATURES.get("ENABLE_EXPORT_GIT") and settings.FEATURES.get(
-        ENABLE_GIT_AUTO_EXPORT
-    ):
+    if is_auto_export_enabled():
         get_or_create_git_export_repo_dir()
         course_module = modulestore().get_course(course_key)
         log.info(
@@ -119,13 +114,7 @@ def export_library_to_git(library_key):
     """
     from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
 
-    # Check library-specific flag
-    library_export_enabled = settings.FEATURES.get(
-        ENABLE_GIT_AUTO_LIBRARY_EXPORT,
-        False,
-    )
-
-    if settings.FEATURES.get("ENABLE_EXPORT_GIT") and library_export_enabled:
+    if is_auto_export_enabled(is_library=True):
         get_or_create_git_export_repo_dir()
         log.info(
             "Library updated with auto-export enabled. Starting export... (library id: %s)",  # noqa: E501
@@ -152,18 +141,14 @@ def export_library_to_git(library_key):
         )
 
 
-def export_content_to_git(content_key):
-    """
-    Export either a course or library to a Git repository.
+def is_auto_export_enabled(is_library=False):  # noqa: FBT002
+    git_export_enabled = settings.FEATURES.get("ENABLE_EXPORT_GIT")
+    if is_library:
+        return git_export_enabled and settings.FEATURES.get(
+            ENABLE_GIT_AUTO_LIBRARY_EXPORT, False
+        )
 
-    Args:
-        content_key: CourseKey, LibraryLocator, or LibraryLocatorV2 - The key
-          of the content to export.
-    """
-    if isinstance(content_key, (LibraryLocator, LibraryLocatorV2)):
-        export_library_to_git(content_key)
-    else:
-        export_course_to_git(content_key)
+    return git_export_enabled and settings.FEATURES.get(ENABLE_GIT_AUTO_EXPORT, False)
 
 
 def is_auto_repo_creation_enabled(is_library=False):  # noqa: FBT002
@@ -201,28 +186,3 @@ def is_auto_repo_creation_enabled(is_library=False):  # noqa: FBT002
         raise ImproperlyConfigured(error_msg)
 
     return True
-
-
-def export_to_git(content_key, repo, user=None, rdir=None):
-    """
-    Export course or library content to a git repository.
-
-    This function wraps the platform's git export functionality from
-    cms.djangoapps.contentstore.git_export_utils.
-
-    Args:
-        content_key: CourseKey or LibraryLocator for the content to export
-        repo (str): Git repository URL (e.g., 'git@github.com:org/repo.git')
-        user: Optional username for git commit identity
-        rdir: Optional custom directory name for the repository
-
-    Raises:
-        GitExportError: For various git operation failures
-    """
-
-    return platform_export_to_git(
-        content_key=content_key,
-        repo=repo,
-        user=user or "",
-        rdir=rdir,
-    )

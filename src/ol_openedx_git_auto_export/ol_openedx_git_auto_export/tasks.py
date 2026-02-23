@@ -8,7 +8,7 @@ content to Git repositories using Celery for asynchronous processing.
 import requests
 from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
-from cms.djangoapps.contentstore.git_export_utils import GitExportError
+from cms.djangoapps.contentstore.git_export_utils import GitExportError, export_to_git
 from django.conf import settings
 from opaque_keys.edx.keys import LearningContextKey
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
@@ -18,8 +18,6 @@ from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
-    export_content_to_git,
-    export_to_git,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
 )
@@ -217,6 +215,6 @@ def async_create_github_repo(self, content_key_str, export_content=False):  # no
         LOGGER.error(response_msg)
 
     if ssh_url and export_content:
-        export_content_to_git(content_key)
+        async_export_to_git(content_key_str)
 
     return True, response_msg or ssh_url
