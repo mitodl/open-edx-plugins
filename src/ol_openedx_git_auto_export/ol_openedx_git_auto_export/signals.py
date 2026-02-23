@@ -62,7 +62,7 @@ def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa
 
 
 # Library Signal Receivers
-def listen_for_library_updated(sender, library_key, **kwargs):  # noqa: ARG001
+def listen_for_library_v1_updated(sender, library_key, **kwargs):  # noqa: ARG001
     """
     Receives library update signal and performs export workflow.
 
@@ -121,12 +121,12 @@ def listen_for_library_v2_updated(**kwargs):
         export_library_to_git(library_key)
 
 
-def listen_for_library_block_created(**kwargs):
+def listen_for_library_block_published(**kwargs):
     """
-    Handle library block created signal to export content to GitHub repository.
+    Handle library block published signal to export content to GitHub repository.
 
     This is triggered when a new block/component is added to a v2 library
-    via the LIBRARY_BLOCK_CREATED signal from openedx_events.
+    via the LIBRARY_BLOCK_PUBLISHED signal from openedx_events.
 
     Args:
         **kwargs: Signal parameters including 'library_block' with LibraryBlockData
@@ -137,7 +137,7 @@ def listen_for_library_block_created(**kwargs):
         usage_key = library_block.usage_key
         library_key = usage_key.context_key
         log.info(
-            "Library v2 block created signal received for block %s in library: %s",
+            "Library v2 block published signal received for block %s in library: %s",
             usage_key,
             library_key,
         )
@@ -145,24 +145,26 @@ def listen_for_library_block_created(**kwargs):
         export_library_to_git(library_key)
 
 
-def listen_for_library_block_updated(**kwargs):
+def listen_for_library_container_published(**kwargs):
     """
-    Handle library block updated signal to export content to GitHub repository.
+    Handle library container published signal to export content to GitHub repository.
 
-    This is triggered when a block/component in a v2 library is modified
-    via the LIBRARY_BLOCK_UPDATED signal from openedx_events.
+    This is triggered when a new container is added to a v2 library
+    via the LIBRARY_CONTAINER_PUBLISHED signal from openedx_events.
 
     Args:
-        **kwargs: Signal parameters including 'library_block' with LibraryBlockData
+        **kwargs: Signal parameters including 'library_container' with
+          LibraryContainerData
     """
-    library_block = kwargs.get("library_block")
-    if library_block:
-        # Extract library key from the usage key
-        usage_key = library_block.usage_key
-        library_key = usage_key.context_key
+    library_container = kwargs.get("library_container")
+    if library_container:
+        # Extract library key from the container key
+        container_key = library_container.container_key
+        library_key = container_key.lib_key
         log.info(
-            "Library v2 block updated signal received for block %s in library: %s",
-            usage_key,
+            "Library v2 container published signal received for "
+            "container %s in library: %s",
+            container_key,
             library_key,
         )
 
