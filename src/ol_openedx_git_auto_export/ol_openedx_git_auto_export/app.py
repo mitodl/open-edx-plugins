@@ -41,11 +41,11 @@ class GitAutoExportConfig(AppConfig):
                     # NOTE: Library v1 (library-v1:) only has LIBRARY_UPDATED, no creation signal
                     # Library v2 (lib:) has:
                     #   - CONTENT_LIBRARY_CREATED/UPDATED: for library metadata changes
-                    #   - LIBRARY_BLOCK_CREATED/UPDATED: for block/component changes
+                    #   - LIBRARY_BLOCK_PUBLISHED: for block/component changes
                     {
-                        PluginSignals.RECEIVER_FUNC_NAME: "listen_for_library_updated",
+                        PluginSignals.RECEIVER_FUNC_NAME: "listen_for_library_v1_updated",
                         PluginSignals.SIGNAL_PATH: "xmodule.modulestore.django.LIBRARY_UPDATED",  # library v1 update
-                        PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_library_updated",
+                        PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_library_v1_updated",
                     },
                     # lib V2 - Library-level signals
                     {
@@ -58,19 +58,19 @@ class GitAutoExportConfig(AppConfig):
                         PluginSignals.SIGNAL_PATH: "openedx_events.content_authoring.signals.CONTENT_LIBRARY_UPDATED",  # library v2 metadata only
                         PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_library_v2_updated",
                     },
-                    # lib V2 - Block-level signals (for component add/update/delete)
+                    # lib V2 - Block-level signals (for component publish)
+                    # Note: PUBLISHED signals capture all changes including deletions after publish
                     {
-                        PluginSignals.RECEIVER_FUNC_NAME: "listen_for_library_block_created",
-                        PluginSignals.SIGNAL_PATH: "openedx_events.content_authoring.signals.LIBRARY_BLOCK_CREATED",
-                        PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_library_block_created",
+                        PluginSignals.RECEIVER_FUNC_NAME: "listen_for_library_block_published",
+                        PluginSignals.SIGNAL_PATH: "openedx_events.content_authoring.signals.LIBRARY_BLOCK_PUBLISHED",
+                        PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_library_block_published",
                     },
+                    # lib V2 - Container-level signals (for container publish)
                     {
-                        PluginSignals.RECEIVER_FUNC_NAME: "listen_for_library_block_updated",
-                        PluginSignals.SIGNAL_PATH: "openedx_events.content_authoring.signals.LIBRARY_BLOCK_UPDATED",
-                        PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_library_block_updated",
+                        PluginSignals.RECEIVER_FUNC_NAME: "listen_for_library_container_published",
+                        PluginSignals.SIGNAL_PATH: "openedx_events.content_authoring.signals.LIBRARY_CONTAINER_PUBLISHED",
+                        PluginSignals.DISPATCH_UID: "ol_openedx_git_auto_export.signals.listen_for_library_container_published",
                     },
-                    # NOTE: There are many other signals as well which we might have to add
-                    # see: https://github.com/openedx/openedx-events/blob/main/openedx_events/content_authoring/signals.py
                 ],
             },
         },
