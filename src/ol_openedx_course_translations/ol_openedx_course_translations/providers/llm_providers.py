@@ -470,8 +470,7 @@ class LLMProvider(TranslationProvider):
 
             matches = id_pattern.findall(llm_text)
             parsed_translations: dict[int, str] = {
-                int(match_id): match_text.strip()
-                for match_id, match_text in matches
+                int(match_id): match_text.strip() for match_id, match_text in matches
             }
 
             for idx in chunk:
@@ -952,8 +951,7 @@ class LLMProvider(TranslationProvider):
         id_pattern = re.compile(r":::(\d+):::\s*(.*?)(?=:::\d+:::|$)", re.DOTALL)
         matches = id_pattern.findall(llm_response)
         parsed_translations: dict[int, str] = {
-            int(match_id): match_text.strip()
-            for match_id, match_text in matches
+            int(match_id): match_text.strip() for match_id, match_text in matches
         }
 
         # Build unique-term mapping, falling back to original if an ID was skipped.
