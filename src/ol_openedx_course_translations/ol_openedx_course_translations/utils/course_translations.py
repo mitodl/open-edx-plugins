@@ -114,6 +114,102 @@ def get_translation_provider(
     raise ValueError(msg)
 
 
+def translate_grading_policy(
+    policy_file_path: Path,
+    target_language: str,
+    provider,
+    content_glossary: str | None = None,
+) -> dict[str, str]:
+    """
+    Translate grading_policy.json synchronously and return a grading type mapping.
+
+    Translates ``short_label`` and ``type`` fields in the GRADER section and
+    writes the result back to the file.  Returns a mapping of original ``type``
+    values to their translated equivalents so callers can apply consistent
+    translations to the ``format`` attribute in XML content files.
+
+    Args:
+        policy_file_path: Path to the grading_policy.json file
+        target_language: Target language code
+        provider: Translation provider instance
+        content_glossary: Optional glossary directory path
+
+    Returns:
+        Mapping of original type values to translated type values.
+        Empty dict if no types were translated.
+    """
+    grading_policy_data = json.loads(policy_file_path.read_text(encoding="utf-8"))
+    policy_updated = False
+    type_mapping: dict[str, str] = {}
+
+    keys_to_translate = ["short_label", "type"]
+    for grader_item in grading_policy_data.get("GRADER", []):
+        for key in keys_to_translate:
+            if key in grader_item:
+                original_value = grader_item[key]
+                translated_value = provider.translate_text(
+                    original_value,
+                    target_language,
+                    glossary_directory=content_glossary,
+                )
+                if key == "type":
+                    type_mapping[original_value] = translated_value
+                grader_item[key] = translated_value
+                policy_updated = True
+
+    if policy_updated:
+        policy_file_path.write_text(
+            json.dumps(grading_policy_data, ensure_ascii=False, indent=4),
+            encoding="utf-8",
+        )
+
+    return type_mapping
+
+
+def apply_format_attribute_mapping(
+    xml_content: str,
+    original_format: str,
+    grading_type_mapping: dict[str, str],
+) -> str:
+    """
+    Replace the ``format`` attribute in XML content using the grading type mapping.
+
+    Looks up *original_format* (the pre-translation value) in *grading_type_mapping*
+    and, if found, overwrites whatever the translation provider wrote for the
+    ``format`` attribute with the consistent pre-translated value.  This prevents
+    the LLM or DeepL from producing a different translation of the same grading
+    type string in the policy file vs. individual XML content files.
+
+    Args:
+        xml_content: XML content as string
+        original_format: Original ``format`` attribute value (before translation)
+        grading_type_mapping: Mapping of original type -> translated type
+
+    Returns:
+        Updated XML content with consistent ``format`` attribute, or original
+        content if the mapping does not contain a match.
+    """
+    mapped_format = grading_type_mapping.get(original_format)
+    if not mapped_format:
+        return xml_content
+
+    try:
+        xml_root = ElementTree.fromstring(xml_content)
+        if "format" in xml_root.attrib:
+            xml_root.set("format", mapped_format)
+            return ElementTree.tostring(xml_root, encoding="unicode")
+    except ElementTree.ParseError as e:
+        logger.warning(
+            "Failed to apply format mapping to XML content "
+            "(original_format=%r, mapped_format=%r): %s",
+            original_format,
+            mapped_format,
+            e,
+        )
+
+    return xml_content
+
+
 def translate_xml_attributes(
     xml_content: str,
     target_language: str,

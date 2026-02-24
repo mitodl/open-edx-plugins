@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from celery import shared_task
+from defusedxml import ElementTree
 from django.conf import settings
 
 from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
@@ -15,6 +16,7 @@ from ol_openedx_course_translations.providers.llm_providers import (
     LLMProvider,
 )
 from ol_openedx_course_translations.utils.course_translations import (
+    apply_format_attribute_mapping,
     get_srt_output_filename,
     get_translation_provider,
     translate_policy_fields,
@@ -94,7 +96,7 @@ def _looks_like_markup(value: str) -> bool:
     },
     retry_backoff=False,  # keep retries predictable
 )
-def translate_file_task(  # noqa: PLR0913, PLR0912, C901
+def translate_file_task(  # noqa: PLR0913, PLR0912, PLR0915, C901
     _self,
     file_path_str: str,
     source_language: str,
@@ -107,6 +109,7 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, C901
     srt_glossary: str | None = None,
     translation_validation_provider_name: str | None = None,
     translation_validation_model: str | None = None,
+    grading_type_mapping: dict[str, str] | None = None,
 ):
     """
     Translate a single file asynchronously.
@@ -125,6 +128,14 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, C901
         srt_model: Model name for SRT provider (optional)
         content_glossary: Path to glossary directory for content (optional)
         srt_glossary: Path to glossary directory for SRT (optional)
+        translation_validation_provider_name: Provider name for post-translation
+            validation (optional)
+        translation_validation_model: Model name for validation provider (optional)
+        grading_type_mapping: Mapping of original grading type values to their
+            translated equivalents from the grading policy file. When provided,
+            the ``format`` attribute of XML files is replaced with the
+            consistent grading-policy translation instead of relying on the
+            translation provider. (optional)
 
     Returns:
         Dict with status, file path, and optional error or output information
@@ -164,6 +175,16 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, C901
         # Handle other files
         file_content = file_path.read_text(encoding="utf-8")
 
+        # Capture original format attribute before translation so we can
+        # override it with the pre-translated grading policy value later.
+        original_format_value = None
+        if file_path.suffix == ".xml" and grading_type_mapping:
+            try:
+                xml_root = ElementTree.fromstring(file_content)
+                original_format_value = xml_root.attrib.get("format")
+            except ElementTree.ParseError:
+                pass
+
         tag_handling_mode = None
         if file_path.suffix in [".xml", ".html"]:
             tag_handling_mode = file_path.suffix.lstrip(".")
@@ -184,6 +205,19 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, C901
                 target_language,
                 provider,
                 content_glossary,
+            )
+
+        # Apply the pre-translated grading type mapping to the format attribute
+        # to ensure consistency between grading policy and XML content translations.
+        if (
+            file_path.suffix == ".xml"
+            and grading_type_mapping
+            and original_format_value
+        ):
+            translated_content = apply_format_attribute_mapping(
+                translated_content,
+                original_format_value,
+                grading_type_mapping,
             )
 
         # Update video XML if needed (use complete version)
