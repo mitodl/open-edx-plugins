@@ -469,10 +469,13 @@ class LLMProvider(TranslationProvider):
             llm_text = self._call_llm(system_prompt, user_payload)
 
             matches = id_pattern.findall(llm_text)
-            got: dict[int, str] = {int(i): t.strip() for i, t in matches}
+            parsed_translations: dict[int, str] = {
+                int(match_id): match_text.strip()
+                for match_id, match_text in matches
+            }
 
             for idx in chunk:
-                translated = got.get(idx)
+                translated = parsed_translations.get(idx)
                 if translated is None:
                     # conservative fallback: keep original
                     # to avoid breaking DOM semantics
@@ -938,8 +941,8 @@ class LLMProvider(TranslationProvider):
                 )
 
         payload_parts: list[str] = []
-        for i, term in enumerate(unique_terms):
-            payload_parts.append(f":::{i}:::")
+        for term_index, term in enumerate(unique_terms):
+            payload_parts.append(f":::{term_index}:::")
             payload_parts.append(term)
             payload_parts.append("")
         user_payload = "\n".join(payload_parts)
@@ -948,12 +951,15 @@ class LLMProvider(TranslationProvider):
 
         id_pattern = re.compile(r":::(\d+):::\s*(.*?)(?=:::\d+:::|$)", re.DOTALL)
         matches = id_pattern.findall(llm_response)
-        got: dict[int, str] = {int(i): t.strip() for i, t in matches}
+        parsed_translations: dict[int, str] = {
+            int(match_id): match_text.strip()
+            for match_id, match_text in matches
+        }
 
         # Build unique-term mapping, falling back to original if an ID was skipped.
         unique_result: dict[str, str] = {}
-        for i, term in enumerate(unique_terms):
-            unique_result[term] = got.get(i, term)
+        for term_index, term in enumerate(unique_terms):
+            unique_result[term] = parsed_translations.get(term_index, term)
 
         # Validate uniqueness: no two DISTINCT source terms may share a translation.
         seen_translations: dict[str, str] = {}
