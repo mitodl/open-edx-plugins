@@ -28,6 +28,7 @@ from opaque_keys.edx.locator import CourseLocator
 from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
 from ol_openedx_course_translations.providers.llm_providers import (
     GeminiProvider,
+    LLMProvider,
     MistralProvider,
     OpenAIProvider,
 )
@@ -114,7 +115,7 @@ def get_translation_provider(
     raise ValueError(msg)
 
 
-def translate_grading_policy(
+def translate_grading_policy(  # noqa: C901, PLR0912
     policy_file_path: Path,
     target_language: str,
     provider,
@@ -128,6 +129,16 @@ def translate_grading_policy(
     values to their translated equivalents so callers can apply consistent
     translations to the ``format`` attribute in XML content files.
 
+    For LLM providers, all values are sent in a **single** LLM call with a
+    custom prompt that instructs the model to produce distinct translations for
+    every term.  If the LLM still produces duplicate translations for different
+    grading types, a ``ValueError`` is raised so the calling command can abort
+    with a clear error — duplicate grading-type translations would corrupt
+    course grading.
+
+    For non-LLM providers (e.g., DeepL), each value is translated individually
+    using the standard ``translate_text`` interface.
+
     Args:
         policy_file_path: Path to the grading_policy.json file
         target_language: Target language code
@@ -137,25 +148,60 @@ def translate_grading_policy(
     Returns:
         Mapping of original type values to translated type values.
         Empty dict if no types were translated.
+
+    Raises:
+        ValueError: (LLM providers only) If the LLM returns duplicate
+            translations for different grading type strings.
     """
     grading_policy_data = json.loads(policy_file_path.read_text(encoding="utf-8"))
-    policy_updated = False
-    type_mapping: dict[str, str] = {}
+    grader_items = grading_policy_data.get("GRADER", [])
+
+    if not grader_items:
+        return {}
 
     keys_to_translate = ["short_label", "type"]
-    for grader_item in grading_policy_data.get("GRADER", []):
-        for key in keys_to_translate:
-            if key in grader_item:
-                original_value = grader_item[key]
-                translated_value = provider.translate_text(
-                    original_value,
-                    target_language,
-                    glossary_directory=content_glossary,
-                )
-                if key == "type":
-                    type_mapping[original_value] = translated_value
-                grader_item[key] = translated_value
-                policy_updated = True
+    type_mapping: dict[str, str] = {}
+    policy_updated = False
+
+    if isinstance(provider, LLMProvider):
+        # Collect every value that needs translating across all GRADER entries.
+        # Duplicates are fine — translate_grading_types deduplicates internally.
+        all_terms: list[str] = []
+        for grader_item in grader_items:
+            for key in keys_to_translate:
+                value = grader_item.get(key)
+                if value:
+                    all_terms.append(value)
+
+        # Single LLM call — raises ValueError on duplicate translations.
+        terms_mapping = provider.translate_grading_types(
+            all_terms, target_language, content_glossary
+        )
+
+        for grader_item in grader_items:
+            for key in keys_to_translate:
+                if key in grader_item:
+                    original_value = grader_item[key]
+                    translated_value = terms_mapping.get(original_value, original_value)
+                    if key == "type":
+                        type_mapping[original_value] = translated_value
+                    grader_item[key] = translated_value
+                    policy_updated = True
+    else:
+        # Non-LLM providers (e.g., DeepL): translate each value individually.
+        for grader_item in grader_items:
+            for key in keys_to_translate:
+                if key in grader_item:
+                    original_value = grader_item[key]
+                    translated_value = provider.translate_text(
+                        original_value,
+                        target_language,
+                        glossary_directory=content_glossary,
+                    )
+                    if key == "type":
+                        type_mapping[original_value] = translated_value
+                    grader_item[key] = translated_value
+                    policy_updated = True
 
     if policy_updated:
         policy_file_path.write_text(
