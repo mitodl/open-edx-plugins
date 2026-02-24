@@ -529,7 +529,7 @@ class Command(BaseCommand):
         self, course_dir: Path, target_language: str
     ) -> None:
         """
-        Translate all grading_policy.json files synchronously in the current thread.
+        Translate grading_policy.json synchronously in the current thread.
 
         Translations are performed immediately so that the resulting grading type
         mapping is available before XML file tasks are queued.  The mapping is

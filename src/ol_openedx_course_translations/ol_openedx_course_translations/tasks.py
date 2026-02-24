@@ -295,62 +295,6 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, PLR0915, C901
         return {"status": "success", "file": file_path_str}
 
 
-@shared_task(bind=True, name="translate_grading_policy_task")
-def translate_grading_policy_task(
-    _self,
-    policy_file_path_str: str,
-    target_language: str,
-    content_provider_name: str,
-    content_model: str | None,
-    content_glossary: str | None = None,
-):
-    """
-    Translate grading_policy.json file.
-
-    Translates the short_label fields within the GRADER section of grading policy files.
-
-    Args:
-        _self: Celery task instance (bound)
-        policy_file_path_str: Path to the grading_policy.json file
-        target_language: Target language code
-        content_provider_name: Provider name for content translation
-        content_model: Model name for content provider (optional)
-        content_glossary: Path to glossary directory for content (optional)
-
-    Returns:
-        Dict with status, file path, and optional error information
-    """
-    try:
-        policy_file_path = Path(policy_file_path_str)
-        provider = get_translation_provider(content_provider_name, content_model)
-
-        grading_policy_data = json.loads(policy_file_path.read_text(encoding="utf-8"))
-        policy_updated = False
-
-        keys_to_translate = ["short_label", "type"]
-        for grader_item in grading_policy_data.get("GRADER", []):
-            for key in keys_to_translate:
-                if key in grader_item:
-                    translated_label = provider.translate_text(
-                        grader_item[key],
-                        target_language,
-                        glossary_directory=content_glossary,
-                    )
-                    grader_item[key] = translated_label
-                    policy_updated = True
-
-        if policy_updated:
-            policy_file_path.write_text(
-                json.dumps(grading_policy_data, ensure_ascii=False, indent=4),
-                encoding="utf-8",
-            )
-    except Exception as e:
-        logger.exception("Failed to translate grading policy %s", policy_file_path_str)
-        return {"status": "error", "file": policy_file_path_str, "error": str(e)}
-    else:
-        return {"status": "success", "file": policy_file_path_str}
-
-
 @shared_task(bind=True, name="translate_policy_json_task")
 def translate_policy_json_task(
     _self,

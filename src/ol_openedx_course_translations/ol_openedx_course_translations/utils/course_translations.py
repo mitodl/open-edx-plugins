@@ -277,7 +277,7 @@ def translate_xml_attributes(
     Returns:
         Updated XML content with translated display_name
     """
-    attribute_names = ["display_name", "format"]
+    attribute_names = ["display_name"]
     try:
         xml_root = ElementTree.fromstring(xml_content)
         is_xml_updated = False
