@@ -9,7 +9,7 @@ import re
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ImproperlyConfigured
-from opaque_keys.edx.locator import LibraryLocatorV2
+from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
 from openedx.core.djangoapps.content_libraries.api import get_library
 from xmodule.modulestore.django import modulestore
 
@@ -19,9 +19,51 @@ from ol_openedx_git_auto_export.constants import (
     ENABLE_GIT_AUTO_EXPORT,
     ENABLE_GIT_AUTO_LIBRARY_EXPORT,
     REPOSITORY_NAME_MAX_LENGTH,
+    ContentType,
 )
 
 log = logging.getLogger(__name__)
+
+
+def get_content_info(content_key):
+    """
+    Get information about a content item (course or library).
+
+    Args:
+        content_key: A LearningContextKey
+
+    Returns:
+        dict: Dictionary containing:
+            - content_type: The ContentType enum value (str)
+            - content_module: The actual course/library object
+            - is_v1_library: Boolean flag
+            - is_v2_library: Boolean flag
+            - is_library: Boolean flag (True if v1 or v2 library)
+    """
+    is_v1_library = isinstance(content_key, LibraryLocator)
+    is_v2_library = isinstance(content_key, LibraryLocatorV2)
+
+    # Get the content module based on type
+    if is_v2_library:
+        # V2 libraries use content_libraries API
+        content_module = get_library(content_key)
+        content_type = ContentType.LIBRARY.value
+    elif is_v1_library:
+        # V1 libraries use modulestore
+        content_module = modulestore().get_library(content_key)
+        content_type = ContentType.LIBRARY.value
+    else:
+        # Courses use modulestore
+        content_module = modulestore().get_course(content_key)
+        content_type = ContentType.COURSE.value
+
+    return {
+        "content_type": content_type,
+        "content_module": content_module,
+        "is_v1_library": is_v1_library,
+        "is_v2_library": is_v2_library,
+        "is_library": is_v1_library or is_v2_library,
+    }
 
 
 def get_publisher_username(course_module):

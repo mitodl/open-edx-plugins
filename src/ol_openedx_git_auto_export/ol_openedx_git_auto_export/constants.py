@@ -1,3 +1,22 @@
+from enum import StrEnum
+
+
+class ContentType(StrEnum):
+    """Enumeration for content types (Course or Library)."""
+
+    COURSE = "course"
+    LIBRARY = "library"
+
+    @property
+    def display_name(self):
+        """Return the human-readable display name."""
+        return self.value.capitalize()
+
+
+# Library key prefixes for different versions
+LIBRARY_V1_PREFIX = "library-v1:"
+LIBRARY_V2_PREFIX = "lib:"
+
 ENABLE_GIT_AUTO_EXPORT = "ENABLE_GIT_AUTO_EXPORT"
 ENABLE_AUTO_GITHUB_REPO_CREATION = "ENABLE_AUTO_GITHUB_REPO_CREATION"
 GITHUB_ORG = "GITHUB_ORG"
