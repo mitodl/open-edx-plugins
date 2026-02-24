@@ -581,17 +581,14 @@ class Command(BaseCommand):
                         )
                 self.grading_type_mapping.update(type_mapping)
                 self.stdout.write(
-                    self.style.SUCCESS(
-                        f"✓ grading_policy: {grading_policy_file}"
-                    )
+                    self.style.SUCCESS(f"✓ grading_policy: {grading_policy_file}")
                 )
             except Exception as e:
                 logger.exception(
                     "Failed to translate grading policy %s", grading_policy_file
                 )
                 error_msg = (
-                    f"Translation failed for grading policy "
-                    f"{grading_policy_file}: {e}"
+                    f"Translation failed for grading policy {grading_policy_file}: {e}"
                 )
                 raise CommandError(error_msg) from e
 
