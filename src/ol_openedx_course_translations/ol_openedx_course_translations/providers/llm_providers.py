@@ -898,13 +898,11 @@ class LLMProvider(TranslationProvider):
 
         # Deduplicate while preserving order so the LLM sees a minimal set.
         unique_terms = list(dict.fromkeys(terms))
-
         target_language_display_name = (
             settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
                 target_language, target_language
             )
         )
-
         system_prompt = (
             f"You are a professional academic translator. "
             f"Translate the following English course grading category names to "
@@ -947,7 +945,6 @@ class LLMProvider(TranslationProvider):
         user_payload = "\n".join(payload_parts)
 
         llm_response = self._call_llm(system_prompt, user_payload)
-
         id_pattern = re.compile(r":::(\d+):::\s*(.*?)(?=:::\d+:::|$)", re.DOTALL)
         matches = id_pattern.findall(llm_response)
         parsed_translations: dict[int, str] = {
