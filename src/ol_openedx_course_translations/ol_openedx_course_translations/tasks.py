@@ -207,19 +207,6 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, PLR0915, C901
                 content_glossary,
             )
 
-        # Apply the pre-translated grading type mapping to the format attribute
-        # to ensure consistency between grading policy and XML content translations.
-        if (
-            file_path.suffix == ".xml"
-            and grading_type_mapping
-            and original_format_value
-        ):
-            translated_content = apply_format_attribute_mapping(
-                translated_content,
-                original_format_value,
-                grading_type_mapping,
-            )
-
         # Update video XML if needed (use complete version)
         if file_path.suffix == ".xml" and file_path.parent.name == "video":
             translated_content = update_video_xml_complete(
@@ -287,6 +274,20 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, PLR0915, C901
                     file_path_str,
                     (validated_content or "")[:500],
                 )
+
+        # Apply the pre-translated grading type mapping to the format attribute
+        # to ensure consistency between grading policy and XML content translations.
+        if (
+            file_path.suffix == ".xml"
+            and grading_type_mapping
+            and original_format_value
+        ):
+            translated_content = apply_format_attribute_mapping(
+                translated_content,
+                original_format_value,
+                grading_type_mapping,
+            )
+
         file_path.write_text(translated_content, encoding="utf-8")
     except Exception as e:
         logger.exception("Failed to translate file %s", file_path_str)
