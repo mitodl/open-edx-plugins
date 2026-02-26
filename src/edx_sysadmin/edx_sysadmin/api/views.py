@@ -88,7 +88,9 @@ class GitReloadAPIView(APIView):
                             "The pushed branch ({}) is not currently in use"
                         ).format(pushed_branch)
                     else:
-                        add_repo.delay(repo_ssh_url)
+                        add_repo.delay(
+                            repo_ssh_url, branch=settings.SYSADMIN_DEFAULT_BRANCH
+                        )
                         msg = _("Triggered reloading branch: {} of repo: {}").format(
                             active_branch, repo_name
                         )
