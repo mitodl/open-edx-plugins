@@ -10,13 +10,12 @@ from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
 from cms.djangoapps.contentstore.git_export_utils import GitExportError, export_to_git
 from django.conf import settings
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import LearningContextKey
 from rest_framework import status
-from xmodule.modulestore.django import modulestore
 
-from ol_openedx_git_auto_export.models import CourseGitRepository
+from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
-    export_course_to_git,
+    get_content_info,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
 )
@@ -25,43 +24,67 @@ LOGGER = get_task_logger(__name__)
 
 
 @shared_task
-def async_export_to_git(course_key_string, user=None):
+def async_export_to_git(content_key_string, user=None):
+    """Export a course or library to Git.
+
+    Args:
+        content_key_string (str): String representation of CourseKey or LibraryLocator
+        user: Optional user for git export
     """
-    Exports a course to Git.
-    """  # noqa: D401
-    course_key = CourseKey.from_string(course_key_string)
-    course_module = modulestore().get_course(course_key)
+    # Parse as LearningContextKey to support all learning contexts
+    try:
+        content_key = LearningContextKey.from_string(content_key_string)
+        content_info = get_content_info(content_key)
+    except Exception:
+        LOGGER.exception("Failed to parse content key: %s", content_key_string)
+        return
 
     try:
-        course_repo = CourseGitRepository.objects.get(course_key=course_key)
-        if course_repo.is_export_enabled:
+        content_repo = ContentGitRepository.objects.get(content_key=content_key)
+
+        if content_repo.is_export_enabled:
             LOGGER.info(
-                "Starting async course content export to git (course id: %s)",
-                course_module.id,
+                "Starting async %s content export to git (%s id: %s)",
+                content_info["content_type"],
+                content_info["content_type"],
+                content_info["content_module"].id
+                if hasattr(content_info["content_module"], "id")
+                else content_key,
             )
-            export_to_git(course_module.id, course_repo.git_url, user=user)
+            # Use unified export_to_git that handles both courses and libraries
+            export_to_git(content_key, content_repo.git_url, user=user)
         else:
             LOGGER.info(
-                "Git export is disabled for course %s. Skipping export.",
-                course_key_string,
+                "Git export is disabled for %s %s. Skipping export.",
+                content_info["content_type"],
+                content_key_string,
             )
     except GitExportError:
         LOGGER.exception(
-            "Failed async course content export to git (course id: %s)",
-            course_module.id,
+            "Failed async %s content export to git (%s id: %s)",
+            content_info["content_type"],
+            content_info["content_type"],
+            content_info["content_module"].id
+            if hasattr(content_info["content_module"], "id")
+            else content_key,
         )
-    except CourseGitRepository.DoesNotExist:
+    except ContentGitRepository.DoesNotExist:
         LOGGER.exception(
-            "CourseGitRepository does not exist for course %s."
-            "Creating repository and exporting course content.",
-            course_key_string,
+            "Git repository does not exist for %s %s. "
+            "Creating repository and exporting content.",
+            content_info["content_type"],
+            content_key_string,
         )
-        if is_auto_repo_creation_enabled():
-            async_create_github_repo.delay(str(course_key), export_course=True)
+        if is_auto_repo_creation_enabled(is_library=content_info["is_library"]):
+            async_create_github_repo.delay(str(content_key), export_content=True)
     except Exception:
         LOGGER.exception(
-            "Unknown error occured during async course content export to git (course id: %s)",  # noqa: E501
-            course_module.id,
+            "Unknown error occurred during async %s content export to git (%s id: %s)",
+            content_info["content_type"],
+            content_info["content_type"],
+            content_info["content_module"].id
+            if hasattr(content_info["content_module"], "id")
+            else content_key,
         )
 
 
@@ -70,13 +93,13 @@ def async_export_to_git(course_key_string, user=None):
     autoretry_for=(requests.exceptions.RequestException,),
     retry_kwargs={"max_retries": 3, "countdown": 10},
 )
-def async_create_github_repo(self, course_key_str, export_course=False):  # noqa: FBT002
+def async_create_github_repo(self, content_key_str, export_content=False):  # noqa: FBT002
     """
-    Create a GitHub repository for the given course key.
+    Create a GitHub repository for the given course or library key.
 
     Args:
-        course_key_str (str): The course key for which to create the repository.
-        export_course (bool): Whether to export the course content
+        content_key_str (str): The course/library key for which to create repository.
+        export_content (bool): Whether to export the content
             after creating the repo.
 
     Returns:
@@ -84,16 +107,32 @@ def async_create_github_repo(self, course_key_str, export_course=False):  # noqa
             and the SSH URL of the created repository or an error message.
     """
 
-    course_key = CourseKey.from_string(course_key_str)
-    course_id_slugified = github_repo_name_format(str(course_key))
+    # Parse as LearningContextKey to support all learning contexts
+    try:
+        content_key = LearningContextKey.from_string(content_key_str)
+        content_info = get_content_info(content_key)
+    except Exception:
+        LOGGER.exception("Failed to parse content key: %s", content_key_str)
+        return False, f"Invalid content key: {content_key_str}"
 
+    content_id_slugified = github_repo_name_format(str(content_key))
     response_msg = ""
-    if CourseGitRepository.objects.filter(course_key=course_key).exists():
-        response_msg = f"GitHub repository already exists for course {course_key}. Skipping creation."  # noqa: E501
+
+    # Check if repository already exists
+    if ContentGitRepository.objects.filter(content_key=content_key).exists():
+        response_msg = f"GitHub repository already exists for {content_info['content_type']} {content_key}. Skipping creation."  # noqa: E501
         LOGGER.info(response_msg)
         return False, response_msg
 
-    course_module = modulestore().get_course(course_key)
+    # Determine URL path based on content type
+    url_path = f"{content_info['content_type']}/{content_key_str}"
+
+    # Get display name (v2 libraries use 'title', others use 'display_name')
+    if content_info["is_v2_library"]:
+        display_name = content_info["content_module"].title
+    else:
+        display_name = content_info["content_module"].display_name
+
     url = f"{settings.GITHUB_ORG_API_URL}/repos"
     # https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api?apiVersion=2022-11-28
     headers = {
@@ -101,9 +140,9 @@ def async_create_github_repo(self, course_key_str, export_course=False):  # noqa
         "Authorization": f"Bearer {settings.GITHUB_ACCESS_TOKEN}",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    repo_desc = f"{course_module.display_name}, exported from https://{settings.CMS_BASE}/course/{course_key_str}"
+    repo_desc = f"{display_name}, exported from https://{settings.CMS_BASE}/{url_path}"
     payload = {
-        "name": course_id_slugified,
+        "name": content_id_slugified,
         "description": repo_desc,
         "private": True,
         "has_issues": False,
@@ -113,15 +152,16 @@ def async_create_github_repo(self, course_key_str, export_course=False):  # noqa
     }
     response = requests.post(url, headers=headers, json=payload, timeout=30)
     if response.status_code != status.HTTP_201_CREATED:
-        response_msg = f"Failed to create GitHub repository for course {course_key}: {response.json()}"  # noqa: E501
+        response_msg = f"Failed to create GitHub repository for {content_info['content_type']} {content_key}: {response.json()}"  # noqa: E501
         LOGGER.error(response_msg)
 
         # Retry the task if we haven't exceeded max retries
         max_retries = self.retry_kwargs.get("max_retries", 3)
         if self.request.retries < max_retries:
             LOGGER.info(
-                "Retrying GitHub repository creation for course %s (attempt %d/%d)",
-                course_key,
+                "Retrying GitHub repository creation for %s %s (attempt %d/%d)",
+                content_info["content_type"],
+                content_key,
                 self.request.retries + 1,
                 max_retries,
             )
@@ -133,23 +173,26 @@ def async_create_github_repo(self, course_key_str, export_course=False):  # noqa
     repo_data = response.json()
     ssh_url = repo_data.get("ssh_url")
     if ssh_url:
-        CourseGitRepository.objects.create(
-            course_key=course_key,
+        # Use the new ContentGitRepository model
+        ContentGitRepository.objects.create(
+            content_key=content_key,
             git_url=ssh_url,
         )
         LOGGER.info(
-            "GitHub repository created for course %s: %s",
-            course_key,
+            "GitHub repository created for %s %s: %s",
+            content_info["content_type"],
+            content_key,
             ssh_url,
         )
     else:
         response_msg = f"""
-            Failed to retrieve SSH URL from GitHub response for course {course_key}.
+            Failed to retrieve SSH URL from GitHub response
+            for {content_info["content_type"]} {content_key}.
             Response data: {repo_data}
         """
         LOGGER.error(response_msg)
 
-    if ssh_url and export_course:
-        export_course_to_git(course_key)
+    if ssh_url and export_content:
+        async_export_to_git(content_key_str)
 
     return True, response_msg or ssh_url
