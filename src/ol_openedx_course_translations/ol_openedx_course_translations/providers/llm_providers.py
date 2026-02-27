@@ -437,7 +437,7 @@ class LLMProvider(TranslationProvider):
                     f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
                 )
 
-        id_pattern = re.compile(r":::(\d+):::\s*(.*?)(?=(?::::\d+:::|$))", re.DOTALL)
+        id_pattern = re.compile(r":::(\d+):::\s*(.*?)(?=:::\d+:::|$)", re.DOTALL)
 
         cursor = 0
         while cursor < len(pending_indices):
@@ -469,10 +469,12 @@ class LLMProvider(TranslationProvider):
             llm_text = self._call_llm(system_prompt, user_payload)
 
             matches = id_pattern.findall(llm_text)
-            got: dict[int, str] = {int(i): t.strip() for i, t in matches}
+            parsed_translations: dict[int, str] = {
+                int(match_id): match_text.strip() for match_id, match_text in matches
+            }
 
             for idx in chunk:
-                translated = got.get(idx)
+                translated = parsed_translations.get(idx)
                 if translated is None:
                     # conservative fallback: keep original
                     # to avoid breaking DOM semantics
@@ -859,6 +861,125 @@ class LLMProvider(TranslationProvider):
         self.litellm_timeout = 90  # 90s timeout for the validation
         llm_response = self._call_llm(system_prompt, user_payload)
         return self._parse_text_response(llm_response)
+
+    def translate_grading_types(
+        self,
+        terms: list[str],
+        target_language: str,
+        glossary_directory: str | None = None,
+    ) -> dict[str, str]:
+        """
+        Translate all grading type strings in a single LLM call, enforcing uniqueness.
+
+        Sends all terms together so the LLM can see the full set and choose
+        translations that are clearly distinct from one another — even for
+        semantically similar English terms like "Homework" and "Assignment".
+
+        Args:
+            terms: Grading type strings to translate.  Duplicates are deduplicated
+                before sending to the LLM; every input term is present in the
+                returned mapping.
+            target_language: Target language code
+            glossary_directory: Optional path to glossary directory
+
+        Returns:
+            Mapping of original term → translated term for every input term.
+
+        Raises:
+            ValueError: If the LLM returns the same translation for two different
+                input terms, as duplicate translations would break course grading.
+        """
+        from ol_openedx_course_translations.utils.course_translations import (  # noqa: PLC0415
+            load_glossary,
+        )
+
+        if not terms:
+            return {}
+
+        # Deduplicate while preserving order so the LLM sees a minimal set.
+        unique_terms = list(dict.fromkeys(terms))
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
+        )
+        system_prompt = (
+            f"You are a professional academic translator. "
+            f"Translate the following English course grading category names to "
+            f"{target_language_display_name} ({target_language}).\n\n"
+            "CRITICAL REQUIREMENTS:\n"
+            "1. Each grading category MUST receive a UNIQUE translation that is clearly "
+            "distinct from all others.\n"
+            "2. Even if two English terms are semantically similar "
+            "(e.g., 'Homework' vs 'Assignment'), their translations MUST be "
+            "DIFFERENT words or phrases so that instructors and students can "
+            "unambiguously tell the categories apart.\n"
+            "3. Choose the most natural and precise academic translation for each term.\n"
+            "4. Short abbreviations (e.g., 'HW', 'Ex') should be translated to their "
+            "target-language equivalents or kept as recognizable abbreviations.\n\n"
+            "INPUT FORMAT:\n"
+            ":::ID:::\n"
+            "English term\n\n"
+            "OUTPUT FORMAT (exactly):\n"
+            ":::ID:::\n"
+            "Translated term\n\n"
+            "RULES:\n"
+            "1. Preserve ALL :::ID::: markers exactly.\n"
+            "2. Do not add extra IDs or merge IDs.\n"
+            "3. Output only the translations (no explanations).\n"
+            "4. ALL translations MUST be distinct — no two IDs may share the same output.\n"
+        )
+
+        if glossary_directory:
+            glossary_terms = load_glossary(target_language, glossary_directory)
+            if glossary_terms:
+                system_prompt += (
+                    f"\nGLOSSARY TERMS (use these translations):\n{glossary_terms}\n"
+                )
+
+        payload_parts: list[str] = []
+        for term_index, term in enumerate(unique_terms):
+            payload_parts.append(f":::{term_index}:::")
+            payload_parts.append(term)
+            payload_parts.append("")
+        user_payload = "\n".join(payload_parts)
+
+        llm_response = self._call_llm(system_prompt, user_payload)
+        id_pattern = re.compile(r":::(\d+):::\s*(.*?)(?=:::\d+:::|$)", re.DOTALL)
+        matches = id_pattern.findall(llm_response)
+        parsed_translations: dict[int, str] = {
+            int(match_id): match_text.strip() for match_id, match_text in matches
+        }
+
+        # Build unique-term mapping, falling back to original if an ID was skipped.
+        unique_result: dict[str, str] = {}
+        for term_index, term in enumerate(unique_terms):
+            unique_result[term] = parsed_translations.get(term_index, term)
+
+        # Validate uniqueness: no two DISTINCT source terms may share a translation.
+        seen_translations: dict[str, str] = {}
+        duplicates: list[str] = []
+        for original, translated in unique_result.items():
+            if translated in seen_translations:
+                duplicates.append(
+                    f"'{original}' and '{seen_translations[translated]}' "
+                    f"both translate to '{translated}'"
+                )
+            else:
+                seen_translations[translated] = original
+
+        if duplicates:
+            duplicate_details = "; ".join(duplicates)
+            msg = (
+                f"LLM returned duplicate translations for grading types: "
+                f"{duplicate_details}. "
+                "Duplicate translations would break course grading. "
+                "Please retry or use a different model."
+            )
+            raise ValueError(msg)
+
+        # Expand back to all input terms (including any that were deduplicated).
+        return {term: unique_result[term] for term in terms}
 
 
 class OpenAIProvider(LLMProvider):

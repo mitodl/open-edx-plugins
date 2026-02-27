@@ -18,7 +18,6 @@ from opaque_keys.edx.locator import CourseLocator
 from ol_openedx_course_translations.models import CourseTranslationLog
 from ol_openedx_course_translations.tasks import (
     translate_file_task,
-    translate_grading_policy_task,
     translate_policy_json_task,
 )
 from ol_openedx_course_translations.utils.constants import (
@@ -32,6 +31,8 @@ from ol_openedx_course_translations.utils.course_translations import (
     extract_course_archive,
     generate_course_key_from_xml,
     get_translatable_file_paths,
+    get_translation_provider,
+    translate_grading_policy,
     update_course_language_attribute,
     validate_course_inputs,
 )
@@ -84,6 +85,7 @@ class Command(BaseCommand):
         self.keep_failure = False
         self.translation_validation_provider_name = None
         self.translation_validation_model = None
+        self.grading_type_mapping: dict[str, str] = {}
 
     def add_arguments(self, parser) -> None:
         """Entry point for subclassed commands to add custom arguments."""
@@ -457,6 +459,11 @@ class Command(BaseCommand):
         # Collect all tasks
         self.tasks = []
 
+        # Translate grading policies synchronously first and collect the type
+        # mapping so that XML file tasks can use consistent translations for the
+        # `format` attribute.
+        self._translate_grading_policies_sync(course_dir, target_language)
+
         # Add translation tasks for files in course directory
         self._add_file_translation_tasks(
             course_directory, source_language, target_language, recursive=False
@@ -470,8 +477,7 @@ class Command(BaseCommand):
                     target_directory, source_language, target_language, recursive=True
                 )
 
-        # Add tasks for special JSON files
-        self._add_grading_policy_tasks(course_dir, target_language)
+        # Add tasks for policy.json files
         self._add_policy_json_tasks(course_dir, target_language)
 
     def _add_file_translation_tasks(
@@ -514,13 +520,22 @@ class Command(BaseCommand):
                 self.srt_glossary,
                 self.translation_validation_provider_name,
                 self.translation_validation_model,
+                self.grading_type_mapping or None,
             )
             self.tasks.append((task_type, str(file_path), task))
             logger.info("Added translation task for: %s", file_path)
 
-    def _add_grading_policy_tasks(self, course_dir: Path, target_language: str) -> None:
+    def _translate_grading_policies_sync(
+        self, course_dir: Path, target_language: str
+    ) -> None:
         """
-        Add Celery tasks for grading_policy.json translation to the task list.
+        Translate grading_policy.json synchronously in the current thread.
+
+        Translations are performed immediately so that the resulting grading type
+        mapping is available before XML file tasks are queued.  The mapping is
+        stored in ``self.grading_type_mapping`` and passed to each file task so
+        that the ``format`` attribute in XML content files uses the same
+        translation as the grading policy ``type`` field.
 
         Args:
             course_dir: Path to the course directory
@@ -531,21 +546,51 @@ class Command(BaseCommand):
         if not course_policies_dir.exists():
             return
 
+        provider = get_translation_provider(
+            self.content_provider_name, self.content_model
+        )
+
         for policy_child_dir in course_policies_dir.iterdir():
             if not policy_child_dir.is_dir():
                 continue
 
             grading_policy_file = policy_child_dir / "grading_policy.json"
-            if grading_policy_file.exists():
-                task = translate_grading_policy_task.s(
-                    str(grading_policy_file),
+            if not grading_policy_file.exists():
+                continue
+
+            logger.info(
+                "Translating grading policy synchronously: %s", grading_policy_file
+            )
+            try:
+                type_mapping = translate_grading_policy(
+                    grading_policy_file,
                     target_language,
-                    self.content_provider_name,
-                    self.content_model,
+                    provider,
                     self.content_glossary,
                 )
-                self.tasks.append(("grading_policy", str(grading_policy_file), task))
-                logger.info("Added grading policy task for: %s", grading_policy_file)
+                for original, translated in type_mapping.items():
+                    existing = self.grading_type_mapping.get(original)
+                    if existing and existing != translated:
+                        logger.warning(
+                            "Conflicting grading type mapping for %r: "
+                            "existing=%r, new=%r (from %s). Using new value.",
+                            original,
+                            existing,
+                            translated,
+                            grading_policy_file,
+                        )
+                self.grading_type_mapping.update(type_mapping)
+                self.stdout.write(
+                    self.style.SUCCESS(f"✓ grading_policy: {grading_policy_file}")
+                )
+            except Exception as e:
+                logger.exception(
+                    "Failed to translate grading policy %s", grading_policy_file
+                )
+                error_msg = (
+                    f"Translation failed for grading policy {grading_policy_file}: {e}"
+                )
+                raise CommandError(error_msg) from e
 
     def _add_policy_json_tasks(self, course_dir: Path, target_language: str) -> None:
         """

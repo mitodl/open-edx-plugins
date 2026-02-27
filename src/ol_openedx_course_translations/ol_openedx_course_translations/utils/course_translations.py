@@ -28,6 +28,7 @@ from opaque_keys.edx.locator import CourseLocator
 from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
 from ol_openedx_course_translations.providers.llm_providers import (
     GeminiProvider,
+    LLMProvider,
     MistralProvider,
     OpenAIProvider,
 )
@@ -114,6 +115,147 @@ def get_translation_provider(
     raise ValueError(msg)
 
 
+def translate_grading_policy(  # noqa: C901, PLR0912
+    policy_file_path: Path,
+    target_language: str,
+    provider,
+    content_glossary: str | None = None,
+) -> dict[str, str]:
+    """
+    Translate grading_policy.json synchronously and return a grading type mapping.
+
+    Translates ``short_label`` and ``type`` fields in the GRADER section and
+    writes the result back to the file.  Returns a mapping of original ``type``
+    values to their translated equivalents so callers can apply consistent
+    translations to the ``format`` attribute in XML content files.
+
+    For LLM providers, all values are sent in a **single** LLM call with a
+    custom prompt that instructs the model to produce distinct translations for
+    every term.  If the LLM still produces duplicate translations for different
+    grading types, a ``ValueError`` is raised so the calling command can abort
+    with a clear error — duplicate grading-type translations would corrupt
+    course grading.
+
+    For non-LLM providers (e.g., DeepL), each value is translated individually
+    using the standard ``translate_text`` interface.
+
+    Args:
+        policy_file_path: Path to the grading_policy.json file
+        target_language: Target language code
+        provider: Translation provider instance
+        content_glossary: Optional glossary directory path
+
+    Returns:
+        Mapping of original type values to translated type values.
+        Empty dict if no types were translated.
+
+    Raises:
+        ValueError: (LLM providers only) If the LLM returns duplicate
+            translations for different grading type strings.
+    """
+    grading_policy_data = json.loads(policy_file_path.read_text(encoding="utf-8"))
+    grader_items = grading_policy_data.get("GRADER", [])
+
+    if not grader_items:
+        return {}
+
+    keys_to_translate = ["short_label", "type"]
+    type_mapping: dict[str, str] = {}
+    policy_updated = False
+
+    if isinstance(provider, LLMProvider):
+        # Collect every value that needs translating across all GRADER entries.
+        # Duplicates are fine — translate_grading_types deduplicates internally.
+        all_terms: list[str] = []
+        for grader_item in grader_items:
+            for key in keys_to_translate:
+                value = grader_item.get(key)
+                if value:
+                    all_terms.append(value)
+
+        # Single LLM call — raises ValueError on duplicate translations.
+        terms_mapping = provider.translate_grading_types(
+            all_terms, target_language, content_glossary
+        )
+
+        for grader_item in grader_items:
+            for key in keys_to_translate:
+                if key in grader_item:
+                    original_value = grader_item[key]
+                    translated_value = terms_mapping.get(original_value, original_value)
+                    if key == "type":
+                        type_mapping[original_value] = translated_value
+                    grader_item[key] = translated_value
+                    policy_updated = True
+    else:
+        # Non-LLM providers (e.g., DeepL): translate each value individually.
+        for grader_item in grader_items:
+            for key in keys_to_translate:
+                if key in grader_item:
+                    original_value = grader_item[key]
+                    translated_value = provider.translate_text(
+                        original_value,
+                        target_language,
+                        glossary_directory=content_glossary,
+                    )
+                    if key == "type":
+                        type_mapping[original_value] = translated_value
+                    grader_item[key] = translated_value
+                    policy_updated = True
+
+    if policy_updated:
+        policy_file_path.write_text(
+            json.dumps(grading_policy_data, ensure_ascii=False, indent=4),
+            encoding="utf-8",
+        )
+
+    return type_mapping
+
+
+def apply_format_attribute_mapping(
+    xml_content: str,
+    original_format: str,
+    grading_type_mapping: dict[str, str],
+) -> str:
+    """
+    Replace the ``format`` attribute in XML content using the grading type mapping.
+
+    Looks up *original_format* (the pre-translation value) in *grading_type_mapping*
+    and, if found, overwrites whatever the translation provider wrote for the
+    ``format`` attribute with the consistent pre-translated value.  This prevents
+    the LLM or DeepL from producing a different translation of the same grading
+    type string in the policy file vs. individual XML content files.
+
+    Args:
+        xml_content: XML content as string
+        original_format: Original ``format`` attribute value (before translation)
+        grading_type_mapping: Mapping of original type -> translated type
+
+    Returns:
+        Updated XML content with consistent ``format`` attribute, or original
+        content if the mapping does not contain a match.
+    """
+    mapped_format = grading_type_mapping.get(original_format)
+    if not mapped_format:
+        return xml_content
+
+    try:
+        xml_root = ElementTree.fromstring(xml_content)
+        if "format" in xml_root.attrib:
+            xml_root.set("format", mapped_format)
+            return ElementTree.tostring(xml_root, encoding="unicode")
+    except ElementTree.ParseError as e:
+        logger.warning(
+            "Failed to apply format mapping to XML content "
+            "(original_format=%r, mapped_format=%r): %s",
+            original_format,
+            mapped_format,
+            e,
+        )
+
+    return xml_content
+
+
 def translate_xml_attributes(
     xml_content: str,
     target_language: str,
@@ -135,7 +277,7 @@ def translate_xml_attributes(
     Returns:
         Updated XML content with translated display_name
     """
-    attribute_names = ["display_name", "format"]
+    attribute_names = ["display_name"]
     try:
         xml_root = ElementTree.fromstring(xml_content)
         is_xml_updated = False
