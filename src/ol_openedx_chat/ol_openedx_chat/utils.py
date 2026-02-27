@@ -8,18 +8,9 @@ import re
 from lms.djangoapps.courseware.courses import get_course_by_id
 from opaque_keys.edx.locator import CourseLocator
 
-from ol_openedx_chat.constants import (
-    BLOCK_TYPE_LABELS,
-    BLOCK_TYPE_TO_SETTINGS,
-    CHAT_APPLICABLE_BLOCKS,
-)
+from ol_openedx_chat.constants import BLOCK_TYPE_TO_SETTINGS, CHAT_APPLICABLE_BLOCKS
 
 log = logging.getLogger(__name__)
-
-
-def get_translated_block_type(block_type):
-    """Return the translated display label for a block type, or the raw value if unknown."""
-    return BLOCK_TYPE_LABELS.get(block_type, block_type)
 
 
 def is_aside_applicable_to_block(block):
