@@ -34,7 +34,6 @@ from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
 from ol_openedx_chat.constants import (
-    BLOCK_TYPE_LABELS,
     ENGLISH_LANGUAGE_TRANSCRIPT,
     MIT_AI_CHAT_URL_PATHS,
     PROBLEM_BLOCK_CATEGORY,
@@ -115,7 +114,7 @@ class OLChatAside(XBlockAside):
                     "block_usage_key": block_usage_key,
                     "block_type": block_type,
                     "about_block": gettext("about this %(block_type)s")
-                    % {"block_type": BLOCK_TYPE_LABELS.get(block_type, block_type)},
+                    % {"block_type": gettext(block_type)},
                 },
             )
         )
