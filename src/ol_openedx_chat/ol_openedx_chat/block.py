@@ -42,6 +42,7 @@ from ol_openedx_chat.constants import (
 )
 from ol_openedx_chat.utils import (
     get_checkpoint_and_thread_id,
+    get_translated_block_type,
     is_aside_applicable_to_block,
     is_ol_chat_enabled_for_course,
 )
@@ -114,7 +115,7 @@ class OLChatAside(XBlockAside):
                     "block_usage_key": block_usage_key,
                     "block_type": block_type,
                     "about_block": gettext("about this %(block_type)s")
-                    % {"block_type": block_type},
+                    % {"block_type": get_translated_block_type(block_type)},
                 },
             )
         )

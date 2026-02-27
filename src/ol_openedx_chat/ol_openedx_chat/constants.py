@@ -1,7 +1,15 @@
+from django.utils.translation import gettext_lazy as _
+
 # The dictionary should contain all the block types for which the chat should be
 # applicable if a block has sub-blocks or sub category, that should be added in the list
 VIDEO_BLOCK_CATEGORY = "video"
 PROBLEM_BLOCK_CATEGORY = "problem"
+
+# Translatable display labels for block categories (for UI)
+BLOCK_TYPE_LABELS = {
+    VIDEO_BLOCK_CATEGORY: _("video"),
+    PROBLEM_BLOCK_CATEGORY: _("problem"),
+}
 
 # The actual chat URL is `https://api-learn-ai.ol.mit.edu/http/video_gpt_agent/`
 # for video blocks and`https://api-learn-ai.ol.mit.edu/http/tutor_agent/`
