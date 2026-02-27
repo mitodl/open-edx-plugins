@@ -7,7 +7,7 @@ from celery.utils.log import get_task_logger
 from celery_utils.persist_on_failure import LoggedPersistOnFailureTask
 from django.conf import settings
 from edxval.api import copy_course_videos
-from opaque_keys.edx.locator import CourseLocator
+from opaque_keys.edx.locator import AssetLocator, CourseLocator
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import SignalHandler, modulestore
 
@@ -23,6 +23,53 @@ from ol_openedx_course_sync.utils import (
 )
 
 logger = get_task_logger(__name__)
+
+
+def verify_static_assets(source_course_key, dest_course_key):
+    """
+    Verify that static assets have been copied successfully.
+    """
+    logger.info(
+        "Verifying static assets for course sync from %s to %s",
+        source_course_key,
+        dest_course_key,
+    )
+    source_assets, source_asset_count = (
+        modulestore().contentstore.get_all_content_for_course(source_course_key)
+    )
+    dest_assets, dest_asset_count = (
+        modulestore().contentstore.get_all_content_for_course(dest_course_key)
+    )
+    if source_asset_count != dest_asset_count:
+        logger.error(
+            "Asset count mismatch: source has %d assets, destination has %d assets",
+            source_asset_count,
+            dest_asset_count,
+        )
+        return
+
+    source_assets = {str(asset["asset_key"]): asset for asset in source_assets}
+    dest_assets = {str(asset["asset_key"]): asset for asset in dest_assets}
+
+    for asset in source_assets.values():
+        dest_asset_key = str(
+            AssetLocator(dest_course_key, "asset", asset["content_son"]["name"])
+        )
+        dest_asset = dest_assets.get(dest_asset_key)
+        if not dest_asset:
+            logger.error(
+                "Missing asset in destination course: %s",
+                dest_asset_key,
+            )
+            return
+
+        if dest_asset["length"] != asset["length"]:
+            logger.error(
+                "Asset length mismatch for asset %s: source has length %d, destination has length %d",  # noqa: E501
+                asset["asset_key"],
+                asset["length"],
+                dest_asset["length"],
+            )
 
 
 @shared_task(
@@ -68,6 +115,7 @@ def async_course_sync(source_course_id, dest_course_id):
         module_store.contentstore.copy_all_course_assets(
             source_course_key, dest_course_key
         )
+        verify_static_assets(source_course_key, dest_course_key)
     copy_course_videos(source_course_key, dest_course_key)
 
     logger.info(
