@@ -246,7 +246,6 @@ TRANSLATABLE_ATTRS_BASE = {
     "alt",
     "label",
     "display_name",
-    "format",
 }
 
 # Open edX-specific: these are only translatable on <optioninput>
@@ -264,3 +263,5 @@ NEVER_TRANSLATE_ATTRS = {
     "url_name",
     "filename",
 }
+
+XML_FORMAT_ATTR = "format"
