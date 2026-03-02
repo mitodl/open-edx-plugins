@@ -180,7 +180,7 @@ run_plugin_tests() {
 
     # Run the pytest command with CMS settings (for ol_openedx_chat)
     if [[ "$plugin_dir" == *"ol_openedx_chat"* || "$plugin_dir" == *"ol_openedx_course_sync"* ]]; then
-        pytest -k test_verify_static_assets --cov . --ds=cms.envs.test
+        pytest . --cov . --ds=cms.envs.test
 
         PYTEST_SUCCESS=$?
         if [[ $PYTEST_SUCCESS -ne 0 ]]
