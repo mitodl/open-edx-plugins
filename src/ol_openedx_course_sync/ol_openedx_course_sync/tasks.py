@@ -116,7 +116,11 @@ def async_course_assets_sync(source_course_id, dest_course_id):
         module_store.contentstore.copy_all_course_assets(
             source_course_key, dest_course_key
         )
-        verify_static_assets(source_course_key, dest_course_key)
+        # Verify that static assets are copied successfully.
+        # If verification fails, raise an exception to trigger a retry of the task.
+        if not verify_static_assets(source_course_key, dest_course_key):
+            error_msg = "Static assets verification failed after copying course assets."
+            raise Exception(error_msg)  # noqa: TRY002
     logger.info(
         "Finished course assets sync from %s to %s", source_course_key, dest_course_key
     )
