@@ -314,10 +314,7 @@ def verify_static_assets(source_course_key, dest_course_key):
             AssetLocator(dest_course_key, "asset", asset["content_son"]["name"])
         )
         dest_asset = dest_assets.get(dest_asset_key)
-        if not dest_asset:
-            return False
-
-        if dest_asset["length"] != asset["length"]:
+        if not dest_asset or dest_asset["length"] != asset["length"]:
             return False
 
     return True
