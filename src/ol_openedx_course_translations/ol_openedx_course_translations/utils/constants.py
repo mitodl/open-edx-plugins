@@ -263,3 +263,5 @@ NEVER_TRANSLATE_ATTRS = {
     "url_name",
     "filename",
 }
+
+XML_FORMAT_ATTR = "format"

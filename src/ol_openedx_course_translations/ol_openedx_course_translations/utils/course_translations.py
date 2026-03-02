@@ -40,6 +40,7 @@ from ol_openedx_course_translations.utils.constants import (
     PROVIDER_OPENAI,
     TRANSLATABLE_ATTRS_BASE,
     TRANSLATABLE_ATTRS_OPTIONINPUT_ONLY,
+    XML_FORMAT_ATTR,
 )
 
 logger = logging.getLogger(__name__)
@@ -241,8 +242,8 @@ def apply_format_attribute_mapping(
 
     try:
         xml_root = ElementTree.fromstring(xml_content)
-        if "format" in xml_root.attrib:
-            xml_root.set("format", mapped_format)
+        if XML_FORMAT_ATTR in xml_root.attrib:
+            xml_root.set(XML_FORMAT_ATTR, mapped_format)
             return ElementTree.tostring(xml_root, encoding="unicode")
     except ElementTree.ParseError as e:
         logger.warning(

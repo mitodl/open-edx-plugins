@@ -15,6 +15,7 @@ from ol_openedx_course_translations.providers.llm_providers import (
     TRANSLATION_MARKER_START,
     LLMProvider,
 )
+from ol_openedx_course_translations.utils.constants import XML_FORMAT_ATTR
 from ol_openedx_course_translations.utils.course_translations import (
     apply_format_attribute_mapping,
     get_srt_output_filename,
@@ -181,7 +182,7 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, PLR0915, C901
         if file_path.suffix == ".xml" and grading_type_mapping:
             try:
                 xml_root = ElementTree.fromstring(file_content)
-                original_format_value = xml_root.attrib.get("format")
+                original_format_value = xml_root.attrib.get(XML_FORMAT_ATTR)
             except ElementTree.ParseError:
                 pass
 
