@@ -32,7 +32,7 @@ class GitReloadAPIView(APIView):
 
     permission_classes = [GithubWebhookPermission]
 
-    def post(self, request):
+    def post(self, request):  # noqa: PLR0912, C901
         """
         Trigger for github webhooks for course reload
         """
@@ -79,18 +79,26 @@ class GitReloadAPIView(APIView):
                     )
 
                 else:
-                    # We have an existing local copy of the course, so we will reload
-                    # the course after making sure that the reload trigger is from the
-                    # same branch that was used to import the course initially
                     active_branch = get_local_active_branch(repo)
-                    if not active_branch or active_branch != pushed_branch:
+                    if not active_branch:
                         err_msg = _(
-                            "The pushed branch ({}) is not currently in use"
-                        ).format(pushed_branch)
-                    else:
-                        add_repo.delay(
-                            repo_ssh_url, branch=settings.SYSADMIN_DEFAULT_BRANCH
+                            "Couldn't determine the active branch for the local repository"  # noqa: E501
                         )
+                    elif active_branch != pushed_branch:
+                        add_repo.delay(
+                            repo=repo_ssh_url, branch=settings.SYSADMIN_DEFAULT_BRANCH
+                        )
+                        msg = _(
+                            "Active branch for the local copy of the course is different than the pushed branch."  # noqa: E501
+                            "Triggered reloading after checkout from branch: {} to branch: {} of repo: {}"  # noqa: E501
+                        ).format(
+                            active_branch, settings.SYSADMIN_DEFAULT_BRANCH, repo_name
+                        )
+                        return self.get_reload_response(
+                            msg=msg, status_code=status.HTTP_200_OK
+                        )
+                    else:
+                        add_repo.delay(repo_ssh_url)
                         msg = _("Triggered reloading branch: {} of repo: {}").format(
                             active_branch, repo_name
                         )
