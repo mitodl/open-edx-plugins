@@ -305,12 +305,7 @@ def verify_static_assets(source_course_key, dest_course_key):
         dest_course_key
     )
     if source_asset_count != dest_asset_count:
-        log.error(
-            "Asset count mismatch: source has %d assets, destination has %d assets",
-            source_asset_count,
-            dest_asset_count,
-        )
-        return
+        return False
 
     source_assets = {str(asset["asset_key"]): asset for asset in source_assets}
     dest_assets = {str(asset["asset_key"]): asset for asset in dest_assets}
@@ -320,19 +315,12 @@ def verify_static_assets(source_course_key, dest_course_key):
         )
         dest_asset = dest_assets.get(dest_asset_key)
         if not dest_asset:
-            log.error(
-                "Missing asset in destination course: %s",
-                dest_asset_key,
-            )
-            return
+            return False
 
         if dest_asset["length"] != asset["length"]:
-            log.error(
-                "Asset length mismatch for asset %s: source has length %d, destination has length %d",  # noqa: E501
-                asset["asset_key"],
-                asset["length"],
-                dest_asset["length"],
-            )
+            return False
+
+    return True
 
 
 def get_course_sync_service_user():

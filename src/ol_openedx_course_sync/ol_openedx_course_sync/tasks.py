@@ -61,15 +61,8 @@ def async_course_sync(source_course_id, dest_course_id):
         source_course_key,
         dest_course_key,
     )
-    # Copy course assets and videos.
+    # Copy course videos.
     # These steps are taken from the course_rerun task in edx-platform.
-    module_store = modulestore()
-    if module_store.contentstore:
-        module_store.contentstore.delete_all_course_assets(dest_course_key)
-        module_store.contentstore.copy_all_course_assets(
-            source_course_key, dest_course_key
-        )
-        verify_static_assets(source_course_key, dest_course_key)
     copy_course_videos(source_course_key, dest_course_key)
 
     logger.info(
@@ -98,6 +91,34 @@ def async_course_sync(source_course_id, dest_course_id):
     )
     logger.debug(
         "Finished course sync from %s to %s", source_course_key, dest_course_key
+    )
+
+
+@shared_task(
+    base=LoggedPersistOnFailureTask,
+    autoretry_for=(Exception,),
+    max_retries=3,
+    default_retry_delay=30,
+)
+def async_course_assets_sync(source_course_id, dest_course_id):
+    """
+    Sync course assets from source course to destination course.
+    """
+    logger.info(
+        "Starting course assets sync from %s to %s", source_course_id, dest_course_id
+    )
+    source_course_key = CourseLocator.from_string(source_course_id)
+    dest_course_key = CourseLocator.from_string(dest_course_id)
+
+    module_store = modulestore()
+    if module_store.contentstore:
+        module_store.contentstore.delete_all_course_assets(dest_course_key)
+        module_store.contentstore.copy_all_course_assets(
+            source_course_key, dest_course_key
+        )
+        verify_static_assets(source_course_key, dest_course_key)
+    logger.info(
+        "Finished course assets sync from %s to %s", source_course_key, dest_course_key
     )
 
 

@@ -29,6 +29,7 @@ from ol_openedx_course_sync.utils import (
     update_default_tabs,
     verify_static_assets,
 )
+from opaque_keys.edx.locator import AssetLocator
 from openedx.core.djangoapps.content.course_overviews.tests.factories import (
     CourseOverviewFactory,
 )
@@ -415,138 +416,152 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             else:
                 assert actual_sync_mappings.count() == expected_sync_mappings_count
 
-    @skip_unless_cms
     @data(
-        # Test: matching assets (success case)
-        (
-            [
-                {"name": "test1.png", "length": 1024},
-                {"name": "test2.jpg", "length": 2048},
+        # Test case: assets match completely
+        {
+            "source_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+                {
+                    "content_son": {"name": "doc.pdf"},
+                    "length": 2048,
+                },
             ],
-            [
-                {"name": "test1.png", "length": 1024},
-                {"name": "test2.jpg", "length": 2048},
+            "source_count": 2,
+            "dest_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+                {
+                    "content_son": {"name": "doc.pdf"},
+                    "length": 2048,
+                },
             ],
-            None,
-        ),
-        # Test: asset count mismatch
-        (
-            [
-                {"name": "test1.png", "length": 1024},
-                {"name": "test2.jpg", "length": 2048},
+            "dest_count": 2,
+            "expected_result": True,
+        },
+        # Test case: asset count mismatch
+        {
+            "source_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+                {
+                    "content_son": {"name": "doc.pdf"},
+                    "length": 2048,
+                },
             ],
-            [
-                {"name": "test1.png", "length": 1024},
+            "source_count": 2,
+            "dest_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
             ],
-            (
-                "Asset count mismatch: source has %d assets, destination has %d assets",
-                2,
-                1,
-            ),
-        ),
-        # Test: missing asset in destination
-        (
-            [
-                {"name": "test1.png", "length": 1024},
-                {"name": "test2.jpg", "length": 2048},
+            "dest_count": 1,
+            "expected_result": False,
+        },
+        # Test case: missing asset in destination
+        {
+            "source_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+                {
+                    "content_son": {"name": "doc.pdf"},
+                    "length": 2048,
+                },
             ],
-            [
-                {"name": "test1.png", "length": 1024},
-                {"name": "different.jpg", "length": 2048},
+            "source_count": 2,
+            "dest_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+                {
+                    "content_son": {"name": "different.pdf"},
+                    "length": 2048,
+                },
             ],
-            ("Missing asset in destination course: %s", "test2.jpg"),
-        ),
-        # Test: asset length mismatch
-        (
-            [
-                {"name": "test1.png", "length": 1024},
+            "dest_count": 2,
+            "expected_result": False,
+        },
+        # Test case: asset length mismatch
+        {
+            "source_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
             ],
-            [
-                {"name": "test1.png", "length": 2048},
+            "source_count": 1,
+            "dest_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 2048,
+                },
             ],
-            (
-                "Asset length mismatch for asset %s: source has length %d, destination has length %d",  # noqa: E501
-                "test1.png",
-                1024,
-                2048,
-            ),
-        ),
-        # Test: empty courses
-        (
-            [],
-            [],
-            None,
-        ),
+            "dest_count": 1,
+            "expected_result": False,
+        },
+        # Test case: empty courses (no assets)
+        {
+            "source_assets": [],
+            "source_count": 0,
+            "dest_assets": [],
+            "dest_count": 0,
+            "expected_result": True,
+        },
     )
     @unpack
+    @skip_unless_cms
     def test_verify_static_assets(
-        self, source_assets, dest_assets, expected_error_call
+        self,
+        source_assets,
+        source_count,
+        dest_assets,
+        dest_count,
+        expected_result,
     ):
         """
-        Test verify_static_assets with various scenarios.
+        Test the verify_static_assets function with various scenarios.
         """
-        source_key = self.source_course.usage_key.course_key
-        dest_key = self.target_course.usage_key.course_key
+        source_course_key = self.source_course.usage_key.course_key
+        target_course_key = self.target_course.usage_key.course_key
+        for asset in source_assets:
+            asset["asset_key"] = str(
+                AssetLocator(source_course_key, "asset", asset["content_son"]["name"])
+            )
+        for asset in dest_assets:
+            asset["asset_key"] = str(
+                AssetLocator(target_course_key, "asset", asset["content_son"]["name"])
+            )
 
-        def create_asset_dict(asset_name, asset_length, course_key):
-            """Helper to create asset dictionary."""
-            return {
-                "asset_key": f"asset-v1:{course_key.org}+{course_key.course}+{course_key.run}+type@asset+block@{asset_name}",  # noqa: E501
-                "content_son": {"name": asset_name},
-                "length": asset_length,
-            }
-
-        mock_source_assets = [
-            create_asset_dict(asset["name"], asset["length"], source_key)
-            for asset in source_assets
-        ]
-        mock_dest_assets = [
-            create_asset_dict(asset["name"], asset["length"], dest_key)
-            for asset in dest_assets
-        ]
-
-        with (
-            mock.patch("ol_openedx_course_sync.utils.modulestore") as mock_modulestore,
-            mock.patch("ol_openedx_course_sync.utils.log") as mock_log,
-        ):
+        with mock.patch("ol_openedx_course_sync.utils.modulestore") as mock_modulestore:
             mock_contentstore = mock.Mock()
+            mock_module_store_instance = mock.Mock()
+            mock_module_store_instance.contentstore = mock_contentstore
+            mock_modulestore.return_value = mock_module_store_instance
             mock_contentstore.get_all_content_for_course.side_effect = [
-                (mock_source_assets, len(mock_source_assets)),
-                (mock_dest_assets, len(mock_dest_assets)),
+                (source_assets, source_count),
+                (dest_assets, dest_count),
             ]
-            mock_modulestore.return_value.contentstore = mock_contentstore
 
-            verify_static_assets(source_key, dest_key)
+            result = verify_static_assets(source_course_key, target_course_key)
 
-            if expected_error_call is None:
-                # No errors expected
-                mock_log.error.assert_not_called()
-            else:
-                # Verify the expected error was logged
-                error_msg_template = expected_error_call[0]
-                error_args = expected_error_call[1:]
-
-                # Handle asset key replacements for destination course
-                processed_args = []
-                for arg in error_args:
-                    if isinstance(arg, str) and arg in [
-                        a["name"] for a in source_assets
-                    ]:
-                        # This is an asset name that needs full key construction
-                        if "Missing asset" in error_msg_template:
-                            processed_args.append(
-                                f"asset-v1:{dest_key.org}+{dest_key.course}+{dest_key.run}+type@asset+block@{arg}"
-                            )
-                        else:
-                            processed_args.append(
-                                f"asset-v1:{source_key.org}+{source_key.course}+{source_key.run}+type@asset+block@{arg}"
-                            )
-                    else:
-                        processed_args.append(arg)
-
-                mock_log.error.assert_called_once_with(
-                    error_msg_template, *processed_args
-                )
+            assert result == expected_result
+            assert mock_contentstore.get_all_content_for_course.call_count == 2  # noqa: PLR2004
+            mock_contentstore.get_all_content_for_course.assert_any_call(
+                source_course_key
+            )
+            mock_contentstore.get_all_content_for_course.assert_any_call(
+                target_course_key
+            )
 
 
 @pytest.mark.django_db
