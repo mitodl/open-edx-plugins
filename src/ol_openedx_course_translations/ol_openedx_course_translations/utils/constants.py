@@ -235,8 +235,6 @@ PLURAL_CATEGORIES_THREE = 3  # one, few, other
 PLURAL_CATEGORIES_TWO = 2  # one, other (most languages)
 
 ENGLISH_LANGUAGE_CODE = "en"
-ES_LANGUAGE_CODE = "es"
-ES_419_LANGUAGE_CODE = "es-419"
 
 # HTML/XML attribute translation policy
 TRANSLATABLE_ATTRS_BASE = {

@@ -10,8 +10,3 @@ def plugin_settings(settings):
     Populate cms settings
     """
     apply_common_settings(settings)
-    settings.MIDDLEWARE.extend(
-        [
-            "ol_openedx_course_translations.middleware.CourseLanguageCookieResetMiddleware"
-        ]
-    )

@@ -7,14 +7,12 @@ def apply_common_settings(settings):
     """
     Apply custom settings function for LMS and CMS settings.
 
-    Configures translation-related settings including language selection,
-    supported file types, translation providers, and repository settings.
+    Configures translation-related settings including supported file types,
+    translation providers, and repository settings.
 
     Args:
         settings: Django settings object to modify
     """
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
-    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["admin", "sysadmin", "instructor"]
     settings.COURSE_TRANSLATIONS_TARGET_DIRECTORIES = [
         "about",
         "course",
