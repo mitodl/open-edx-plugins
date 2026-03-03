@@ -109,7 +109,6 @@ def async_course_assets_sync(source_course_id, dest_course_id):
     )
     source_course_key = CourseLocator.from_string(source_course_id)
     dest_course_key = CourseLocator.from_string(dest_course_id)
-
     module_store = modulestore()
     if module_store.contentstore:
         module_store.contentstore.delete_all_course_assets(dest_course_key)

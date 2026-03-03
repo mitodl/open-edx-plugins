@@ -47,7 +47,7 @@ def listen_for_course_publish(
             str(course_sync_mapping.source_course),
             str(course_sync_mapping.target_course),
         )
-        async_course_assets_sync(
+        async_course_assets_sync.delay(
             str(course_sync_mapping.source_course),
             str(course_sync_mapping.target_course),
         )
