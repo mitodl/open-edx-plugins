@@ -58,7 +58,7 @@ class CourseSyncMappingAdmin(admin.ModelAdmin):
     list_display = ("source_course", "target_course", "is_active")
     search_fields = ("source_course", "target_course")
     list_filter = ("is_active",)
-    actions = ("sync_course_content",)
+    actions = ("sync_course_content", "sync_course_assets")
 
     def get_readonly_fields(self, request, obj=None):  # noqa: ARG002
         """
