@@ -22,7 +22,7 @@ class CourseLanguageView(APIView):
     API View to retrieve the language of a specified course.
 
     Sample Request:
-        GET /course-translations/api/course_language/{course_key}/
+        GET /auto-language-select/api/course_language/{course_key}/
 
     Sample Response:
         200 OK
