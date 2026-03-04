@@ -1,5 +1,5 @@
 """
-Utils for ol_openedx_auto_language_select.
+Utils for ol_openedx_auto_select_language.
 """
 
 import re

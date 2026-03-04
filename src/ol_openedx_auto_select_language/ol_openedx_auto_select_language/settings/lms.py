@@ -2,7 +2,7 @@
 
 """Settings to provide to edX"""
 
-from ol_openedx_auto_language_select.settings.common import apply_common_settings
+from ol_openedx_auto_select_language.settings.common import apply_common_settings
 
 
 def plugin_settings(settings):
@@ -11,12 +11,12 @@ def plugin_settings(settings):
     """
     apply_common_settings(settings)
     settings.MIDDLEWARE.extend(
-        ["ol_openedx_auto_language_select.middleware.CourseLanguageCookieMiddleware"]
+        ["ol_openedx_auto_select_language.middleware.CourseLanguageCookieMiddleware"]
     )
     VIDEO_TRANSCRIPT_LANGUAGE_FILTERS = {
         "org.openedx.learning.xblock.render.started.v1": {
             "pipeline": [
-                "ol_openedx_auto_language_select.filters.AddDestLangForVideoBlock"
+                "ol_openedx_auto_select_language.filters.AddDestLangForVideoBlock"
             ],
             "fail_silently": False,
         }

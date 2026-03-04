@@ -1,5 +1,5 @@
 """
-ol_openedx_auto_language_select Django application initialization.
+ol_openedx_auto_select_language Django application initialization.
 """
 
 from django.apps import AppConfig
@@ -7,19 +7,19 @@ from edx_django_utils.plugins import PluginSettings, PluginURLs
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 
 
-class OLOpenEdxAutoLanguageSelectConfig(AppConfig):
+class OLOpenEdxAutoSelectLanguageConfig(AppConfig):
     """
-    Configuration for the ol_openedx_auto_language_select Django application.
+    Configuration for the ol_openedx_auto_select_language Django application.
     """
 
-    name = "ol_openedx_auto_language_select"
-    verbose_name = "OL Auto Language Select"
+    name = "ol_openedx_auto_select_language"
+    verbose_name = "OL Auto Select Language"
 
     plugin_app = {
         PluginURLs.CONFIG: {
             ProjectType.LMS: {
                 PluginURLs.NAMESPACE: "",
-                PluginURLs.REGEX: "^auto-language-select/",
+                PluginURLs.REGEX: "^auto-select-language/",
                 PluginURLs.RELATIVE_PATH: "urls",
             }
         },

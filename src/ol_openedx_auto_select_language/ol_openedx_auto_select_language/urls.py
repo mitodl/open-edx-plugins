@@ -1,11 +1,11 @@
 """
-URL configuration for ol_openedx_auto_language_select app.
+URL configuration for ol_openedx_auto_select_language app.
 """
 
 from django.conf import settings
 from django.urls import re_path
 
-from ol_openedx_auto_language_select.views import CourseLanguageView
+from ol_openedx_auto_select_language.views import CourseLanguageView
 
 urlpatterns = [
     re_path(

@@ -1,5 +1,5 @@
 """
-API Views for ol_openedx_auto_language_select App
+API Views for ol_openedx_auto_select_language App
 """
 
 import logging
@@ -12,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ol_openedx_auto_language_select.utils import LanguageCode
+from ol_openedx_auto_select_language.utils import LanguageCode
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class CourseLanguageView(APIView):
     API View to retrieve the language of a specified course.
 
     Sample Request:
-        GET /auto-language-select/api/course_language/{course_key}/
+        GET /auto-select-language/api/course_language/{course_key}/
 
     Sample Response:
         200 OK

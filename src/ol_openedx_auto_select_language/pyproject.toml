@@ -1,5 +1,5 @@
 [project]
-name = "ol-openedx-auto-language-select"
+name = "ol-openedx-auto-select-language"
 version = "0.1.0"
 description = "An Open edX plugin to auto-select the language based on course language settings."
 authors = [
@@ -16,24 +16,24 @@ dependencies = [
 ]
 
 [project.entry-points."cms.djangoapp"]
-ol_openedx_auto_language_select = "ol_openedx_auto_language_select.apps:OLOpenEdxAutoLanguageSelectConfig"
+ol_openedx_auto_select_language = "ol_openedx_auto_select_language.apps:OLOpenEdxAutoSelectLanguageConfig"
 
 [project.entry-points."lms.djangoapp"]
-ol_openedx_auto_language_select = "ol_openedx_auto_language_select.apps:OLOpenEdxAutoLanguageSelectConfig"
+ol_openedx_auto_select_language = "ol_openedx_auto_select_language.apps:OLOpenEdxAutoSelectLanguageConfig"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["ol_openedx_auto_language_select"]
+packages = ["ol_openedx_auto_select_language"]
 include = [
-  "ol_openedx_auto_language_select/**/*.py",
+  "ol_openedx_auto_select_language/**/*.py",
 ]
 
 [tool.hatch.build.targets.sdist]
 include = [
-  "ol_openedx_auto_language_select/**/*",
+  "ol_openedx_auto_select_language/**/*",
   "README.rst",
   "pyproject.toml",
 ]
