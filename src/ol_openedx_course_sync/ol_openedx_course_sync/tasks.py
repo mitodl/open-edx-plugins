@@ -20,6 +20,7 @@ from ol_openedx_course_sync.utils import (
     sync_course_updates,
     sync_discussions_configuration,
     update_default_tabs,
+    verify_static_assets,
 )
 
 logger = get_task_logger(__name__)
@@ -60,14 +61,8 @@ def async_course_sync(source_course_id, dest_course_id):
         source_course_key,
         dest_course_key,
     )
-    # Copy course assets and videos.
+    # Copy course videos.
     # These steps are taken from the course_rerun task in edx-platform.
-    module_store = modulestore()
-    if module_store.contentstore:
-        module_store.contentstore.delete_all_course_assets(dest_course_key)
-        module_store.contentstore.copy_all_course_assets(
-            source_course_key, dest_course_key
-        )
     copy_course_videos(source_course_key, dest_course_key)
 
     logger.info(
@@ -96,6 +91,37 @@ def async_course_sync(source_course_id, dest_course_id):
     )
     logger.debug(
         "Finished course sync from %s to %s", source_course_key, dest_course_key
+    )
+
+
+@shared_task(
+    base=LoggedPersistOnFailureTask,
+    autoretry_for=(Exception,),
+    max_retries=3,
+    default_retry_delay=30,
+)
+def async_course_assets_sync(source_course_id, dest_course_id):
+    """
+    Sync course assets from source course to destination course.
+    """
+    logger.info(
+        "Starting course assets sync from %s to %s", source_course_id, dest_course_id
+    )
+    source_course_key = CourseLocator.from_string(source_course_id)
+    dest_course_key = CourseLocator.from_string(dest_course_id)
+    module_store = modulestore()
+    if module_store.contentstore:
+        module_store.contentstore.delete_all_course_assets(dest_course_key)
+        module_store.contentstore.copy_all_course_assets(
+            source_course_key, dest_course_key
+        )
+        # Verify that static assets are copied successfully.
+        # If verification fails, raise an exception to trigger a retry of the task.
+        if not verify_static_assets(source_course_key, dest_course_key):
+            error_msg = "Static assets verification failed after copying course assets."
+            raise Exception(error_msg)  # noqa: TRY002
+    logger.info(
+        "Finished course assets sync from %s to %s", source_course_key, dest_course_key
     )
 
 

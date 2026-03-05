@@ -9,7 +9,7 @@ from django.contrib import admin
 from organizations.models import Organization
 
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
-from ol_openedx_course_sync.tasks import async_course_sync
+from ol_openedx_course_sync.tasks import async_course_assets_sync, async_course_sync
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class CourseSyncMappingAdmin(admin.ModelAdmin):
     list_display = ("source_course", "target_course", "is_active")
     search_fields = ("source_course", "target_course")
     list_filter = ("is_active",)
-    actions = ("sync_course_content",)
+    actions = ("sync_course_content", "sync_course_assets")
 
     def get_readonly_fields(self, request, obj=None):  # noqa: ARG002
         """
@@ -86,4 +86,24 @@ class CourseSyncMappingAdmin(admin.ModelAdmin):
             self.message_user(
                 request,
                 "Course sync started",
+            )
+
+    @admin.action(description="Sync Course Assets")
+    def sync_course_assets(self, request, queryset):
+        """
+        Sync course assets for selected CourseSyncMapping(s)
+        """
+        for course_sync_mapping in queryset:
+            log.info(
+                "Initializing course assets sync through admin actions from %s to %s",
+                course_sync_mapping.source_course,
+                course_sync_mapping.target_course,
+            )
+            async_course_assets_sync.delay(
+                str(course_sync_mapping.source_course),
+                str(course_sync_mapping.target_course),
+            )
+            self.message_user(
+                request,
+                "Course assets sync started",
             )

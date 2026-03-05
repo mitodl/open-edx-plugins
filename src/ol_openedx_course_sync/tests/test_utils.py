@@ -27,7 +27,9 @@ from ol_openedx_course_sync.utils import (
     sync_course_updates,
     sync_discussions_configuration,
     update_default_tabs,
+    verify_static_assets,
 )
+from opaque_keys.edx.locator import AssetLocator
 from openedx.core.djangoapps.content.course_overviews.tests.factories import (
     CourseOverviewFactory,
 )
@@ -413,6 +415,153 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
                 assert actual_sync_mappings is None
             else:
                 assert actual_sync_mappings.count() == expected_sync_mappings_count
+
+    @data(
+        # Test case: assets match completely
+        {
+            "source_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+                {
+                    "content_son": {"name": "doc.pdf"},
+                    "length": 2048,
+                },
+            ],
+            "source_count": 2,
+            "dest_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+                {
+                    "content_son": {"name": "doc.pdf"},
+                    "length": 2048,
+                },
+            ],
+            "dest_count": 2,
+            "expected_result": True,
+        },
+        # Test case: asset count mismatch
+        {
+            "source_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+                {
+                    "content_son": {"name": "doc.pdf"},
+                    "length": 2048,
+                },
+            ],
+            "source_count": 2,
+            "dest_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+            ],
+            "dest_count": 1,
+            "expected_result": False,
+        },
+        # Test case: missing asset in destination
+        {
+            "source_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+                {
+                    "content_son": {"name": "doc.pdf"},
+                    "length": 2048,
+                },
+            ],
+            "source_count": 2,
+            "dest_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+                {
+                    "content_son": {"name": "different.pdf"},
+                    "length": 2048,
+                },
+            ],
+            "dest_count": 2,
+            "expected_result": False,
+        },
+        # Test case: asset length mismatch
+        {
+            "source_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 1024,
+                },
+            ],
+            "source_count": 1,
+            "dest_assets": [
+                {
+                    "content_son": {"name": "image1.png"},
+                    "length": 2048,
+                },
+            ],
+            "dest_count": 1,
+            "expected_result": False,
+        },
+        # Test case: empty courses (no assets)
+        {
+            "source_assets": [],
+            "source_count": 0,
+            "dest_assets": [],
+            "dest_count": 0,
+            "expected_result": True,
+        },
+    )
+    @unpack
+    @skip_unless_cms
+    def test_verify_static_assets(
+        self,
+        source_assets,
+        source_count,
+        dest_assets,
+        dest_count,
+        expected_result,
+    ):
+        """
+        Test the verify_static_assets function with various scenarios.
+        """
+        source_course_key = self.source_course.usage_key.course_key
+        target_course_key = self.target_course.usage_key.course_key
+        for asset in source_assets:
+            asset["asset_key"] = str(
+                AssetLocator(source_course_key, "asset", asset["content_son"]["name"])
+            )
+        for asset in dest_assets:
+            asset["asset_key"] = str(
+                AssetLocator(target_course_key, "asset", asset["content_son"]["name"])
+            )
+
+        with mock.patch("ol_openedx_course_sync.utils.modulestore") as mock_modulestore:
+            mock_contentstore = mock.Mock()
+            mock_module_store_instance = mock.Mock()
+            mock_module_store_instance.contentstore = mock_contentstore
+            mock_modulestore.return_value = mock_module_store_instance
+            mock_contentstore.get_all_content_for_course.side_effect = [
+                (source_assets, source_count),
+                (dest_assets, dest_count),
+            ]
+
+            result = verify_static_assets(source_course_key, target_course_key)
+
+            assert result == expected_result
+            assert mock_contentstore.get_all_content_for_course.call_count == 2  # noqa: PLR2004
+            mock_contentstore.get_all_content_for_course.assert_any_call(
+                source_course_key
+            )
+            mock_contentstore.get_all_content_for_course.assert_any_call(
+                target_course_key
+            )
 
 
 @pytest.mark.django_db

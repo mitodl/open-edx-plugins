@@ -6,7 +6,7 @@ from unittest import mock
 
 from common.djangoapps.student.tests.factories import UserFactory
 from django.test import override_settings
-from ol_openedx_course_sync.tasks import async_course_sync
+from ol_openedx_course_sync.tasks import async_course_assets_sync, async_course_sync
 from openedx.core.djangolib.testing.utils import skip_unless_cms
 from xmodule.modulestore import ModuleStoreEnum
 
@@ -52,12 +52,7 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
                 "ol_openedx_course_sync.tasks.sync_course_handouts",
             ) as mock_sync_course_handouts,
         ):
-            mock_copy_all_course_assets = mock.Mock()
-            mock_delete_all_course_assets = mock.Mock()
             mock_contentstore = mock.Mock()
-            mock_contentstore.copy_all_course_assets = mock_copy_all_course_assets
-            mock_contentstore.delete_all_course_assets = mock_delete_all_course_assets
-
             mock_module_store_instance = mock.Mock()
             mock_module_store_instance.contentstore = mock_contentstore
             mock_modulestore.return_value = mock_module_store_instance
@@ -89,13 +84,42 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
                 self.source_course.usage_key.course_key,
                 self.target_course.usage_key.course_key,
             )
-            mock_copy_all_course_assets.assert_called_once()
-            mock_delete_all_course_assets.assert_called_once()
             mock_copy_static_tabs.assert_called_once()
             mock_update_default_tabs.assert_called_once()
             mock_sync_discussions_configuration.assert_called_once()
             mock_sync_course_updates.assert_called_once()
             mock_sync_course_handouts.assert_called_once()
+
+    def test_async_course_assets_sync(self):
+        """
+        Test the async_course_assets_sync task works as expected.
+        """
+        with (
+            mock.patch("ol_openedx_course_sync.tasks.modulestore") as mock_modulestore,
+            mock.patch(
+                "ol_openedx_course_sync.tasks.verify_static_assets"
+            ) as mock_verify_static_assets,
+        ):
+            mock_copy_all_course_assets = mock.Mock()
+            mock_delete_all_course_assets = mock.Mock()
+            mock_contentstore = mock.Mock()
+            mock_contentstore.copy_all_course_assets = mock_copy_all_course_assets
+            mock_contentstore.delete_all_course_assets = mock_delete_all_course_assets
+
+            mock_module_store_instance = mock.Mock()
+            mock_module_store_instance.contentstore = mock_contentstore
+            mock_modulestore.return_value = mock_module_store_instance
+
+            async_course_assets_sync(
+                str(self.source_course.usage_key.course_key),
+                str(self.target_course.usage_key.course_key),
+            )
+            mock_copy_all_course_assets.assert_called_once()
+            mock_delete_all_course_assets.assert_called_once()
+            mock_verify_static_assets.assert_called_once_with(
+                self.source_course.usage_key.course_key,
+                self.target_course.usage_key.course_key,
+            )
 
     @skip_unless_cms
     def test_async_discussions_configuration_sync(self):

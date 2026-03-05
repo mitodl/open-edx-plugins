@@ -10,6 +10,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from edx_django_utils.cache import TieredCache, get_cache_key
+from opaque_keys.edx.locator import AssetLocator
 from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
 from openedx.core.djangoapps.django_comment_common.models import (
     CourseDiscussionSettings,
@@ -285,6 +286,38 @@ def sync_course_handouts(source_course_key, target_course_key, user):
         )
     target_handouts.data = source_handouts.data
     store.update_item(target_handouts, user.id)
+
+
+def verify_static_assets(source_course_key, dest_course_key):
+    """
+    Verify that static assets have been copied successfully.
+    """
+    log.info(
+        "Verifying static assets for course sync from %s to %s",
+        source_course_key,
+        dest_course_key,
+    )
+    store = modulestore()
+    source_assets, source_asset_count = store.contentstore.get_all_content_for_course(
+        source_course_key
+    )
+    dest_assets, dest_asset_count = store.contentstore.get_all_content_for_course(
+        dest_course_key
+    )
+    if source_asset_count != dest_asset_count:
+        return False
+
+    source_assets = {str(asset["asset_key"]): asset for asset in source_assets}
+    dest_assets = {str(asset["asset_key"]): asset for asset in dest_assets}
+    for asset in source_assets.values():
+        dest_asset_key = str(
+            AssetLocator(dest_course_key, "asset", asset["content_son"]["name"])
+        )
+        dest_asset = dest_assets.get(dest_asset_key)
+        if not dest_asset or dest_asset["length"] != asset["length"]:
+            return False
+
+    return True
 
 
 def get_course_sync_service_user():

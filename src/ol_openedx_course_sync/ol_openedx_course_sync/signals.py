@@ -16,6 +16,7 @@ from openedx.core.djangoapps.django_comment_common.models import (
 from ol_openedx_course_sync.constants import COURSE_RERUN_STATE_SUCCEEDED
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
 from ol_openedx_course_sync.tasks import (
+    async_course_assets_sync,
     async_course_sync,
     async_discussions_configuration_sync,
 )
@@ -43,6 +44,10 @@ def listen_for_course_publish(
             course_sync_mapping.target_course,
         )
         async_course_sync.delay(
+            str(course_sync_mapping.source_course),
+            str(course_sync_mapping.target_course),
+        )
+        async_course_assets_sync.delay(
             str(course_sync_mapping.source_course),
             str(course_sync_mapping.target_course),
         )
@@ -76,6 +81,10 @@ def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa
         # Trigger course sync to sync the published changes.
         # When a course clone or rerun is created, published changes are not synced.
         async_course_sync.delay(
+            str(course_sync_mapping.source_course),
+            str(course_sync_mapping.target_course),
+        )
+        async_course_assets_sync.delay(
             str(course_sync_mapping.source_course),
             str(course_sync_mapping.target_course),
         )
