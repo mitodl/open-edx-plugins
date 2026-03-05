@@ -736,7 +736,7 @@ wheels = [
 
 [[package]]
 name = "django"
-version = "5.2.11"
+version = "5.2.12"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version < '3.12'",
@@ -746,14 +746,14 @@ dependencies = [
     { name = "sqlparse", marker = "python_full_version < '3.12'" },
     { name = "tzdata", marker = "python_full_version < '3.12' and sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/f2/3e57ef696b95067e05ae206171e47a8e53b9c84eec56198671ef9eaa51a6/django-5.2.11.tar.gz", hash = "sha256:7f2d292ad8b9ee35e405d965fbbad293758b858c34bbf7f3df551aeeac6f02d3", size = 10885017, upload-time = "2026-02-03T13:52:50.554Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bd/55/b9445fc0695b03746f355c05b2eecc54c34e05198c686f4fc4406b722b52/django-5.2.12.tar.gz", hash = "sha256:6b809af7165c73eff5ce1c87fdae75d4da6520d6667f86401ecf55b681eb1eeb", size = 10860574, upload-time = "2026-03-03T13:56:05.509Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/a7/2b112ab430575bf3135b8304ac372248500d99c352f777485f53fdb9537e/django-5.2.11-py3-none-any.whl", hash = "sha256:e7130df33ada9ab5e5e929bc19346a20fe383f5454acb2cc004508f242ee92c0", size = 8291375, upload-time = "2026-02-03T13:52:42.47Z" },
+    { url = "https://files.pythonhosted.org/packages/4e/32/4b144e125678efccf5d5b61581de1c4088d6b0286e46096e3b8de0d556c8/django-5.2.12-py3-none-any.whl", hash = "sha256:4853482f395c3a151937f6991272540fcbf531464f254a347bf7c89f53c8cff7", size = 8310245, upload-time = "2026-03-03T13:56:01.174Z" },
 ]
 
 [[package]]
 name = "django"
-version = "6.0.2"
+version = "6.0.3"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -764,9 +764,9 @@ dependencies = [
     { name = "sqlparse", marker = "python_full_version >= '3.12'" },
     { name = "tzdata", marker = "python_full_version >= '3.12' and sys_platform == 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/26/3e/a1c4207c5dea4697b7a3387e26584919ba987d8f9320f59dc0b5c557a4eb/django-6.0.2.tar.gz", hash = "sha256:3046a53b0e40d4b676c3b774c73411d7184ae2745fe8ce5e45c0f33d3ddb71a7", size = 10886874, upload-time = "2026-02-03T13:50:31.596Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/80/e1/894115c6bd70e2c8b66b0c40a3c367d83a5a48c034a4d904d31b62f7c53a/django-6.0.3.tar.gz", hash = "sha256:90be765ee756af8a6cbd6693e56452404b5ad15294f4d5e40c0a55a0f4870fe1", size = 10872701, upload-time = "2026-03-03T13:55:15.026Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/ba/a6e2992bc5b8c688249c00ea48cb1b7a9bc09839328c81dc603671460928/django-6.0.2-py3-none-any.whl", hash = "sha256:610dd3b13d15ec3f1e1d257caedd751db8033c5ad8ea0e2d1219a8acf446ecc6", size = 8339381, upload-time = "2026-02-03T13:50:15.501Z" },
+    { url = "https://files.pythonhosted.org/packages/72/b1/23f2556967c45e34d3d3cf032eb1bd3ef925ee458667fb99052a0b3ea3a6/django-6.0.3-py3-none-any.whl", hash = "sha256:2e5974441491ddb34c3f13d5e7a9f97b07ba03bf70234c0a9c68b79bbb235bc3", size = 8358527, upload-time = "2026-03-03T13:55:10.552Z" },
 ]
 
 [[package]]
@@ -774,8 +774,8 @@ name = "django-crum"
 version = "0.7.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/34/1d/c56588f67130aeef8828e47535e8551337d2ae02f91f1414da61bc5e49fb/django-crum-0.7.9.tar.gz", hash = "sha256:65e9bc0f070a663fafc4d9e357f45fd4e6f01838b20a9e2fb7670f5706754288", size = 5168, upload-time = "2020-11-10T17:15:35.124Z" }
 wheels = [
@@ -787,8 +787,8 @@ name = "django-waffle"
 version = "5.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/22/e1/6f533da0d4ac89f427dfd9410e39bfc14ae3a23335ecd549d76be4b2a834/django_waffle-5.0.0.tar.gz", hash = "sha256:62f9d00eedf68dafb82657beab56e601bddedc1ea1ccfef91d83df8658708509", size = 37761, upload-time = "2025-06-12T07:38:54.895Z" }
 wheels = [
@@ -800,8 +800,8 @@ name = "djangorestframework"
 version = "3.16.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8a/95/5376fe618646fde6899b3cdc85fd959716bb67542e273a76a80d9f326f27/djangorestframework-3.16.1.tar.gz", hash = "sha256:166809528b1aced0a17dc66c24492af18049f2c9420dbd0be29422029cfc3ff7", size = 1089735, upload-time = "2025-08-06T17:50:53.251Z" }
 wheels = [
@@ -831,8 +831,8 @@ name = "drf-jwt"
 version = "1.19.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "pyjwt", extra = ["crypto"] },
 ]
@@ -860,8 +860,8 @@ version = "8.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "django-crum" },
     { name = "django-waffle" },
     { name = "psutil" },
@@ -878,8 +878,8 @@ name = "edx-drf-extensions"
 version = "10.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "django-waffle" },
     { name = "djangorestframework" },
     { name = "drf-jwt" },
@@ -910,11 +910,11 @@ wheels = [
 
 [[package]]
 name = "edx-sysadmin"
-version = "0.4.0"
+version = "0.4.1"
 source = { editable = "src/edx_sysadmin" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "edx-drf-extensions" },
@@ -936,8 +936,8 @@ version = "0.5.0"
 source = { editable = "src/edx_username_changer" }
 dependencies = [
     { name = "celery" },
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
 ]
@@ -2013,8 +2013,8 @@ version = "0.6.0"
 source = { editable = "src/ol_openedx_canvas_integration" }
 dependencies = [
     { name = "celery" },
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "edx-drf-extensions" },
@@ -2035,11 +2035,11 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat"
-version = "0.5.4"
+version = "0.5.5"
 source = { editable = "src/ol_openedx_chat" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "xblock" },
@@ -2058,8 +2058,8 @@ name = "ol-openedx-chat-xblock"
 version = "0.4.5"
 source = { editable = "src/ol_openedx_chat_xblock" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "xblock" },
@@ -2080,8 +2080,8 @@ name = "ol-openedx-checkout-external"
 version = "0.2.0"
 source = { editable = "src/ol_openedx_checkout_external" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "edx-drf-extensions" },
@@ -2103,8 +2103,8 @@ version = "0.2.0"
 source = { editable = "src/ol_openedx_course_export" }
 dependencies = [
     { name = "celery" },
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "edx-drf-extensions" },
@@ -2126,8 +2126,8 @@ name = "ol-openedx-course-structure-api"
 version = "0.2.0"
 source = { editable = "src/ol_openedx_course_structure_api" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "edx-drf-extensions" },
@@ -2145,11 +2145,11 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-sync"
-version = "0.5.3"
+version = "0.5.4"
 source = { editable = "src/ol_openedx_course_sync" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "edx-opaque-keys" },
@@ -2167,12 +2167,12 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-translations"
-version = "0.4.2"
+version = "0.4.3"
 source = { editable = "src/ol_openedx_course_translations" }
 dependencies = [
     { name = "deepl" },
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-opaque-keys" },
     { name = "gitpython" },
@@ -2201,8 +2201,8 @@ version = "0.7.1"
 source = { editable = "src/ol_openedx_git_auto_export" }
 dependencies = [
     { name = "celery" },
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "edx-django-utils" },
     { name = "edx-opaque-keys" },
     { name = "gitpython" },
@@ -2224,8 +2224,8 @@ name = "ol-openedx-logging"
 version = "0.2.0"
 source = { editable = "src/ol_openedx_logging" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "python-json-logger" },
 ]
 
@@ -2240,8 +2240,8 @@ name = "ol-openedx-lti-utilities"
 version = "0.1.2"
 source = { editable = "src/ol_openedx_lti_utilities" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "edx-drf-extensions" },
@@ -2262,8 +2262,8 @@ name = "ol-openedx-otel-monitoring"
 version = "0.2.0"
 source = { editable = "src/ol_openedx_otel_monitoring" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "opentelemetry-distro" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-exporter-richconsole" },
@@ -2284,8 +2284,8 @@ name = "ol-openedx-rapid-response-reports"
 version = "0.4.0"
 source = { editable = "src/ol_openedx_rapid_response_reports" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "edx-drf-extensions" },
@@ -2306,8 +2306,8 @@ name = "ol-openedx-sentry"
 version = "0.3.0"
 source = { editable = "src/ol_openedx_sentry" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sentry-sdk" },
 ]
 
@@ -2322,8 +2322,8 @@ name = "ol-social-auth"
 version = "0.2.0"
 source = { editable = "src/ol_social_auth" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "social-auth-core" },
 ]
 
@@ -2339,8 +2339,8 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "celery" },
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
     { name = "edx-drf-extensions" },
@@ -2429,8 +2429,8 @@ name = "openedx-companion-auth"
 version = "1.2.0"
 source = { editable = "src/openedx_companion_auth" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-django-utils" },
 ]
@@ -2447,8 +2447,8 @@ name = "openedx-django-pyfs"
 version = "3.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "fs" },
     { name = "fs-s3fs" },
 ]
@@ -2463,8 +2463,8 @@ version = "10.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "edx-ccx-keys" },
     { name = "edx-django-utils" },
     { name = "edx-opaque-keys" },
@@ -3262,8 +3262,8 @@ name = "rapid-response-xblock"
 version = "0.11.0"
 source = { editable = "src/rapid_response_xblock" }
 dependencies = [
-    { name = "django", version = "5.2.11", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "xblock" },
 ]
