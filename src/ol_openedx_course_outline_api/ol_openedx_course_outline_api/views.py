@@ -3,22 +3,27 @@ Views for the public Course Outline API (Learn product page modules).
 """
 
 import logging
+from datetime import UTC
 
+from lms.djangoapps.course_api.blocks.api import get_blocks
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
+from openedx.core.lib.api.view_utils import (
+    DeveloperErrorViewMixin,
+    verify_course_exists,
+)
+from openedx.features.effort_estimation.block_transformers import (
+    EffortEstimationTransformer,
+)
 from rest_framework import status
-from rest_framework.permissions import AllowAny
 from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from xmodule.modulestore.django import modulestore
-
-from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, verify_course_exists
-from lms.djangoapps.course_api.blocks.api import get_blocks
-from openedx.features.effort_estimation.block_transformers import EffortEstimationTransformer
 from xmodule.course_block import (
     COURSE_VISIBILITY_PUBLIC,
     COURSE_VISIBILITY_PUBLIC_OUTLINE,
 )
+from xmodule.modulestore.django import modulestore
 
 log = logging.getLogger(__name__)
 
@@ -66,7 +71,11 @@ def _count_app_items_under_chapter(blocks_data, chapter_id):
         block_type = block.get("type") or ""
         children = block.get("children") or []
         is_leaf = len(children) == 0
-        if is_leaf and block_type not in CONTAINER_TYPES and block_type not in KNOWN_LEAF_TYPES:
+        if (
+            is_leaf
+            and block_type not in CONTAINER_TYPES
+            and block_type not in KNOWN_LEAF_TYPES
+        ):
             count += 1
     return count
 
@@ -86,12 +95,14 @@ def _build_modules_from_blocks(blocks_data, root_id):
                 counts[learn_key] = block_counts.get(block_type, 0)
         counts["assignments"] = _count_assignments_under_chapter(blocks_data, child_id)
         counts["app_items"] = _count_app_items_under_chapter(blocks_data, child_id)
-        modules.append({
-            "id": child_id,
-            "title": block.get("display_name") or "",
-            "estimated_time_seconds": block.get("effort_time") or 0,
-            "counts": counts,
-        })
+        modules.append(
+            {
+                "id": child_id,
+                "title": block.get("display_name") or "",
+                "estimated_time_seconds": block.get("effort_time") or 0,
+                "counts": counts,
+            }
+        )
     return modules
 
 
@@ -132,7 +143,10 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
 
         if ENFORCE_PUBLIC_ACCESS:
             visibility = getattr(course, "course_visibility", None)
-            if visibility not in (COURSE_VISIBILITY_PUBLIC, COURSE_VISIBILITY_PUBLIC_OUTLINE):
+            if visibility not in (
+                COURSE_VISIBILITY_PUBLIC,
+                COURSE_VISIBILITY_PUBLIC_OUTLINE,
+            ):
                 try:
                     from lms.djangoapps.courseware.access import has_access
 
@@ -172,12 +186,12 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
         blocks_data = blocks_response.get("blocks") or {}
         modules = _build_modules_from_blocks(blocks_data, root_id)
 
-        from datetime import datetime, timezone as dt_tz
+        from datetime import datetime
 
         return Response(
             {
                 "course_id": str(course_key),
-                "generated_at": datetime.now(dt_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "modules": modules,
             },
             status=status.HTTP_200_OK,
