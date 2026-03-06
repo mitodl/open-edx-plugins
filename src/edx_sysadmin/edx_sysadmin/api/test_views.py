@@ -181,7 +181,7 @@ class GitReloadAPIViewTestCase(TestCase):
                 mocked_get_local_course_repo.assert_called_once_with(repo_name)
 
             if response.status_code == _status.HTTP_200_OK:
-                assert mocked_add_repo.assert_called
+                mocked_add_repo.delay.assert_called()
 
     # Should return a bad request when "SYSADMIN_DEFAULT_BRANCH" is not configured
     @override_settings(SYSADMIN_GITHUB_WEBHOOK_KEY=SYSADMIN_GITHUB_WEBHOOK_KEY)
