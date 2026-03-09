@@ -26,4 +26,12 @@ class Migration(migrations.Migration):
                 max_length=255, primary_key=True, serialize=False
             ),
         ),
+        migrations.AlterModelOptions(
+            name="contentgitrepository",
+            options={
+                "ordering": ["-created"],
+                "verbose_name": "Content Git Repository",
+                "verbose_name_plural": "Content Git Repositories",
+            },
+        ),
     ]
