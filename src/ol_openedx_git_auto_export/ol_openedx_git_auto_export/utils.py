@@ -184,6 +184,15 @@ def export_library_to_git(library_key):
 
 
 def is_auto_export_enabled(is_library=False):  # noqa: FBT002
+    """
+    Check if automatic Git export is enabled.
+
+    Args:
+        is_library (bool): Whether checking for library (True) or course (False).
+
+    Returns:
+        bool: True if automatic Git export is enabled, False otherwise.
+    """
     git_export_enabled = settings.FEATURES.get("ENABLE_EXPORT_GIT")
     if is_library:
         return git_export_enabled and settings.FEATURES.get(

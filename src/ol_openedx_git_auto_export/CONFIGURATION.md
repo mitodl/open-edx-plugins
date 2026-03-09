@@ -8,7 +8,7 @@ This document describes the available feature flags for controlling git auto-exp
 
 #### `ENABLE_GIT_AUTO_EXPORT`
 - **Type**: Boolean
-- **Default**: `False`
+- **Default**: `True`
 - **Purpose**: Controls automatic git export for courses when they are published
 - **Scope**: Courses only (unless library flag not set, see below)
 - **Location**: `settings.FEATURES['ENABLE_GIT_AUTO_EXPORT']`
