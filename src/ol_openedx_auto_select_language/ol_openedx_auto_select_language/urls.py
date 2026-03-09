@@ -9,8 +9,14 @@ from ol_openedx_auto_select_language.views import CourseLanguageView
 
 urlpatterns = [
     re_path(
-        rf"api/course-language/{settings.COURSE_KEY_PATTERN}$",
+        rf"auto-select-language/api/course-language/{settings.COURSE_KEY_PATTERN}$",
         CourseLanguageView.as_view(),
         name="ol_course_language",
+    ),
+    # TODO: Remove the legacy endpoint in a future release after updating all clients to use the new endpoint.
+    re_path(
+        rf"/course-translations/api/course-language/{settings.COURSE_KEY_PATTERN}$",
+        CourseLanguageView.as_view(),
+        name="ol_course_language_legacy",
     ),
 ]

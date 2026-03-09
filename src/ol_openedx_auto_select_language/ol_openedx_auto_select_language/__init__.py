@@ -1,3 +1,3 @@
 """
-MIT's Open edX auto select language plugin
+MIT's Open edX auto language selection plugin
 """

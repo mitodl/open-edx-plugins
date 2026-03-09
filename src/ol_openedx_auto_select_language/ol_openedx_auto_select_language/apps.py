@@ -19,7 +19,7 @@ class OLOpenEdxAutoSelectLanguageConfig(AppConfig):
         PluginURLs.CONFIG: {
             ProjectType.LMS: {
                 PluginURLs.NAMESPACE: "",
-                PluginURLs.REGEX: "^auto-select-language/",
+                PluginURLs.REGEX: "",
                 PluginURLs.RELATIVE_PATH: "urls",
             }
         },
