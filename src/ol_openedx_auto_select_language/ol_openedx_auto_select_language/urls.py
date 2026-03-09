@@ -16,7 +16,7 @@ urlpatterns = [
     # TODO: Remove the legacy endpoint in a  # noqa: FIX002, TD003, TD002
     #  future release after updating all clients to use the new endpoint.
     re_path(
-        rf"/course-translations/api/course-language/{settings.COURSE_KEY_PATTERN}$",
+        rf"course-translations/api/course-language/{settings.COURSE_KEY_PATTERN}$",
         CourseLanguageView.as_view(),
         name="ol_course_language_legacy",
     ),
