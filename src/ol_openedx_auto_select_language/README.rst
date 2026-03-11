@@ -1,5 +1,5 @@
 OL Open edX Auto Select Language
-===============================
+================================
 
 An Open edX plugin to auto select the Open edX platform language based on the course language.
 
