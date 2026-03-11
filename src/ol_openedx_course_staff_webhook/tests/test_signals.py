@@ -33,10 +33,7 @@ def _make_role_data(
 class TestListenForCourseAccessRoleAdded(TestCase):
     """Tests for listen_for_course_access_role_added signal receiver."""
 
-    @mock.patch(
-        "ol_openedx_course_staff_webhook.signals"
-        ".notify_course_staff_addition"
-    )
+    @mock.patch("ol_openedx_course_staff_webhook.signals.notify_course_staff_addition")
     def test_triggers_task_for_instructor_role(self, mock_task):
         """Task should be triggered when an instructor role is added."""
         role_data = _make_role_data(role="instructor")
@@ -52,10 +49,7 @@ class TestListenForCourseAccessRoleAdded(TestCase):
             role="instructor",
         )
 
-    @mock.patch(
-        "ol_openedx_course_staff_webhook.signals"
-        ".notify_course_staff_addition"
-    )
+    @mock.patch("ol_openedx_course_staff_webhook.signals.notify_course_staff_addition")
     def test_triggers_task_for_staff_role(self, mock_task):
         """Task should be triggered when a staff role is added."""
         role_data = _make_role_data(role="staff")
@@ -71,10 +65,7 @@ class TestListenForCourseAccessRoleAdded(TestCase):
             role="staff",
         )
 
-    @mock.patch(
-        "ol_openedx_course_staff_webhook.signals"
-        ".notify_course_staff_addition"
-    )
+    @mock.patch("ol_openedx_course_staff_webhook.signals.notify_course_staff_addition")
     def test_ignores_non_staff_roles(self, mock_task):
         """Task should NOT be triggered for roles not in the allowed list."""
         role_data = _make_role_data(role="beta_testers")
@@ -93,10 +84,7 @@ class TestListenForCourseAccessRoleAdded(TestCase):
             "data_researcher",
         ]
     )
-    @mock.patch(
-        "ol_openedx_course_staff_webhook.signals"
-        ".notify_course_staff_addition"
-    )
+    @mock.patch("ol_openedx_course_staff_webhook.signals.notify_course_staff_addition")
     def test_respects_custom_roles_setting(self, mock_task):
         """Custom roles in settings should trigger task."""
         role_data = _make_role_data(role="data_researcher")
@@ -113,13 +101,8 @@ class TestListenForCourseAccessRoleAdded(TestCase):
         )
 
     @override_settings(MITXONLINE_COURSE_STAFF_ROLES=["instructor"])
-    @mock.patch(
-        "ol_openedx_course_staff_webhook.signals"
-        ".notify_course_staff_addition"
-    )
-    def test_ignores_staff_when_not_in_custom_roles(
-        self, mock_task
-    ):
+    @mock.patch("ol_openedx_course_staff_webhook.signals.notify_course_staff_addition")
+    def test_ignores_staff_when_not_in_custom_roles(self, mock_task):
         """Task should NOT trigger for excluded roles."""
         role_data = _make_role_data(role="staff")
 

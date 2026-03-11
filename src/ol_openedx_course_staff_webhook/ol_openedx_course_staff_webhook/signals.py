@@ -29,7 +29,6 @@ def listen_for_course_access_role_added(
             assignment, including user info, course key, org, and role.
         **kwargs: Additional keyword arguments from the signal.
     """
-    print(f"\n\n\n\nReceived COURSE_ACCESS_ROLE_ADDED signal with data: {course_access_role_data}\n\n\n\n")
     allowed_roles = getattr(
         settings,
         "MITXONLINE_COURSE_STAFF_ROLES",

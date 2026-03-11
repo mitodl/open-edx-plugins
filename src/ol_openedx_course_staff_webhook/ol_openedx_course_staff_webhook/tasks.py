@@ -17,9 +17,7 @@ REQUEST_TIMEOUT = 30
     retry_backoff=True,
     retry_backoff_max=120,
 )
-def notify_course_staff_addition(
-    *, user_email, course_key, role
-):
+def notify_course_staff_addition(*, user_email, course_key, role):
     """
     Notify MITx Online that a user has been given a course staff role.
 
