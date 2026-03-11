@@ -1,0 +1,34 @@
+[project]
+name = "mitol-django-ol_ai_static_translations"
+version = "2026.3.11"
+description = "MIT Open Learning Django app for AI-powered static translation synchronization and management"
+readme = "README.md"
+license = "BSD-3-Clause"
+requires-python = ">=3.11"
+dependencies = [
+    "Django>=4.0",
+    "litellm>=1.80.0",
+    "GitPython>=3.1.40",
+    "requests>=2.31.0",
+    "polib>=1.2.0",
+]
+
+[tool.bumpver]
+current_version = "2026.3.11"
+version_pattern = "YYYY.MM.DD[.INC0]"
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = ['version = "{version}"']
+"mitol/ol_ai_static_translations/__init__.py" = ['__version__ = "{version}"']
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = ["CHANGELOG.md", "README.md", "py.typed", "**/*.py"]
+exclude = ["BUILD", "pyproject.toml"]
+
+[tool.hatch.build.targets.wheel]
+include = ["CHANGELOG.md", "README.md", "py.typed", "**/*.py"]
+exclude = ["BUILD", "pyproject.toml"]
