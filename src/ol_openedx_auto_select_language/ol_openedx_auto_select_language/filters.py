@@ -1,14 +1,14 @@
 """
-Filters for Open edX course translations.
+Filters for Open edX auto select language.
 """
 
 from openedx_filters import PipelineStep
 from xmodule.modulestore.django import modulestore
 
-from ol_openedx_course_translations.utils.constants import (
+from ol_openedx_auto_select_language.constants import (
     ENGLISH_LANGUAGE_CODE,
 )
-from ol_openedx_course_translations.utils.course_translations import LanguageCode
+from ol_openedx_auto_select_language.utils import LanguageCode
 
 VIDEO_BLOCK_TYPE = "video"
 

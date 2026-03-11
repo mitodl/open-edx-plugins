@@ -17,6 +17,7 @@ edx-extensions/
 ├── src/                          # Source code (workspace with 17 plugin packages)
 │   ├── edx_sysadmin/            # SysAdmin dashboard plugin
 │   ├── edx_username_changer/    # Username modification plugin
+│   ├── ol_openedx_auto_select_language/    # Open edX plugin to auto select language based on course language
 │   ├── ol_openedx_chat/         # Chat integration
 │   ├── ol_openedx_chat_xblock/  # Chat XBlock
 │   ├── ol_openedx_course_sync/  # Course synchronization

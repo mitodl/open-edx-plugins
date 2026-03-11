@@ -2,7 +2,7 @@ Change Log
 ----------
 
 ..
-   All enhancements and patches to ol_openedx_course_translations will be documented
+   All enhancements and patches to ol_openedx_auto_select_language will be documented
    in this file.  It adheres to the structure of https://keepachangelog.com/ ,
    but in reStructuredText instead of Markdown (for ease of incorporation into
    Sphinx documentation and the PyPI description).
