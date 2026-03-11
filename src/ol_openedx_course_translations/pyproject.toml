@@ -14,9 +14,6 @@ dependencies = [
   "djangorestframework>=3.14.0",
   "deepl>=1.25.0",
   "litellm>=1.80.0",
-  "GitPython>=3.1.40",
-  "requests>=2.31.0",
-  "polib>=1.2.0",
   "srt>=3.5.3",
   "edx-opaque-keys",
 ]
