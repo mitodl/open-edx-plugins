@@ -1,12 +1,13 @@
-ol-openedx-course-staff-webhook
-================================
+OL Open edX Course Staff Webhook
+#################################
 
 An Open edX plugin that listens for course access role additions and fires a
 webhook to notify an external system (e.g. MITx Online) to enroll course staff
 as auditors.
 
-Overview
---------
+
+Purpose
+*******
 
 When an instructor or staff member is added to a course in Open edX (via Studio
 or the LMS Instructor Dashboard), this plugin listens for the
@@ -14,21 +15,35 @@ or the LMS Instructor Dashboard), this plugin listens for the
 MITx Online enrollment webhook to enroll the user as an auditor in the
 corresponding course.
 
+
+Installation
+============
+
+For detailed installation instructions, please refer to the `plugin installation guide <../../docs#installation-guide>`_.
+
+Installation required in:
+
+* LMS
+* Studio (CMS)
+
+
 Configuration
--------------
+=============
 
-The following Django settings must be configured:
+edx-platform configuration
+---------------------------
 
-``MITXONLINE_WEBHOOK_URL``
-    The URL of the MITx Online webhook endpoint for course staff enrollment.
-    Example: ``https://mitxonline.example.com/api/v1/staff_enrollment_webhook/``
+- Add the following configuration values to the config file in Open edX. For any release after Juniper, that config file is ``/edx/etc/lms.yml`` and ``/edx/etc/cms.yml``. If you're using ``private.py``, add these values to ``lms/envs/private.py`` and ``cms/envs/private.py``. These should be added to the top level.
 
-``MITXONLINE_WEBHOOK_KEY``
-    An API key or token used to authenticate requests to the MITx Online webhook.
+  .. code-block:: yaml
 
-``MITXONLINE_COURSE_STAFF_ROLES``
-    A list of course access role strings to act upon. Defaults to
-    ``["instructor", "staff"]``.
+    MITXONLINE_WEBHOOK_URL: "https://mitxonline.example.com/api/v1/staff_enrollment_webhook/"
+    MITXONLINE_WEBHOOK_KEY: "<your-webhook-api-key>"
 
-These settings can be configured in the LMS/CMS environment configuration
-(e.g. ``lms.yml`` / ``cms.yml``) under the appropriate tokens.
+- Optionally, override the roles that trigger the webhook (defaults to ``["instructor", "staff"]``):
+
+  .. code-block:: yaml
+
+    MITXONLINE_COURSE_STAFF_ROLES: ["instructor", "staff"]
+
+- For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
