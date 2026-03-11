@@ -1,0 +1,988 @@
+# EL HINTS
+## TERM MAPPINGS
+The following mappings are the CANONICAL Greek translations for AI/ML terms.
+When translating TO GREEK, you MUST use these exact Greek terms for the listed English expressions whenever the same technical meaning is intended.
+
+- 'a priori probability' -> «πιθανότητα εκ των προτέρων»
+- 'A* Search' -> «αλγόριθμοι αναζήτησης Α*»
+- 'Abductive logic programming (ALP)' -> «Προγραμματισμός απαγωγικής λογικής (ALP)»
+- 'Abductive reasoning' -> «Απαγωγικός συλλογισμός»
+- 'abductive reasoning' -> «απαγωγική συλλογιστική»
+- 'Abstract data type' -> «Αφηρημένος τύπος δεδομένων»
+- 'abstract plan' -> «αφηρημένο πλάνο»
+- 'Abstraction' -> «Αφαίρεση»
+- 'Accelerating change' -> «Επιταχυνόμενη αλλαγή»
+- 'accretive associative memory' -> «προσαυξητική μνήμη συσχέτισης»
+- 'acquisitional efficiency' -> «αποδοτικότητα απόκτησης»
+- 'action' -> «ενέργεια»
+- 'Action language' -> «Γλώσσα δράσης»
+- 'Action model learning' -> «Εκμάθηση μοντέλου δράσης»
+- 'action schemas' -> «σχήματα ενεργειών»
+- 'Action selection' -> «Επιλογή δράσης»
+- 'Activation function' -> «Λειτουργία ενεργοποίησης»
+- 'activation function' -> «συνάρτηση ενεργοποίησης»
+- 'active' -> «ενεργός»
+- 'active database' -> «ενεργή βάση δεδομένων»
+- 'active rule' -> «ενεργός κανόνας»
+- 'active troubleshooting' -> «ενεργητική διάγνωση»
+- 'Adaptive algorithm' -> «Προσαρμοστικός αλγόριθμος»
+- 'Adaptive neuro fuzzy inference system (ANFIS)' -> «Προσαρμοστικό σύστημα ασαφών συμπερασμάτων δίκτυου»
+- 'adaptivity' -> «προσαρμοστικότητα»
+- 'add list' -> «λίστα προσθηκών»
+- 'admissibility criterion' -> «κριτήριο αποδοχής»
+- 'admissible' -> «αποδεκτός»
+- 'Admissible heuristic' -> «Παραδεκτό ευρετικό»
+- 'adversary game' -> «ανταγωνιστικό παίγνιο»
+- 'Affective computing' -> «Συναισθηματική υπολογιστική»
+- 'agent' -> «πράκτορας»
+- 'Agent architecture' -> «Αρχιτεκτονική πράκτορα»
+- 'agglomerative algorithm' -> «αλγόριθμος συγχώνευσης»
+- 'AI' -> «τεχνητή νοημοσύνη»
+- 'AI accelerator' -> «Επιταχυντής AI»
+- 'AI-complete' -> «AI-πλήρης»
+- 'Algorithm' -> «Αλγόριθμος»
+- 'algorithm' -> «αλγόριθμος»
+- 'Algorithmic efficiency' -> «Αλγοριθμική απόδοση»
+- 'Algorithmic probability' -> «Αλγοριθμική πιθανότητα»
+- 'Alpha-Beta algorithm' -> «αλγόριθμος άλφα-βήτα»
+- 'Alpha-Beta search' -> «αναζήτηση άλφα-βήτα»
+- 'Ambient intelligence (AmI)' -> «Ευφυΐα περιβάλλοντος»
+- 'ambiguity' -> «πολυσημαντικότητα»
+- 'analogical reasoning' -> «συλλογιστική με αναλογίες»
+- 'Analysis of algorithms' -> «Ανάλυση αλγορίθμων»
+- 'Analytics' -> «Ανάλυση»
+- 'AND tree' -> «δένδρο ΚΑΙ»
+- 'AND/OR tree' -> «δένδρο ΚΑΙ / Ή»
+- 'Answer set programming (ASP)' -> «Προγραμματισμός συνόλου απαντήσεων»
+- 'Anytime algorithm' -> «Ανα πάσα στιγμή Αλγόριθμος»
+- 'Application programming interface (API)' -> «Διεπαφή προγραμματισμού εφαρμογών»
+- 'Approximate string matching' -> «Κατά προσέγγιση ταίριασμα συμβολοσειρών»
+- 'Approximation error' -> «Σφάλμα προσέγγισης»
+- 'arc consistency' -> «συνέπεια τόξου»
+- 'Argumentation framework' -> «Πλαίσιο επιχειρημάτων»
+- 'artificial agent' -> «τεχνητός πράκτορας»
+- 'Artificial general intelligence (AGI)' -> «Τεχνητή γενική νοημοσύνη»
+- 'Artificial immune system (AIS)' -> «Τεχνητό ανοσοποιητικό σύστημα»
+- 'artificial intelligence' -> «τεχνητή νοημοσύνη»
+- 'Artificial Intelligence Markup Language' -> «Γλώσσα σήμανσης τεχνητής νοημοσύνης»
+- 'Artificial intelligence (AI)' -> «Τεχνητή νοημοσύνη»
+- 'Artificial neural network (ANN)' -> «Τεχνητό νευρωνικό δίκτυο»
+- 'artificial neuron' -> «τεχνητός νευρώνας»
+- 'association rules' -> «κανόνες συσχέτισης»
+- 'associative memory' -> «μνήμη συσχέτισης»
+- 'Asymptotic computational complexity' -> «Ασυμπτωτική υπολογιστική πολυπλοκότητα»
+- 'atomic formula' -> «ατομικός τύπος»
+- 'atoms' -> «άτομα»
+- 'attribute selection' -> «επιλογή χαρακτηριστικών»
+- 'attributes' -> «χαρακτηριστικά»
+- 'Attributional calculus' -> «Λογισμός απόδοσης»
+- 'auctions protocols' -> «πρωτόκολλα πλειστηριασμού»
+- 'Augmented reality (AR)' -> «Επαυξημένη πραγματικότητα»
+- 'auto-associative memories' -> «αυτοσυσχετιζόμενες μνήμες»
+- 'Automata theory' -> «Θεωρία αυτομάτων»
+- 'Automated machine learning (AutoML)' -> «Αυτοματοποιημένη μηχανική εκμάθηση»
+- 'Automated planning and scheduling' -> «Αυτοματοποιημένος προγραμματισμός»
+- 'Automated reasoning' -> «Αυτοματοποιημένη συλλογιστική»
+- 'automated synopsis' -> «αυτόματη περίληψη»
+- 'automatic translation' -> «αυτόματη μετάφραση»
+- 'Autonomic computing (AC)' -> «Αυτόνομος Υπολογισμός»
+- 'Autonomous car' -> «Αυτόνομο αυτοκίνητο»
+- 'Autonomous robot' -> «Αυτόνομο ρομπότ»
+- 'autonomy' -> «αυτονομία»
+- 'average reward model' -> «μοντέλο μέσης ανταμοιβής»
+- 'axon' -> «άξονας»
+- 'back propagation' -> «ανάστροφη μετάδοση»
+- 'Backpropagation' -> «Ο πίσω πολλαπλασιασμός»
+- 'Backpropagation through time (BPTT)' -> «Πίσω διάδοση στο χρόνο (BPTT)»
+- 'backtracking' -> «οπισθοδρόμηση»
+- 'backtracking points' -> «σημεία οπισθοδρόμησης»
+- 'Backward chaining' -> «Αλυσίδα προς τα πίσω»
+- 'backward chaining' -> «ανάστροφη ακολουθία εκτέλεσης»
+- 'backward pass' -> «ανάστροφο πέρασμα»
+- 'Bag-of-words model' -> «Μοντέλο τσάντα με λέξεις»
+- 'Bag-of-words model in computer vision' -> «Μοντέλο τσάντας λέξεων στην όραση υπολογιστή»
+- 'basic probability assignment' -> «βασική κατανομή πιθανότητας»
+- 'batch learning' -> «μάθηση δέσμης»
+- 'Batch normalization' -> «Ομαλοποίηση παρτίδας»
+- 'Bayesian programming' -> «Μπεϋζιανός προγραμματισμός»
+- 'Beam Search' -> «ακτινωτή αναζήτηση»
+- 'Bees algorithm' -> «Αλγόριθμος μελισσών»
+- 'Behavior informatics (BI)' -> «Πληροφορική συμπεριφοράς»
+- 'Behavior tree (BT)' -> «Δέντρο συμπεριφοράς»
+- 'belief' -> «πεποίθηση»
+- 'Belief-desire-intention software model (BDI)' -> «Μοντέλο λογισμικού πεποίθησης-επιθυμίας-πρόθεσης»
+- 'benevolence' -> «αγαθή προαίρεση»
+- 'Best-First Search' -> «αναζήτηση πρώτα στο καλύτερο»
+- 'Bias–variance tradeoff' -> «Ανταλλαγή μεροληψίας-διακύμανσης»
+- 'bidirectional associative memories' -> «μνήμη συσχέτισης διπλής κατεύθυνσης»
+- 'Bidirectional Search' -> «αναζήτηση διπλής κατεύθυνσης»
+- 'Big data' -> «Μεγάλα δεδομένα»
+- 'Big O notation' -> «Σημείωση Big O»
+- 'binary constraint' -> «δυαδικός περιορισμός»
+- 'Binary tree' -> «Δυαδικό δέντρο»
+- 'blackboard' -> «μαυροπίνακας»
+- 'blackboard architecture' -> «αρχιτεκτονική μαυροπίνακα»
+- 'Blackboard system' -> «Σύστημα μαυροπίνακα»
+- 'blackboard systems' -> «συστήματα μαυροπίνακα»
+- 'Blind Search' -> «τυφλή αναζήτηση»
+- 'Boltzmann machine' -> «Μηχανή Boltzmann»
+- 'Boolean satisfiability problem' -> «Πρόβλημα ικανοποίησης Boolean»
+- 'Brain technology' -> «Τεχνολογία εγκεφάλου»
+- 'Branch and Bound Search' -> «αναζήτηση με επέκταση και οριοθέτηση»
+- 'Branching factor' -> «Συντελεστής διακλάδωσης»
+- 'branching factor' -> «παράγοντας διακλάδωσης»
+- 'Breadth First Search' -> «αναζήτηση πρώτα σε»
+- 'Brute-force search' -> «Αναζήτηση ωμής βίας»
+- 'candidate elimination' -> «απαλοιφή υποψηφίων»
+- 'canonical form' -> «κανονική μορφή»
+- 'canonical formation rules' -> «κανόνες ορθής διαμόρφωσης»
+- 'Capsule neural network (CapsNet)' -> «Νευρωνικό δίκτυο κάψουλας»
+- 'card sorting' -> «ταξινόμηση καρτών»
+- 'case adaptation' -> «προσαρμογή περιπτώσεων»
+- 'case indexing' -> «δεικτοδότηση περιπτώσεων»
+- 'case learning' -> «εκμάθηση περιπτώσεων»
+- 'case library' -> «βιβλιοθήκη περιπτώσεων»
+- 'case retrieval' -> «ανάκληση περιπτώσεων»
+- 'case verification' -> «επαλήθευση περιπτώσεων»
+- 'case-based' -> «βασισμένο σε περιπτώσεις»
+- 'case-based learning' -> «μάθηση κατά περίπτωση»
+- 'case-based planning' -> «σχεδιασμός βασισμένος σε παραδείγματα»
+- 'case-based reasoning' -> «συλλογιστική βασισμένη σε περιπτώσεις»
+- 'Case-based reasoning (CBR)' -> «Συλλογισμός βάσει περιπτώσεων»
+- 'causal link' -> «αιτιολογικές συνδέσεις»
+- 'causal model' -> «αιτιοκρατικό μοντέλο»
+- 'certainty factors' -> «συντελεστές βεβαιότητας»
+- 'chaining' -> «ακολουθία εκτέλεσης κανόνων»
+- 'chromosome' -> «χρωμόσωμα»
+- 'chronological backtracking' -> «χρονική οπισθοδρόμηση»
+- 'circumscription' -> «μέθοδος περιγράμματος»
+- 'class' -> «κλάση»
+- 'class extension' -> «επέκταση κλάσης»
+- 'classical negation' -> «κλασική άρνηση»
+- 'classification' -> «ταξινόμηση»
+- 'classification rules' -> «κανόνες ταξινόμησης»
+- 'classification trees' -> «δένδρο ταξινόμησης»
+- 'clausal form' -> «προτασιακή μορφή»
+- 'closed formula' -> «κλειστός τύπος»
+- 'closed set' -> «κλειστό σύνολο»
+- 'closed world' -> «κλειστός κόσμος»
+- 'closed world assumption' -> «υπόθεση κλειστού κόσμού»
+- 'Cloud robotics' -> «Cloud ρομποτική»
+- 'CLP' -> «λογικός προγραμματισμός με περιορισμούς»
+- 'Cluster analysis' -> «Ανάλυση συστάδων»
+- 'clustering' -> «ομαδοποίηση»
+- 'clusters' -> «ομάδες»
+- 'coarse grain' -> «αδρή υφή»
+- 'Cobweb' -> «Ιστός αράχνης»
+- 'Cognitive architecture' -> «Γνωστική αρχιτεκτονική»
+- 'Cognitive computing' -> «Γνωστική Υπολογιστική»
+- 'Cognitive science' -> «Γνωστική επιστήμη»
+- 'cognitive science' -> «γνωσιολογική επιστήμη»
+- 'combinatorial explosion' -> «συνδυαστική έκρηξη»
+- 'Combinatorial optimization' -> «Συνδυαστική βελτιστοποίηση»
+- 'commitment' -> «δέσμευση»
+- 'Committee machine' -> «Μηχανή επιτροπής»
+- 'common sense' -> «κοινή λογική»
+- 'Commonsense knowledge' -> «Κοινή γνώση»
+- 'Commonsense reasoning' -> «Κοινός συλλογισμός»
+- 'communication protocol' -> «πρωτόκολλο επικοινωνίας»
+- 'competition' -> «ανταγωνισμός»
+- 'competitive neural networks' -> «νευρωνικά δίκτυα με ανταγωνισμό»
+- 'compiled knowledge' -> «αυτοματοποιημένη γνώση»
+- 'complementary pairs' -> «συμπληρωματικά ζεύγη»
+- 'complete' -> «πλήρης»
+- 'complete plan' -> «πλήρες πλάνο»
+- 'completeness' -> «πληρότητα»
+- 'Computational chemistry' -> «Υπολογιστική χημεία»
+- 'Computational complexity theory' -> «Υπολογιστική θεωρία πολυπλοκότητας»
+- 'Computational creativity' -> «Υπολογιστική δημιουργικότητα»
+- 'Computational cybernetics' -> «Υπολογιστική κυβερνητική»
+- 'Computational humor' -> «Υπολογιστικό χιούμορ»
+- 'computational intelligence' -> «υπολογιστική νοημοσύνη»
+- 'Computational intelligence (CI)' -> «Υπολογιστική νοημοσύνη»
+- 'Computational learning theory' -> «Υπολογιστική θεωρία μάθησης»
+- 'Computational linguistics' -> «Υπολογιστική γλωσσολογία»
+- 'Computational mathematics' -> «Υπολογιστικά μαθηματικά»
+- 'Computational neuroscience' -> «Υπολογιστική νευροεπιστήμη»
+- 'Computational number theory' -> «Υπολογιστική θεωρία αριθμών»
+- 'Computational problem' -> «Υπολογιστικό πρόβλημα»
+- 'Computational statistics' -> «Υπολογιστική στατιστική»
+- 'Computational Tree Logic' -> «Λογική Υπολογιστικού Δένδρου»
+- 'Computer audition (CA)' -> «Οντισιόν υπολογιστή (CA)»
+- 'Computer science' -> «Επιστήμη των υπολογιστών»
+- 'Computer vision' -> «Υπολογιστική όραση»
+- 'Computer-automated design (CAutoD)' -> «Αυτοματοποιημένη σχεδίαση υπολογιστή»
+- 'concept' -> «έννοια»
+- 'Concept drift' -> «Εννοιολογική μετατόπιση»
+- 'concept learning' -> «μάθηση εννοιών»
+- 'concept type' -> «τύπος έννοιας»
+- 'conceptual dependency' -> «εννοιολογική εξάρτηση»
+- 'conceptual dependency graph' -> «γράφος εννοιολογικής εξάρτησης»
+- 'conceptual dependency relationships' -> «σχέσεις εννοιολογικής εξάρτησης»
+- 'conceptual graphs' -> «εννοιολογικός γράφος»
+- 'conceptual relation' -> «εννοιολογικές σχέσεις»
+- 'conditional effects' -> «αποτελέσματα υπό προϋπόθεση»
+- 'conditional probability' -> «πιθανότητα υπό συνθήκη»
+- 'confidence' -> «εμπιστοσύνη»
+- 'configuration' -> «διαμόρφωση»
+- 'conflict' -> «σύγκρουση κανόνων»
+- 'conflict resolution' -> «επίλυση συγκρούσεων»
+- 'conflict set' -> «σύνολο σύγκρουσης»
+- 'conflicting literals' -> «αντικρουόμενα λεκτικά»
+- 'conjunctive model of classification' -> «συζευκτικό μοντέλο ταξινόμησης»
+- 'conjunctive normal form' -> «συζευκτική κανονική μορφή»
+- 'Connectionism' -> «Συνδεσιονισμός»
+- 'connectionist approach' -> «συνδετική προσέγγιση»
+- 'connectives' -> «συνδετικά»
+- 'consistency check' -> «έλεγχος συνέπειας»
+- 'consistency check algorithms' -> «αλγόριθμος ελέγχου συνέπειας»
+- 'Consistent heuristic' -> «Συνεπής ευρετική»
+- 'Constrained conditional model (CCM)' -> «Περιορισμένο υπό όρους μοντέλο»
+- 'constraint' -> «περιορισμός»
+- 'constraint graph' -> «γράφος περιορισμών»
+- 'Constraint logic programming' -> «Προγραμματισμός λογικής περιορισμών»
+- 'Constraint Logic Programming' -> «λογικός προγραμματισμός με περιορισμούς»
+- 'constraint programming' -> «προγραμματισμός με περιορισμούς»
+- 'constraint propagation' -> «διάδοση περιορισμών»
+- 'constraint satisfaction' -> «ικανοποίηση περιορισμών»
+- 'constraint satisfaction problems' -> «προβλήματα ικανοποίησης περιορισμών»
+- 'constraint solving problems' -> «προβλήματα επίλυσης περιορισμών»
+- 'Constructed language' -> «Κατασκευασμένη γλώσσα»
+- 'content addressability' -> «δυνατότητα ανάκλησης περιεχομένου»
+- 'context' -> «συμφραζόμενα»
+- 'contracting net protocol' -> «συντονισμός πρακτόρων με σύναψη συμβολαίων»
+- 'control' -> «έλεγχος»
+- 'Control theory' -> «Θεωρία ελέγχου»
+- 'convention' -> «σύμβαση»
+- 'Convolutional neural network' -> «Συνελικτικό νευρωνικό δίκτυο»
+- 'cooperation' -> «συνεργασία»
+- 'crisp value' -> «σαφής τιμή»
+- 'critical point' -> «κρίσιμο σημείο»
+- 'criticality value' -> «τιμή σημαντικότητας»
+- 'critics' -> «κανόνες προσαρμογής περιπτώσεων»
+- 'Crossover' -> «Διασταύρωση»
+- 'crossover' -> «διασταύρωση»
+- 'crossover mask' -> «μάσκα διασταύρωσης»
+- 'Darkforest' -> «Σκοτεινό δάσος»
+- 'Dartmouth workshop' -> «Εργαστήριο Dartmouth»
+- 'data abstraction' -> «γενίκευση δεδομένων»
+- 'Data augmentation' -> «Αύξηση δεδομένων»
+- 'data driven' -> «αναζήτηση οδηγούμενη από δεδομένα»
+- 'Data fusion' -> «Συγχώνευση δεδομένων»
+- 'Data integration' -> «Ενοποίηση δεδομένων»
+- 'Data mining' -> «Εξόρυξη δεδομένων»
+- 'data mining' -> «εξόρυξη σε δεδομένα»
+- 'data mining incremental' -> «εξόρυξη σε δεδομένα σταδιακή»
+- 'Data science' -> «Επιστημονικά δεδομένα»
+- 'Data set' -> «Σύνολο δεδομένων»
+- 'data space' -> «χώρος δεδομένων»
+- 'data warehouse' -> «συστήματα αποθήκευσης δεδομένων»
+- 'Data warehouse (DW or DWH)' -> «Αποθήκη δεδομένων»
+- 'Datalog' -> «Καταγραφή δεδομένων»
+- 'deafisible inference' -> «αναιρέσιμη εξαγωγή συμπερασμάτων»
+- 'decidable logic' -> «καταληκτική λογική»
+- 'Decision boundary' -> «Όριο απόφασης»
+- 'Decision support system (DSS)' -> «Σύστημα υποστήριξης αποφάσεων»
+- 'Decision theory' -> «Θεωρία απόφασης»
+- 'Decision tree learning' -> «Εκμάθηση του δέντρου αποφάσεων»
+- 'Declarative programming' -> «Δηλωτικός προγραμματισμός»
+- 'deduction system' -> «σύστημα εξαγωγής συμπερασμάτων»
+- 'Deductive classifier' -> «Απαγωγικός ταξινομητής»
+- 'deductive reasoning' -> «συνεπαγωγική συλλογιστική»
+- 'Deep Blue' -> «Βαθύ μπλε»
+- 'deep knowledge' -> «βαθιά γνώση»
+- 'Deep learning' -> «Βαθιά μάθηση»
+- 'DeepMind Technologies' -> «Τεχνολογίες DeepMind»
+- 'default reasoning' -> «συλλογιστική εύλογων υποθέσεων»
+- 'defeasible logic' -> «αναιρέσιμη λογική»
+- 'defeasible rules' -> «αναιρέσιμοι κανόνες»
+- 'defeasible theory' -> «αναιρέσιμη θεωρία»
+- 'defeaters' -> «αναιρετές»
+- 'definite clause grammars' -> «γραμματικές οριστικών προτάσεων»
+- 'definite inference' -> «οριστική απόδειξη»
+- 'defuzzification' -> «αποσαφήνιση»
+- 'degree of consistency' -> «βαθμός συνέπειας»
+- 'degree of truth' -> «βαθμός αληθείας»
+- 'delete list' -> «λίστα διαγραφών»
+- 'deliberative agent' -> «πράκτορας με εσωτερική κατάσταση»
+- 'Delta rule' -> «κανόνας Δέλτα»
+- 'demons' -> «δαίμονας»
+- 'demotion' -> «υποβιβασμός»
+- 'dendrite' -> «δενδρίτης»
+- 'Depth-First Search' -> «αναζήτηση πρώτα σε βάθος»
+- 'Description logic (DL)' -> «Λογική περιγραφής»
+- 'design' -> «σχεδίαση»
+- 'design stance' -> «σχεδιαστική προσέγγιση»
+- 'detach' -> «διαχωρισμός»
+- 'deterministic effects' -> «ντετερμινιστικά αποτελέσματα»
+- 'Developmental robotics (DevRob)' -> «Αναπτυξιακή ρομποτική»
+- 'Diagnosis' -> «Διάγνωση»
+- 'diagnosis' -> «διάγνωση»
+- 'Dialogue system' -> «Σύστημα διαλόγου»
+- 'Dimensionality reduction' -> «Μείωση διαστάσεων»
+- 'discrepancy' -> «ασυμφωνία τιμών»
+- 'Discrete system' -> «Διακριτό σύστημα»
+- 'discretization' -> «διακριτοποίηση»
+- 'disjunctive normal form' -> «διαζευκτική κανονική μορφή»
+- 'distributed artificial intelligence' -> «κατανεμημένη τεχνητή νοημοσύνη»
+- 'Distributed artificial intelligence (DAI)' -> «Κατανεμημένη τεχνητή νοημοσύνη»
+- 'distributed data mining' -> «κατανεμημένη εξόρυξη σε δεδομένα»
+- 'distributed memory' -> «κατανεμημένη μνήμη»
+- 'distributed multi-agent planning' -> «κατανεμημένος πολυπρακτορικός σχεδιασμός»
+- 'divisive algorithm' -> «αλγόριθμος διαίρεσης»
+- 'domain expert' -> «ειδικός του τομέα»
+- 'Dynamic epistemic logic (DEL)' -> «Δυναμική επιστημική λογική»
+- 'dynamic programming' -> «δυναμικός προγραμματισμός»
+- 'Eager learning' -> «Πρόθυμη μάθηση»
+- 'eager learning' -> «έγκαιρη μάθηση»
+- 'Ebert test' -> «Τεστ Έμπερτ»
+- 'Echo state network (ESN)' -> «Δίκτυο κατάστασης Echo»
+- 'edge detection' -> «εντοπισμός ακμών»
+- 'effectors' -> «εξαρτήματα δράσης»
+- 'Embodied agent' -> «Ενσαρκωμένος πράκτορας»
+- 'Embodied cognitive science' -> «Ενσωματωμένη γνωστική επιστήμη»
+- 'encapsulation' -> «εγκλεισμός (αντικειμένου)»
+- 'energy function' -> «συνάρτηση ενέργειας»
+- 'Enforced Hill-Climbing Search' -> «αναζήτηση με εξαναγκασμένη αναρρίχηση λόφου»
+- 'Ensemble averaging' -> «Μέσος όρος του συνόλου»
+- 'entropy of information' -> «εντροπία πληροφορίας»
+- 'episode mining algorithms' -> «εξόρυξη επεισοδίων»
+- 'episodical knowledge' -> «επεισοδιακή γνώση»
+- 'Epoch (machine learning)' -> «Εποχή (μηχανική μάθηση)»
+- 'epochs' -> «εποχές»
+- 'equivalence' -> «ισοδυναμία»
+- 'equivalence rules' -> «κανόνες ισοδυναμίας»
+- 'erasure' -> «διαγραφή»
+- 'error driven learning' -> «μάθηση καθοδηγούμενη από το σφάλμα»
+- 'Error-driven learning' -> «Μάθηση με γνώμονα τα σφάλματα»
+- 'Ethics of artificial intelligence' -> «Ηθική της τεχνητής νοημοσύνης»
+- 'Euclidian distance' -> «Ευκλείδεια απόσταση»
+- 'evaluation' -> «αποτίμηση»
+- 'evaluation function' -> «συνάρτηση αξιολόγησης»
+- 'event-driven rule' -> «ενεργός κανόνας»
+- 'evoking strength' -> «δύναμη πρόκλησης»
+- 'Evolutionary algorithm (EA)' -> «Εξελικτικός αλγόριθμος»
+- 'Evolutionary computation' -> «Εξελικτικός υπολογισμός»
+- 'Evolving classification function (ECF)' -> «Εξελισσόμενη συνάρτηση ταξινόμησης»
+- 'exhaustive search' -> «εξαντλητική αναζήτηση»
+- 'existential graphs' -> «υπαρξιακοί γράφοι»
+- 'existential quantifier' -> «υπαρξιακός ποσοδείκτης»
+- 'Existential risk' -> «Υπαρξιακός κίνδυνος»
+- 'exoneration' -> «αθώωση»
+- 'Expert system' -> «Ειδικό σύστημα»
+- 'expert system' -> «έμπειρο σύστημα»
+- 'expert system shell' -> «κέλυφος έμπειρου συστήματος»
+- 'explicit knowledge' -> «ρητή γνώση»
+- 'extension principle' -> «αρχή της επέκτασης»
+- 'Fast-and-frugal trees' -> «Γρήγορα και λιτά δέντρα»
+- 'Feature extraction' -> «Εξαγωγή χαρακτηριστικών»
+- 'Feature learning' -> «Εκμάθηση χαρακτηριστικών»
+- 'Feature selection' -> «Επιλογή χαρακτηριστικών»
+- 'Federated learning' -> «Ομοσπονδιακή μάθηση»
+- 'feedback' -> «ανάδραση, ανατροφοδότηση»
+- 'feedforward' -> «πρόσθια τροφοδότηση»
+- 'filtering algorithm' -> «αλγόριθμος διήθησης τιμών»
+- 'final state' -> «τελική κατάσταση»
+- 'fine grain' -> «λεπτή υφή»
+- 'first fail principle' -> «αρχή συντομότερης αποτυχίας»
+- 'first order predicate logic' -> «κατηγορηματική λογική πρώτης τάξης»
+- 'First-order logic' -> «Λογική πρώτης τάξης»
+- 'fitness function' -> «συνάρτηση καταλληλότητας»
+- 'Fluent' -> «Ευφραδής»
+- 'Formal language' -> «Επίσημη γλώσσα»
+- 'Forward chaining' -> «Αλυσίδα προς τα εμπρός»
+- 'forward chaining' -> «ορθή ακολουθία εκτέλεσης»
+- 'forward checking' -> «προοπτικός έλεγχος»
+- 'Frame' -> «Πλαίσιο»
+- 'frame axioms' -> «αξιώματα του πλαισίου»
+- 'Frame language' -> «Γλώσσα πλαισίου»
+- 'frame of discernment' -> «πλαίσιο διάκρισης»
+- 'Frame problem' -> «Πρόβλημα πλαισίου»
+- 'frame problem' -> «πρόβλημα πλαισίου»
+- 'frames' -> «πλαίσια»
+- 'Friendly artificial intelligence' -> «Φιλική τεχνητή νοημοσύνη»
+- 'full look ahead' -> «πλήρης έγκαιρη εξέταση»
+- 'functional dependency' -> «λειτουργική εξάρτηση»
+- 'functional term' -> «συναρτησιακός όρος»
+- 'Futures studies' -> «Μελλοντικές μελέτες»
+- 'fuzzification' -> «μετατροπή μεγέθους σε ασαφές»
+- 'fuzziness' -> «ασάφεια»
+- 'fuzzy complement' -> «συμπληρωματικό ασαφούς συνόλου»
+- 'fuzzy composition' -> «σύνθεση ασαφών σχέσεων»
+- 'Fuzzy control system' -> «Ασαφές σύστημα ελέγχου»
+- 'fuzzy linguistic description' -> «ασαφής λεκτική περιγραφή»
+- 'fuzzy linguistic variable' -> «ασαφής λεκτική μεταβλητή»
+- 'Fuzzy logic' -> «Ασαφής λογική»
+- 'fuzzy logic' -> «ασαφής λογική»
+- 'fuzzy numbers' -> «ασαφείς αριθμοί»
+- 'fuzzy reasoning' -> «ασαφής συλλογιστική»
+- 'fuzzy relations' -> «ασαφείς σχέσεις»
+- 'Fuzzy rule' -> «Ασαφής κανόνας»
+- 'fuzzy rule' -> «ασαφής κανόνας»
+- 'Fuzzy set' -> «Ασαφές σύνολο»
+- 'fuzzy set' -> «ασαφή σύνολα»
+- 'fuzzy set theory' -> «θεωρία ασαφών συνόλων»
+- 'fuzzy variable' -> «ασαφής μεταβλητή»
+- 'Game theor' -> «Θεωρία παιγνίων»
+- 'game tree' -> «δένδρο παιγνίου»
+- 'gene' -> «γονίδιο»
+- 'general problem solver' -> «γενικός επιλυτής προβλημάτων»
+- 'generalization rule' -> «κανόνας γενίκευσης»
+- 'generalized modus ponens' -> «γενικευμένος τρόπος του θέτειν»
+- 'generalized modus tollens' -> «γενικευμένος τρόπος του αναιρείν»
+- 'generate and test' -> «παραγωγή και δοκιμή»
+- 'generation gap' -> «χάσμα γενεών»
+- 'Generative adversarial network (GAN)' -> «Δημιουργικό ανταγωνιστικό δίκτυο»
+- 'genetic algorithms' -> «γενετικοί αλγόριθμοι»
+- 'Genetic algorithm (GA)' -> «Γενετικός αλγόριθμος»
+- 'Genetic operator' -> «Γενετικός χειριστής»
+- 'genetic programming' -> «γενετικός προγραμματισμός»
+- 'genotype' -> «γονότυπος»
+- 'Glowworm swarm optimization' -> «Βελτιστοποίηση σμήνους Glowworm»
+- 'goal driven' -> «αναζήτηση οδηγούμενη από στόχους»
+- 'goals of attainment' -> «στόχοι επίτευξης»
+- 'graded learning' -> «βαθμολογημένη μάθηση»
+- 'gradient descent' -> «επικλινής καθόδος»
+- 'gradient descent optimization' -> «βελτιστοποίηση επικλινούς καθόδου»
+- 'Graph (abstract data type)' -> «Γράφημα»
+- 'Graph (discrete mathematics)' -> «Γράφημα (διακριτά μαθηματικά)»
+- 'Graph database (GDB)' -> «Βάση δεδομένων γραφημάτων»
+- 'graph expansion' -> «επέκταση γράφου»
+- 'Graph theory' -> «Θεωρία γραφημάτων»
+- 'Graph traversal' -> «Διασύνδεση γραφήματος»
+- 'graph-based planning' -> «σχεδιασμός βασισμένος σε γράφους»
+- 'grid' -> «πλέγμα»
+- 'grip' -> «λαβή»
+- 'ground term' -> «βασικός όρος»
+- 'guided-probe approach' -> «προσέγγιση καθοδηγούμενων δοκιμών»
+- 'hetero-associative memories' -> «ετεροσυσχετιζόμενες μνήμες»
+- 'Heuristic' -> «Ευρετική»
+- 'heuristic' -> «ευρετικός μηχανισμός»
+- 'heuristic classification' -> «ευρετική κατηγοριοποίηση»
+- 'heuristic function' -> «ευρετική συνάρτηση»
+- 'heuristic match' -> «ευρετική ταυτοποίηση»
+- 'heuristic search' -> «ευρετική αναζήτηση»
+- 'heuristic value' -> «ευρετική τιμή»
+- 'Hidden layer' -> «Κρυφό στρώμα»
+- 'hidden layers' -> «κρυφά επίπεδα»
+- 'Hidden unit' -> «Κρυφή μονάδα»
+- 'hierarchical planning' -> «ιεραρχικός σχεδιασμός»
+- 'Hierarchical Task Networks' -> «ιεραρχικά δίκτυα διεργασιών»
+- 'hierarchy concept type' -> «ιεραρχία τύπων εννοιών»
+- 'hierarchy relation type' -> «ιεραρχία τύπων σχέσεων»
+- 'higher order constraint' -> «περιορισμός ανώτερης τάξης»
+- 'Hill Climbing Search' -> «αναζήτηση αναρρίχησης λόφων»
+- 'horizon effect' -> «φαινόμενο ορίζοντα»
+- 'humanoid robots' -> «ανθρωποειδή ρομπότ»
+- 'hybrid agent' -> «υβριδικός πράκτορας»
+- 'Hyper-heuristic' -> «Υπερ-ευρετικό»
+- 'hypotheses discrimination' -> «διάκριση υποθέσεων»
+- 'hypothesis space' -> «χώρος υποθέσεων»
+- 'hypothesize and test' -> «δημιουργία και έλεγχος υποθέσεων»
+- 'IEEE Computational Intelligence Society' -> «Κοινωνία Υπολογιστικής Νοημοσύνης»
+- 'if-needed demon' -> «προσκόλληση διαδικασιών»
+- 'implication' -> «συνεπαγωγή»
+- 'imprecise data' -> «ανακριβή δεδομένα»
+- 'incomplete' -> «μη-πλήρης»
+- 'incomplete data' -> «ελλιπή δεδομένα»
+- 'inconsistency effects' -> «ασυνεπή αποτελέσματα»
+- 'inconsistency support' -> «ασύμβατη υποστήριξη»
+- 'Incremental learning' -> «Αυξητική μάθηση»
+- 'incremental learning' -> «επαυξητική μάθηση»
+- 'indivisible action' -> «αδιαίρετη ενέργεια»
+- 'induction' -> «επαγωγή»
+- 'inductive learning' -> «επαγωγική μάθηση»
+- 'inductive learning hypothesis' -> «υπόθεση επαγωγικής μάθησης»
+- 'inductive logic programming' -> «επαγωγικός λογικός προγραμματισμός»
+- 'inductive reasoning' -> «επαγωγική συλλογιστική»
+- 'inference' -> «εξαγωγή συμπερασμάτων»
+- 'Inference engine' -> «Μηχανή συμπερασμάτων»
+- 'inference engine' -> «μηχανή εξαγωγής συμπερασμάτων»
+- 'inference mechanism' -> «μηχανισμός εξαγωγής συμπερασμάτων»
+- 'inference rules' -> «κανόνες εξαγωγής συμπερασμάτων»
+- 'inferential adequacy' -> «επάρκεια συνεπαγωγής»
+- 'inferential efficiency' -> «αποδοτικότητα συνεπαγωγής»
+- 'inferential inefficiency' -> «μη-αποδοτικότητα επαγωγής»
+- 'information gain' -> «κέρδος πληροφορίας»
+- 'Information integration (II)' -> «Ενοποίηση πληροφοριών»
+- 'Information Processing Language (IPL)' -> «Γλώσσα επεξεργασίας πληροφοριών»
+- 'information retrieval' -> «ανάκτηση πληροφοριών»
+- 'information value theory' -> «θεωρία αξίας της πληροφορίας»
+- 'informative patterns' -> «πρότυπα πληροφόρησης»
+- 'inheritance' -> «κληρονομικότητα»
+- 'initial state' -> «αρχική κατάσταση»
+- 'input layer' -> «επίπεδο εισόδου»
+- 'instance' -> «στιγμιότυπο»
+- 'instance-based learning' -> «μάθηση κατά περίπτωση»
+- 'Intelligence amplification (IA)' -> «Ενίσχυση νοημοσύνης»
+- 'Intelligence explosion' -> «Έκρηξη πληροφοριών»
+- 'intelligent agent' -> «ευφυής πράκτορας»
+- 'Intelligent agent (IA)' -> «Ευφυής παράγοντας»
+- 'Intelligent control' -> «Έξυπνος έλεγχος»
+- 'Intelligent personal assistant' -> «Έξυπνος προσωπικός βοηθός»
+- 'intention' -> «πρόθεση»
+- 'intentional stance' -> «προθεσιαρχική προσέγγιση»
+- 'inter-transactional association rules' -> «δια-συναλλακτικοί κανόνες συσχέτισης»
+- 'interaction protocol' -> «πρωτόκολλο αλληλεπίδρασης»
+- 'interference' -> «παρέμβαση»
+- 'interoperability' -> «διαλειτουργικότητα»
+- 'interpolative associative memories' -> «μνήμη συσχέτισης παρεμβολής»
+- 'Interpretation' -> «Ερμηνεία»
+- 'interpretation' -> «ερμηνεία»
+- 'interpretation models' -> «ερμηνευτικά μοντέλα»
+- 'interpreter' -> «διερμηνέας»
+- 'intra-transactional association rules' -> «ενδο-συναλλακτικοί κανόνες συσχέτισης»
+- 'Intrinsic motivation' -> «Εσωτερικά κίνητρα»
+- 'Issue tree' -> «Δέντρο έκδοσης»
+- 'Iterative Deepening A* Search' -> «αναζήτηση Α* με επαναληπτική εκβάθυνση»
+- 'Iterative Deepening Search' -> «αναζήτηση επαναληπτικής εκβάθυνσης»
+- 'job-shop scheduling' -> «χρονοπρογραμματισμός καταστημάτων εργασιών»
+- 'join' -> «συνένωση»
+- 'Junction tree algorithm' -> «Αλγόριθμος δέντρων διασταύρωσης»
+- 'K-consistency' -> «Κ-συνέπεια»
+- 'K-means algorithm' -> «αλγόριθμος Κ-μέσων»
+- 'k-nearest neighbors algorithm' -> «αλγόριθμος κ-πλησιέστερων γειτόνων»
+- 'Kernel method' -> «Μέθοδος πυρήνα»
+- 'knapsack problem' -> «πρόβλημα ταξιδιωτικού σάκου»
+- 'knowledge' -> «γνώση»
+- 'Knowledge acquisition' -> «Απόκτηση γνώσης»
+- 'knowledge acquisition' -> «απόκτηση γνώσης»
+- 'knowledge base' -> «βάση γνώσης»
+- 'knowledge based system' -> «σύστημα βασισμένο στη γνώση»
+- 'knowledge capture' -> «σύλληψη γνώσης»
+- 'knowledge elicitation' -> «εκμαίευση γνώσης»
+- 'knowledge engineer' -> «μηχανικός γνώσης»
+- 'knowledge engineering' -> «τεχνολογία γνώσης»
+- 'Knowledge engineering (KE)' -> «Μηχανική Γνώσης»
+- 'Knowledge extraction' -> «Εξαγωγή γνώσης»
+- 'knowledge extraction' -> «εξαγωγή γνώσης»
+- 'Knowledge Interchange Format (KIF)' -> «Μορφή ανταλλαγής γνώσεων»
+- 'knowledge management' -> «διαχείριση γνώσης»
+- 'knowledge modeling' -> «μοντελοποίηση γνώσης»
+- 'Knowledge representation and reasoning (KR² or KR&R)' -> «Αναπαράσταση και συλλογιστική γνώσης»
+- 'knowledge source' -> «πηγή γνώσης»
+- 'knowledge system' -> «σύστημα βασισμένο στη γνώση»
+- 'Knowledge-based system (KBS)' -> «Σύστημα βασισμένο στη γνώση»
+- 'laddered grids' -> «βαθμωτά πλέγματα»
+- 'lambda expressions' -> «εκφράσεις-λ»
+- 'lateral excitation' -> «παράπλευρη διέγερση»
+- 'lateral inhibition' -> «παράπλευρη καταστολή»
+- 'layer' -> «στρώματα»
+- 'Lazy learning' -> «Τεμπέλικη μάθηση»
+- 'lazy learning' -> «αναβλητική μάθηση»
+- 'learning' -> «μάθηση»
+- 'learning from examples' -> «μάθηση με παραδείγματα»
+- 'learning from observation' -> «μάθηση από παρατήρηση»
+- 'least commitment principle' -> «αρχή της ελάχιστης δέσμευσης»
+- 'linear associator' -> «γραμμικός συσχετιστής»
+- 'linear plan' -> «γραμμικό πλάνο»
+- 'linear regression' -> «γραμμική παρεμβολή»
+- 'linear resolution' -> «γραμμική ανάλυση»
+- 'linear time logic' -> «γραμμική χρονική λογική»
+- 'linearly separable problems' -> «γραμμικώς διαχωρίσιμα προβλήματα»
+- 'literal' -> «λεκτικό»
+- 'local minima' -> «τοπικά ελάχιστα»
+- 'logic clause' -> «λογική πρόταση»
+- 'logic contradiction' -> «λογική αντίφαση»
+- 'Logic programming' -> «Λογικός προγραμματισμός»
+- 'logic semantics' -> «λογική σημασιολογία»
+- 'logic substitution' -> «λογική αντικατάσταση»
+- 'logical inadequacy' -> «λογική ανεπάρκεια»
+- 'logical necessity' -> «λογική αναγκαιότητα»
+- 'logical sufficiency' -> «λογική επάρκεια»
+- 'logistic function' -> «λογιστική συνάρτηση»
+- 'logistics' -> «εφοδιαστική»
+- 'Long short-term memory (LSTM)' -> «Μακροπρόθεσμη μνήμη»
+- 'machine evolution' -> «μηχανική εξέλιξη»
+- 'machine learning' -> «μηχανική μάθηση»
+- 'Machine learning (ML)' -> «Μηχανική μάθηση»
+- 'Machine listening' -> «Μηχανική ακρόαση»
+- 'Machine perception' -> «Μηχανική αντίληψη»
+- 'machine vision' -> «μηχανική όραση»
+- 'Machine vision (MV)' -> «Μηχανική όραση»
+- 'maintaining arc consistency' -> «διατήρηση συνέπεια τόξου»
+- 'manifestation frequency' -> «συχνότητα εκδήλωσης συμπτώματος»
+- 'manufacturing robots' -> «κατασκευαστικά ρομπότ»
+- 'Markov chain' -> «Αλυσίδα Markov»
+- 'Markov decision process (MDP)' -> «Διαδικασία απόφασης Markov»
+- 'mathematical logic' -> «μαθηματική λογική»
+- 'Mathematical optimization' -> «Μαθηματική βελτιστοποίηση»
+- 'means-ends analysis' -> «ανάλυση μέσων και στόχων»
+- 'Mechanism design' -> «Σχεδιασμός μηχανισμού»
+- 'Mechatronics' -> «Μηχατρονική»
+- 'mediator' -> «διαμεσολαβητής»
+- 'membership function' -> «συνάρτηση συγγένειας»
+- 'memory capacity' -> «χωρητικότητα μνήμης»
+- 'message passing systems' -> «συστήματα ανταλλαγής μηνυμάτων»
+- 'meta -control' -> «μετα- έλεγχος»
+- 'meta -knowledge' -> «μετα- γνώση»
+- 'meta -rule' -> «μετα- κανόνας»
+- 'Metabolic network reconstruction and simulation' -> «Ανακατασκευή και προσομοίωση μεταβολικού δικτύου»
+- 'metadata' -> «μεταδεδομένα»
+- 'Metaheuristic' -> «Μεταευρετική»
+- 'mgu' -> «γενικότερος ενοποιητής»
+- 'min conflicts heuristic' -> «ευριστικός μηχανισμός ελαχίστων συγκρούσεων»
+- 'minimax algorithm' -> «αλγόριθμοι αναζήτησης ελαχίστου-μεγίστου»
+- 'minimax search' -> «αναζήτηση ελαχίστου-μεγίστου»
+- 'missing data' -> «ελλιπή δεδομένα»
+- 'mobile robots' -> «μετακινούμενα ρομπότ»
+- 'mobility' -> «κινητικότητα»
+- 'modal logic' -> «λογική τροπική»
+- 'model' -> «μοντέλο»
+- 'Model checking' -> «Έλεγχος μοντέλου»
+- 'model checking' -> «έλεγχος μοντέλων»
+- 'model-based diagnosis' -> «διάγνωση βασισμένη σε μοντέλα»
+- 'model-based reasoning' -> «συλλογιστική βασισμένη σε μοντέλα»
+- 'module' -> «ενότητα»
+- 'modus ponens' -> «τρόπος του θέτειν»
+- 'modus tollens' -> «τρόπος του αναίρειν»
+- 'Monte Carlo tree search' -> «Αναζήτηση δέντρων στο Μόντε Κάρλο»
+- 'morphological analysis' -> «μορφολογική ανάλυση»
+- 'morphology derivational' -> «μορφολογία ετυμολογική»
+- 'morphology inflectional' -> «μορφολογία κλίσεων»
+- 'most general unifier' -> «γενικότερος ενοποιητής»
+- 'multi-agent planning' -> «πολυπρακτορικός σχεδιασμός»
+- 'multi-agent system' -> «πολυπρακτορικό σύστημα»
+- 'Multi-agent system (MAS)' -> «Σύστημα πολλαπλών πρακτόρων»
+- 'Multi-swarm optimization' -> «Βελτιστοποίηση πολλαπλών σμήνων»
+- 'multiple inheritance' -> «πολλαπλή κληρονομικότητα»
+- 'multistage classification' -> «πολυβάθμια κατηγοριοποίηση»
+- 'Mutation' -> «Μετάλλαξη»
+- 'mutation' -> «μετάλλαξη»
+- 'mutual exclusion relations' -> «σχέσεις αμοιβαίου αποκλεισμού»
+- 'Naive Bayes classifier' -> «Ταξινομητής Naive Bayes»
+- 'Naive semantics' -> «Αφελής σημασιολογία»
+- 'Name binding' -> «Δέσμευση ονόματος»
+- 'Named graph' -> «Ονομασμένο γράφημα»
+- 'Named-entity recognition (NER)' -> «Αναγνώριση επώνυμης οντότητας»
+- 'namespace' -> «χώρος ονομάτων»
+- 'natural language' -> «φυσική γλώσσα»
+- 'Natural language generation (NLG)' -> «Δημιουργία φυσικής γλώσσας»
+- 'Natural language processing (NLP)' -> «Επεξεργασία φυσικής γλώσσας»
+- 'Natural language programming' -> «Προγραμματισμός φυσικής γλώσσας»
+- 'negation as failure' -> «άρνηση ως αποτυχία»
+- 'negative context' -> «αρνητικό πλαίσιο (συμφραζόμενων)»
+- 'negative preconditions' -> «αρνητικές προϋποθέσεις»
+- 'negotiation' -> «διαπραγμάτευση»
+- 'Network motif' -> «Μοτίβο δικτύου»
+- 'network paralysis' -> «παράλυση νευρωνικού δικτύου»
+- 'Neural machine translation (NMT)' -> «Νευρωνική μηχανική μετάφραση»
+- 'neural network' -> «νευρωνικό δίκτυο»
+- 'Neural Turing machine (NTM)' -> «Μηχανή Neural Turing»
+- 'Neuro-fuzzy' -> «Νευρο-ασαφής»
+- 'Neurocybernetics' -> «Νευροκυβερνητική»
+- 'Neuromorphic engineering' -> «Νευρομορφική μηχανική»
+- 'neuron' -> «νευρώνας»
+- 'Node' -> «Κόμβος»
+- 'node consistency' -> «συνέπεια κόμβου»
+- 'noise reduction' -> «μείωση θορύβου»
+- 'non-determinism' -> «μη-αιτιοκρατία»
+- 'non-monotonic modal logic' -> «μη μονότονη τροπική λογική»
+- 'non-symbolic artificial intelligence' -> «μη συμβολική τεχνητή νοημοσύνη»
+- 'Nondeterministic algorithm' -> «Μη προσδιοριστικός αλγόριθμος»
+- 'Nouvelle AI' -> «Νέο AI»
+- 'NP-completeness' -> «NP-πληρότητα»
+- 'NP-hardness' -> «NP-σκληρότητα»
+- 'null plan' -> «μηδενικό πλάνο»
+- 'object' -> «αντικείμενο»
+- 'object instances' -> «στιγμιότυπα αντικειμένου»
+- 'object-oriented programming' -> «αντικειμενοστραφής προγραμματισμός»
+- 'obligation' -> «υποχρέωση»
+- 'Occam's razor' -> «ξυράφι του Όκαμ»
+- 'occurs check' -> «έλεγχος εμφάνισης»
+- 'OCR – Optical Character Recognition' -> «οπτική αναγνώριση χαρακτήρων»
+- 'Offline learning' -> «Εκμάθηση εκτός σύνδεσης»
+- 'offsprings' -> «απόγονοι»
+- 'omniscience' -> «παντογνωσία»
+- 'Online machine learning' -> «Διαδικτυακή μηχανική εκμάθηση»
+- 'ontology' -> «οντολογία»
+- 'Ontology learning' -> «Εκμάθηση οντολογίας»
+- 'open world' -> «ανοιχτός κόσμος»
+- 'Open-source software (OSS)' -> «Λογισμικό ανοιχτού κώδικα»
+- 'opportunistic scheduling' -> «καιροσκοπικός χρονοπρογραμματισμός»
+- 'optimal solution' -> «βέλτιστη λύση»
+- 'optimization' -> «βελτιστοποίηση»
+- 'order inconsistent plan' -> «πλάνο ασυνεπές ως προς τις διατάξεις»
+- 'ordered game tree' -> «διατεταγμένο δένδρο»
+- 'ordering constraint' -> «περιορισμοί διάταξης»
+- 'output layer' -> «επίπεδα εξόδου»
+- 'overfitting' -> «υπερπροσαρμογή»
+- 'overloading' -> «υπερφόρτωση»
+- 'parallel search' -> «παράλληλη αναζήτηση»
+- 'parse tree' -> «δένδρο συντακτικής ανάλυσης»
+- 'partial look ahead algorithm' -> «αλγόριθμος έγκαιρης μερικής εξέτασης»
+- 'Partial order reduction' -> «Μερική μείωση παραγγελίας»
+- 'Partially observable Markov decision process (POMDP)' -> «Μερικώς παρατηρήσιμη διαδικασία απόφασης Markov»
+- 'Particle swarm optimization (PSO)' -> «Βελτιστοποίηση σμήνος σωματιδίων»
+- 'passive troubleshooting' -> «παθητική διάγνωση»
+- 'path consistency algorithm' -> «αλγόριθμος συνέπειας μονοπατιού»
+- 'Pathfinding' -> «Διαδρομή»
+- 'pattern' -> «πρότυπα»
+- 'pattern matching' -> «ταυτοποίηση»
+- 'pattern of activity' -> «πρότυπα δραστηριότητας»
+- 'Pattern recognition' -> «Αναγνώριση μοτίβου»
+- 'phenotype' -> «φαινότυπο»
+- 'phonemes' -> «φθόγγοι»
+- 'physical stance' -> «φυσική προσέγγιση»
+- 'pixel' -> «εικονοστοιχείο»
+- 'plan' -> «πλάνο»
+- 'plan solution' -> «λύση πλάνου»
+- 'plan space' -> «χώρος πλάνων»
+- 'planner' -> «σχεδιαστής»
+- 'planning contingency' -> «σχεδιασμός πολλαπλών ενδεχομένων»
+- 'planning graph' -> «γράφος σχεδιασμού»
+- 'planning system' -> «σύστημα σχεδιασμού»
+- 'polymorphism' -> «πολυμορφισμός»
+- 'portals' -> «διαδικτυακές πύλες»
+- 'positive context' -> «θετικό πλαίσιο συμφραζόμενων»
+- 'powerset' -> «δυναμοσύνολο»
+- 'pragmatic analysis' -> «πραγματολογική ανάλυση»
+- 'precondition list' -> «λίστα προϋποθέσεων»
+- 'predicate' -> «κατηγόρημα»
+- 'Predicate logic' -> «Λογική κατηγορήματος»
+- 'predicate logic' -> «κατηγορηματική λογική»
+- 'prediction' -> «πρόγνωση»
+- 'Predictive analytics' -> «Προγνωστική ανάλυση»
+- 'predictive models' -> «μοντέλο πρόβλεψης»
+- 'prenex conjunctive normal form' -> «προσημασμένη συζευκτική κανονική μορφή»
+- 'primitive action' -> «αρχέγονη ενέργεια»
+- 'primitive conceptualizations' -> «αρχέγονες εννοιολογικές μορφές»
+- 'primitive problem' -> «αρχέγονο πρόβλημα»
+- 'Principal component analysis (PCA)' -> «Ανάλυση κύριου συστατικού»
+- 'Principle of rationality' -> «Αρχή του ορθολογισμού»
+- 'prior probability' -> «προϋπάρχουσα πιθανότητα»
+- 'pro-activeness' -> «προνοητικότητα»
+- 'Probabilistic programming (PP)' -> «Πιθανοτικός προγραμματισμός»
+- 'probability planning' -> «σχεδιασμός με πιθανότητες»
+- 'problem description' -> «περιγραφή προβλήματος»
+- 'problem world' -> «κόσμος προβλήματος»
+- 'procedural knowledge' -> «διαδικαστική γνώση»
+- 'production rules' -> «κανόνες παραγωγής»
+- 'Production system' -> «Σύστημα παραγωγής»
+- 'production system' -> «σύστημα κανόνων παραγωγής»
+- 'Programming language' -> «Γλώσσα προγραμματισμού»
+- 'progression' -> «ορθή διάσχιση»
+- 'projection' -> «προβολή»
+- 'promotion' -> «προβιβασμός»
+- 'proof' -> «απόδειξη»
+- 'proof by contradiction' -> «εις άτοπο απαγωγή»
+- 'proof layer' -> «επίπεδο αξιοπιστίας»
+- 'proof procedure' -> «διαδικασία απόδειξης»
+- 'Propositional calculus' -> «Προτασιακός λογισμός»
+- 'propositional logic' -> «προτασιακή λογική»
+- 'propositional rules' -> «προτασιακοί κανόνες»
+- 'pruning' -> «κλάδεμα»
+- 'pure node' -> «αμιγής κόμβος»
+- 'pure tree' -> «αμιγές δένδρο»
+- 'Python' -> «Πύθων»
+- 'Qualification problem' -> «Πρόβλημα προσόντων»
+- 'qualitative reasoning' -> «ποιοτική συλλογιστική»
+- 'Quantifier' -> «Ποσοτικοποιητής»
+- 'quantifier' -> «ποσοδείκτες»
+- 'Quantum computing' -> «Κβαντική Υπολογιστική»
+- 'Query language' -> «Γλώσσα ερωτήματος»
+- 'R programming language' -> «Γλώσσα προγραμματισμού R»
+- 'Radial basis function network' -> «Δίκτυο λειτουργίας ακτινικής βάσης»
+- 'Random forest' -> «Τυχαίο δάσος»
+- 'random learning' -> «τυχαία μάθηση»
+- 'rationality' -> «λογικότητα»
+- 'reactive agent' -> «αντιδραστικός πράκτορας»
+- 'reactive rules' -> «αντιδραστικοί κανόνες»
+- 'reactiveness' -> «αντιδραστικότητα»
+- 'reasoning' -> «συλλογιστική»
+- 'Reasoning system' -> «Σύστημα συλλογισμού»
+- 'recurrent' -> «ανατροφοδοτούμενος»
+- 'recurrent neural networks' -> «νευρωνικά δίκτυα με ανατροφοδότηση»
+- 'Recurrent neural network (RNN)' -> «Επαναλαμβανόμενο νευρωνικό δίκτυο»
+- 'recursion' -> «αναδρομή»
+- 'reduction' -> «αναγωγή»
+- 'reduction operator' -> «τελεστής αναγωγής»
+- 'refutation' -> «εις άτοπο απαγωγή»
+- 'refutation completeness' -> «πληρότητα ατόπου»
+- 'Region connection calculus' -> «Λογισμός σύνδεσης περιοχής»
+- 'regression' -> «παλινδρόμηση»
+- 'reinforcement learning' -> «ενισχυτική μάθηση»
+- 'Reinforcement learning (RL)' -> «Ενισχυτική μάθηση»
+- 'repair algorithm' -> «αλγόριθμος επιδιόρθωσης»
+- 'repair space' -> «χώρος επιδιορθώσεων»
+- 'replanning' -> «επανασχεδιασμός»
+- 'representational adequacy' -> «επάρκεια αναπαράστασης»
+- 'Reservoir computing' -> «Υπολογισμός δεξαμενής»
+- 'resolution principle' -> «αρχή της ανάλυσης»
+- 'resolvent' -> «αναλυθέν»
+- 'resource competition' -> «ανταγωνισμός πόρων»
+- 'Resource Description Framework (RDF)' -> «Πλαίσιο Περιγραφής Πόρων»
+- 'resource planning' -> «σχεδιασμός με πόρους»
+- 'Restricted Boltzmann machine (RBM)' -> «Περιορισμένη μηχανή Boltzmann»
+- 'restriction' -> «περιορισμός»
+- 'reversible operator' -> «τελεστής αντιστρέψιμος»
+- 'robot' -> «ρομπότ»
+- 'robotic agent' -> «ρομποτικός πράκτορας»
+- 'Robotics' -> «Ρομποτική»
+- 'rule action' -> «ενέργεια κανόνα»
+- 'rule base' -> «βάση κανόνων»
+- 'rule cluster' -> «ομάδα κανόνων»
+- 'rule conclusion' -> «συμπέρασμα κανόνα»
+- 'rule condition' -> «συνθήκη κανόνα»
+- 'rule of inference' -> «κανόνας συμπερασμού»
+- 'Rule-based system' -> «Σύστημα βασισμένο σε κανόνες»
+- 'Satisfiability' -> «Ικανοποίηση»
+- 'scheduler' -> «χρονοπρογραμματιστής»
+- 'schema theorem' -> «θεώρημα σχημάτων»
+- 'scout' -> «ανιχνευτής»
+- 'scripts' -> «σενάρια»
+- 'Search algorithm' -> «Αλγόριθμος αναζήτησης»
+- 'search algorithms' -> «αλγόριθμοι αναζήτησης»
+- 'search engines' -> «μηχανές αναζήτησης»
+- 'search frontier' -> «μέτωπο αναζήτησης»
+- 'search space' -> «χώρος αναζήτησης»
+- 'search thread' -> «νήμα αναζήτησης»
+- 'search tree' -> «δένδρο αναζήτησης»
+- 'Selection' -> «Επιλογή»
+- 'selection fitness proportionate' -> «επιλογή αναλογικής καταλληλότητας»
+- 'selection roulette wheel' -> «επιλογή ρουλέτας»
+- 'selection tournament' -> «επιλογή τουρνουά»
+- 'Selective Linear Definite clause resolution' -> «Επιλεκτική γραμμική ανάλυση οριστικής πρότασης»
+- 'self decay' -> «εξασθένιση»
+- 'Self-management' -> «Αυτοδιαχείρηση»
+- 'self-organizing feature map' -> «αυτο-οργανούμενη απεικόνιση»
+- 'semantic analysis' -> «σημασιολογική ανάλυση»
+- 'semantic knowledge' -> «σημασιολογική γνώση»
+- 'Semantic network' -> «Σημασιολογικό δίκτυο»
+- 'semantic networks' -> «σημασιολογικά δίκτυα»
+- 'Semantic query' -> «Σημασιολογική ερώτηση»
+- 'Semantic reasoner' -> «Σημασιολογικός λογιστής»
+- 'semantic web' -> «σημασιολογικός ιστός»
+- 'Semantics' -> «Σημασιολογία»
+- 'semantics' -> «σημασιολογία»
+- 'sensor' -> «αισθητήρας»
+- 'Sensor fusion' -> «Σύντηξη αισθητήρα»
+- 'Separation logic' -> «Λογική χωρισμού»
+- 'sequential covering algorithm' -> «αλγόριθμος σειριακής κάλυψης»
+- 'sequential pattern minimg' -> «εξόρυξη ακολουθιακών προτύπων»
+- 'shallow knowledge' -> «ρηχή γνώση»
+- 'shell' -> «κέλυφος έμπειρου συστήματος»
+- 'sigmoid functions' -> «σιγμοειδείς συναρτήσεις»
+- 'sign function' -> «συνάρτηση πρόσημου»
+- 'Similarity learning' -> «Εκμάθηση ομοιότητας»
+- 'simplification' -> «απλοποίηση»
+- 'Simulated Annealing Search' -> «αναζήτηση προσομοιωμένης ανόπτησης»
+- 'Simulated annealing (SA)' -> «Προσομοίωση ανόπτησης»
+- 'Situated approach' -> «Τοποθετημένη προσέγγιση»
+- 'Situation calculus' -> «Λογισμός καταστάσεων»
+- 'situation calculus' -> «λογισμός καταστάσεων»
+- 'skeptical logic' -> «σκεπτικιστική λογική»
+- 'skolemization' -> «σκολεμοποίηση»
+- 'smoothing' -> «εξομάλυνση»
+- 'social ability' -> «κοινωνικότητα»
+- 'softbot' -> «λογισμικός πράκτορας»
+- 'Software' -> «Λογισμικό»
+- 'software agent' -> «λογισμικός πράκτορας»
+- 'Software engineering' -> «Μηχανική Λογισμικού»
+- 'solution extraction' -> «εξαγωγή λύσης»
+- 'solution refinement' -> «επιλογή λύσης»
+- 'sparse data' -> «αραιά δεδομένα»
+- 'Spatial-temporal reasoning' -> «Χωροχρονικός συλλογισμός»
+- 'specialization rule' -> «κανόνας εξειδίκευσης»
+- 'spectrogram' -> «φασματογράφημα»
+- 'Speech Act Theory' -> «Θεωρία Πράξεων Λόγου»
+- 'Speech recognition' -> «Αναγνώρισης ομιλίας»
+- 'speech recognition' -> «αναγνώριση ομιλίας»
+- 'spelling correction rules' -> «αλγόριθμος διόρθωσης ορθογραφικών λαθών»
+- 'Spiking neural network (SNN)' -> «Spiking νευρωνικό δίκτυο»
+- 'Stanford Research Institute Problem Solver (STRIPS)' -> «Επίλυση προβλημάτων του Ερευνητικού Ινστιτούτου Στάνφορντ»
+- 'State' -> «Κατάσταση»
+- 'state' -> «κατάσταση»
+- 'state space' -> «χώρος καταστάσεων»
+- 'state-space planning' -> «σχεδιασμός χώρου καταστάσεων»
+- 'static world' -> «στατικός κόσμος»
+- 'Statistical classification' -> «Στατιστική ταξινόμηση»
+- 'Statistical relational learning (SRL)' -> «Στατιστική σχεσιακή μάθηση»
+- 'step function' -> «βηματική συνάρτηση»
+- 'Stochastic optimization (SO)' -> «Στοχαστική βελτιστοποίηση»
+- 'Stochastic semantic analysis' -> «Στοχαστική σημασιολογική ανάλυση»
+- 'strict rules' -> «ισχυροί κανόνες»
+- 'strong negation' -> «κλασική άρνηση»
+- 'Subject-matter expert' -> «Εμπειρογνώμονας σε θέματα»
+- 'subsumption architecture' -> «αρχιτεκτονική υπαγωγής»
+- 'Superintelligence' -> «Υπερευφυΐα»
+- 'superiority relation' -> «σχέση υπεροχής»
+- 'Supervised learning' -> «Επίβλεψη μάθησης»
+- 'supervised learning' -> «μάθηση με επίβλεψη»
+- 'support' -> «υποστήριξη»
+- 'Support Vector Machines' -> «μηχανές διανυσμάτων υποστήριξης»
+- 'Support-vector machines' -> «Υποστήριξη-διανυσματικά μηχανήματα»
+- 'Swarm intelligence (SI)' -> «Νοημοσύνη σμήνους»
+- 'Symbolic artificial intelligence' -> «Συμβολική τεχνητή νοημοσύνη»
+- 'symbolic artificial intelligence' -> «συμβολική τεχνητή νοημοσύνη»
+- 'symbolic logic' -> «συμβολική λογική»
+- 'synapse' -> «σύναψη»
+- 'syntactic analysis' -> «συντακτική ανάλυση»
+- 'Synthetic intelligence (SI)' -> «Συνθετική νοημοσύνη»
+- 'system model' -> «μοντέλο συστήματος»
+- 'Systems neuroscience' -> «Συστημική νευροεπιστήμη»
+- 'Tabu Search' -> «αναζήτηση με απαγορευμένες καταστάσεις»
+- 'tacit knowledge' -> «άρρητη γνώση»
+- 'target function' -> «συνάρτηση στόχος»
+- 'tautology' -> «ταυτολογία»
+- 'teach-back' -> «επαναδιδασκαλία»
+- 'Technological singularity' -> «Τεχνολογική ιδιομορφία»
+- 'temporal association rules' -> «κανόνες συσχέτισης χρονικοί»
+- 'Temporal difference learning' -> «Εκμάθηση χρονικής διαφοράς»
+- 'temporal logic' -> «λογική χρονική»
+- 'Tensor network theory' -> «Θεωρία τανυστικού δικτύου»
+- 'term' -> «όρος»
+- 'term assignment' -> «ανάθεση όρων»
+- 'terminal state' -> «τερματική κατάσταση»
+- 'text categorization' -> «κατηγοριοποίηση κειμένων»
+- 'text planning' -> «σχεδιασμός κειμένου»
+- 'Theoretical computer science (TCS)' -> «Θεωρητική επιστήμη των υπολογιστών»
+- 'Theory of computation' -> «Θεωρία υπολογισμού»
+- 'therapy space' -> «χώρος θεραπειών»
+- 'Thompson sampling' -> «Δειγματοληψία Thompson»
+- 'threat' -> «απειλή»
+- 'threshold effect' -> «φαινόμενο κατωφλίου»
+- 'threshold function' -> «συνάρτηση ενεργοποίησης»
+- 'Time complexity' -> «Χρονική πολυπλοκότητα»
+- 'timetable' -> «ωρολόγιο πρόγραμμα»
+- 'topological sort' -> «τοπολογική διάταξη»
+- 'total ordered plan' -> «πλάνο πλήρους διάταξης»
+- 'Transhumanism' -> «Υπερανθρωπισμός»
+- 'transition operator' -> «τελεστής μετάβασης»
+- 'Transition system' -> «Σύστημα μετάβασης»
+- 'Tree traversal' -> «Διάβαση δέντρου»
+- 'trigger' -> «σκανδαλιστές»
+- 'troubleshooting' -> «επιδιόρθωση βλαβών»
+- 'True quantified Boolean formula' -> «Αληθής ποσοτικοποιημένος τύπος Boolean»
+- 'trust layer' -> «επίπεδο αξιοπιστίας»
+- 'truth maintenance' -> «συντήρηση αλήθειας»
+- 'truth table' -> «πίνακας αληθείας»
+- 'Turing machine' -> «Μηχανή Turing»
+- 'Turing test' -> «Δοκιμή Turing»
+- 'tutorial interview' -> «διδακτική συνέντευξη»
+- 'two-person game' -> «παίγνια δύο αντιπάλων»
+- 'Type system' -> «Σύστημα τύπου»
+- 'unary constraint' -> «μοναδιαίος περιορισμός»
+- 'unconditional probability' -> «πιθανότητα άνευ συνθηκών»
+- 'underfitting' -> «υποπροσαρμογή»
+- 'unification' -> «ενοποίηση»
+- 'unifier' -> «ενοποιητής»
+- 'unit clause' -> «μοναδιαία πρόταση»
+- 'universal quantifier' -> «καθολικός ποσοδείκτης»
+- 'unrestrict' -> «επέκταση»
+- 'Unsupervised learning' -> «Εκμάθηση χωρίς επίβλεψη»
+- 'unsupervised learning' -> «μάθηση χωρίς επίβλεψη»
+- 'valence' -> «σθένος»
+- 'valid plan' -> «έγκυρο πλάνο»
+- 'validation' -> «έλεγχος αξιοπιστίας»
+- 'validation data' -> «δεδομένα επικύρωσης»
+- 'veracity' -> «ειλικρίνεια»
+- 'verification' -> «επαλήθευση»
+- 'Vision processing unit (VPU)' -> «Μονάδα επεξεργασίας όρασης»
+- 'Weak AI' -> «Αδύναμη AI»
+- 'web portals' -> «πύλες παγκόσμιου ιστού»
+- 'web resource' -> «πόρος παγκόσμιου ιστού»
+- 'web services' -> «υπηρεσίες παγκόσμιου ιστού»
+- 'well formed formulae' -> «ορθά δομημένοι τύποι»
+- 'working memory' -> «χώρος εργασίας»
+- 'World Wide Web Consortium (W3C)' -> «Κοινοπραξία World Wide Web»
