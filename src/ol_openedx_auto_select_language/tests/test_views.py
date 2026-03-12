@@ -26,11 +26,27 @@ def mock_authenticated_user(mocker):
 class TestCourseLanguageView:
     """Tests for CourseLanguageView."""
 
-    def test_returns_course_language(self, rf, mock_authenticated_user, mocker):
-        """Test returns language of a valid course."""
+    @pytest.mark.parametrize(
+        ("course_lang", "expected_lang"),
+        [
+            ("es", "es"),
+            ("zh_HANS", "zh-Hans"),
+            ("", ""),
+            (None, None),
+        ],
+    )
+    def test_returns_course_language(
+        self,
+        rf,
+        mock_authenticated_user,
+        mocker,
+        course_lang,
+        expected_lang,
+    ):
+        """Test returns language converted to BCP47."""
         mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
         mock_course = mocker.Mock()
-        mock_course.language = "es"
+        mock_course.language = course_lang
         mock_overview_cls.get_from_id.return_value = mock_course
 
         request = rf.get("/")
@@ -42,25 +58,7 @@ class TestCourseLanguageView:
         )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data == {"language": "es"}
-
-    def test_converts_language_to_bcp47(self, rf, mock_authenticated_user, mocker):
-        """Test Django-style language converted to BCP47."""
-        mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
-        mock_course = mocker.Mock()
-        mock_course.language = "zh_HANS"
-        mock_overview_cls.get_from_id.return_value = mock_course
-
-        request = rf.get("/")
-        request.user = mock_authenticated_user
-        view = CourseLanguageView()
-        response = view.get(
-            request,
-            course_key_string="course-v1:edX+DemoX+2024",
-        )
-
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data == {"language": "zh-Hans"}
+        assert response.data == {"language": expected_lang}
 
     def test_returns_400_for_invalid_course_key(
         self, rf, mock_authenticated_user, mocker
@@ -121,43 +119,3 @@ class TestCourseLanguageView:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.data == {"error": "An unexpected error occurred."}
-
-    def test_returns_empty_string_when_no_language(
-        self, rf, mock_authenticated_user, mocker
-    ):
-        """Test returns empty string when language is not set."""
-        mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
-        mock_course = mocker.Mock()
-        mock_course.language = ""
-        mock_overview_cls.get_from_id.return_value = mock_course
-
-        request = rf.get("/")
-        request.user = mock_authenticated_user
-        view = CourseLanguageView()
-        response = view.get(
-            request,
-            course_key_string="course-v1:edX+DemoX+2024",
-        )
-
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data == {"language": ""}
-
-    def test_returns_none_when_language_is_none(
-        self, rf, mock_authenticated_user, mocker
-    ):
-        """Test returns None when course language is None."""
-        mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
-        mock_course = mocker.Mock()
-        mock_course.language = None
-        mock_overview_cls.get_from_id.return_value = mock_course
-
-        request = rf.get("/")
-        request.user = mock_authenticated_user
-        view = CourseLanguageView()
-        response = view.get(
-            request,
-            course_key_string="course-v1:edX+DemoX+2024",
-        )
-
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data == {"language": None}

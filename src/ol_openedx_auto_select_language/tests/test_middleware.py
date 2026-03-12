@@ -38,34 +38,34 @@ def mock_anonymous_user(mocker):
 class TestShouldProcessRequest:
     """Tests for should_process_request helper function."""
 
-    def test_returns_true_when_enabled_and_authenticated(self, rf, settings, mock_user):
-        """Test True for authenticated user with feature on."""
-        settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    @pytest.mark.parametrize(
+        ("enabled", "user_type", "expected"),
+        [
+            (True, "authenticated", True),
+            (False, "authenticated", False),
+            (True, "anonymous", False),
+            (True, "none", False),
+        ],
+    )
+    def test_should_process_request(  # noqa: PLR0913
+        self,
+        rf,
+        settings,
+        mocker,
+        enabled,
+        user_type,
+        expected,
+    ):
+        """Test should_process_request for various conditions."""
+        settings.ENABLE_AUTO_LANGUAGE_SELECTION = enabled
         request = rf.get("/courses/")
-        request.user = mock_user
-        assert should_process_request(request) is True
-
-    def test_returns_false_when_disabled(self, rf, settings, mock_user):
-        """Test False when feature is disabled."""
-        settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
-        request = rf.get("/courses/")
-        request.user = mock_user
-        assert should_process_request(request) is False
-
-    def test_returns_false_for_anonymous_user(self, rf, settings, mock_anonymous_user):
-        """Test False for anonymous users."""
-        settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-        request = rf.get("/courses/")
-        request.user = mock_anonymous_user
-        assert should_process_request(request) is False
-
-    def test_returns_false_when_no_user(self, rf, settings):
-        """Test False when request has no user attribute."""
-        settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-        request = rf.get("/courses/")
-        if hasattr(request, "user"):
+        if user_type == "authenticated":
+            request.user = mocker.Mock(is_authenticated=True)
+        elif user_type == "anonymous":
+            request.user = mocker.Mock(is_authenticated=False)
+        elif user_type == "none" and hasattr(request, "user"):
             del request.user
-        assert should_process_request(request) is False
+        assert should_process_request(request) is expected
 
 
 class TestSetLanguage:
@@ -91,51 +91,46 @@ class TestSetLanguage:
 class TestRedirectCurrentPath:
     """Tests for redirect_current_path helper function."""
 
-    def test_redirects_to_same_path(self, rf):
-        """Test redirect to the same URL."""
-        request = rf.get("/courses/test-course/")
+    @pytest.mark.parametrize(
+        ("path", "expected_url"),
+        [
+            (
+                "/courses/test-course/",
+                "/courses/test-course/",
+            ),
+            (
+                "/courses/test-course/?page=1&lang=en",
+                "/courses/test-course/?page=1&lang=en",
+            ),
+        ],
+    )
+    def test_redirects_to_same_path(self, rf, path, expected_url):
+        """Test redirect preserves path and query string."""
+        request = rf.get(path)
         result = redirect_current_path(request)
         assert isinstance(result, HttpResponseRedirect)
-        assert result.url == "/courses/test-course/"
-
-    def test_preserves_query_string(self, rf):
-        """Test query string parameters are preserved."""
-        request = rf.get("/courses/test-course/?page=1&lang=en")
-        result = redirect_current_path(request)
-        assert isinstance(result, HttpResponseRedirect)
-        assert result.url == "/courses/test-course/?page=1&lang=en"
+        assert result.url == expected_url
 
 
 class TestCourseLanguageCookieMiddleware:
     """Tests for CourseLanguageCookieMiddleware (LMS)."""
 
-    def test_skips_unauthenticated_user(
-        self, rf, settings, mock_anonymous_user, mocker
-    ):
-        """Test response unchanged for unauthenticated users."""
-        settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    @pytest.mark.parametrize(
+        ("enabled", "is_authenticated"),
+        [
+            (True, False),
+            (False, True),
+        ],
+    )
+    def test_skips_processing(self, rf, settings, mocker, enabled, is_authenticated):
+        """Test response unchanged when processing is skipped."""
+        settings.ENABLE_AUTO_LANGUAGE_SELECTION = enabled
         mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
         mocker.patch(f"{MODULE}.set_user_preference")
 
         middleware = CourseLanguageCookieMiddleware(mocker.Mock())
         request = rf.get("/courses/course-v1:edX+DemoX+2024/")
-        request.user = mock_anonymous_user
-        response = HttpResponse()
-
-        result = middleware.process_response(request, response)
-
-        assert result is response
-        mock_helpers.set_language_cookie.assert_not_called()
-
-    def test_skips_when_disabled(self, rf, settings, mock_user, mocker):
-        """Test response unchanged when feature is disabled."""
-        settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
-        mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
-        mocker.patch(f"{MODULE}.set_user_preference")
-
-        middleware = CourseLanguageCookieMiddleware(mocker.Mock())
-        request = rf.get("/courses/course-v1:edX+DemoX+2024/")
-        request.user = mock_user
+        request.user = mocker.Mock(is_authenticated=is_authenticated)
         response = HttpResponse()
 
         result = middleware.process_response(request, response)
@@ -175,7 +170,12 @@ class TestCourseLanguageCookieMiddleware:
         ["admin", "sysadmin", "instructor"],
     )
     def test_forces_english_for_exempt_paths(
-        self, rf, settings, mock_user, mocker, exempt_path
+        self,
+        rf,
+        settings,
+        mock_user,
+        mocker,
+        exempt_path,
     ):
         """Test English forced for exempt paths."""
         settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
@@ -222,8 +222,24 @@ class TestCourseLanguageCookieMiddleware:
         assert result is response
         mock_helpers.set_language_cookie.assert_not_called()
 
-    def test_sets_course_language(self, rf, settings, mock_user, mocker):
-        """Test language set based on course language."""
+    @pytest.mark.parametrize(
+        ("course_lang", "cookie_lang", "expected_set_lang"),
+        [
+            ("es", "en", "es"),
+            ("zh_HANS", "en", "zh-Hans"),
+        ],
+    )
+    def test_sets_course_language(  # noqa: PLR0913
+        self,
+        rf,
+        settings,
+        mock_user,
+        mocker,
+        course_lang,
+        cookie_lang,
+        expected_set_lang,
+    ):
+        """Test language set and converted to BCP47."""
         settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
         settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
         settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = []
@@ -232,9 +248,9 @@ class TestCourseLanguageCookieMiddleware:
         mocker.patch(f"{MODULE}.set_user_preference")
         mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
         mock_overview = mocker.Mock()
-        mock_overview.language = "es"
+        mock_overview.language = course_lang
         mock_overview_cls.get_from_id.return_value = mock_overview
-        mock_helpers.get_language_cookie.return_value = "en"
+        mock_helpers.get_language_cookie.return_value = cookie_lang
 
         middleware = CourseLanguageCookieMiddleware(mocker.Mock())
         request = rf.get("/courses/course-v1:edX+DemoX+2024/courseware/")
@@ -245,7 +261,7 @@ class TestCourseLanguageCookieMiddleware:
 
         assert isinstance(result, HttpResponseRedirect)
         mock_helpers.set_language_cookie.assert_called_once_with(
-            request, response, "es"
+            request, response, expected_set_lang
         )
 
     def test_no_redirect_when_cookie_matches(self, rf, settings, mock_user, mocker):
@@ -341,32 +357,6 @@ class TestCourseLanguageCookieMiddleware:
         assert result is response
         mock_helpers.set_language_cookie.assert_not_called()
 
-    def test_converts_django_language_to_bcp47(self, rf, settings, mock_user, mocker):
-        """Test Django-style lang code converted to BCP47."""
-        settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-        settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
-        settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = []
-
-        mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
-        mocker.patch(f"{MODULE}.set_user_preference")
-        mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
-        mock_overview = mocker.Mock()
-        mock_overview.language = "zh_HANS"
-        mock_overview_cls.get_from_id.return_value = mock_overview
-        mock_helpers.get_language_cookie.return_value = "en"
-
-        middleware = CourseLanguageCookieMiddleware(mocker.Mock())
-        request = rf.get("/courses/course-v1:edX+DemoX+2024/courseware/")
-        request.user = mock_user
-        response = HttpResponse()
-
-        result = middleware.process_response(request, response)
-
-        assert isinstance(result, HttpResponseRedirect)
-        mock_helpers.set_language_cookie.assert_called_once_with(
-            request, response, "zh-Hans"
-        )
-
 
 class TestCourseLanguageCookieResetMiddleware:
     """Tests for CourseLanguageCookieResetMiddleware (CMS)."""
@@ -393,54 +383,23 @@ class TestCourseLanguageCookieResetMiddleware:
             request, response, ENGLISH_LANGUAGE_CODE
         )
 
-    def test_no_change_when_already_english(self, rf, settings, mock_user, mocker):
-        """Test no change when cookie is already English."""
-        settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-
-        mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
-        mocker.patch(f"{MODULE}.set_user_preference")
-        mock_helpers.get_language_cookie.return_value = ENGLISH_LANGUAGE_CODE
-
-        middleware = CourseLanguageCookieResetMiddleware(mocker.Mock())
-        request = rf.get("/some-cms-page/")
-        request.user = mock_user
-        response = HttpResponse()
-
-        result = middleware.process_response(request, response)
-
-        assert result is response
-        mock_helpers.set_language_cookie.assert_not_called()
-
-    def test_no_change_when_no_cookie(self, rf, settings, mock_user, mocker):
-        """Test no change when there is no language cookie."""
-        settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-
-        mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
-        mocker.patch(f"{MODULE}.set_user_preference")
-        mock_helpers.get_language_cookie.return_value = ""
-
-        middleware = CourseLanguageCookieResetMiddleware(mocker.Mock())
-        request = rf.get("/some-cms-page/")
-        request.user = mock_user
-        response = HttpResponse()
-
-        result = middleware.process_response(request, response)
-
-        assert result is response
-        mock_helpers.set_language_cookie.assert_not_called()
-
-    def test_skips_unauthenticated_user(
-        self, rf, settings, mock_anonymous_user, mocker
+    @pytest.mark.parametrize(
+        "cookie_value",
+        [ENGLISH_LANGUAGE_CODE, ""],
+    )
+    def test_no_change_when_cookie_is_english_or_empty(
+        self, rf, settings, mock_user, mocker, cookie_value
     ):
-        """Test response unchanged for unauthenticated users."""
+        """Test no change when cookie is already English or empty."""
         settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
 
         mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
         mocker.patch(f"{MODULE}.set_user_preference")
+        mock_helpers.get_language_cookie.return_value = cookie_value
 
         middleware = CourseLanguageCookieResetMiddleware(mocker.Mock())
         request = rf.get("/some-cms-page/")
-        request.user = mock_anonymous_user
+        request.user = mock_user
         response = HttpResponse()
 
         result = middleware.process_response(request, response)
@@ -448,16 +407,23 @@ class TestCourseLanguageCookieResetMiddleware:
         assert result is response
         mock_helpers.set_language_cookie.assert_not_called()
 
-    def test_skips_when_disabled(self, rf, settings, mock_user, mocker):
-        """Test response unchanged when feature is disabled."""
-        settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
+    @pytest.mark.parametrize(
+        ("enabled", "is_authenticated"),
+        [
+            (True, False),
+            (False, True),
+        ],
+    )
+    def test_skips_processing(self, rf, settings, mocker, enabled, is_authenticated):
+        """Test response unchanged when processing is skipped."""
+        settings.ENABLE_AUTO_LANGUAGE_SELECTION = enabled
 
         mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
         mocker.patch(f"{MODULE}.set_user_preference")
 
         middleware = CourseLanguageCookieResetMiddleware(mocker.Mock())
         request = rf.get("/some-cms-page/")
-        request.user = mock_user
+        request.user = mocker.Mock(is_authenticated=is_authenticated)
         response = HttpResponse()
 
         result = middleware.process_response(request, response)

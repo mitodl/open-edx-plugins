@@ -1,5 +1,6 @@
 """Tests for AddDestLangForVideoBlock filter pipeline step."""
 
+import pytest
 from ol_openedx_auto_select_language.constants import (
     ENGLISH_LANGUAGE_CODE,
 )
@@ -21,16 +22,37 @@ def _make_step(mocker):
 class TestAddDestLangForVideoBlock:
     """Tests for the AddDestLangForVideoBlock pipeline step."""
 
-    def test_sets_dest_lang_for_matching_transcript(self, mocker):
-        """Test dest_lang set for matching transcript."""
+    @pytest.mark.parametrize(
+        ("course_lang", "transcripts", "expected_lang"),
+        [
+            (
+                "es",
+                {"es": "spanish.srt", "en": "english.srt"},
+                "es",
+            ),
+            (
+                "zh_HANS",
+                {"zh-Hans": "chinese.srt", "en": "english.srt"},
+                "zh-Hans",
+            ),
+            (
+                "fr",
+                {"en": "english.srt"},
+                ENGLISH_LANGUAGE_CODE,
+            ),
+        ],
+    )
+    def test_video_block_dest_lang(
+        self,
+        mocker,
+        course_lang,
+        transcripts,
+        expected_lang,
+    ):
+        """Test dest_lang set for video block based on transcripts."""
         mock_ms = mocker.patch(f"{MODULE}.modulestore")
         mock_video = mocker.Mock()
-        mock_video.get_transcripts_info.return_value = {
-            "transcripts": {
-                "es": "spanish.srt",
-                "en": "english.srt",
-            }
-        }
+        mock_video.get_transcripts_info.return_value = {"transcripts": transcripts}
         mock_ms.return_value.get_item.return_value = mock_video
 
         video_usage_key = mocker.Mock()
@@ -38,7 +60,7 @@ class TestAddDestLangForVideoBlock:
         block = mocker.Mock()
         block.usage_key = video_usage_key
         course = mocker.Mock()
-        course.language = "es"
+        course.language = course_lang
 
         context = {"block": block, "course": course}
         student_view_context = {}
@@ -49,34 +71,7 @@ class TestAddDestLangForVideoBlock:
             student_view_context=student_view_context,
         )
 
-        assert result["student_view_context"]["dest_lang"] == "es"
-
-    def test_defaults_to_english_no_matching_transcript(self, mocker):
-        """Test defaults to English with no matching transcript."""
-        mock_ms = mocker.patch(f"{MODULE}.modulestore")
-        mock_video = mocker.Mock()
-        mock_video.get_transcripts_info.return_value = {
-            "transcripts": {"en": "english.srt"}
-        }
-        mock_ms.return_value.get_item.return_value = mock_video
-
-        video_usage_key = mocker.Mock()
-        video_usage_key.block_type = "video"
-        block = mocker.Mock()
-        block.usage_key = video_usage_key
-        course = mocker.Mock()
-        course.language = "fr"
-
-        context = {"block": block, "course": course}
-        student_view_context = {}
-
-        step = _make_step(mocker)
-        result = step.run_filter(
-            context=context,
-            student_view_context=student_view_context,
-        )
-
-        assert result["student_view_context"]["dest_lang"] == ENGLISH_LANGUAGE_CODE
+        assert result["student_view_context"]["dest_lang"] == expected_lang
 
     def test_vertical_block_with_video_children(self, mocker):
         """Test processes video children of vertical blocks."""
@@ -115,20 +110,28 @@ class TestAddDestLangForVideoBlock:
         assert result["student_view_context"]["dest_lang"] == "de"
         mock_ms.return_value.get_item.assert_called_once_with(video_child_key)
 
-    def test_vertical_block_no_video_children(self, mocker):
-        """Test no dest_lang for vertical without video children."""
+    @pytest.mark.parametrize(
+        "children_types",
+        [
+            (["html", "problem"],),
+            (["problem"],),
+        ],
+    )
+    def test_no_processing_without_video(self, mocker, children_types):
+        """Test no dest_lang for blocks without video children."""
         mock_ms = mocker.patch(f"{MODULE}.modulestore")
 
-        html_child_key = mocker.Mock()
-        html_child_key.block_type = "html"
-        problem_child_key = mocker.Mock()
-        problem_child_key.block_type = "problem"
+        children = []
+        for block_type in children_types[0]:
+            child_key = mocker.Mock()
+            child_key.block_type = block_type
+            children.append(child_key)
 
         vertical_usage_key = mocker.Mock()
         vertical_usage_key.block_type = "vertical"
         block = mocker.Mock()
         block.usage_key = vertical_usage_key
-        block.children = [html_child_key, problem_child_key]
+        block.children = children
         course = mocker.Mock()
         course.language = "fr"
 
@@ -167,79 +170,40 @@ class TestAddDestLangForVideoBlock:
         mock_ms.return_value.get_item.assert_not_called()
         assert "dest_lang" not in result["student_view_context"]
 
-    def test_converts_django_lang_code_to_bcp47(self, mocker):
-        """Test Django-style lang code converted to BCP47."""
+    @pytest.mark.parametrize(
+        ("course_setup", "transcripts"),
+        [
+            ("no_language_attr", {"en": "english.srt"}),
+            ("has_language", {}),
+            ("no_course", {"en": "english.srt"}),
+        ],
+    )
+    def test_defaults_to_english_fallback(self, mocker, course_setup, transcripts):
+        """Test defaults to English for various fallback cases."""
         mock_ms = mocker.patch(f"{MODULE}.modulestore")
         mock_video = mocker.Mock()
-        mock_video.get_transcripts_info.return_value = {
-            "transcripts": {
-                "zh-Hans": "chinese.srt",
-                "en": "english.srt",
-            }
-        }
-        mock_ms.return_value.get_item.return_value = mock_video
-
-        video_usage_key = mocker.Mock()
-        video_usage_key.block_type = "video"
-        block = mocker.Mock()
-        block.usage_key = video_usage_key
-        course = mocker.Mock()
-        course.language = "zh_HANS"
-
-        context = {"block": block, "course": course}
-        student_view_context = {}
-
-        step = _make_step(mocker)
-        result = step.run_filter(
-            context=context,
-            student_view_context=student_view_context,
+        mock_video.get_transcripts_info.return_value = (
+            {"transcripts": transcripts} if transcripts else {}
         )
-
-        assert result["student_view_context"]["dest_lang"] == "zh-Hans"
-
-    def test_defaults_to_english_no_course_language(self, mocker):
-        """Test defaults to English when no course language."""
-        mock_ms = mocker.patch(f"{MODULE}.modulestore")
-        mock_video = mocker.Mock()
-        mock_video.get_transcripts_info.return_value = {
-            "transcripts": {"en": "english.srt"}
-        }
         mock_ms.return_value.get_item.return_value = mock_video
 
         video_usage_key = mocker.Mock()
         video_usage_key.block_type = "video"
         block = mocker.Mock()
         block.usage_key = video_usage_key
-        # spec=[] creates mock without attributes, simulating
-        # a course with no language attribute.
-        course = mocker.Mock(spec=[])
 
-        context = {"block": block, "course": course}
-        student_view_context = {}
+        if course_setup == "no_language_attr":
+            # spec=[] creates mock without attributes, simulating
+            # a course with no language attribute.
+            course = mocker.Mock(spec=[])
+            context = {"block": block, "course": course}
+        elif course_setup == "has_language":
+            course = mocker.Mock()
+            course.language = "fr"
+            context = {"block": block, "course": course}
+        else:
+            context = {"block": block}
 
-        step = _make_step(mocker)
-        result = step.run_filter(
-            context=context,
-            student_view_context=student_view_context,
-        )
-
-        assert result["student_view_context"]["dest_lang"] == ENGLISH_LANGUAGE_CODE
-
-    def test_defaults_to_english_no_transcripts(self, mocker):
-        """Test defaults to English when no transcripts."""
-        mock_ms = mocker.patch(f"{MODULE}.modulestore")
-        mock_video = mocker.Mock()
-        mock_video.get_transcripts_info.return_value = {}
-        mock_ms.return_value.get_item.return_value = mock_video
-
-        video_usage_key = mocker.Mock()
-        video_usage_key.block_type = "video"
-        block = mocker.Mock()
-        block.usage_key = video_usage_key
-        course = mocker.Mock()
-        course.language = "fr"
-
-        context = {"block": block, "course": course}
         student_view_context = {}
 
         step = _make_step(mocker)
@@ -273,28 +237,3 @@ class TestAddDestLangForVideoBlock:
         assert "context" in result
         assert "student_view_context" in result
         assert result["student_view_context"]["existing_key"] == "value"
-
-    def test_defaults_to_english_no_course_in_context(self, mocker):
-        """Test defaults to English when no course in context."""
-        mock_ms = mocker.patch(f"{MODULE}.modulestore")
-        mock_video = mocker.Mock()
-        mock_video.get_transcripts_info.return_value = {
-            "transcripts": {"en": "english.srt"}
-        }
-        mock_ms.return_value.get_item.return_value = mock_video
-
-        video_usage_key = mocker.Mock()
-        video_usage_key.block_type = "video"
-        block = mocker.Mock()
-        block.usage_key = video_usage_key
-
-        context = {"block": block}
-        student_view_context = {}
-
-        step = _make_step(mocker)
-        result = step.run_filter(
-            context=context,
-            student_view_context=student_view_context,
-        )
-
-        assert result["student_view_context"]["dest_lang"] == ENGLISH_LANGUAGE_CODE
