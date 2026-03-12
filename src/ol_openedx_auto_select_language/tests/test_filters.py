@@ -113,8 +113,8 @@ class TestAddDestLangForVideoBlock:
     @pytest.mark.parametrize(
         "children_types",
         [
-            (["html", "problem"],),
-            (["problem"],),
+            ["html", "problem"],
+            ["problem"],
         ],
     )
     def test_no_processing_without_video(self, mocker, children_types):
@@ -122,7 +122,7 @@ class TestAddDestLangForVideoBlock:
         mock_ms = mocker.patch(f"{MODULE}.modulestore")
 
         children = []
-        for block_type in children_types[0]:
+        for block_type in children_types:
             child_key = mocker.Mock()
             child_key.block_type = block_type
             children.append(child_key)
