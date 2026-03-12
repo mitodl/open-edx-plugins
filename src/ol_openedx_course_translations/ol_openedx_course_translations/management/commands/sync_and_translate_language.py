@@ -4,7 +4,7 @@ Django management command to sync translation keys, translate using LLM, and cre
 Usage:
     ./manage.py cms sync_and_translate_language el
     ./manage.py cms sync_and_translate_language el \\
-        --provider openai --model gpt-4-turbo --glossary
+        --provider openai --model gpt-4-turbo --glossary /path/to/glossary
 """
 
 import json
@@ -735,11 +735,13 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--glossary",
-            action="store_true",
-            default=False,
-            help="Use glossary from plugin glossaries folder. "
-            "Looks for {plugin_dir}/glossaries/machine_learning/{iso_code}.txt "
-            "(uses --iso-code when given, else lang code).",
+            dest="glossary",
+            required=False,
+            default=None,
+            help=(
+                "Path to glossary directory. Should contain language-specific "
+                "files (e.g. {iso_code}.txt)."
+            ),
         )
         parser.add_argument(
             "--batch-size",
@@ -1068,16 +1070,16 @@ class Command(BaseCommand):
         return templates_by_count.get(num_categories) or fallback_template()
 
     def _load_glossary(self, options: dict, iso_code: str) -> dict[str, Any]:
-        """Load glossary if enabled. Uses ISO code for file lookup.
+        """Load glossary from directory. Uses ISO code for file lookup.
 
         iso_code is already normalized (e.g. es_419). Tries {iso_code}.txt first,
         then {iso_code with underscores→hyphens}.txt (e.g. es-419.txt) if not found.
         """
-        if not options.get("glossary", False):
+        glossary_dir = options.get("glossary")
+        if not glossary_dir:
             return {}
 
-        utils_file = Path(utils_module.__file__)
-        base_dir = utils_file.parent.parent / "glossaries" / "machine_learning"
+        base_dir = Path(glossary_dir)
         candidates = [
             base_dir / f"{iso_code}.txt",
             base_dir / f"{iso_code.replace('_', '-')}.txt",
