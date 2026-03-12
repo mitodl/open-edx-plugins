@@ -2,7 +2,6 @@
 
 import pytest
 from django.http import HttpResponse, HttpResponseRedirect
-from django.test import RequestFactory
 from ol_openedx_auto_select_language.constants import (
     ENGLISH_LANGUAGE_CODE,
 )
@@ -15,24 +14,6 @@ from ol_openedx_auto_select_language.middleware import (
 )
 
 MODULE = "ol_openedx_auto_select_language.middleware"
-
-
-@pytest.fixture
-def rf():
-    """Provide a Django RequestFactory."""
-    return RequestFactory()
-
-
-@pytest.fixture
-def mock_user(mocker):
-    """Provide a mock authenticated user."""
-    return mocker.Mock(is_authenticated=True)
-
-
-@pytest.fixture
-def mock_anonymous_user(mocker):
-    """Provide a mock anonymous user."""
-    return mocker.Mock(is_authenticated=False)
 
 
 class TestShouldProcessRequest:
