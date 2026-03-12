@@ -48,7 +48,7 @@ Usage
 License
 *******
 
-The code in this repository is licensed under the AGPL 3.0 unless
+The code in this repository is licensed under the BSD 3-Clause license unless
 otherwise noted.
 
 Please see `LICENSE.txt <LICENSE.txt>`_ for details.
