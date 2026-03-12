@@ -105,6 +105,9 @@ class TestCourseLanguageView:
     ):
         """Test returns 400 for unexpected errors."""
         mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
+        # DoesNotExist must be a valid exception class so the
+        # view's `except CourseOverview.DoesNotExist:` doesn't
+        # raise TypeError when evaluating the except clause.
         mock_overview_cls.DoesNotExist = type("DoesNotExist", (Exception,), {})
         mock_overview_cls.get_from_id.side_effect = RuntimeError("Unexpected")
 

@@ -326,6 +326,8 @@ class TestCourseLanguageCookieMiddleware:
         mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
         mocker.patch(f"{MODULE}.set_user_preference")
         mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
+        # spec=[] creates mock without attributes, simulating
+        # a course overview with no language attribute set.
         mock_overview = mocker.Mock(spec=[])
         mock_overview_cls.get_from_id.return_value = mock_overview
 

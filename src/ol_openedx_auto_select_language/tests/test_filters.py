@@ -210,6 +210,8 @@ class TestAddDestLangForVideoBlock:
         video_usage_key.block_type = "video"
         block = mocker.Mock()
         block.usage_key = video_usage_key
+        # spec=[] creates mock without attributes, simulating
+        # a course with no language attribute.
         course = mocker.Mock(spec=[])
 
         context = {"block": block, "course": course}
