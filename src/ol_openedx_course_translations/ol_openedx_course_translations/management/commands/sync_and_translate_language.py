@@ -27,7 +27,6 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from litellm import completion
 
-import ol_openedx_course_translations.utils.translation_sync as utils_module
 from ol_openedx_course_translations.utils.command_utils import (
     configure_litellm_for_provider,
     create_branch_name,
