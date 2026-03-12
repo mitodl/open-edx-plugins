@@ -1,0 +1,175 @@
+# JA HINTS
+## TERM MAPPINGS
+These are preferred terminology choices for this language. Use them whenever they sound natural; adapt freely if context requires.
+
+- 'accuracy' -> 「accuracy」
+- 'activation function' -> 「活性化関数」
+- 'artificial intelligence' -> 「AI」
+- 'AUC' -> 「AUC」
+- 'AUC (Area under the ROC curve)' -> 「AUC（ROC 曲線の下の面積）」
+- 'backpropagation' -> 「バックプロパゲーション」
+- 'batch' -> 「Batch」
+- 'batch size' -> 「バッチサイズ」
+- 'bias (ethics/fairness)' -> 「バイアス（倫理/公平性）」
+- 'bias (math) or bias term' -> 「バイアス（数学）またはバイアス項」
+- 'bias in ethics and fairness' -> 「倫理と公平性のバイアス」
+- 'bias term' -> 「バイアス項」
+- 'binary classification' -> 「バイナリ分類」
+- 'bucketing' -> 「バケット化、」
+- 'categorical' -> 「カテゴリカル」
+- 'categorical data' -> 「カテゴリデータ」
+- 'class' -> 「クラス」
+- 'class-imbalanced dataset' -> 「クラスの不均衡なデータセット」
+- 'class-imbalanced datasets' -> 「クラス不均衡データセット」
+- 'classification' -> 「分類」
+- 'classification model' -> 「分類モデル」
+- 'classification threshold' -> 「分類しきい値」
+- 'classifier' -> 「分類器」
+- 'clipping' -> 「クリッピング」
+- 'confusion matrix' -> 「混同行列」
+- 'continuous feature' -> 「連続特徴」
+- 'convergence' -> 「収束」
+- 'data set or dataset' -> 「データセット」
+- 'DataFrame' -> 「DataFrame」
+- 'dataset' -> 「データセット」
+- 'deep learning' -> 「ディープ ラーニング」
+- 'deep model' -> 「ディープモデル」
+- 'dense feature' -> 「密な特徴」
+- 'depth' -> 「深さ」
+- 'discrete feature' -> 「離散特徴」
+- 'discrete features' -> 「離散特徴」
+- 'dynamic' -> 「動的」
+- 'dynamic model' -> 「動的モデル」
+- 'early stopping' -> 「早期停止」
+- 'embedding layer' -> 「エンベディング レイヤ」
+- 'embedding layers' -> 「エンベディング レイヤ」
+- 'epoch' -> 「エポック」
+- 'example' -> 「例」
+- 'false negative (FN)' -> 「偽陰性（FN）」
+- 'false negatives' -> 「偽陰性」
+- 'false positive (FP)' -> 「偽陽性（FP）」
+- 'false positive rate' -> 「偽陽性率」
+- 'false positive rate (FPR)' -> 「偽陽性率（FPR）」
+- 'false positives' -> 「偽陽性」
+- 'feature' -> 「機能」
+- 'feature cross' -> 「特徴クロス」
+- 'feature crosses' -> 「特徴交差」
+- 'feature engineering' -> 「２つのステップが含まれます」
+- 'feature set' -> 「機能セット」
+- 'feature vector' -> 「特徴ベクトル」
+- 'feedback loop' -> 「フィードバック ループ」
+- 'generalization' -> 「一般化」
+- 'generalization curve' -> 「汎化曲線」
+- 'gradient descent' -> 「勾配降下法」
+- 'ground truth' -> 「グラウンド トゥルース」
+- 'hidden layer' -> 「隠れ層」
+- 'hidden layer(s)' -> 「隠れ層」
+- 'hyperparameter' -> 「ハイパーパラメータ」
+- 'independently and identically distributed (i.i.d)' -> 「独立同分布（i.i.d）」
+- 'inference' -> 「推論」
+- 'input layer' -> 「入力レイヤ」
+- 'interpretability' -> 「解釈可能性」
+- 'iteration' -> 「繰り返し」
+- 'L0regularization' -> 「L0正規化」
+- 'L1loss' -> 「L1損失」
+- 'L1regularization' -> 「L1正則化」
+- 'L2loss' -> 「L2損失」
+- 'L2regularization' -> 「L2正則化」
+- 'label' -> 「ラベル」
+- 'labeled example' -> 「ラベル付きの例」
+- 'lambda' -> 「lambda」
+- 'layer' -> 「レイヤ」
+- 'learning rate' -> 「学習率」
+- 'linear' -> 「線形」
+- 'linear model' -> 「線形モデル」
+- 'linear models' -> 「線形モデル」
+- 'linear regression' -> 「線形回帰」
+- 'Log Loss' -> 「対数損失」
+- 'log-odds' -> 「対数オッズ」
+- 'logistic regression' -> 「ロジスティック回帰」
+- 'loss' -> 「損失」
+- 'loss curve' -> 「損失曲線」
+- 'loss function' -> 「損失関数」
+- 'machine learning' -> 「機械学習」
+- 'majority class' -> 「多数派クラス」
+- 'mini-batch' -> 「ミニバッチ」
+- 'minority class' -> 「少数派クラス」
+- 'model' -> 「モデル」
+- 'multi-class classification' -> 「マルチクラス分類」
+- 'negative class' -> 「陰性クラス」
+- 'negative classes' -> 「陰性クラス」
+- 'neural network' -> 「ニューラル ネットワークの」
+- 'neural networks' -> 「ニューラル ネットワーク」
+- 'neuron' -> 「ニューロン」
+- 'node (neural network)' -> 「ノード（ニューラル ネットワーク）」
+- 'nonlinear' -> 「非線形」
+- 'nonstationarity' -> 「非定常性」
+- 'normalization' -> 「正規化」
+- 'numerical data' -> 「数値データ」
+- 'offline' -> 「オフライン」
+- 'offline inference' -> 「オフライン推論」
+- 'one-hot encoding' -> 「ワンホット エンコード」
+- 'one-hot vector' -> 「ワンホット ベクトル」
+- 'one-vs.-all' -> 「1 対すべて」
+- 'online' -> 「オンライン」
+- 'online inference' -> 「オンライン推論」
+- 'output layer' -> 「出力レイヤ」
+- 'output layers' -> 「出力レイヤ」
+- 'overfitting' -> 「過学習」
+- 'pandas' -> 「pandas」
+- 'parameter' -> 「パラメータ」
+- 'positive class' -> 「陽性クラス」
+- 'positive classes' -> 「陽性クラス」
+- 'post-processing' -> 「後処理」
+- 'precision' -> 「precision」
+- 'prediction' -> 「予測」
+- 'proxy labels' -> 「プロキシラベル」
+- 'RAG' -> 「RAG」
+- 'rater' -> 「rater」
+- 'recall' -> 「recall」
+- 'Rectified Linear Unit (ReLU)' -> 「正規化線形ユニット（ReLU）」
+- 'regression model' -> 「回帰モデル」
+- 'regularization' -> 「正則化」
+- 'regularization rate' -> 「正則化率」
+- 'ReLU' -> 「ReLU」
+- 'retrieval-augmented generation' -> 「検索拡張生成」
+- 'retrieval-augmented generation (RAG)' -> 「検索拡張生成（RAG）」
+- 'ROC (receiver operating characteristic) Curve' -> 「ROC（受信者操作特性）曲線」
+- 'ROC curve' -> 「ROC 曲線」
+- 'Root Mean Squared Error (RMSE)' -> 「二乗平均平方根誤差（RMSE）」
+- 'sigmoid function' -> 「シグモイド関数」
+- 'softmax' -> 「Softmax」
+- 'sparse feature' -> 「スパース特徴」
+- 'sparse representation' -> 「スパース表現」
+- 'sparse vector' -> 「スパース ベクトル」
+- 'squared loss' -> 「二乗損失」
+- 'static' -> 「static」
+- 'static inference' -> 「静的推論」
+- 'static model' -> 「静的モデル」
+- 'stationarity' -> 「定常性」
+- 'Stochastic Gradient Descent (SGD)' -> 「確率的勾配降下法（SGD）」
+- 'supervised learning' -> 「教師あり学習」
+- 'supervised machine learning' -> 「教師あり機械学習」
+- 'synthetic feature' -> 「合成特徴」
+- 'synthetic features' -> 「合成特徴」
+- 'test loss' -> 「テスト損失」
+- 'training' -> 「トレーニング」
+- 'training loss' -> 「トレーニングの損失」
+- 'training set' -> 「トレーニング セット」
+- 'training-serving skew' -> 「トレーニング サービング スキュー」
+- 'true negative (TN)' -> 「真陰性（TN）」
+- 'true negatives' -> 「真陰性」
+- 'true positive (TP)' -> 「真陽性（TP）」
+- 'true positive rate' -> 「真陽性率」
+- 'true positive rate (TPR)' -> 「真陽性率（TPR）」
+- 'true positives' -> 「真陽性」
+- 'underfitting' -> 「アンダーフィット」
+- 'unlabeled example' -> 「ラベルのない例」
+- 'unsupervised machine learning' -> 「教師なし機械学習」
+- 'validation' -> 「検証」
+- 'validation dataset' -> 「検証データセット」
+- 'validation loss' -> 「検証損失」
+- 'validation set' -> 「検証セット」
+- 'weight' -> 「weight」
+- 'weighted sum' -> 「加重合計」
+- 'Z-score normalization' -> 「Z スコアの正規化」

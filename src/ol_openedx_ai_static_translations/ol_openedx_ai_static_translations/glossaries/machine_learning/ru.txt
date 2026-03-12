@@ -1,0 +1,213 @@
+# RU HINTS
+## TERM MAPPINGS
+These are preferred terminology choices for this language. Use them whenever they sound natural; adapt freely if context requires.
+
+- 'accuracy' -> «точность»
+- 'activation function' -> «функция активации»
+- 'artificial intelligence' -> «искусственный интеллект»
+- 'AUC' -> «AUC»
+- 'AUC (Area under the ROC curve)' -> «AUC (площадь под ROC-кривой)»
+- 'backpropagation' -> «обратное распространение»
+- 'batch' -> «партия»
+- 'batch size' -> «размер партии»
+- 'bias (ethics/fairness)' -> «предвзятость (этика/справедливость)»
+- 'bias (math) or bias term' -> «предвзятость (математика) или термин предвзятости»
+- 'bias in ethics and fairness' -> «предвзятостью в этике и справедливости»
+- 'bias term' -> «термином «смещение»»
+- 'binary classification' -> «бинарная классификация»
+- 'bucketing' -> «распределение»
+- 'categorical' -> «категориальном»
+- 'categorical data' -> «категориальные данные»
+- 'class' -> «сорт»
+- 'class-imbalanced dataset' -> «набор данных с несбалансированным классом»
+- 'class-imbalanced datasets' -> «несбалансированные по классам наборы данных»
+- 'classification' -> «классификации»
+- 'classification model' -> «модель классификации»
+- 'classification threshold' -> «порог классификации»
+- 'classifier' -> «классификатор»
+- 'clipping' -> «вырезка»
+- 'confusion matrix' -> «матрица путаницы»
+- 'continuous feature' -> «непрерывная функция»
+- 'convergence' -> «конвергенция»
+- 'data set or dataset' -> «набор данных или набор данных»
+- 'DataFrame' -> «DataFrame»
+- 'dataset' -> «Набор данных»
+- 'deep learning' -> «глубоком обучении»
+- 'deep model' -> «глубокая модель»
+- 'dense feature' -> «плотная особенность»
+- 'depth' -> «глубина»
+- 'discrete feature' -> «дискретная особенность»
+- 'discrete features' -> «дискретными признаками»
+- 'dynamic' -> «динамический»
+- 'dynamic model' -> «динамическая модель»
+- 'early stopping' -> «ранняя остановка»
+- 'embedding layer' -> «слой внедрения»
+- 'embedding layers' -> «встраиваемых слоев»
+- 'epoch' -> «эпоха»
+- 'example' -> «пример»
+- 'false negative (FN)' -> «ложноотрицательный результат (ЛО)»
+- 'false negatives' -> «ложноотрицательных результатов»
+- 'false positive (FP)' -> «ложноположительный результат (ЛП)»
+- 'false positive rate' -> «false positive rate»
+- 'false positive rate (FPR)' -> «частота ложноположительных результатов (FPR)»
+- 'false positives' -> «ложноположительных результатов»
+- 'feature' -> «особенность»
+- 'feature cross' -> «кросс-функция»
+- 'feature crosses' -> «пересечение признаков»
+- 'feature engineering' -> «проектирование функций»
+- 'feature set' -> «набор функций»
+- 'feature vector' -> «вектор признаков»
+- 'feedback loop' -> «петля обратной связи»
+- 'generalization' -> «обобщение»
+- 'generalization curve' -> «кривая обобщения»
+- 'gradient descent' -> «градиентный спуск»
+- 'ground truth' -> «истина»
+- 'hidden layer' -> «скрытый слой»
+- 'hidden layer(s)' -> «скрытых слоях»
+- 'hyperparameter' -> «гиперпараметр»
+- 'independently and identically distributed (i.i.d)' -> «независимо и одинаково распределены (iid)»
+- 'inference' -> «вывод»
+- 'input layer' -> «входной слой»
+- 'interpretability' -> «интерпретируемость»
+- 'iteration' -> «итерация»
+- 'L0regularization' -> «L0регуляризация»
+- 'L1loss' -> «потеряL1»
+- 'L1regularization' -> «регуляризации L1»
+- 'L2loss' -> «Потери L2»
+- 'L2regularization' -> «регуляризацииL2»
+- 'label' -> «этикетка»
+- 'labeled example' -> «помеченный пример»
+- 'lambda' -> «лямбда»
+- 'layer' -> «слой»
+- 'learning rate' -> «скорость обучения»
+- 'linear' -> «линейный»
+- 'linear model' -> «линейная модель»
+- 'linear models' -> «линейных моделях»
+- 'linear regression' -> «линейная регрессия»
+- 'Log Loss' -> «Log Loss»
+- 'log-odds' -> «логарифмические шансы»
+- 'logistic regression' -> «логистическая регрессия»
+- 'loss' -> «потеря»
+- 'loss curve' -> «кривая потерь»
+- 'loss function' -> «функция потерь»
+- 'machine learning' -> «машинное обучение»
+- 'majority class' -> «класс большинства»
+- 'mini-batch' -> «мини-партия»
+- 'minority class' -> «класс меньшинства»
+- 'model' -> «модель»
+- 'multi-class classification' -> «многоклассовой классификацией»
+- 'negative class' -> «отрицательный класс»
+- 'negative classes' -> «отрицательные классы»
+- 'neural network' -> «нейронная сеть»
+- 'neural networks' -> «нейронным сетям»
+- 'neuron' -> «нейрон»
+- 'node (neural network)' -> «узел (нейронная сеть)»
+- 'nonlinear' -> «нелинейный»
+- 'nonstationarity' -> «нестационарность»
+- 'normalization' -> «нормализация»
+- 'numerical data' -> «числовые данные»
+- 'offline' -> «офлайн»
+- 'offline inference' -> «автономный вывод»
+- 'one-hot encoding' -> «горячее кодирование»
+- 'one-hot vector' -> «вектор с одним целым»
+- 'one-vs.-all' -> «один против всех»
+- 'online' -> «онлайн»
+- 'online inference' -> «онлайн-вывод»
+- 'output layer' -> «выходной слой»
+- 'output layers' -> «выходных слоев»
+- 'overfitting' -> «переобучение»
+- 'pandas' -> «панды»
+- 'parameter' -> «параметр»
+- 'positive class' -> «позитивный класс»
+- 'positive classes' -> «положительные»
+- 'post-processing' -> «постобработка»
+- 'precision' -> «точность»
+- 'prediction' -> «прогноз»
+- 'proxy labels' -> «прокси-метки»
+- 'RAG' -> «ТРЯПКА»
+- 'rater' -> «оценщик»
+- 'recall' -> «отзывать»
+- 'Rectified Linear Unit (ReLU)' -> «Rectified Linear Unit (ReLU)»
+- 'regression model' -> «регрессионная модель»
+- 'regularization' -> «регуляризация»
+- 'regularization rate' -> «regularization rate»
+- 'ReLU' -> «РеЛУ»
+- 'retrieval-augmented generation' -> «генерации с расширенным поиском»
+- 'retrieval-augmented generation (RAG)' -> «retrieval-augmented generation (RAG)»
+- 'ROC (receiver operating characteristic) Curve' -> «ROC (receiver operating characteristic) Curve»
+- 'ROC curve' -> «ROC-кривой»
+- 'Root Mean Squared Error (RMSE)' -> «Root Mean Squared Error (RMSE)»
+- 'sigmoid function' -> «sigmoid function»
+- 'softmax' -> «софтмакс»
+- 'sparse feature' -> «sparse feature»
+- 'sparse representation' -> «sparse representation»
+- 'sparse vector' -> «sparse vector»
+- 'squared loss' -> «квадрат потерь»
+- 'static' -> «статический»
+- 'static inference' -> «static inference»
+- 'static model' -> «статической моделью»
+- 'stationarity' -> «стационарность»
+- 'Stochastic Gradient Descent (SGD)' -> «Стохастический градиентный спуск (SGD)»
+- 'supervised learning' -> «контролируемом обучении»
+- 'supervised machine learning' -> «контролируемое машинное обучение»
+- 'synthetic feature' -> «synthetic feature»
+- 'synthetic features' -> «синтетические признаки»
+- 'test loss' -> «test loss»
+- 'training' -> «обучение»
+- 'training loss' -> «training loss»
+- 'training set' -> «обучающий набор»
+- 'training-serving skew' -> «training-serving skew»
+- 'true negative (TN)' -> «true negative (TN)»
+- 'true negatives' -> «истинно отрицательных результатов»
+- 'true positive (TP)' -> «true positive (TP)»
+- 'true positive rate' -> «истинный положительный уровень»
+- 'true positive rate (TPR)' -> «true positive rate (TPR)»
+- 'true positives' -> «истинно положительных результатов»
+- 'underfitting' -> «недообучение»
+- 'unlabeled example' -> «unlabeled example»
+- 'unsupervised machine learning' -> «неконтролируемое машинное обучение»
+- 'validation' -> «проверка»
+- 'validation dataset' -> «проверочном наборе данных»
+- 'validation loss' -> «validation loss»
+- 'validation set' -> «набор для проверки»
+- 'weight' -> «масса»
+- 'weighted sum' -> «взвешенная сумма»
+- 'Z-score normalization' -> «нормализацию Z-показателя»
+
+# STRICTNESS NOTE
+TERM MAPPINGS above are flexible preferences. The following rules are STRICT and override them.
+
+## 2. Strict, Binding Terminology Rules (MANDATORY)
+This section defines terminology and formatting that must always be used in Russian translations.
+These rules override any flexible terminology and must be followed exactly.
+
+# MANDATORY RUSSIAN TERMINOLOGY RULES
+## 2.1 Key Translations (Strict)
+- 'Shared learning' -> «совместное обучение»
+  AVOID: «общее обучение».
+- 'Multisource data' -> «данные из нескольких источников»
+  AVOID: «мультиисточниковые данные».
+- 'Input embedding' -> «входное векторное представление (эмбеддинг)»
+- 'Embedding' -> «эмбеддинг»
+- 'Embedding space' -> «пространство представлений (пространство эмбеддингов)»
+- 'Task-specific branches' -> «ветви, специфичные для задачи»
+- 'Pipeline' -> «конвейер обработки данных»
+  «пайплайн» допускается только в неформальном контексте.
+
+## 2.2 Official Google Colab UI (Strict)
+Use the official Russian UI strings:
+- 'Change Runtime Type' -> «Сменить среду выполнения»
+- 'Save a copy in Drive' -> «Сохранить копию на Диске»
+
+Filenames must remain in ENGLISH exactly as written.
+Example: «Копия блокнота OriginalNotebookName.ipynb»
+
+## 2.3 Abbreviations and Hyphenation (Strict)
+Keep all ML/AI abbreviations in English: ROC, AUC, TPR, FPR, L1, L2, UI, API, CNN, RNN, GPT.
+Do NOT invent Russian abbreviations for these.
+
+When an English abbreviation precedes a Russian noun, use a hyphen:
+- ROC-кривая
+- AUC-показатель
+- L1-регуляризация
+- UI-дизайн

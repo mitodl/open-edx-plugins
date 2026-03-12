@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 import polib  # type: ignore[import-untyped]
-
 from django.conf import settings
 from django.core.management.base import CommandError
 

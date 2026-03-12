@@ -27,20 +27,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from litellm import completion
 
-import mitol.ol_ai_static_translations.utils.translation_sync as utils_module
-from mitol.ol_ai_static_translations.utils.command_utils import (
-    configure_litellm_for_provider,
-    create_branch_name,
-    get_config_value,
-    get_default_model_for_provider,
-    get_default_provider,
-    is_retryable_error,
-    normalize_language_code,
-    sanitize_for_git,
-    validate_branch_name,
-    validate_language_code,
-)
-from mitol.ol_ai_static_translations.utils.constants import (
+import ol_openedx_ai_static_translations.utils as utils_module
+from ol_openedx_ai_static_translations.constants import (
     HTTP_CREATED,
     HTTP_NOT_FOUND,
     HTTP_OK,
@@ -59,18 +47,28 @@ from mitol.ol_ai_static_translations.utils.constants import (
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
 )
-from mitol.ol_ai_static_translations.utils.translation_sync import (
+from ol_openedx_ai_static_translations.utils import (
     _get_base_lang,
     _get_numeric_plural_keys,
     _get_po_plural_count,
     apply_json_translations,
     apply_po_translations,
+    configure_litellm_for_provider,
+    create_branch_name,
     extract_empty_keys,
+    get_config_value,
+    get_default_model_for_provider,
+    get_default_provider,
     get_nplurals_from_po_file,
+    is_retryable_error,
     load_glossary,
     match_glossary_term,
+    normalize_language_code,
     plural_source_has_placeholders_not_in_singular,
+    sanitize_for_git,
     sync_all_translations,
+    validate_branch_name,
+    validate_language_code,
 )
 
 logger = logging.getLogger(__name__)
@@ -1077,7 +1075,7 @@ class Command(BaseCommand):
             return {}
 
         utils_file = Path(utils_module.__file__)
-        base_dir = utils_file.parent.parent / "glossaries" / "machine_learning"
+        base_dir = utils_file.parent / "glossaries" / "machine_learning"
         candidates = [
             base_dir / f"{iso_code}.txt",
             base_dir / f"{iso_code.replace('_', '-')}.txt",

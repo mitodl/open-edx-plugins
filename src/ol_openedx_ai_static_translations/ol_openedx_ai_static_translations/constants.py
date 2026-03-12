@@ -1,4 +1,4 @@
-"""Constants for translation synchronization."""
+"""Constants for AI static translation synchronization."""
 
 # LLM Provider names
 PROVIDER_DEEPL = "deepl"
@@ -233,33 +233,3 @@ PLURAL_CATEGORIES_ARABIC = 6  # zero, one, two, few, many, other
 PLURAL_CATEGORIES_FOUR = 4  # one, two, few, other
 PLURAL_CATEGORIES_THREE = 3  # one, few, other
 PLURAL_CATEGORIES_TWO = 2  # one, other (most languages)
-
-ENGLISH_LANGUAGE_CODE = "en"
-
-# HTML/XML attribute translation policy
-TRANSLATABLE_ATTRS_BASE = {
-    "placeholder",
-    "title",
-    "aria-label",
-    "alt",
-    "label",
-    "display_name",
-}
-
-# Open edX-specific: these are only translatable on <optioninput>
-TRANSLATABLE_ATTRS_OPTIONINPUT_ONLY = {"options", "correct"}
-
-# Never translate these (names), even if user-facing-ish in some contexts
-NEVER_TRANSLATE_ATTRS = {
-    "id",
-    "class",
-    "name",
-    "href",
-    "src",
-    "role",
-    "type",
-    "url_name",
-    "filename",
-}
-
-XML_FORMAT_ATTR = "format"
