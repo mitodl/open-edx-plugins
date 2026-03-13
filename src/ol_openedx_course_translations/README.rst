@@ -336,7 +336,7 @@ This command synchronizes translation keys from edx-platform and MFE's, translat
 - ``--model``: LLM model name. If not specified, uses the ``default_model`` for the selected provider from ``TRANSLATIONS_PROVIDERS``. Examples: ``gpt-5.2``, ``gemini-3-pro-preview``, ``mistral-large-latest``
 - ``--repo-path``: Path to mitxonline-translations repository (can also be set via ``TRANSLATIONS_REPO_PATH`` setting or environment variable)
 - ``--repo-url``: GitHub repository URL (default: ``https://github.com/mitodl/mitxonline-translations.git``, can also be set via ``TRANSLATIONS_REPO_URL`` setting or environment variable)
-- ``--glossary``: Use glossary from plugin glossaries folder (looks for ``{plugin_dir}/glossaries/machine_learning/{lang_code}.txt``)
+- ``--glossary``: Path to glossary directory (optional). Should contain language-specific files (e.g. ``{iso_code}.txt``).
 - ``--batch-size``: Number of keys to translate per API request (default: 200, recommended: 200-300 for most models)
 - ``--mfe``: Filter by specific MFE(s). Use ``edx-platform`` for backend translations
 - ``--dry-run``: Run without committing or creating PR
@@ -355,7 +355,7 @@ This command synchronizes translation keys from edx-platform and MFE's, translat
         ./manage.py cms sync_and_translate_language el --provider openai --model gpt-5.2
 
         # Use Mistral provider with a specific model and glossary
-        ./manage.py cms sync_and_translate_language el --provider mistral --model mistral-large-latest --glossary --batch-size 250
+        ./manage.py cms sync_and_translate_language el --provider mistral --model mistral-large-latest --glossary /path/to/glossary --batch-size 250
 
 License
 *******
