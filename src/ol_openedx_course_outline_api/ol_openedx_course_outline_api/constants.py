@@ -18,4 +18,3 @@ VISIBLE_TO_STAFF_ONLY_KEYS = ("visible_to_staff_only", "merged_visible_to_staff_
 # Per-course response cache (used only when include_gating is False; key = course_id).
 COURSE_OUTLINE_CACHE_KEY_PREFIX = "ol_course_outline_api:outline:v0:"
 COURSE_OUTLINE_CACHE_TIMEOUT_SECONDS = 300  # 5 minutes
-

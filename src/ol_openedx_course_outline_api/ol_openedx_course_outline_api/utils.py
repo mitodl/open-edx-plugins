@@ -88,7 +88,11 @@ def count_app_items_under_chapter(blocks_data, chapter_id):
         block_type = block.get("type") or ""
         children = block.get("children") or []
         is_leaf = len(children) == 0
-        if is_leaf and block_type not in CONTAINER_TYPES and block_type not in KNOWN_LEAF_TYPES:
+        if (
+            is_leaf
+            and block_type not in CONTAINER_TYPES
+            and block_type not in KNOWN_LEAF_TYPES
+        ):
             count += 1
     return count
 
@@ -110,7 +114,9 @@ def build_modules_from_blocks(blocks_data, root_id):
             # Match Blocks API-style block_counts keys:
             # html = readings, problem = problems, video = videos, others = everything else.
             "html": count_blocks_by_type_under_chapter(blocks_data, child_id, "html"),
-            "problem": count_blocks_by_type_under_chapter(blocks_data, child_id, "problem"),
+            "problem": count_blocks_by_type_under_chapter(
+                blocks_data, child_id, "problem"
+            ),
             "video": count_blocks_by_type_under_chapter(blocks_data, child_id, "video"),
             "others": count_app_items_under_chapter(blocks_data, child_id),
         }
@@ -123,4 +129,3 @@ def build_modules_from_blocks(blocks_data, root_id):
         }
         modules.append(module)
     return modules
-

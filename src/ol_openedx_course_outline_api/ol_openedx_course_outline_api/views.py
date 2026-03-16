@@ -2,21 +2,28 @@
 Views for the public Course Outline API (Learn product page modules).
 """
 
+from datetime import UTC
+
 from django.core.cache import cache
+from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
+from lms.djangoapps.course_api.blocks.api import get_blocks
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
+from openedx.core.lib.api.authentication import BearerAuthentication
+from openedx.core.lib.api.view_utils import (
+    DeveloperErrorViewMixin,
+    verify_course_exists,
+)
+from openedx.features.effort_estimation.block_transformers import (
+    EffortEstimationTransformer,
+)
 from rest_framework import status
-from rest_framework.permissions import IsAdminUser
-from rest_framework.generics import GenericAPIView
-from rest_framework.response import Response
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
 from xmodule.modulestore.django import modulestore
 
-from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
-from openedx.core.lib.api.authentication import BearerAuthentication
-from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, verify_course_exists
-from lms.djangoapps.course_api.blocks.api import get_blocks
-from openedx.features.effort_estimation.block_transformers import EffortEstimationTransformer
 from ol_openedx_course_outline_api.constants import (
     COURSE_OUTLINE_CACHE_KEY_PREFIX,
     COURSE_OUTLINE_CACHE_TIMEOUT_SECONDS,
@@ -48,7 +55,7 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
 
     @verify_course_exists()
     def get(self, request, course_id):
-        from datetime import datetime, timezone as dt_tz
+        from datetime import datetime
 
         try:
             course_key = CourseKey.from_string(course_id)
@@ -70,7 +77,7 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
         cache_key = f"{COURSE_OUTLINE_CACHE_KEY_PREFIX}{course_key}"
         cached = cache.get(cache_key)
         if cached is not None:
-            cached["generated_at"] = datetime.now(dt_tz.utc).strftime(
+            cached["generated_at"] = datetime.now(UTC).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
             )
             return Response(cached, status=status.HTTP_200_OK)
@@ -99,7 +106,7 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
 
         response_data = {
             "course_id": str(course_key),
-            "generated_at": datetime.now(dt_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "modules": modules,
         }
 
