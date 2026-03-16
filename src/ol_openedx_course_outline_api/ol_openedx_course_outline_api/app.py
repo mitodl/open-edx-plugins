@@ -9,7 +9,7 @@ from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 
 class CourseOutlineAPIConfig(AppConfig):
     """
-    Configuration class for Course Outline API (public course modules summary).
+    Configuration class for Course Outline API (Learn product page modules).
     """
 
     name = "ol_openedx_course_outline_api"

@@ -1,5 +1,5 @@
-"""Production settings for the course outline API plugin."""
+"""Production settings unique to the course outline API."""
 
 
 def plugin_settings(settings):
-    """Settings for the course outline API plugin."""  # noqa: D401
+    """Settings for the course outline API."""  # noqa: D401
