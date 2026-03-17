@@ -14,10 +14,7 @@ def is_visible_to_staff_only(block):
     """
     Return True if the block is staff-only, based on any known visibility key.
     """
-    for key in VISIBLE_TO_STAFF_ONLY_KEYS:
-        if block.get(key) is True:
-            return True
-    return False
+    return any(block.get(key) is True for key in VISIBLE_TO_STAFF_ONLY_KEYS)
 
 
 def iter_descendant_ids(blocks_data, root_id):
@@ -72,7 +69,8 @@ def count_blocks_by_type_under_chapter(blocks_data, chapter_id, block_type):
 
 def count_assignments_under_chapter(blocks_data, chapter_id):
     """
-    Count sequential blocks that are graded or have an assignment format (excludes staff-only).
+    Count sequential blocks that are graded or have an assignment format
+    (excludes staff-only).
     """
     count = 0
     for block_id in iter_descendant_ids(blocks_data, chapter_id):
@@ -86,7 +84,8 @@ def count_assignments_under_chapter(blocks_data, chapter_id):
 
 def count_app_items_under_chapter(blocks_data, chapter_id):
     """
-    Count leaf blocks that are not video, html, or problem (custom/app items; excludes staff-only).
+    Count leaf blocks that are not video, html, or problem (custom/app items;
+    excludes staff-only).
     """
     count = 0
     for block_id in iter_descendant_ids(blocks_data, chapter_id):
