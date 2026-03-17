@@ -118,9 +118,15 @@ def build_modules_from_blocks(blocks_data, root_id):
             continue
 
         counts = {
-            "videos": count_blocks_by_type_under_chapter(blocks_data, child_id, "video"),
-            "readings": count_blocks_by_type_under_chapter(blocks_data, child_id, "html"),
-            "problems": count_blocks_by_type_under_chapter(blocks_data, child_id, "problem"),
+            "videos": count_blocks_by_type_under_chapter(
+                blocks_data, child_id, "video"
+            ),
+            "readings": count_blocks_by_type_under_chapter(
+                blocks_data, child_id, "html"
+            ),
+            "problems": count_blocks_by_type_under_chapter(
+                blocks_data, child_id, "problem"
+            ),
             "assignments": count_assignments_under_chapter(blocks_data, child_id),
             "app_items": count_app_items_under_chapter(blocks_data, child_id),
         }
