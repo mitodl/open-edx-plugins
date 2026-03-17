@@ -1,7 +1,7 @@
 [project]
 name = "ol-openedx-course-outline-api"
 version = "0.1.0"
-description = "An Open edX plugin providing a public API for course outline (modules summary) for product and marketing pages"
+description = "An Open edX plugin to add API for course outline (modules) for the Learn product page"
 authors = [
   {name = "MIT Office of Digital Learning"}
 ]
@@ -33,5 +33,6 @@ include = [
 include = [
   "ol_openedx_course_outline_api/**/*",
   "README.rst",
+  "CHANGELOG.rst",
   "pyproject.toml",
 ]

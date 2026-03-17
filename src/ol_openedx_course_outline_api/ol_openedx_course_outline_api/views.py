@@ -2,7 +2,7 @@
 Views for the public Course Outline API (Learn product page modules).
 """
 
-from datetime import UTC
+from datetime import datetime, timezone as dt_tz
 
 from django.core.cache import cache
 from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
@@ -10,13 +10,8 @@ from lms.djangoapps.course_api.blocks.api import get_blocks
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.lib.api.authentication import BearerAuthentication
-from openedx.core.lib.api.view_utils import (
-    DeveloperErrorViewMixin,
-    verify_course_exists,
-)
-from openedx.features.effort_estimation.block_transformers import (
-    EffortEstimationTransformer,
-)
+from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, verify_course_exists
+from openedx.features.effort_estimation.block_transformers import EffortEstimationTransformer
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import GenericAPIView
@@ -55,8 +50,6 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
 
     @verify_course_exists()
     def get(self, request, course_id):
-        from datetime import datetime
-
         try:
             course_key = CourseKey.from_string(course_id)
         except InvalidKeyError:
@@ -72,14 +65,9 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
                 status_code=status.HTTP_404_NOT_FOUND,
                 developer_message="Course not found",
             )
-
-        # Per-course cache: only when response is not user-specific (no gating).
         cache_key = f"{COURSE_OUTLINE_CACHE_KEY_PREFIX}{course_key}"
         cached = cache.get(cache_key)
         if cached is not None:
-            cached["generated_at"] = datetime.now(UTC).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            )
             return Response(cached, status=status.HTTP_200_OK)
 
         requested_fields = [
@@ -90,6 +78,7 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
             "format",  # assignment type (Homework, etc.); used as fallback when graded is False
             "visible_to_staff_only",
             EffortEstimationTransformer.EFFORT_TIME,
+            EffortEstimationTransformer.EFFORT_ACTIVITIES,
         ]
 
         blocks_response = get_blocks(
@@ -106,11 +95,10 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
 
         response_data = {
             "course_id": str(course_key),
-            "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "generated_at": datetime.now(dt_tz.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "modules": modules,
         }
 
-        cache_key = f"{COURSE_OUTLINE_CACHE_KEY_PREFIX}{course_key}"
         cache.set(
             cache_key,
             dict(response_data),

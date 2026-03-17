@@ -20,14 +20,22 @@ def is_visible_to_staff_only(block):
     return False
 
 
-def get_descendant_ids(blocks_data, block_id):
+def iter_descendant_ids(blocks_data, root_id):
     """
-    Return set of all descendant block ids (including block_id) from blocks_data.
+    Yield all descendant block ids (including root_id) from blocks_data.
+
+    Implemented iteratively to avoid recursion depth issues on very large courses.
     """
-    result = {block_id}
-    for child_id in blocks_data.get(block_id, {}).get("children") or []:
-        result.update(get_descendant_ids(blocks_data, child_id))
-    return result
+    seen = set()
+    stack = [root_id]
+    while stack:
+        block_id = stack.pop()
+        if block_id in seen:
+            continue
+        seen.add(block_id)
+        yield block_id
+        children = blocks_data.get(block_id, {}).get("children") or []
+        stack.extend(children)
 
 
 def is_graded_sequential(block):
@@ -53,7 +61,7 @@ def count_blocks_by_type_under_chapter(blocks_data, chapter_id, block_type):
     Count blocks of the given type under the chapter (excludes staff-only).
     """
     count = 0
-    for block_id in get_descendant_ids(blocks_data, chapter_id):
+    for block_id in iter_descendant_ids(blocks_data, chapter_id):
         block = blocks_data.get(block_id, {})
         if is_visible_to_staff_only(block):
             continue
@@ -67,7 +75,7 @@ def count_assignments_under_chapter(blocks_data, chapter_id):
     Count sequential blocks that are graded or have an assignment format (excludes staff-only).
     """
     count = 0
-    for block_id in get_descendant_ids(blocks_data, chapter_id):
+    for block_id in iter_descendant_ids(blocks_data, chapter_id):
         block = blocks_data.get(block_id, {})
         if is_visible_to_staff_only(block):
             continue
@@ -81,7 +89,7 @@ def count_app_items_under_chapter(blocks_data, chapter_id):
     Count leaf blocks that are not video, html, or problem (custom/app items; excludes staff-only).
     """
     count = 0
-    for block_id in get_descendant_ids(blocks_data, chapter_id):
+    for block_id in iter_descendant_ids(blocks_data, chapter_id):
         block = blocks_data.get(block_id, {})
         if is_visible_to_staff_only(block):
             continue
@@ -111,14 +119,11 @@ def build_modules_from_blocks(blocks_data, root_id):
             continue
 
         counts = {
-            # Match Blocks API-style block_counts keys:
-            # html = readings, problem = problems, video = videos, others = everything else.
-            "html": count_blocks_by_type_under_chapter(blocks_data, child_id, "html"),
-            "problem": count_blocks_by_type_under_chapter(
-                blocks_data, child_id, "problem"
-            ),
-            "video": count_blocks_by_type_under_chapter(blocks_data, child_id, "video"),
-            "others": count_app_items_under_chapter(blocks_data, child_id),
+            "videos": count_blocks_by_type_under_chapter(blocks_data, child_id, "video"),
+            "readings": count_blocks_by_type_under_chapter(blocks_data, child_id, "html"),
+            "problems": count_blocks_by_type_under_chapter(blocks_data, child_id, "problem"),
+            "assignments": count_assignments_under_chapter(blocks_data, child_id),
+            "app_items": count_app_items_under_chapter(blocks_data, child_id),
         }
         module = {
             "id": child_id,
