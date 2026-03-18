@@ -40,7 +40,7 @@ def iter_descendant_ids(blocks_data, root_id):
         yield block_id
         block = blocks_data.get(block_id, {}) or {}
         if is_hidden_from_toc(block):
-            # If a block is hidden from the TOC, don't count it or any of its descendants.
+            # If a block is hidden from the TOC, exclude it and its descendants.
             continue
         children = block.get("children") or []
         stack.extend(children)
