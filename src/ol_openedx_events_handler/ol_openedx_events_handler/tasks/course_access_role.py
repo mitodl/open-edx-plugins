@@ -1,4 +1,4 @@
-"""Celery tasks for the MITx Online integration plugin."""
+"""Celery tasks for course staff webhook notifications."""
 
 import logging
 
@@ -17,29 +17,20 @@ REQUEST_TIMEOUT = 30
     retry_backoff=True,
     retry_backoff_max=120,
 )
-def notify_course_staff_addition(user_email, course_key, role):
+def notify_course_access_role_addition(user_email, course_key, role):
     """
-    Notify MITx Online that a user has been given a course staff role.
+    Notify an external system that a user has been given a course staff role.
 
-    Sends a POST request to the configured MITx Online webhook endpoint
-    so that MITx Online can enroll the user as an auditor in the course.
+    Sends a POST request to the configured webhook endpoint so the
+    external system can enroll the user as an auditor in the course.
 
     Args:
         user_email (str): The email address of the user.
         course_key (str): The string representation of the course key.
         role (str): The course access role assigned to the user.
     """
-    webhook_url = getattr(settings, "MITXONLINE_WEBHOOK_URL", None)
-    webhook_key = getattr(settings, "MITXONLINE_WEBHOOK_KEY", None)
-
-    if not webhook_url:
-        log.warning(
-            "MITXONLINE_WEBHOOK_URL is not configured. "
-            "Skipping notification for user '%s' in course '%s'.",
-            user_email,
-            course_key,
-        )
-        return
+    webhook_url = getattr(settings, "ENROLLMENT_WEBHOOK_URL", None)
+    webhook_key = getattr(settings, "ENROLLMENT_WEBHOOK_KEY", None)
 
     payload = {
         "email": user_email,
@@ -54,7 +45,7 @@ def notify_course_staff_addition(user_email, course_key, role):
         headers["Authorization"] = f"Bearer {webhook_key}"
 
     log.info(
-        "Sending course staff enrollment webhook to MITx Online for "
+        "Sending course staff enrollment webhook for "
         "user '%s' in course '%s' (role: %s)",
         user_email,
         course_key,
@@ -70,7 +61,7 @@ def notify_course_staff_addition(user_email, course_key, role):
     response.raise_for_status()
 
     log.info(
-        "Successfully notified MITx Online for user '%s' in course '%s'. "
+        "Successfully sent enrollment webhook for user '%s' in course '%s'. "
         "Response status: %s",
         user_email,
         course_key,

@@ -16,10 +16,10 @@ members = [
     "ol-openedx-chat-xblock",
     "ol-openedx-checkout-external",
     "ol-openedx-course-export",
-    "ol-openedx-course-staff-webhook",
     "ol-openedx-course-structure-api",
     "ol-openedx-course-sync",
     "ol-openedx-course-translations",
+    "ol-openedx-events-handler",
     "ol-openedx-git-auto-export",
     "ol-openedx-logging",
     "ol-openedx-lti-utilities",
@@ -2125,26 +2125,6 @@ requires-dist = [
 ]
 
 [[package]]
-name = "ol-openedx-course-staff-webhook"
-version = "0.1.0"
-source = { editable = "src/ol_openedx_course_staff_webhook" }
-dependencies = [
-    { name = "celery" },
-    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "edx-django-utils" },
-    { name = "openedx-events" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "celery", specifier = ">=4.4.7" },
-    { name = "django", specifier = ">=4.0" },
-    { name = "edx-django-utils", specifier = ">4.0.0" },
-    { name = "openedx-events" },
-]
-
-[[package]]
 name = "ol-openedx-course-structure-api"
 version = "0.2.0"
 source = { editable = "src/ol_openedx_course_structure_api" }
@@ -2216,6 +2196,28 @@ requires-dist = [
     { name = "polib", specifier = ">=1.2.0" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "srt", specifier = ">=3.5.3" },
+]
+
+[[package]]
+name = "ol-openedx-events-handler"
+version = "0.1.0"
+source = { editable = "src/ol_openedx_events_handler" }
+dependencies = [
+    { name = "celery" },
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "edx-django-utils" },
+    { name = "openedx-events" },
+    { name = "requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "celery", specifier = ">=4.4.7" },
+    { name = "django", specifier = ">=4.0" },
+    { name = "edx-django-utils", specifier = ">4.0.0" },
+    { name = "openedx-events" },
+    { name = "requests" },
 ]
 
 [[package]]
