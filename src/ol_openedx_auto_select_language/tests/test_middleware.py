@@ -126,65 +126,55 @@ def test_middleware_skips_processing(  # noqa: PLR0913
 #################### Tests for CourseLanguageCookieMiddleware ####################
 
 
-def test_forces_english_for_authoring_mfe_origin(
-    request_factory, settings, mock_user, mocker
-):
-    """
-    Test that `CourseLanguageCookieMiddleware` forces English
-    for Course Authoring MFE origin.
-    """
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
-    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = []
-
-    mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
-    mocker.patch(f"{MODULE}.set_user_preference")
-    mock_helpers.get_language_cookie.return_value = "fr"
-
-    middleware = CourseLanguageCookieMiddleware(mocker.Mock())
-    request = request_factory.get(
-        "/courses/course-v1:edX+DemoX+2024/",
-        HTTP_ORIGIN="http://authoring.example.com",
-    )
-    request.user = mock_user
-    response = HttpResponse()
-
-    result = middleware.process_response(request, response)
-
-    assert isinstance(result, HttpResponseRedirect)
-    mock_helpers.set_language_cookie.assert_called_once_with(
-        request, response, ENGLISH_LANGUAGE_CODE
-    )
-
-
 @pytest.mark.parametrize(
-    "exempt_path",
-    ["admin", "sysadmin", "instructor"],
+    ("path", "http_origin", "exempt_paths", "description"),
+    [
+        (
+            "/courses/course-v1:edX+DemoX+2024/",
+            "http://authoring.example.com",
+            [],
+        ),
+        (
+            "/admin/some-page/",
+            None,
+            ["admin", "sysadmin", "instructor"],
+        ),
+        (
+            "/sysadmin/some-page/",
+            None,
+            ["admin", "sysadmin", "instructor"],
+        ),
+        (
+            "/instructor/some-page/",
+            None,
+            ["admin", "sysadmin", "instructor"],
+        ),
+    ],
 )
-def test_forces_english_for_exempt_paths(
+def test_forces_english_for_special_paths(  # noqa: PLR0913
     request_factory,
     settings,
     mock_user,
     mocker,
-    exempt_path,
+    path,
+    http_origin,
+    exempt_paths,
 ):
     """
-    Test `CourseLanguageCookieMiddleware` forces English for exempt paths.
+    Test `CourseLanguageCookieMiddleware` forces English for
+    Course Authoring MFE origin and exempt paths.
     """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
     settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
-    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = [
-        "admin",
-        "sysadmin",
-        "instructor",
-    ]
+    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = exempt_paths
 
     mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
     mocker.patch(f"{MODULE}.set_user_preference")
     mock_helpers.get_language_cookie.return_value = "fr"
 
     middleware = CourseLanguageCookieMiddleware(mocker.Mock())
-    request = request_factory.get(f"/{exempt_path}/some-page/")
+    request_kwargs = {"HTTP_ORIGIN": http_origin} if http_origin else {}
+    request = request_factory.get(path, **request_kwargs)
     request.user = mock_user
     response = HttpResponse()
 
