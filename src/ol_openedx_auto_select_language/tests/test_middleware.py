@@ -127,7 +127,7 @@ def test_middleware_skips_processing(  # noqa: PLR0913
 
 
 @pytest.mark.parametrize(
-    ("path", "http_origin", "exempt_paths", "description"),
+    ("path", "http_origin", "exempt_paths"),
     [
         (
             "/courses/course-v1:edX+DemoX+2024/",
