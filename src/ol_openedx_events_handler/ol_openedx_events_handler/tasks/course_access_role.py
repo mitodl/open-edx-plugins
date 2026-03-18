@@ -1,4 +1,4 @@
-"""Celery tasks for course staff webhook notifications."""
+"""Celery tasks for course access role webhook notifications."""
 
 import logging
 
@@ -19,7 +19,7 @@ REQUEST_TIMEOUT = 30
 )
 def notify_course_access_role_addition(user_email, course_key, role):
     """
-    Notify an external system that a user has been given a course staff role.
+    Notify an external system that a user has been given a course access role.
 
     Sends a POST request to the configured webhook endpoint so the
     external system can enroll the user as an auditor in the course.
@@ -45,7 +45,7 @@ def notify_course_access_role_addition(user_email, course_key, role):
         headers["Authorization"] = f"Bearer {webhook_key}"
 
     log.info(
-        "Sending course staff enrollment webhook for "
+        "Sending course access role enrollment webhook for "
         "user '%s' in course '%s' (role: %s)",
         user_email,
         course_key,

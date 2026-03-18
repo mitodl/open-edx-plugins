@@ -1,4 +1,4 @@
-"""Tests for the course staff webhook Celery task."""
+"""Tests for the course access role webhook Celery task."""
 
 from unittest import mock
 
@@ -9,7 +9,7 @@ from ol_openedx_events_handler.tasks.course_access_role import (
     notify_course_access_role_addition,
 )
 
-WEBHOOK_URL = "https://example.com/api/v1/staff_enrollment_webhook/"
+WEBHOOK_URL = "https://example.com/api/openedx_webhook/enrollment/"
 WEBHOOK_KEY = "test-api-key-123"
 USER_EMAIL = "instructor@example.com"
 COURSE_KEY = "course-v1:MITx+1.001x+2025_T1"

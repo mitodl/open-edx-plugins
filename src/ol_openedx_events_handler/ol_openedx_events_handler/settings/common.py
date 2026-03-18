@@ -6,7 +6,7 @@ def plugin_settings(settings):
     Default settings applied to both LMS and CMS configurations.
     """
 
-    # URL of the webhook endpoint for course staff enrollment.
+    # URL of the webhook endpoint for course access role enrollment.
     settings.ENROLLMENT_WEBHOOK_URL = None
 
     # API key / Bearer token for authenticating with the enrollment webhook.
