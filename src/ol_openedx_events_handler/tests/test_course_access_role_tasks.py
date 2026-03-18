@@ -24,9 +24,7 @@ ROLE = "instructor"
     ],
 )
 @mock.patch("ol_openedx_events_handler.tasks.course_access_role.requests.post")
-def test_sends_webhook_with_correct_payload(
-    mock_post, webhook_key, expect_auth
-):
+def test_sends_webhook_with_correct_payload(mock_post, webhook_key, expect_auth):
     """POST correct payload and conditionally include auth header."""
     mock_response = mock.MagicMock()
     mock_response.status_code = 200
@@ -67,8 +65,8 @@ def test_sends_webhook_with_correct_payload(
 def test_raises_on_http_error(mock_post):
     """HTTP errors should propagate for Celery retry."""
     mock_response = mock.MagicMock()
-    mock_response.raise_for_status.side_effect = (
-        requests.exceptions.HTTPError("500 Server Error")
+    mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+        "500 Server Error"
     )
     mock_post.return_value = mock_response
 

@@ -36,7 +36,9 @@ def handle_course_access_role_added(
         return
 
     allowed_roles = getattr(
-        settings, "ENROLLMENT_COURSE_ACCESS_ROLES", [],
+        settings,
+        "ENROLLMENT_COURSE_ACCESS_ROLES",
+        [],
     )
 
     role = course_access_role_data.role

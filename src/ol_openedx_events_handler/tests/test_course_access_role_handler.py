@@ -86,8 +86,12 @@ def _make_role_data(
 @VALID_WEBHOOK_PATCH
 @TASK_PATCH
 def test_role_based_dispatch(
-    mock_task, _mock_validate,  # noqa: PT019
-    email, role, allowed_roles, expect_dispatch,
+    mock_task,
+    _mock_validate,  # noqa: PT019
+    email,
+    role,
+    allowed_roles,
+    expect_dispatch,
 ):
     """Task should only be triggered for roles in the allowed list."""
     role_data = _make_role_data(email=email, role=role)
@@ -112,16 +116,16 @@ def test_role_based_dispatch(
 @mock.patch("django.contrib.auth.get_user_model")
 @TASK_PATCH
 def test_falls_back_to_username_lookup(
-    mock_task, mock_get_model, _mock_validate  # noqa: PT019
+    mock_task,
+    mock_get_model,
+    _mock_validate,  # noqa: PT019
 ):
     """When email is empty, resolve it from the username."""
     mock_user = mock.MagicMock()
     mock_user.email = "resolved@example.com"
     mock_get_model.return_value.objects.get.return_value = mock_user
 
-    role_data = _make_role_data(
-        email="", username="staffuser", role="staff"
-    )
+    role_data = _make_role_data(email="", username="staffuser", role="staff")
 
     handle_course_access_role_added(
         sender=None,
@@ -142,16 +146,16 @@ def test_falls_back_to_username_lookup(
 @mock.patch("django.contrib.auth.get_user_model")
 @TASK_PATCH
 def test_skips_when_username_not_found(
-    mock_task, mock_get_model, _mock_validate  # noqa: PT019
+    mock_task,
+    mock_get_model,
+    _mock_validate,  # noqa: PT019
 ):
     """Should skip webhook if neither email nor user exists."""
     MockUser = mock_get_model.return_value
     MockUser.DoesNotExist = Exception
     MockUser.objects.get.side_effect = MockUser.DoesNotExist
 
-    role_data = _make_role_data(
-        email="", username="ghost", role="staff"
-    )
+    role_data = _make_role_data(email="", username="ghost", role="staff")
 
     handle_course_access_role_added(
         sender=None,
@@ -167,7 +171,8 @@ def test_skips_when_username_not_found(
 )
 @TASK_PATCH
 def test_skips_when_webhook_not_configured(
-    mock_task, _mock_validate  # noqa: PT019
+    mock_task,
+    _mock_validate,  # noqa: PT019
 ):
     """Should skip entirely when webhook is not configured."""
     role_data = _make_role_data(role="instructor")

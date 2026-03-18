@@ -11,15 +11,9 @@ WEBHOOK_KEY = "test-api-key-123"
 @pytest.mark.parametrize(
     ("webhook_url", "webhook_key", "expected"),
     [
-        pytest.param(
-            WEBHOOK_URL, WEBHOOK_KEY, True, id="fully-configured"
-        ),
-        pytest.param(
-            None, WEBHOOK_KEY, False, id="url-missing"
-        ),
-        pytest.param(
-            WEBHOOK_URL, None, False, id="key-missing"
-        ),
+        pytest.param(WEBHOOK_URL, WEBHOOK_KEY, True, id="fully-configured"),
+        pytest.param(None, WEBHOOK_KEY, False, id="url-missing"),
+        pytest.param(WEBHOOK_URL, None, False, id="key-missing"),
         pytest.param(None, None, False, id="both-missing"),
     ],
 )
