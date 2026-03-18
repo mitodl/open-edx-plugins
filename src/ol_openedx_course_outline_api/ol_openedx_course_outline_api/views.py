@@ -26,8 +26,8 @@ from xmodule.modulestore.django import modulestore
 
 from ol_openedx_course_outline_api.constants import (
     COURSE_OUTLINE_CACHE_KEY_PREFIX,
-    COURSE_OUTLINE_CACHE_TIMEOUT_SECONDS,
     COURSE_OUTLINE_CACHE_SCHEMA_VERSION,
+    COURSE_OUTLINE_CACHE_TIMEOUT_SECONDS,
 )
 from ol_openedx_course_outline_api.utils import build_modules_from_blocks
 
