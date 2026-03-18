@@ -59,6 +59,18 @@ Notes
   - ``assignments``: sequential blocks that are ``graded`` or have a non-empty ``format`` (except ``notgraded``)
   - ``app_items``: leaf blocks that are not ``video``, ``html``, or ``problem`` (and not container types)
 
+Caching
+-------
+
+This endpoint caches the full JSON response using Django's configured cache backend.
+
+- **TTL**: 24 hours.
+- **Cache key**: ``ol_course_outline_api:outline:v0:s<schema_version>:<course_key>:<content_version>``.
+  - ``schema_version`` is a plugin constant (bump it when you change the response shape or computation logic).
+  - ``content_version`` is ``course.course_version`` when present; otherwise the key uses ``na``.
+- **Invalidation**:
+  - Publishing a course that updates ``course.course_version`` produces a new cache key, effectively invalidating old entries.
+
 Troubleshooting
 ---------------
 

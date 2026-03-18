@@ -15,6 +15,14 @@ NOT_GRADED_FORMAT = "notgraded"
 # Some environments may expose the merged field name directly, so we check both.
 VISIBLE_TO_STAFF_ONLY_KEYS = ("visible_to_staff_only", "merged_visible_to_staff_only")
 
-# Per-course response cache (used only when include_gating is False; key = course_id).
+# Response cache for `CourseOutlineView`.
+# Key format is:
+#   {prefix}s{schema_version}:{course_key}:{content_version}
+# where content_version is derived from `course.course_version`.
 COURSE_OUTLINE_CACHE_KEY_PREFIX = "ol_course_outline_api:outline:v0:"
-COURSE_OUTLINE_CACHE_TIMEOUT_SECONDS = 300  # 5 minutes
+COURSE_OUTLINE_CACHE_TIMEOUT_SECONDS = 60 * 60 * 24  # 24 hours
+
+# Schema version embedded in the cache key.
+# Increment this when the response shape or computation logic changes so old cache
+# entries won't be reused.
+COURSE_OUTLINE_CACHE_SCHEMA_VERSION = 1

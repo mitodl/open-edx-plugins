@@ -27,6 +27,7 @@ from xmodule.modulestore.django import modulestore
 from ol_openedx_course_outline_api.constants import (
     COURSE_OUTLINE_CACHE_KEY_PREFIX,
     COURSE_OUTLINE_CACHE_TIMEOUT_SECONDS,
+    COURSE_OUTLINE_CACHE_SCHEMA_VERSION,
 )
 from ol_openedx_course_outline_api.utils import build_modules_from_blocks
 
@@ -72,7 +73,16 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
                 status_code=status.HTTP_404_NOT_FOUND,
                 developer_message="Course not found",
             )
-        cache_key = f"{COURSE_OUTLINE_CACHE_KEY_PREFIX}{course_key}"
+        # Cache key changes on:
+        # - response/schema changes (schema version), and
+        # - course publish/content changes (course.course_version when available).
+        content_version_str = str(getattr(course, "course_version", None) or "na")
+        cache_key = (
+            f"{COURSE_OUTLINE_CACHE_KEY_PREFIX}"
+            f"s{COURSE_OUTLINE_CACHE_SCHEMA_VERSION}:"
+            f"{course_key}:"
+            f"{content_version_str}"
+        )
         cached = cache.get(cache_key)
         if cached is not None:
             return Response(cached, status=status.HTTP_200_OK)
@@ -83,6 +93,7 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
             "display_name",
             "graded",
             "format",  # assignment type (Homework, etc.); fallback if graded is False
+            "hide_from_toc",
             "visible_to_staff_only",
             EffortEstimationTransformer.EFFORT_TIME,
             EffortEstimationTransformer.EFFORT_ACTIVITIES,

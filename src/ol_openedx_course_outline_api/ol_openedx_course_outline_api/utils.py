@@ -17,6 +17,13 @@ def is_visible_to_staff_only(block):
     return any(block.get(key) is True for key in VISIBLE_TO_STAFF_ONLY_KEYS)
 
 
+def is_hidden_from_toc(block):
+    """
+    Return True if the block should be hidden from the outline/table of contents.
+    """
+    return block.get("hide_from_toc") is True
+
+
 def iter_descendant_ids(blocks_data, root_id):
     """
     Yield all descendant block ids (including root_id) from blocks_data.
@@ -31,7 +38,11 @@ def iter_descendant_ids(blocks_data, root_id):
             continue
         seen.add(block_id)
         yield block_id
-        children = blocks_data.get(block_id, {}).get("children") or []
+        block = blocks_data.get(block_id, {}) or {}
+        if is_hidden_from_toc(block):
+            # If a block is hidden from the TOC, don't count it or any of its descendants.
+            continue
+        children = block.get("children") or []
         stack.extend(children)
 
 
@@ -62,6 +73,8 @@ def count_blocks_by_type_under_chapter(blocks_data, chapter_id, block_type):
         block = blocks_data.get(block_id, {})
         if is_visible_to_staff_only(block):
             continue
+        if is_hidden_from_toc(block):
+            continue
         if block.get("type") == block_type:
             count += 1
     return count
@@ -77,6 +90,8 @@ def count_assignments_under_chapter(blocks_data, chapter_id):
         block = blocks_data.get(block_id, {})
         if is_visible_to_staff_only(block):
             continue
+        if is_hidden_from_toc(block):
+            continue
         if is_graded_sequential(block):
             count += 1
     return count
@@ -91,6 +106,8 @@ def count_app_items_under_chapter(blocks_data, chapter_id):
     for block_id in iter_descendant_ids(blocks_data, chapter_id):
         block = blocks_data.get(block_id, {})
         if is_visible_to_staff_only(block):
+            continue
+        if is_hidden_from_toc(block):
             continue
         block_type = block.get("type") or ""
         children = block.get("children") or []
@@ -115,6 +132,8 @@ def build_modules_from_blocks(blocks_data, root_id):
         if block.get("type") != "chapter":
             continue
         if is_visible_to_staff_only(block):
+            continue
+        if is_hidden_from_toc(block):
             continue
 
         counts = {
