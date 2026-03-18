@@ -26,16 +26,16 @@ MODULE = "ol_openedx_auto_select_language.middleware"
     ],
 )
 def test_should_process_request(  # noqa: PLR0913
-    rf,
+    request_factory,
     settings,
     mocker,
     enabled,
     user_type,
     expected,
 ):
-    """Test should_process_request for various conditions."""
+    """Test `should_process_request` for various conditions."""
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = enabled
-    request = rf.get("/courses/")
+    request = request_factory.get("/courses/")
     if user_type == "authenticated":
         request.user = mocker.Mock(is_authenticated=True)
     elif user_type == "anonymous":
@@ -45,12 +45,14 @@ def test_should_process_request(  # noqa: PLR0913
     assert should_process_request(request) is expected
 
 
-def test_sets_cookie_and_user_preference(rf, mock_user, mocker):
-    """Test both cookie and user preference are set."""
+def test_sets_cookie_and_user_preference(request_factory, mock_user, mocker):
+    """
+    Test both cookie and user preference are set by `set_language`.
+    """
     mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
     mock_set_pref = mocker.patch(f"{MODULE}.set_user_preference")
 
-    request = rf.get("/")
+    request = request_factory.get("/")
     request.user = mock_user
     response = HttpResponse()
 
@@ -73,9 +75,9 @@ def test_sets_cookie_and_user_preference(rf, mock_user, mocker):
         ),
     ],
 )
-def test_redirects_to_same_path(rf, path, expected_url):
+def test_redirects_to_same_path(request_factory, path, expected_url):
     """Test redirect preserves path and query string."""
-    request = rf.get(path)
+    request = request_factory.get(path)
     result = redirect_current_path(request)
     assert isinstance(result, HttpResponseRedirect)
     assert result.url == expected_url
@@ -102,8 +104,8 @@ def test_redirects_to_same_path(rf, path, expected_url):
         (False, True, CourseLanguageCookieResetMiddleware, "/some-cms-page/"),
     ],
 )
-def test_skips_processing(  # noqa: PLR0913
-    rf, settings, mocker, enabled, is_authenticated, middleware_cls, path
+def test_middleware_skips_processing(  # noqa: PLR0913
+    request_factory, settings, mocker, enabled, is_authenticated, middleware_cls, path
 ):
     """Test response unchanged when processing is skipped."""
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = enabled
@@ -111,7 +113,7 @@ def test_skips_processing(  # noqa: PLR0913
     mocker.patch(f"{MODULE}.set_user_preference")
 
     middleware = middleware_cls(mocker.Mock())
-    request = rf.get(path)
+    request = request_factory.get(path)
     request.user = mocker.Mock(is_authenticated=is_authenticated)
     response = HttpResponse()
 
@@ -121,8 +123,16 @@ def test_skips_processing(  # noqa: PLR0913
     mock_helpers.set_language_cookie.assert_not_called()
 
 
-def test_forces_english_for_authoring_mfe_origin(rf, settings, mock_user, mocker):
-    """Test English forced for Course Authoring MFE origin."""
+#################### Tests for CourseLanguageCookieMiddleware ####################
+
+
+def test_forces_english_for_authoring_mfe_origin(
+    request_factory, settings, mock_user, mocker
+):
+    """
+    Test that `CourseLanguageCookieMiddleware` forces English
+    for Course Authoring MFE origin.
+    """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
     settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = []
@@ -132,7 +142,7 @@ def test_forces_english_for_authoring_mfe_origin(rf, settings, mock_user, mocker
     mock_helpers.get_language_cookie.return_value = "fr"
 
     middleware = CourseLanguageCookieMiddleware(mocker.Mock())
-    request = rf.get(
+    request = request_factory.get(
         "/courses/course-v1:edX+DemoX+2024/",
         HTTP_ORIGIN="http://authoring.example.com",
     )
@@ -152,13 +162,15 @@ def test_forces_english_for_authoring_mfe_origin(rf, settings, mock_user, mocker
     ["admin", "sysadmin", "instructor"],
 )
 def test_forces_english_for_exempt_paths(
-    rf,
+    request_factory,
     settings,
     mock_user,
     mocker,
     exempt_path,
 ):
-    """Test English forced for exempt paths."""
+    """
+    Test `CourseLanguageCookieMiddleware` forces English for exempt paths.
+    """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
     settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = [
@@ -172,7 +184,7 @@ def test_forces_english_for_exempt_paths(
     mock_helpers.get_language_cookie.return_value = "fr"
 
     middleware = CourseLanguageCookieMiddleware(mocker.Mock())
-    request = rf.get(f"/{exempt_path}/some-page/")
+    request = request_factory.get(f"/{exempt_path}/some-page/")
     request.user = mock_user
     response = HttpResponse()
 
@@ -184,18 +196,50 @@ def test_forces_english_for_exempt_paths(
     )
 
 
-def test_no_redirect_when_already_english(rf, settings, mock_user, mocker):
-    """Test no redirect when cookie is already English."""
+@pytest.mark.parametrize(
+    ("path", "cookie_lang", "course_lang"),
+    [
+        (
+            "/admin/dashboard/",
+            ENGLISH_LANGUAGE_CODE,
+            None,
+        ),
+        (
+            "/courses/course-v1:edX+DemoX+2024/courseware/",
+            "fr",
+            "fr",
+        ),
+    ],
+)
+def test_no_redirect_when_language_matches(  # noqa: PLR0913
+    request_factory,
+    settings,
+    mock_user,
+    mocker,
+    path,
+    cookie_lang,
+    course_lang,
+):
+    """
+    Test that `CourseLanguageCookieMiddleware` does not redirect
+    when cookie already matches required language.
+    """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
     settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["admin"]
 
     mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
     mocker.patch(f"{MODULE}.set_user_preference")
-    mock_helpers.get_language_cookie.return_value = ENGLISH_LANGUAGE_CODE
+    mock_helpers.get_language_cookie.return_value = cookie_lang
+
+    if course_lang:
+        mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
+        mock_overview = mocker.Mock()
+        mock_overview.language = course_lang
+        mock_overview_cls.get_from_id.return_value = mock_overview
 
     middleware = CourseLanguageCookieMiddleware(mocker.Mock())
-    request = rf.get("/admin/dashboard/")
+    request = request_factory.get(path)
     request.user = mock_user
     response = HttpResponse()
 
@@ -213,7 +257,7 @@ def test_no_redirect_when_already_english(rf, settings, mock_user, mocker):
     ],
 )
 def test_sets_course_language(  # noqa: PLR0913
-    rf,
+    request_factory,
     settings,
     mock_user,
     mocker,
@@ -221,7 +265,9 @@ def test_sets_course_language(  # noqa: PLR0913
     cookie_lang,
     expected_set_lang,
 ):
-    """Test language set and converted to BCP47."""
+    """
+    Test `CourseLanguageCookieMiddleware` sets language and converts to BCP47.
+    """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
     settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = []
@@ -235,7 +281,7 @@ def test_sets_course_language(  # noqa: PLR0913
     mock_helpers.get_language_cookie.return_value = cookie_lang
 
     middleware = CourseLanguageCookieMiddleware(mocker.Mock())
-    request = rf.get("/courses/course-v1:edX+DemoX+2024/courseware/")
+    request = request_factory.get("/courses/course-v1:edX+DemoX+2024/courseware/")
     request.user = mock_user
     response = HttpResponse()
 
@@ -245,31 +291,6 @@ def test_sets_course_language(  # noqa: PLR0913
     mock_helpers.set_language_cookie.assert_called_once_with(
         request, response, expected_set_lang
     )
-
-
-def test_no_redirect_when_cookie_matches(rf, settings, mock_user, mocker):
-    """Test no redirect when cookie matches course language."""
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
-    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = []
-
-    mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
-    mocker.patch(f"{MODULE}.set_user_preference")
-    mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
-    mock_overview = mocker.Mock()
-    mock_overview.language = "fr"
-    mock_overview_cls.get_from_id.return_value = mock_overview
-    mock_helpers.get_language_cookie.return_value = "fr"
-
-    middleware = CourseLanguageCookieMiddleware(mocker.Mock())
-    request = rf.get("/courses/course-v1:edX+DemoX+2024/courseware/")
-    request.user = mock_user
-    response = HttpResponse()
-
-    result = middleware.process_response(request, response)
-
-    assert result is response
-    mock_helpers.set_language_cookie.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -289,8 +310,13 @@ def test_no_redirect_when_cookie_matches(rf, settings, mock_user, mocker):
         },
     ],
 )
-def test_returns_response_unchanged(rf, settings, mock_user, mocker, scenario):
-    """Test response unchanged for non-course path, missing course, or no language."""
+def test_returns_response_unchanged(
+    request_factory, settings, mock_user, mocker, scenario
+):
+    """
+    Test `CourseLanguageCookieMiddleware` returns unchanged
+    response for non-course path, missing course, or no language.
+    """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
     settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = []
@@ -310,7 +336,7 @@ def test_returns_response_unchanged(rf, settings, mock_user, mocker, scenario):
         mock_overview_cls.get_from_id.return_value = mocker.Mock(spec=[])
 
     middleware = CourseLanguageCookieMiddleware(mocker.Mock())
-    request = rf.get(scenario["path"])
+    request = request_factory.get(scenario["path"])
     request.user = mock_user
     response = HttpResponse()
 
@@ -322,8 +348,16 @@ def test_returns_response_unchanged(rf, settings, mock_user, mocker, scenario):
         mock_overview_cls.get_from_id.assert_not_called()
 
 
-def test_resets_non_english_cookie_to_english(rf, settings, mock_user, mocker):
-    """Test non-English cookie reset to English."""
+####################  Tests for CourseLanguageCookieResetMiddleware ####################
+
+
+def test_resets_non_english_cookie_to_english(
+    request_factory, settings, mock_user, mocker
+):
+    """
+    Test `CourseLanguageCookieResetMiddleware` resets
+    non-English cookie to English.
+    """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
 
     mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
@@ -331,7 +365,7 @@ def test_resets_non_english_cookie_to_english(rf, settings, mock_user, mocker):
     mock_helpers.get_language_cookie.return_value = "fr"
 
     middleware = CourseLanguageCookieResetMiddleware(mocker.Mock())
-    request = rf.get("/some-cms-page/")
+    request = request_factory.get("/some-cms-page/")
     request.user = mock_user
     response = HttpResponse()
 
@@ -348,9 +382,12 @@ def test_resets_non_english_cookie_to_english(rf, settings, mock_user, mocker):
     [ENGLISH_LANGUAGE_CODE, ""],
 )
 def test_no_change_when_cookie_is_english_or_empty(
-    rf, settings, mock_user, mocker, cookie_value
+    request_factory, settings, mock_user, mocker, cookie_value
 ):
-    """Test no change when cookie is already English or empty."""
+    """
+    Test that CourseLanguageCookieResetMiddleware makes no
+    change when cookie is already English or empty.
+    """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
 
     mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
@@ -358,7 +395,7 @@ def test_no_change_when_cookie_is_english_or_empty(
     mock_helpers.get_language_cookie.return_value = cookie_value
 
     middleware = CourseLanguageCookieResetMiddleware(mocker.Mock())
-    request = rf.get("/some-cms-page/")
+    request = request_factory.get("/some-cms-page/")
     request.user = mock_user
     response = HttpResponse()
 

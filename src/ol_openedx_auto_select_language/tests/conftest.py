@@ -2,7 +2,7 @@
 
 import logging
 
-from tests.fixtures import mock_anonymous_user, mock_user, rf  # noqa: F401
+from tests.fixtures import mock_user, request_factory  # noqa: F401
 
 
 def pytest_addoption(parser):

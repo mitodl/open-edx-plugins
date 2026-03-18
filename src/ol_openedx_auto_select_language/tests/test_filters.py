@@ -28,6 +28,11 @@ def _make_step(mocker):
             "es",
         ),
         (
+            "es_419",
+            {"es-419": "spanish.srt", "en": "english.srt"},
+            "es-419",
+        ),
+        (
             "zh_HANS",
             {"zh-Hans": "chinese.srt", "en": "english.srt"},
             "zh-Hans",
@@ -142,8 +147,10 @@ def test_non_video_block_dest_lang(  # noqa: PLR0913
     )
 
     if expected_lang is not None:
-        video_child_key = next(c for c in block.children if c.block_type == "video")
-        mock_ms.return_value.get_item.assert_called_once_with(video_child_key)
+        video_child = next(
+            child for child in block.children if child.block_type == "video"
+        )
+        mock_ms.return_value.get_item.assert_called_once_with(video_child)
         assert result["student_view_context"]["dest_lang"] == expected_lang
     else:
         mock_ms.return_value.get_item.assert_not_called()
@@ -158,7 +165,7 @@ def test_non_video_block_dest_lang(  # noqa: PLR0913
         ("no_course", {"en": "english.srt"}),
     ],
 )
-def test_defaults_to_english_fallback(mocker, course_setup, transcripts):
+def test_transcript_defaults_to_english_fallback(mocker, course_setup, transcripts):
     """Test defaults to English for various fallback cases."""
     mock_ms = mocker.patch(f"{MODULE}.modulestore")
     mock_video = mocker.Mock()

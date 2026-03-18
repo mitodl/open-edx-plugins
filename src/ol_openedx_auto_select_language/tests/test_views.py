@@ -18,7 +18,7 @@ MODULE = "ol_openedx_auto_select_language.views"
     ],
 )
 def test_returns_course_language(
-    rf,
+    request_factory,
     mock_user,
     mocker,
     course_lang,
@@ -30,7 +30,7 @@ def test_returns_course_language(
     mock_course.language = course_lang
     mock_overview_cls.get_from_id.return_value = mock_course
 
-    request = rf.get("/")
+    request = request_factory.get("/")
     request.user = mock_user
     view = CourseLanguageView()
     response = view.get(
@@ -66,7 +66,7 @@ def test_returns_course_language(
     ],
 )
 def test_returns_error_responses(
-    rf,
+    request_factory,
     mock_user,
     mocker,
     scenario,
@@ -91,7 +91,7 @@ def test_returns_error_responses(
         else:
             mock_overview_cls.get_from_id.side_effect = RuntimeError("Unexpected")
 
-    request = rf.get("/")
+    request = request_factory.get("/")
     request.user = mock_user
     view = CourseLanguageView()
     response = view.get(request, course_key_string=scenario["course_key_string"])
