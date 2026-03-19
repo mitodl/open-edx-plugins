@@ -50,9 +50,6 @@ def get_course(block):
     if course_id.deprecated:
         course_id = CourseLocator(course_id.org, course_id.course, course_id.run)
 
-    # Sometimes we cannot find a course by the ID i.e. during course import.
-    # We return True in that case to avoid breaking the import process.
-    # This will work fine with LMS and CMS.
     try:
         return get_course_by_id(course_id)
     except Exception:
@@ -71,6 +68,12 @@ def is_ol_chat_enabled_for_course(block):
         bool: True if OL Chat is enabled, False otherwise
     """
     course = get_course(block)
+    # Sometimes we cannot find a course by the ID i.e. during course import.
+    # We return True in that case to avoid breaking the import process.
+    # This will work fine with LMS and CMS.
+    if not course:
+        return True
+
     other_course_settings = course.other_course_settings
     block_type = getattr(block, "category", None)
     return other_course_settings.get(BLOCK_TYPE_TO_SETTINGS.get(block_type))
