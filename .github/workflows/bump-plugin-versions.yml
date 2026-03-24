@@ -24,18 +24,22 @@ jobs:
       id: detect
       run: |
         git fetch origin main
-        MODIFIED_FILES=$(git diff --name-only origin/main HEAD -- 'src/*/pyproject.toml' | tr '\n' ' ')
-        echo "files=${MODIFIED_FILES}" >> "$GITHUB_OUTPUT"
+        MODIFIED_FILES=$(git diff --name-only origin/main HEAD -- 'src/*/pyproject.toml')
         if [ -z "$MODIFIED_FILES" ]; then
           echo "changed=false" >> "$GITHUB_OUTPUT"
         else
           echo "changed=true" >> "$GITHUB_OUTPUT"
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "files<<$EOF" >> "$GITHUB_OUTPUT"
+          echo "$MODIFIED_FILES" >> "$GITHUB_OUTPUT"
+          echo "$EOF" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Bump patch version in modified plugin pyproject.toml files
       if: steps.detect.outputs.changed == 'true'
       run: |
-        for file in ${{ steps.detect.outputs.files }}; do
+        echo "${{ steps.detect.outputs.files }}" | while IFS= read -r file; do
+          [ -z "$file" ] && continue
           echo "Bumping version in $file"
           python scripts/bump_plugin_version.py "$file"
         done

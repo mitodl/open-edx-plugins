@@ -39,7 +39,7 @@ def bump_version_in_file(filepath: Path) -> bool:
     new_version = bump_patch_version(old_version)
 
     new_content = VERSION_PATTERN.sub(
-        rf"\g<1>{new_version}\3",
+        rf"\g<1>{new_version}\g<3>",
         content,
         count=1,
     )
@@ -72,6 +72,8 @@ def get_modified_plugin_pyproject_files() -> list[Path]:
 
     modified_files = []
     for line in result.stdout.strip().split("\n"):
+        if not line:
+            continue
         path = Path(line)
         if path.match("src/*/pyproject.toml") and path.exists():
             modified_files.append(path)
