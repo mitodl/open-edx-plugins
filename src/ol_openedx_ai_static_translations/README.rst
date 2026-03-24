@@ -43,7 +43,7 @@ Usage
     ./manage.py cms sync_and_translate_language el
 
     # With specific provider and model
-    ./manage.py cms sync_and_translate_language el --provider openai --model gpt-5.2 --glossary
+    ./manage.py cms sync_and_translate_language el --provider openai --model gpt-5.2 --glossary /path/to/glossary
 
 License
 *******
