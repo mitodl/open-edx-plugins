@@ -121,7 +121,9 @@ class OLChatAside(XBlockAside):
             ]
 
         if block_type == VIDEO_BLOCK_CATEGORY:
-            request_body["transcript_asset_id"] = get_transcript_asset_id(block)
+            transcript_asset_id = get_transcript_asset_id(block)
+            if transcript_asset_id:
+                request_body["transcript_asset_id"] = transcript_asset_id
 
         extra_context = {
             "block_id": block_id,
