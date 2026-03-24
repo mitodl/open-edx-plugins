@@ -149,4 +149,3 @@ inline-quotes = "double"
 "tests/**" = ["S101", "D"]
 "test_*.py" = ["S101", "D"]
 "src/ol_openedx_rapid_response_reports/docs/conf.py" = ["ERA"]
-"scripts/**" = ["INP001", "T201", "S607"]
