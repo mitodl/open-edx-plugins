@@ -123,6 +123,9 @@ def get_transcript_asset_id(block):
         str: The transcript asset ID if available, otherwise None.
     """
     course = get_course(block)
+    if not course:
+        return None
+
     course_language = LanguageCode(course.language).to_bcp47()
     try:
         transcripts_info = block.get_transcripts_info()
