@@ -5,11 +5,21 @@
   ],
   "packageRules": [
     {
-      "description": "Bump dependency versions in plugin pyproject.toml files instead of only updating the lockfile",
-      "matchFileNames": [
-        "src/*/pyproject.toml"
-      ],
-      "rangeStrategy": "bump"
+      "description": "Auto-merge patch updates",
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "Require approval for minor and major updates",
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false
+    },
+    {
+      "description": "Bump versions in plugin pyproject.toml (only non-breaking)",
+      "matchFileNames": ["src/*/pyproject.toml"],
+      "rangeStrategy": "bump",
+      "matchUpdateTypes": ["minor", "patch"]
     }
   ]
 }
