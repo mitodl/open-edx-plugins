@@ -2,5 +2,24 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>mitodl/.github:renovate-config"
+  ],
+  "packageRules": [
+    {
+      "description": "Auto-merge patch updates",
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "automergeType": "pr"
+    },
+    {
+      "description": "Require approval for minor and major updates",
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false
+    },
+    {
+      "description": "Bump versions in plugin pyproject.toml (only non-breaking)",
+      "matchFileNames": ["src/*/pyproject.toml"],
+      "rangeStrategy": "bump",
+      "matchUpdateTypes": ["minor", "patch"]
+    }
   ]
 }
