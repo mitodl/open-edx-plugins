@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ol-openedx-events-handler"
+version = "0.1.0"
+description = "Open edX plugin to handle Open edX signals and events for MIT OL"
+readme = "README.rst"
+requires-python = ">=3.11"
+license = { file = "LICENSE.txt" }
+dependencies = [
+    "Django>=4.0",
+    "celery>=4.4.7",
+    "edx-django-utils>4.0.0",
+    "openedx-events",
+    "requests",
+]
+
+[project.entry-points."lms.djangoapp"]
+ol_openedx_events_handler = "ol_openedx_events_handler.apps:OlOpenedxEventsHandlerConfig"
+
+[project.entry-points."cms.djangoapp"]
+ol_openedx_events_handler = "ol_openedx_events_handler.apps:OlOpenedxEventsHandlerConfig"
