@@ -1,10 +1,12 @@
 """Tests for the util methods"""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from ddt import data, ddt, unpack
 from ol_openedx_chat.utils import (
     get_checkpoint_and_thread_id,
+    get_course,
+    get_transcript_asset_id,
     is_aside_applicable_to_block,
     is_ol_chat_enabled_for_course,
 )
@@ -135,3 +137,153 @@ class OLChatUtilTests(OLChatTestCase):
         thread_id, checkpoint_pk = get_checkpoint_and_thread_id(content)
         assert thread_id == expected_thread_id
         assert checkpoint_pk == expected_checkpoint_pk
+
+    @data(
+        (False, True),  # Normal course key
+        (True, True),  # Deprecated course key
+    )
+    @unpack
+    def test_get_course_success(self, is_deprecated, expected_course_found):
+        """Test that get_course returns the course successfully"""
+        with patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id:
+            mock_get_course_by_id.return_value = self.course
+
+            if is_deprecated:
+                course_key = CourseLocator(
+                    self.course.id.org,
+                    self.course.id.course,
+                    self.course.id.run,
+                    deprecated=True,
+                )
+                usage_key = BlockUsageLocator(
+                    course_key=course_key,
+                    block_type="problem",
+                    block_id="test_block",
+                )
+                block = BlockFactory.create(
+                    category="problem",
+                    parent_location=self.vertical.location,
+                    display_name="Test Block",
+                    user_id=self.user.id,
+                    location=usage_key,
+                )
+            else:
+                block = self.problem_block
+
+            course = get_course(block)
+            assert course == self.course if expected_course_found else course is None
+
+    def test_get_course_exception(self):
+        """Test that get_course returns None when an exception occurs"""
+        with patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id:
+            mock_get_course_by_id.side_effect = Exception("Course not found")
+            course = get_course(self.problem_block)
+            assert course is None
+
+    @data(
+        # (course_language, transcripts, edx_video_id_transcripts, expected_asset_id_suffix)  # noqa: ERA001,E501
+        (
+            "en",
+            {"en": "transcript-en.srt", "es": "transcript-es.srt"},
+            [],
+            "transcript-en.srt",
+        ),  # Course language transcript
+        (
+            "es",
+            {"en": "transcript-en.srt", "es": "transcript-es.srt"},
+            [],
+            "transcript-es.srt",
+        ),  # Non-English course language
+        (
+            "es_419",
+            {
+                "en": "transcript-en.srt",
+                "es": "transcript-es.srt",
+                "es-419": "transcript-es-419.srt",
+            },
+            [],
+            "transcript-es-419.srt",
+        ),  # Non-English course language
+        (
+            "de_DE",
+            {
+                "en": "transcript-en.srt",
+                "es": "transcript-es.srt",
+                "de-DE": "transcript-de-DE.srt",
+            },
+            [],
+            "transcript-de-DE.srt",
+        ),  # Non-English course language
+        ("es", {}, ["es"], "video-id-es.srt"),  # Transcript from edx_video_id
+        (
+            "es_419",
+            {},
+            ["es-419"],
+            "video-id-es-419.srt",
+        ),  # Transcript from edx_video_id
+        ("de_DE", {}, ["de-DE"], "video-id-de-DE.srt"),  # Transcript from edx_video_id
+        (
+            "es",
+            {"en": "transcript-en.srt"},
+            [],
+            "transcript-en.srt",
+        ),  # Fallback to English transcript
+        ("es", {}, ["en"], "video-id-en.srt"),  # Fallback to English from edx_video_id
+        ("es", {}, [], None),  # No transcript available
+    )
+    @unpack
+    def test_get_transcript_asset_id(
+        self,
+        course_language,
+        transcripts,
+        edx_video_id_transcripts,
+        expected_asset_id_suffix,
+    ):
+        """Test that get_transcript_asset_id returns the correct asset ID"""
+        with (
+            patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id,
+            patch(
+                "ol_openedx_chat.utils.get_available_transcript_languages"
+            ) as mock_get_transcripts,
+            patch(
+                "ol_openedx_chat.utils.Transcript.asset_location"
+            ) as mock_asset_location,
+        ):
+            # Setup course language
+            self.course.language = course_language
+            mock_get_course_by_id.return_value = self.course
+
+            # Setup video block
+            self.video_block.edx_video_id = "video-id"
+            mock_transcripts_info = {"transcripts": transcripts}
+            self.video_block.get_transcripts_info = MagicMock(
+                return_value=mock_transcripts_info
+            )
+
+            # Setup edx_video_id transcripts
+            mock_get_transcripts.return_value = edx_video_id_transcripts
+
+            # Setup mock return value
+            if expected_asset_id_suffix:
+                mock_asset_location.return_value = (
+                    f"asset-id-{expected_asset_id_suffix}"
+                )
+
+            result = get_transcript_asset_id(self.video_block)
+
+            if expected_asset_id_suffix:
+                assert result == f"asset-id-{expected_asset_id_suffix}"
+                mock_asset_location.assert_called_once()
+            else:
+                assert result is None
+
+    def test_get_transcript_asset_id_exception(self):
+        """Test that get_transcript_asset_id returns None when an exception occurs"""
+        with patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id:
+            mock_get_course_by_id.return_value = self.course
+            self.video_block.get_transcripts_info = MagicMock(
+                side_effect=Exception("Transcript error")
+            )
+
+            result = get_transcript_asset_id(self.video_block)
+            assert result is None
