@@ -23,7 +23,7 @@ jobs:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
     - name: Set up uv
-      uses: astral-sh/setup-uv@e06108dd0aef18192324c70427afc47652e63a82 # v7
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       with:
         enable-cache: true
 
@@ -71,7 +71,7 @@ jobs:
         fi
         EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name $DEV run -v $PWD:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh --mount-dir /openedx/open-edx-plugins
     - name: Upload coverage to CodeCov
-      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
+      uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
       with:
         files: ./coverage.xml
         fail_ci_if_error: false

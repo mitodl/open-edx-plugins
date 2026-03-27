@@ -1,6 +1,10 @@
 [project]
 name = "ol-openedx-course-translations"
+<<<<<<< copilot/update-ol-openedx-ai-static-translations
 version = "0.6.0"
+=======
+version = "0.5.2"
+>>>>>>> main
 description = "An Open edX plugin to translate courses"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -13,7 +17,14 @@ dependencies = [
   "Django>=4.0",
   "djangorestframework>=3.14.0",
   "deepl>=1.25.0",
+<<<<<<< copilot/update-ol-openedx-ai-static-translations
   "litellm>=1.80.0",
+=======
+  "litellm==1.82.5",
+  "GitPython>=3.1.40",
+  "requests>=2.31.0",
+  "polib>=1.2.0",
+>>>>>>> main
   "srt>=3.5.3",
   "edx-opaque-keys",
 ]
