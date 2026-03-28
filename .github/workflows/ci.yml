@@ -71,7 +71,7 @@ jobs:
         fi
         EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name $DEV run -v $PWD:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh --mount-dir /openedx/open-edx-plugins
     - name: Upload coverage to CodeCov
-      uses: codecov/codecov-action@1af58845a975a7985b0beb0cbe6fbbb71a41dbad # v5
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
       with:
         files: ./coverage.xml
         fail_ci_if_error: false
