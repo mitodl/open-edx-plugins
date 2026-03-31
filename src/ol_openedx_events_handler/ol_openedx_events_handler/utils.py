@@ -25,10 +25,10 @@ def validate_enrollment_webhook():
         )
         return False
 
-    webhook_key = getattr(settings, "ENROLLMENT_WEBHOOK_KEY", None)
+    webhook_key = getattr(settings, "ENROLLMENT_WEBHOOK_ACCESS_TOKEN", None)
     if not webhook_key:
         log.warning(
-            "ENROLLMENT_WEBHOOK_KEY is not configured. "
+            "ENROLLMENT_WEBHOOK_ACCESS_TOKEN is not configured. "
             "Skipping enrollment webhook dispatch."
         )
         return False
