@@ -10,8 +10,8 @@ def plugin_settings(settings):
     settings.ENROLLMENT_WEBHOOK_URL = env_tokens.get(
         "ENROLLMENT_WEBHOOK_URL", settings.ENROLLMENT_WEBHOOK_URL
     )
-    settings.ENROLLMENT_WEBHOOK_KEY = env_tokens.get(
-        "ENROLLMENT_WEBHOOK_KEY", settings.ENROLLMENT_WEBHOOK_KEY
+    settings.ENROLLMENT_WEBHOOK_ACCESS_TOKEN = env_tokens.get(
+        "ENROLLMENT_WEBHOOK_ACCESS_TOKEN", settings.ENROLLMENT_WEBHOOK_ACCESS_TOKEN
     )
     settings.ENROLLMENT_COURSE_ACCESS_ROLES = env_tokens.get(
         "ENROLLMENT_COURSE_ACCESS_ROLES", settings.ENROLLMENT_COURSE_ACCESS_ROLES

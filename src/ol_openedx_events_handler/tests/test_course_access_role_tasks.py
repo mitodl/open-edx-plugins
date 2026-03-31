@@ -10,21 +10,21 @@ from ol_openedx_events_handler.tasks.course_access_role import (
 )
 
 WEBHOOK_URL = "https://example.com/api/openedx_webhook/enrollment/"
-WEBHOOK_KEY = "test-api-key-123"
+TEST_TOKEN = "test-access-token-123"  # noqa: S105
 USER_EMAIL = "instructor@example.com"
 COURSE_KEY = "course-v1:MITx+1.001x+2025_T1"
 ROLE = "instructor"
 
 
 @pytest.mark.parametrize(
-    ("webhook_key", "expect_auth"),
+    ("access_token", "expect_auth"),
     [
-        pytest.param(WEBHOOK_KEY, True, id="with-auth-key"),
-        pytest.param(None, False, id="without-auth-key"),
+        pytest.param(TEST_TOKEN, True, id="with-access-token"),
+        pytest.param(None, False, id="without-access-token"),
     ],
 )
 @mock.patch("ol_openedx_events_handler.tasks.course_access_role.requests.post")
-def test_sends_webhook_with_correct_payload(mock_post, webhook_key, expect_auth):
+def test_sends_webhook_with_correct_payload(mock_post, access_token, expect_auth):
     """POST correct payload and conditionally include auth header."""
     mock_response = mock.MagicMock()
     mock_response.status_code = 200
@@ -32,7 +32,7 @@ def test_sends_webhook_with_correct_payload(mock_post, webhook_key, expect_auth)
 
     with override_settings(
         ENROLLMENT_WEBHOOK_URL=WEBHOOK_URL,
-        ENROLLMENT_WEBHOOK_KEY=webhook_key,
+        ENROLLMENT_WEBHOOK_ACCESS_TOKEN=access_token,
     ):
         notify_course_access_role_addition(
             user_email=USER_EMAIL,
@@ -42,7 +42,7 @@ def test_sends_webhook_with_correct_payload(mock_post, webhook_key, expect_auth)
 
     expected_headers = {"Content-Type": "application/json"}
     if expect_auth:
-        expected_headers["Authorization"] = f"Bearer {webhook_key}"
+        expected_headers["Authorization"] = f"Bearer {access_token}"
 
     mock_post.assert_called_once_with(
         WEBHOOK_URL,
@@ -59,7 +59,7 @@ def test_sends_webhook_with_correct_payload(mock_post, webhook_key, expect_auth)
 
 @override_settings(
     ENROLLMENT_WEBHOOK_URL=WEBHOOK_URL,
-    ENROLLMENT_WEBHOOK_KEY=WEBHOOK_KEY,
+    ENROLLMENT_WEBHOOK_ACCESS_TOKEN=TEST_TOKEN,
 )
 @mock.patch("ol_openedx_events_handler.tasks.course_access_role.requests.post")
 def test_raises_on_http_error(mock_post):

@@ -16,7 +16,7 @@ TASK_PATCH = mock.patch(
     "ol_openedx_events_handler.tasks.course_access_role"
     ".notify_course_access_role_addition"
 )
-COURSE_KEY = "course-v1:MITx+1.001x+2025_T1"
+COURSE_KEY = "course-v1:OpenedX+DemoX+DemoCourse"
 DEFAULT_ROLES = ["instructor", "staff"]
 
 
@@ -38,7 +38,7 @@ def _make_role_data(
     role_data = mock.MagicMock()
     role_data.user = user
     role_data.course_key = course_key
-    role_data.org_key = "MITx"
+    role_data.org_key = "OpenedX"
     role_data.role = role
     return role_data
 

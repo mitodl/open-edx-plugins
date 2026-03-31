@@ -2,6 +2,7 @@
 
 from django.apps import AppConfig
 from edx_django_utils.plugins import PluginSettings, PluginSignals
+from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 
 _COURSE_ACCESS_ROLE_ADDED_RECEIVER = {
     PluginSignals.RECEIVER_FUNC_NAME: "handle_course_access_role_added",
@@ -23,29 +24,29 @@ class OlOpenedxEventsHandlerConfig(AppConfig):
 
     plugin_app = {
         PluginSignals.CONFIG: {
-            "lms.djangoapp": {
+            ProjectType.LMS: {
                 PluginSignals.RELATIVE_PATH: "handlers.course_access_role",
                 PluginSignals.RECEIVERS: [_COURSE_ACCESS_ROLE_ADDED_RECEIVER],
             },
-            "cms.djangoapp": {
+            ProjectType.CMS: {
                 PluginSignals.RELATIVE_PATH: "handlers.course_access_role",
                 PluginSignals.RECEIVERS: [_COURSE_ACCESS_ROLE_ADDED_RECEIVER],
             },
         },
         PluginSettings.CONFIG: {
-            "lms.djangoapp": {
-                "common": {
+            ProjectType.LMS: {
+                SettingsType.COMMON: {
                     PluginSettings.RELATIVE_PATH: "settings.common",
                 },
-                "production": {
+                SettingsType.PRODUCTION: {
                     PluginSettings.RELATIVE_PATH: "settings.production",
                 },
             },
-            "cms.djangoapp": {
-                "common": {
+            ProjectType.CMS: {
+                SettingsType.COMMON: {
                     PluginSettings.RELATIVE_PATH: "settings.common",
                 },
-                "production": {
+                SettingsType.PRODUCTION: {
                     PluginSettings.RELATIVE_PATH: "settings.production",
                 },
             },

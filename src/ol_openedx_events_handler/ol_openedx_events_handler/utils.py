@@ -11,15 +11,13 @@ def validate_enrollment_webhook():
     """
     Validate that the enrollment webhook is properly configured.
 
-    Checks that both ENROLLMENT_WEBHOOK_URL and ENROLLMENT_WEBHOOK_KEY
+    Checks that both ENROLLMENT_WEBHOOK_URL and ENROLLMENT_WEBHOOK_ACCESS_TOKEN
     are set in Django settings.
 
     Returns:
         bool: True if the webhook is fully configured, False otherwise.
     """
     webhook_url = getattr(settings, "ENROLLMENT_WEBHOOK_URL", None)
-    webhook_key = getattr(settings, "ENROLLMENT_WEBHOOK_KEY", None)
-
     if not webhook_url:
         log.warning(
             "ENROLLMENT_WEBHOOK_URL is not configured. "
@@ -27,6 +25,7 @@ def validate_enrollment_webhook():
         )
         return False
 
+    webhook_key = getattr(settings, "ENROLLMENT_WEBHOOK_KEY", None)
     if not webhook_key:
         log.warning(
             "ENROLLMENT_WEBHOOK_KEY is not configured. "

@@ -42,7 +42,7 @@ edx-platform configuration
   .. code-block:: yaml
 
     ENROLLMENT_WEBHOOK_URL: "https://example.com/api/openedx_webhook/enrollment/"
-    ENROLLMENT_WEBHOOK_KEY: "<your-webhook-api-key>"
+    ENROLLMENT_WEBHOOK_ACCESS_TOKEN: "<your-oauth-access-token>"
 
 - Optionally, override the roles that trigger the webhook (defaults to ``["instructor", "staff"]``):
 

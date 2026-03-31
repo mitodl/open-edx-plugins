@@ -22,7 +22,7 @@ def notify_course_access_role_addition(user_email, course_key, role):
     Notify an external system that a user has been given a course access role.
 
     Sends a POST request to the configured webhook endpoint so the
-    external system can enroll the user as an auditor in the course.
+    external system can decide on whatever it wants to do with this event.
 
     Args:
         user_email (str): The email address of the user.
@@ -30,7 +30,7 @@ def notify_course_access_role_addition(user_email, course_key, role):
         role (str): The course access role assigned to the user.
     """
     webhook_url = getattr(settings, "ENROLLMENT_WEBHOOK_URL", None)
-    webhook_key = getattr(settings, "ENROLLMENT_WEBHOOK_KEY", None)
+    access_token = getattr(settings, "ENROLLMENT_WEBHOOK_ACCESS_TOKEN", None)
 
     payload = {
         "email": user_email,
@@ -41,8 +41,8 @@ def notify_course_access_role_addition(user_email, course_key, role):
     headers = {
         "Content-Type": "application/json",
     }
-    if webhook_key:
-        headers["Authorization"] = f"Bearer {webhook_key}"
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
 
     log.info(
         "Sending course access role enrollment webhook for "

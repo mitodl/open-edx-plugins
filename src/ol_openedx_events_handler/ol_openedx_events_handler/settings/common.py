@@ -9,8 +9,8 @@ def plugin_settings(settings):
     # URL of the webhook endpoint for course access role enrollment.
     settings.ENROLLMENT_WEBHOOK_URL = None
 
-    # API key / Bearer token for authenticating with the enrollment webhook.
-    settings.ENROLLMENT_WEBHOOK_KEY = None
+    # OAuth access token for the enrollment webhook.
+    settings.ENROLLMENT_WEBHOOK_ACCESS_TOKEN = None
 
     # Course access roles that should trigger the enrollment webhook.
     settings.ENROLLMENT_COURSE_ACCESS_ROLES = ["instructor", "staff"]
