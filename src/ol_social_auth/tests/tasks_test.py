@@ -18,6 +18,7 @@ def test_clear_expired_tokens_logging(mocker):
 
     tasks.clear_expired_tokens()
 
-    assert patched_log_info.call_count == 2
+    expected_log_call_count = 2
+    assert patched_log_info.call_count == expected_log_call_count  # noqa: S101
     patched_log_info.assert_any_call("Starting clear_expired_tokens...")
     patched_log_info.assert_any_call("Finished clear_expired_tokens.")
