@@ -1,19 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended",
-    ":automergeMinor",
-    ":rebaseStalePrs",
-    ":separateMajorReleases"
+    "local>mitodl/.github:renovate-config"
   ],
-  "assigneesFromCodeOwners": true,
-  "minimumReleaseAge": "14 days",
-  "osvVulnerabilityAlerts": true,
-  "vulnerabilityAlerts": {
-    "enabled": true
-  },
-  "schedule": ["every weekend"],
-  "timezone": "US/Eastern",
   "packageRules": [
     {
       "description": "Bump versions in plugin pyproject.toml (only non-breaking)",
