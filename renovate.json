@@ -2,5 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>mitodl/.github:renovate-config"
+  ],
+  "packageRules": [
+    {
+      "description": "Bump versions in plugin pyproject.toml (only non-breaking)",
+      "matchFileNames": ["src/*/pyproject.toml"],
+      "rangeStrategy": "bump",
+      "matchUpdateTypes": ["minor", "patch"]
+    }
   ]
 }
