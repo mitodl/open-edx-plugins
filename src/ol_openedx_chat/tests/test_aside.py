@@ -61,7 +61,7 @@ class OLChatAsideTests(OLChatTestCase):
                 new=ol_chat_enabled_value,
             ),
             patch(
-                "ol_openedx_chat.block.Transcript.asset_location",
+                "ol_openedx_chat.block.get_transcript_asset_id",
                 return_value="video-transcript-en.srt",
             ),
         ):
