@@ -32,3 +32,15 @@ Make sure to properly configure the plugin following the links in the above "Con
 * Install the plugin in the lms following the installation steps above.
 * Verify that you are not logged in on edx-platform.
 * Create a new user in your MIT application and verify that a corresponding user is successfully created on the edX platform.
+
+Expired Token Cleanup
+---------------------
+This plugin includes a scheduled Celery task (``clear_expired_tokens``) that automatically removes expired OAuth2 access tokens, refresh tokens, and grant tokens from the database.
+
+**Behavior:**
+
+* Runs every **Monday at 9:00 AM** (server time) via Celery Beat.
+* Uses django-oauth-toolkit's ``clear_expired()`` to delete tokens that have exceeded the configured expiration threshold.
+* Sets ``REFRESH_TOKEN_EXPIRE_SECONDS`` to **30 days** (overriding the edx-platform default of 90 days). Tokens revoked or expired longer than 30 days ago will be cleaned up.
+
+**Note:** If running this plugin for the first time on a database with a large backlog of expired tokens (millions of rows), consider running the ``edx_clear_expired_tokens`` management command manually first to reduce the initial volume before relying on the scheduled task.
