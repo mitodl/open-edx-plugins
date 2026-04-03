@@ -928,7 +928,7 @@ wheels = [
 
 [[package]]
 name = "edx-sysadmin"
-version = "0.4.1"
+version = "0.4.2"
 source = { editable = "src/edx_sysadmin" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -937,6 +937,7 @@ dependencies = [
     { name = "edx-django-utils" },
     { name = "edx-drf-extensions" },
     { name = "edx-opaque-keys" },
+    { name = "gitpython" },
 ]
 
 [package.metadata]
@@ -946,6 +947,7 @@ requires-dist = [
     { name = "edx-django-utils", specifier = ">4.0.0" },
     { name = "edx-drf-extensions", specifier = ">=10.0.0" },
     { name = "edx-opaque-keys" },
+    { name = "gitpython", specifier = ">=3.1.45" },
 ]
 
 [[package]]
@@ -2205,7 +2207,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-translations"
-version = "0.5.1"
+version = "0.5.2"
 source = { editable = "src/ol_openedx_course_translations" }
 dependencies = [
     { name = "deepl" },
@@ -2227,7 +2229,7 @@ requires-dist = [
     { name = "djangorestframework", specifier = ">=3.14.0" },
     { name = "edx-opaque-keys" },
     { name = "gitpython", specifier = ">=3.1.40" },
-    { name = "litellm", specifier = "<=1.82.5" },
+    { name = "litellm", specifier = "==1.82.5" },
     { name = "polib", specifier = ">=1.2.0" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "srt", specifier = ">=3.5.3" },
