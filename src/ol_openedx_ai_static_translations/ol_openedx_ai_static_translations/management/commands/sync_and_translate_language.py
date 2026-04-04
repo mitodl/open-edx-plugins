@@ -27,19 +27,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from litellm import completion
 
-from ol_openedx_course_translations.utils.command_utils import (
-    configure_litellm_for_provider,
-    create_branch_name,
-    get_config_value,
-    get_default_model_for_provider,
-    get_default_provider,
-    is_retryable_error,
-    normalize_language_code,
-    sanitize_for_git,
-    validate_branch_name,
-    validate_language_code,
-)
-from ol_openedx_course_translations.utils.constants import (
+from ol_openedx_ai_static_translations.constants import (
     HTTP_CREATED,
     HTTP_NOT_FOUND,
     HTTP_OK,
@@ -58,18 +46,28 @@ from ol_openedx_course_translations.utils.constants import (
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
 )
-from ol_openedx_course_translations.utils.translation_sync import (
+from ol_openedx_ai_static_translations.utils import (
     _get_base_lang,
     _get_numeric_plural_keys,
     _get_po_plural_count,
     apply_json_translations,
     apply_po_translations,
+    configure_litellm_for_provider,
+    create_branch_name,
     extract_empty_keys,
+    get_config_value,
+    get_default_model_for_provider,
+    get_default_provider,
     get_nplurals_from_po_file,
+    is_retryable_error,
     load_glossary,
     match_glossary_term,
+    normalize_language_code,
     plural_source_has_placeholders_not_in_singular,
+    sanitize_for_git,
     sync_all_translations,
+    validate_branch_name,
+    validate_language_code,
 )
 
 logger = logging.getLogger(__name__)
