@@ -3,7 +3,7 @@ Utility functions for working with Blocks API responses in the Course Outline AP
 """
 
 from ol_openedx_course_outline_api.constants import (
-    CONTAINER_TYPES,
+    CONTENT_TYPES,
     KNOWN_LEAF_TYPES,
     NOT_GRADED_FORMAT,
     VISIBLE_TO_STAFF_ONLY_KEYS,
@@ -114,7 +114,7 @@ def count_app_items_under_chapter(blocks_data, chapter_id):
         is_leaf = len(children) == 0
         if (
             is_leaf
-            and block_type not in CONTAINER_TYPES
+            and block_type not in CONTENT_TYPES
             and block_type not in KNOWN_LEAF_TYPES
         ):
             count += 1

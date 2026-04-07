@@ -19,11 +19,11 @@ How To Use
 
 The API supports a GET call to:
 
-- ``<LMS_BASE>/api/course-outline/v0/<course_id>/``
+- ``<LMS_BASE>/api/ol-course-outline/v0/<course_id>/``
 
 The endpoint is protected by the platform API auth and requires an **admin** user (DRF ``IsAdminUser``).
 
-The successful response for ``http://local.openedx.io:8000/api/course-outline/v0/course-v1:edX+DemoX+Demo_Course/`` would look like:
+The successful response for ``http://local.openedx.io:8000/api/ol-course-outline/v0/course-v1:edX+DemoX+Demo_Course/`` would look like:
 
 .. code-block::
 
@@ -64,8 +64,9 @@ Caching
 
 This endpoint caches the full JSON response using Django's configured cache backend.
 
-- **TTL**: 24 hours.
-- **Cache key**: ``ol_course_outline_api:outline:v0:s<schema_version>:<course_key>:<content_version>``.
+- **TTL**: configurable via ``OL_COURSE_OUTLINE_API_CACHE_TIMEOUT_SECONDS`` (default: 1 week).
+- **Cache key**: ``<prefix>s<schema_version>:<course_key>:<content_version>``.
+  - ``prefix`` is configurable via ``OL_COURSE_OUTLINE_API_CACHE_KEY_PREFIX`` (default: ``ol_course_outline_api:outline:v0:``).
   - ``schema_version`` is a plugin constant (bump it when you change the response shape or computation logic).
   - ``content_version`` is ``course.course_version`` when present; otherwise the key uses ``na``.
 - **Invalidation**:
@@ -76,4 +77,4 @@ Troubleshooting
 
 - **Page not found (404)**: ensure the plugin is installed in the LMS and the URLs are registered.
 - **Course ID in the URL**: course keys contain ``+``. Use URL-encoded form (``%2B``) when needed, e.g.
-  ``/api/course-outline/v0/course-v1:OpenedX%2BDemoX%2BDemoCourse/``.
+  ``/api/ol-course-outline/v0/course-v1:OpenedX%2BDemoX%2BDemoCourse/``.

@@ -19,7 +19,7 @@ class CourseOutlineAPIConfig(AppConfig):
         PluginURLs.CONFIG: {
             ProjectType.LMS: {
                 PluginURLs.NAMESPACE: "",
-                PluginURLs.REGEX: "^api/course-outline/v0/",
+                PluginURLs.REGEX: "^api/ol-course-outline/v0/",
                 PluginURLs.RELATIVE_PATH: "urls",
             }
         },

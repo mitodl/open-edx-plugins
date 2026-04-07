@@ -4,10 +4,10 @@ Views for the public Course Outline API (Learn product page modules).
 
 from datetime import UTC, datetime
 
+from django.conf import settings
 from django.core.cache import cache
 from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
 from lms.djangoapps.course_api.blocks.api import get_blocks
-from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.lib.api.authentication import BearerAuthentication
 from openedx.core.lib.api.view_utils import (
@@ -19,36 +19,24 @@ from openedx.features.effort_estimation.block_transformers import (
 )
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_course_outline_api.constants import (
-    COURSE_OUTLINE_CACHE_KEY_PREFIX,
     COURSE_OUTLINE_CACHE_SCHEMA_VERSION,
-    COURSE_OUTLINE_CACHE_TIMEOUT_SECONDS,
 )
 from ol_openedx_course_outline_api.utils import build_modules_from_blocks
 
 
-class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
+class CourseOutlineView(DeveloperErrorViewMixin, APIView):
     """
-    Public API that returns course outline (modules) for the Learn product page.
+    Return a per-chapter course outline summary.
 
-    GET api/course-outline/v0/{course_id}/
-
-    Returns course_id, generated_at, and a list of modules (chapters)
-    with title, effort_time, effort_activities, and counts (videos, readings,
-    assignments, app_items).
-
-    effort_time comes from the platform's EffortEstimationTransformer (see
-    openedx/features/effort_estimation). Configure course publish, video
-    durations, and waffle flag so the Blocks API returns non-zero effort_time;
-    see plugin README.
+    GET api/ol-course-outline/v0/{course_id}/
     """
 
-    http_method_names = ["get"]
     permission_classes = [IsAdminUser]
     authentication_classes = (
         JwtAuthentication,
@@ -58,13 +46,8 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
 
     @verify_course_exists()
     def get(self, request, course_id):
-        try:
-            course_key = CourseKey.from_string(course_id)
-        except InvalidKeyError as err:
-            raise DeveloperErrorViewMixin.api_error(
-                status_code=status.HTTP_404_NOT_FOUND,
-                developer_message="Invalid course_id",
-            ) from err
+        """Return a course outline summary for the requested course."""
+        course_key = CourseKey.from_string(course_id)
 
         store = modulestore()
         course = store.get_course(course_key)
@@ -73,12 +56,13 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
                 status_code=status.HTTP_404_NOT_FOUND,
                 developer_message="Course not found",
             )
-        # Cache key changes on:
-        # - response/schema changes (schema version), and
-        # - course publish/content changes (course.course_version when available).
+        # Key changes when response logic changes (schema version)
+        # or content changes (course_version).
+        cache_key_prefix = settings.OL_COURSE_OUTLINE_API_CACHE_KEY_PREFIX
+        cache_timeout_seconds = settings.OL_COURSE_OUTLINE_API_CACHE_TIMEOUT_SECONDS
         content_version_str = str(getattr(course, "course_version", None) or "na")
         cache_key = (
-            f"{COURSE_OUTLINE_CACHE_KEY_PREFIX}"
+            f"{cache_key_prefix}"
             f"s{COURSE_OUTLINE_CACHE_SCHEMA_VERSION}:"
             f"{course_key}:"
             f"{content_version_str}"
@@ -103,7 +87,6 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
             request,
             course.location,
             user=None,
-            # Full tree so units and their video/problem/html blocks are included.
             depth=None,
             requested_fields=requested_fields,
         )
@@ -120,8 +103,8 @@ class CourseOutlineView(DeveloperErrorViewMixin, GenericAPIView):
 
         cache.set(
             cache_key,
-            dict(response_data),
-            COURSE_OUTLINE_CACHE_TIMEOUT_SECONDS,
+            response_data,
+            cache_timeout_seconds,
         )
 
         return Response(response_data, status=status.HTTP_200_OK)
