@@ -11,5 +11,5 @@ def plugin_settings(settings):
     settings.OL_COURSE_OUTLINE_API_CACHE_TIMEOUT_SECONDS = getattr(
         settings,
         "OL_COURSE_OUTLINE_API_CACHE_TIMEOUT_SECONDS",
-        60 * 60 * 24 * 7,
+        60 * 60 * 24 * 7,  # 1 week
     )
