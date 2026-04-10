@@ -5,15 +5,23 @@ Utility functions for the ol_openedx_git_auto_export app.
 import logging
 import os
 import re
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import (
     ENABLE_AUTO_GITHUB_REPO_CREATION,
     ENABLE_GIT_AUTO_EXPORT,
+    EXPORT_LOCK_CACHE_KEY,
+    EXPORT_LOCK_MAX_RETRIES,
+    EXPORT_LOCK_RETRY_DELAY,
+    EXPORT_LOCK_TIMEOUT,
+    EXPORT_PENDING_CACHE_KEY,
+    EXPORT_PENDING_TIMEOUT,
     REPOSITORY_NAME_MAX_LENGTH,
 )
 
@@ -101,6 +109,96 @@ def export_course_to_git(course_key):
 
         user = get_publisher_username(course_module)
         async_export_to_git.delay(str(course_key), user)
+
+
+def clear_stale_git_lock(git_url):
+    """
+    Remove a stale .git/index.lock file for the local clone of git_url, if present.
+
+    This must only be called after acquiring the per-course distributed cache lock,
+    which guarantees no other process is running git operations on the same directory.
+    A stale lock file is left behind when a worker process is killed mid-operation.
+    """
+    git_repo_export_dir = getattr(
+        settings, "GIT_REPO_EXPORT_DIR", "/openedx/export_course_repos"
+    )
+    rdir = git_url.rsplit("/", 1)[-1].rsplit(".git", 1)[0]
+    index_lock = Path(git_repo_export_dir) / rdir / ".git" / "index.lock"
+    if index_lock.exists():
+        log.warning(
+            "Removing stale .git/index.lock for repo %s at %s", git_url, index_lock
+        )
+        index_lock.unlink()
+
+
+def acquire_export_lock_or_schedule(task, course_key_string):
+    """
+    Attempt to acquire the per-course git-export distributed lock.
+
+    Uses two cache keys:
+    - ``EXPORT_LOCK_CACHE_KEY``    — held while the export is running.
+    - ``EXPORT_PENDING_CACHE_KEY`` — stores the task-ID of the single task
+      that is waiting to run after the lock-holder finishes.
+
+    Returns True if the caller acquired the lock and should proceed with the
+    export.  Returns False if the caller is a duplicate that was dropped.
+    Raises ``celery.exceptions.Retry`` if the caller is the designated pending
+    task and needs to retry later.
+    """
+    lock_key = EXPORT_LOCK_CACHE_KEY.format(course_key=course_key_string)
+    pending_key = EXPORT_PENDING_CACHE_KEY.format(course_key=course_key_string)
+    task_id = task.request.id
+
+    if not cache.add(lock_key, task_id, timeout=EXPORT_LOCK_TIMEOUT):
+        # Lock is held — check if we are already the designated pending task.
+        if cache.get(pending_key) == task_id:
+            log.info(
+                "Export lock still held for %s, pending task %s retrying in %ds"
+                " (attempt %d/%d)",
+                course_key_string,
+                task_id,
+                EXPORT_LOCK_RETRY_DELAY,
+                task.request.retries + 1,
+                EXPORT_LOCK_MAX_RETRIES,
+            )
+            raise task.retry(
+                countdown=EXPORT_LOCK_RETRY_DELAY, max_retries=EXPORT_LOCK_MAX_RETRIES
+            )
+
+        # Try to become the single designated pending task (atomic).
+        if cache.add(pending_key, task_id, timeout=EXPORT_PENDING_TIMEOUT):
+            log.info(
+                "Export already in progress for %s; task %s queued as pending,"
+                " retrying in %ds",
+                course_key_string,
+                task_id,
+                EXPORT_LOCK_RETRY_DELAY,
+            )
+            raise task.retry(
+                countdown=EXPORT_LOCK_RETRY_DELAY, max_retries=EXPORT_LOCK_MAX_RETRIES
+            )
+
+        # Pending slot already taken — drop this duplicate.
+        log.info(
+            "Dropping duplicate export task %s for %s (lock held, pending slot taken)",
+            task_id,
+            course_key_string,
+        )
+        return False
+
+    # Lock acquired — clear the pending slot so a fresh task can claim it.
+    cache.delete(pending_key)
+    return True
+
+
+def release_export_lock(course_key_string):
+    """
+    Release the per-course git-export distributed lock.
+
+    Must be called in a ``finally`` block after ``acquire_export_lock_or_schedule``
+    returns True.
+    """
+    cache.delete(EXPORT_LOCK_CACHE_KEY.format(course_key=course_key_string))
 
 
 def is_auto_repo_creation_enabled():
