@@ -29,6 +29,7 @@ def iter_descendant_ids(blocks_data, root_id):
     Yield all descendant block ids (including root_id) from blocks_data.
 
     Implemented iteratively to avoid recursion depth issues on very large courses.
+    Traversal is pruned for blocks hidden from TOC or visible to staff only.
     """
     seen = set()
     stack = [root_id]
@@ -41,6 +42,9 @@ def iter_descendant_ids(blocks_data, root_id):
         block = blocks_data.get(block_id, {}) or {}
         if is_hidden_from_toc(block):
             # If a block is hidden from the TOC, exclude it and its descendants.
+            continue
+        if is_visible_to_staff_only(block):
+            # If a block is staff-only, exclude its descendants from traversal.
             continue
         children = block.get("children") or []
         stack.extend(children)
