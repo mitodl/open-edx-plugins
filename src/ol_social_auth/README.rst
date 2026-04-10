@@ -35,11 +35,11 @@ Make sure to properly configure the plugin following the links in the above "Con
 
 Expired Token Cleanup
 ---------------------
-This plugin includes a scheduled Celery task (``clear_expired_tokens``) that automatically removes expired OAuth2 access tokens, refresh tokens, and grant tokens from the database.
+This plugin includes a scheduled Celery task (``ol_clear_expired_tokens``) that automatically removes expired OAuth2 access tokens, refresh tokens, and grant tokens from the database.
 
 **Behavior:**
 
-* Runs every **Monday at 9:00 AM** (server time) via Celery Beat by default. The schedule can be customized by overriding the ``clear_expired_tokens`` entry in ``CELERY_BEAT_SCHEDULE``.
+* Runs every **Monday at 9:00 AM** (server time) via Celery Beat by default. The schedule can be customized by overriding the ``ol_clear_expired_tokens`` entry in ``CELERY_BEAT_SCHEDULE``.
 * Uses django-oauth-toolkit's ``clear_expired()`` to delete tokens that have exceeded the configured expiration threshold.
 * Sets ``REFRESH_TOKEN_EXPIRE_SECONDS`` to **30 days** (overriding the edx-platform default of 90 days). Tokens revoked or expired longer than 30 days ago will be cleaned up.
 
