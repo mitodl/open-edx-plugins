@@ -4,7 +4,7 @@ from celery.schedules import crontab
 
 
 def plugin_settings(settings):
-    """Settings for the ol-social-auth plugin.""" # noqa: D401
+    """Settings for the ol-social-auth plugin."""  # noqa: D401
     settings.OAUTH2_PROVIDER["REFRESH_TOKEN_EXPIRE_SECONDS"] = (
         30 * 24 * 60 * 60  # 30 days
     )
