@@ -20,6 +20,9 @@ dependencies = [
 [project.entry-points."cms.djangoapp"]
 ol_openedx_ai_static_translations = "ol_openedx_ai_static_translations.apps:OLOpenedXAIStaticTranslationsConfig"
 
+[project.entry-points."lms.djangoapp"]
+ol_openedx_course_translations = "ol_openedx_course_translations.apps:OLOpenedXCourseTranslationsConfig"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -28,7 +31,6 @@ build-backend = "hatchling.build"
 packages = ["ol_openedx_ai_static_translations"]
 include = [
   "ol_openedx_ai_static_translations/**/*.py",
-  "ol_openedx_ai_static_translations/**/*.txt",
 ]
 
 [tool.hatch.build.targets.sdist]
