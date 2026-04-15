@@ -16,29 +16,20 @@ from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.models import CourseGitRepository
 from ol_openedx_git_auto_export.utils import (
-    acquire_export_lock_or_schedule,
     clear_stale_git_lock,
     export_course_to_git,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
-    release_export_lock,
 )
 
 LOGGER = get_task_logger(__name__)
 
 
-@shared_task(bind=True)
-def async_export_to_git(self, course_key_string, user=None):
+@shared_task
+def async_export_to_git(course_key_string, user=None):
     """
     Exports a course to Git.
-
-    Concurrency and deduplication are handled by
-    ``acquire_export_lock_or_schedule`` / ``release_export_lock`` in utils.
-    See those functions for the full locking protocol.
     """  # noqa: D401
-    if not acquire_export_lock_or_schedule(self, course_key_string):
-        return  # duplicate task — dropped by the lock helper
-
     course_key = CourseKey.from_string(course_key_string)
     course_module = modulestore().get_course(course_key)
 
@@ -77,8 +68,6 @@ def async_export_to_git(self, course_key_string, user=None):
             "Unknown error occured during async course content export to git (course id: %s)",  # noqa: E501
             course_module.id,
         )
-    finally:
-        release_export_lock(course_key_string)
 
 
 @shared_task(
