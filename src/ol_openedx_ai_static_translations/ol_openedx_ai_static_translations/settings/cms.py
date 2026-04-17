@@ -1,6 +1,6 @@
 """Settings to provide to edX"""
 
-from ol_openedx_ai_static_translations.settings import apply_common_settings
+from ol_openedx_ai_static_translations.settings.common import apply_common_settings
 
 
 def plugin_settings(settings):

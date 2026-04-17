@@ -20,8 +20,5 @@ class OLOpenedXAIStaticTranslationsConfig(AppConfig):
             ProjectType.CMS: {
                 SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.cms"},
             },
-            ProjectType.LMS: {
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.lms"},
-            },
         },
     }

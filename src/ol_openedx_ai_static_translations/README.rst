@@ -30,9 +30,9 @@ This plugin shares settings with ``ol_openedx_course_translations``. Ensure the 
          "gemini": {"api_key": "", "default_model": "gemini-3-pro-preview"},
          "mistral": {"api_key": "", "default_model": "mistral-large-latest"},
      }
-     TRANSLATIONS_GITHUB_TOKEN: <YOUR_GITHUB_TOKEN>
-     TRANSLATIONS_REPO_PATH: ""
-     TRANSLATIONS_REPO_URL: "https://github.com/mitodl/mitxonline-translations.git"
+     TRANSLATIONS_GITHUB_TOKEN: <YOUR_GITHUB_TOKEN>  # Personal access token with repo write permissions for creating PRs
+     TRANSLATIONS_REPO_PATH: ""  # Local filesystem path where the translations repo will be cloned/checked out
+     TRANSLATIONS_REPO_URL: "https://github.com/mitodl/mitxonline-translations.git"  # URL of the remote translations repository
 
 Usage
 =====
