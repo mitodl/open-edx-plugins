@@ -1,16 +1,20 @@
-"""Translation synchronization module for syncing and managing translation files."""
+"""Utility functions for AI static translation management commands."""
 
 import json
 import logging
+import os
 import re
 from collections import OrderedDict
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import polib  # type: ignore[import-untyped]
+from django.conf import settings
+from django.core.management.base import CommandError
 
-from ol_openedx_course_translations.utils.constants import (
+from ol_openedx_ai_static_translations.constants import (
     BACKEND_PO_FILES,
     DEFAULT_JSON_INDENT,
     DEFAULT_PLURAL_FORM,
@@ -26,12 +30,244 @@ from ol_openedx_course_translations.utils.constants import (
     PO_HEADER_POT_CREATION_DATE,
     PO_HEADER_PROJECT_VERSION,
     PO_HEADER_TRANSIFEX_TEAM_BASE_URL,
+    PROVIDER_GEMINI,
+    PROVIDER_MISTRAL,
     TRANSLATABLE_PLUGINS,
     TRANSLATION_FILE_NAMES,
     TYPO_PATTERNS,
 )
 
 logger = logging.getLogger(__name__)
+
+# ============================================================================
+# Validation Utilities
+# ============================================================================
+
+# Language code suffix length constants
+REGION_CODE_LENGTH = 2  # 2-letter region codes (e.g., ES, BR)
+SCRIPT_TAG_LENGTH = 4  # 4-letter script tags (e.g., Hans, Hant)
+
+
+def normalize_language_code(code: str) -> str:
+    """Normalize language code to use underscores (Django/gettext format).
+
+    Converts BCP 47 format (hyphens) to gettext format (underscores) and
+    normalizes case: language part lowercase, suffix properly cased.
+    Examples:
+    - 'es-419' -> 'es_419'
+    - 'ES-419' -> 'es_419'
+    - 'es-ES' -> 'es_ES'
+    - 'ES_ES' -> 'es_ES'
+    - 'zh-Hans' -> 'zh_Hans'
+    - 'ZH-HANS' -> 'zh_Hans'
+    - 'es_419' -> 'es_419' (unchanged)
+    - 'es' -> 'es' (unchanged)
+    """
+    # Replace hyphens with underscores and split
+    parts = code.replace("-", "_").split("_", 1)
+    lang_part = parts[0].lower()  # Language: always lowercase
+
+    if len(parts) == 1:
+        return lang_part
+
+    # Normalize suffix: uppercase 2-char regions, title case 4-char scripts
+    suffix = parts[1]
+    if len(suffix) == REGION_CODE_LENGTH:
+        suffix = suffix.upper()  # Region codes: ES, BR, etc.
+    elif len(suffix) == SCRIPT_TAG_LENGTH and suffix[0].isalpha():
+        suffix = suffix.title()  # Script tags: Hans, Hant, etc.
+    # Numeric regions (419) and others stay as-is
+
+    return f"{lang_part}_{suffix}"
+
+
+def validate_language_code(code: str, field_name: str = "language code") -> None:
+    """Validate language code format.
+
+    Accepts normalized codes (already normalized by normalize_language_code):
+    - xx (2 lowercase letters): e.g., 'el', 'es', 'ar'
+    - xx_XX (with 2-letter region): e.g., 'es_ES'
+    - xx_NNN (with UN M.49 numeric region): e.g., 'es_419'
+    - xx_Xxxx (with script subtag): e.g., 'zh_Hans'
+    """
+    # Pattern: xx, xx_XX, xx_419, xx_Hans
+    pattern = r"^[a-z]{2}(_([A-Z]{2}|[0-9]{3}|[A-Z][a-z]{3}))?$"
+    if not re.match(pattern, code):
+        msg = (
+            f"Invalid {field_name} format: {code}. "
+            f"Expected format: 'xx', 'xx_XX', 'xx_419', 'xx_Hans' "
+            f"(e.g., 'el', 'es_ES', 'es_419', 'zh_Hans')"
+        )
+        raise CommandError(msg)
+
+
+def validate_branch_name(branch_name: str) -> None:
+    """Validate branch name format to prevent injection."""
+    if not re.match(r"^[a-z0-9/_-]+$", branch_name):
+        msg = f"Invalid branch name format: {branch_name}"
+        raise CommandError(msg)
+
+
+# ============================================================================
+# Git Utilities
+# ============================================================================
+
+
+def sanitize_for_git(text: str) -> str:
+    """Sanitize text for use in git operations."""
+    return re.sub(r"[^\w\s-]", "", text)
+
+
+def create_branch_name(lang_code: str) -> str:
+    """Create a safe branch name from language code."""
+    safe_lang = re.sub(r"[^a-z0-9_-]", "", lang_code.lower())
+    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d-%H%M%S")
+    return f"feature/add-{safe_lang}-translations-{timestamp}"
+
+
+# ============================================================================
+# Configuration Helpers
+# ============================================================================
+
+
+def get_config_value(key: str, options: dict, default: Any = None) -> Any:
+    """Get configuration value from options, settings, or environment."""
+    # Check command-line options first (Django converts --repo-path to repo_path)
+    option_value = options.get(key) or options.get(key.replace("_", "-"))
+    if option_value:
+        return option_value
+
+    # Check settings with TRANSLATIONS_ prefix
+    setting_key = f"TRANSLATIONS_{key.upper().replace('-', '_')}"
+    if hasattr(settings, setting_key):
+        setting_value = getattr(settings, setting_key)
+        # Only use setting if it's not empty
+        if setting_value:
+            return setting_value
+
+    # Check environment variable with TRANSLATIONS_ prefix
+    env_key = setting_key
+    env_value = os.environ.get(env_key)
+    if env_value:
+        return env_value
+
+    # Return default if nothing found
+    return default
+
+
+def get_default_provider() -> str | None:
+    """Get default provider from TRANSLATIONS_PROVIDERS."""
+    providers = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
+    if not isinstance(providers, dict):
+        return None
+    return providers.get("default_provider")
+
+
+def get_default_model_for_provider(provider: str) -> str | None:
+    """Get default model for a provider from TRANSLATIONS_PROVIDERS."""
+    providers = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
+    if not isinstance(providers, dict):
+        return None
+    provider_config = providers.get(provider, {})
+    if not isinstance(provider_config, dict):
+        return None
+    return provider_config.get("default_model")
+
+
+def configure_litellm_for_provider(
+    provider: str, model: str, api_key: str | None, **base_kwargs
+) -> dict[str, Any]:
+    """Configure LiteLLM completion kwargs for a specific provider."""
+    completion_kwargs = dict(base_kwargs)
+    completion_kwargs["model"] = model
+
+    if api_key:
+        completion_kwargs["api_key"] = api_key
+        if provider == PROVIDER_GEMINI:
+            # If no prefix, add gemini/ to force Gemini API usage (not Vertex AI)
+            # If vertex_ai/ or gemini/ prefix already exists, respect it
+            if not model.startswith(("gemini/", "vertex_ai/")):
+                completion_kwargs["model"] = f"gemini/{model}"
+            # Gemini 3 models require temperature = 1.0 to avoid issues:
+            # - Infinite loops in response generation
+            # - Degraded reasoning performance
+            # - Failure on complex tasks
+            # See: https://docs.litellm.ai/docs/providers/gemini
+            if "gemini-3" in model.lower():
+                completion_kwargs["temperature"] = 1.0
+        elif provider == PROVIDER_MISTRAL and not model.startswith("mistral/"):
+            completion_kwargs["model"] = f"mistral/{model}"
+
+    return completion_kwargs
+
+
+# ============================================================================
+# Error Handling Utilities
+# ============================================================================
+
+
+def is_retryable_error(error: Exception) -> bool:
+    """
+    Check if an error is retryable (network issues, rate limits, timeouts).
+
+    Args:
+        error: The exception to check
+
+    Returns:
+        True if the error is retryable, False otherwise
+
+    Examples:
+        >>> is_retryable_error(ConnectionError("Connection timeout"))
+        True
+        >>> is_retryable_error(ValueError("Invalid API key"))
+        False
+    """
+    error_str = str(error).lower()
+
+    # Retryable errors
+    retryable_patterns = [
+        "timeout",
+        "connection",
+        "rate limit",
+        "429",
+        "503",
+        "502",
+        "500",
+        "temporarily unavailable",
+        "service unavailable",
+        "too many requests",
+    ]
+
+    # Non-retryable errors (don't retry these)
+    non_retryable_patterns = [
+        "invalid api key",
+        "authentication",
+        "401",
+        "403",
+        "not found",
+        "404",
+        "bad request",
+        "400",
+        "commanderror",  # Our custom errors that are usually non-retryable
+    ]
+
+    # Check for non-retryable first
+    for pattern in non_retryable_patterns:
+        if pattern in error_str:
+            return False
+
+    # Check for retryable patterns
+    for pattern in retryable_patterns:
+        if pattern in error_str:
+            return True
+
+    # Default: retry unknown errors (could be transient)
+    return True
+
+
+# ============================================================================
+# Translation File I/O
+# ============================================================================
 
 
 def load_json_file(file_path: Path) -> dict:
@@ -137,6 +373,11 @@ def sync_or_create_json_file(en_file: Path, target_file: Path) -> dict:
     save_json_file(target_file, target_data)
 
     return stats
+
+
+# ============================================================================
+# PO File Utilities
+# ============================================================================
 
 
 def _get_base_lang(lang_code: str) -> str:
@@ -532,6 +773,11 @@ def sync_or_create_po_file(
     return stats
 
 
+# ============================================================================
+# Translation Key Extraction
+# ============================================================================
+
+
 def _extract_empty_keys_from_frontend(base_dir: Path, iso_code: str) -> list[dict]:
     """Extract empty translation keys from frontend JSON files."""
     logger.debug("Extracting empty keys from frontend apps for language: %s", iso_code)
@@ -780,6 +1026,11 @@ def extract_empty_keys(
     return empty_keys
 
 
+# ============================================================================
+# Translation Application
+# ============================================================================
+
+
 def apply_json_translations(file_path: Path, translations: dict[str, str]) -> int:
     """
     Apply translations to a JSON file.
@@ -940,6 +1191,11 @@ def match_glossary_term(
     return None
 
 
+# ============================================================================
+# Translation Newline Normalization
+# ============================================================================
+
+
 def _normalize_translation_newlines(msgid: str, translation: str) -> str:
     """
     Normalize translation to match msgid's newline structure EXACTLY.
@@ -1037,6 +1293,11 @@ def _normalize_singular_entry(entry: polib.POEntry) -> bool:
 def _entry_has_brace_format(entry: polib.POEntry) -> bool:
     """Return True if entry is python-brace-format (uses {variable} placeholders)."""
     return bool(entry.flags and "python-brace-format" in entry.flags)
+
+
+# ============================================================================
+# PO Translation Application Helpers
+# ============================================================================
 
 
 def _apply_numeric_plural_forms(
@@ -1482,6 +1743,11 @@ def apply_po_translations(
         header_updated=header_updated,
     )
     return applied
+
+
+# ============================================================================
+# Full Translation Sync
+# ============================================================================
 
 
 def _sync_frontend_translations(base_dir: Path, iso_code: str) -> dict[str, int]:

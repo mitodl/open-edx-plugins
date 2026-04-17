@@ -11,12 +11,14 @@ resolution-markers = [
 members = [
     "edx-sysadmin",
     "edx-username-changer",
+    "ol-openedx-ai-static-translations",
     "ol-openedx-auto-select-language",
     "ol-openedx-canvas-integration",
     "ol-openedx-chat",
     "ol-openedx-chat-xblock",
     "ol-openedx-checkout-external",
     "ol-openedx-course-export",
+    "ol-openedx-course-outline-api",
     "ol-openedx-course-structure-api",
     "ol-openedx-course-sync",
     "ol-openedx-course-translations",
@@ -2030,6 +2032,28 @@ wheels = [
 ]
 
 [[package]]
+name = "ol-openedx-ai-static-translations"
+version = "0.1.0"
+source = { editable = "src/ol_openedx_ai_static_translations" }
+dependencies = [
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "gitpython" },
+    { name = "litellm" },
+    { name = "polib" },
+    { name = "requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "django", specifier = ">=4.0" },
+    { name = "gitpython", specifier = ">=3.1.40" },
+    { name = "litellm", specifier = ">=1.80.0" },
+    { name = "polib", specifier = ">=1.2.0" },
+    { name = "requests", specifier = ">=2.31.0" },
+]
+
+[[package]]
 name = "ol-openedx-auto-select-language"
 version = "0.1.0"
 source = { editable = "src/ol_openedx_auto_select_language" }
@@ -2162,6 +2186,28 @@ requires-dist = [
 ]
 
 [[package]]
+name = "ol-openedx-course-outline-api"
+version = "0.1.0"
+source = { editable = "src/ol_openedx_course_outline_api" }
+dependencies = [
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "djangorestframework" },
+    { name = "edx-django-utils" },
+    { name = "edx-drf-extensions" },
+    { name = "edx-opaque-keys" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "django", specifier = ">=4.0" },
+    { name = "djangorestframework", specifier = ">=3.14.0" },
+    { name = "edx-django-utils", specifier = ">4.0.0" },
+    { name = "edx-drf-extensions", specifier = ">=10.0.0" },
+    { name = "edx-opaque-keys" },
+]
+
+[[package]]
 name = "ol-openedx-course-structure-api"
 version = "0.2.0"
 source = { editable = "src/ol_openedx_course_structure_api" }
@@ -2207,7 +2253,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-translations"
-version = "0.5.2"
+version = "0.6.0"
 source = { editable = "src/ol_openedx_course_translations" }
 dependencies = [
     { name = "deepl" },
@@ -2215,10 +2261,7 @@ dependencies = [
     { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-opaque-keys" },
-    { name = "gitpython" },
     { name = "litellm" },
-    { name = "polib" },
-    { name = "requests" },
     { name = "srt" },
 ]
 
@@ -2228,10 +2271,7 @@ requires-dist = [
     { name = "django", specifier = ">=4.0" },
     { name = "djangorestframework", specifier = ">=3.14.0" },
     { name = "edx-opaque-keys" },
-    { name = "gitpython", specifier = ">=3.1.40" },
     { name = "litellm", specifier = "==1.82.5" },
-    { name = "polib", specifier = ">=1.2.0" },
-    { name = "requests", specifier = ">=2.31.0" },
     { name = "srt", specifier = ">=3.5.3" },
 ]
 
