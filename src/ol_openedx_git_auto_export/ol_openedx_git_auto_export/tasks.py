@@ -16,6 +16,7 @@ from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.models import CourseGitRepository
 from ol_openedx_git_auto_export.utils import (
+    clear_stale_git_lock,
     export_course_to_git,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
@@ -39,6 +40,10 @@ def async_export_to_git(course_key_string, user=None):
                 "Starting async course content export to git (course id: %s)",
                 course_module.id,
             )
+            # Remove any stale .git/index.lock left by a previously crashed worker.
+            # Dirty working-tree files from a prior crash are cleaned by the
+            # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
+            clear_stale_git_lock(course_repo.git_url)
             export_to_git(course_module.id, course_repo.git_url, user=user)
         else:
             LOGGER.info(
