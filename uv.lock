@@ -18,7 +18,6 @@ members = [
     "ol-openedx-chat-xblock",
     "ol-openedx-checkout-external",
     "ol-openedx-course-export",
-    "ol-openedx-course-outline-api",
     "ol-openedx-course-structure-api",
     "ol-openedx-course-sync",
     "ol-openedx-course-translations",
@@ -2178,28 +2177,6 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "celery", specifier = ">=4.4.7" },
-    { name = "django", specifier = ">=4.0" },
-    { name = "djangorestframework", specifier = ">=3.14.0" },
-    { name = "edx-django-utils", specifier = ">4.0.0" },
-    { name = "edx-drf-extensions", specifier = ">=10.0.0" },
-    { name = "edx-opaque-keys" },
-]
-
-[[package]]
-name = "ol-openedx-course-outline-api"
-version = "0.1.0"
-source = { editable = "src/ol_openedx_course_outline_api" }
-dependencies = [
-    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "djangorestframework" },
-    { name = "edx-django-utils" },
-    { name = "edx-drf-extensions" },
-    { name = "edx-opaque-keys" },
-]
-
-[package.metadata]
-requires-dist = [
     { name = "django", specifier = ">=4.0" },
     { name = "djangorestframework", specifier = ">=3.14.0" },
     { name = "edx-django-utils", specifier = ">4.0.0" },
