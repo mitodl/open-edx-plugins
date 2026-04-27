@@ -48,9 +48,6 @@ Configuration
                "default_model": "mistral-large-latest",
            },
        }
-       TRANSLATIONS_GITHUB_TOKEN: <YOUR_GITHUB_TOKEN>
-       TRANSLATIONS_REPO_PATH: ""
-       TRANSLATIONS_REPO_URL: "https://github.com/mitodl/mitxonline-translations.git"
        LITE_LLM_REQUEST_TIMEOUT: 300  # Timeout for LLM API requests in seconds
 
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
@@ -301,61 +298,6 @@ If subtitle translation fails after all attempts:
 - The translated course directory will be automatically cleaned up
 - An error message will indicate which subtitle file caused the failure
 - No partial or corrupted translation files will be left behind
-
-Generating static content translations
-======================================
-
-This command synchronizes translation keys from edx-platform and MFE's, translates empty keys using LLM, and automatically creates a pull request in the translations repository.
-
-**What it does:**
-
-1. Syncs translation keys from edx-platform and MFE's to the translations repository
-2. Extracts empty translation keys that need translation
-3. Translates empty keys using the specified LLM provider and model
-4. Applies translations to JSON and PO files
-5. Commits changes to a new branch
-6. Creates a pull request with translation statistics
-
-**Usage:**
-
-1. Go to the CMS shell
-2. Run the management command:
-
-   .. code-block:: bash
-
-        ./manage.py cms sync_and_translate_language <LANGUAGE_CODE> [OPTIONS]
-
-**Required arguments:**
-
-- ``LANGUAGE_CODE``: Language code (e.g., ``el``, ``fr``, ``es_ES``)
-
-**Optional arguments:**
-
-- ``--iso-code``: ISO code for JSON files (default: same as language code)
-- ``--provider``: Translation provider (``openai``, ``gemini``, ``mistral``). Default is taken from ``TRANSLATIONS_PROVIDERS['default_provider']`` setting
-- ``--model``: LLM model name. If not specified, uses the ``default_model`` for the selected provider from ``TRANSLATIONS_PROVIDERS``. Examples: ``gpt-5.2``, ``gemini-3-pro-preview``, ``mistral-large-latest``
-- ``--repo-path``: Path to mitxonline-translations repository (can also be set via ``TRANSLATIONS_REPO_PATH`` setting or environment variable)
-- ``--repo-url``: GitHub repository URL (default: ``https://github.com/mitodl/mitxonline-translations.git``, can also be set via ``TRANSLATIONS_REPO_URL`` setting or environment variable)
-- ``--glossary``: Path to glossary directory (optional). Should contain language-specific files (e.g. ``{iso_code}.txt``).
-- ``--batch-size``: Number of keys to translate per API request (default: 200, recommended: 200-300 for most models)
-- ``--mfe``: Filter by specific MFE(s). Use ``edx-platform`` for backend translations
-- ``--dry-run``: Run without committing or creating PR
-
-**Examples:**
-
-   .. code-block:: bash
-
-        # Use default provider (from TRANSLATIONS_PROVIDERS['default_provider']) with its default model
-        ./manage.py cms sync_and_translate_language el
-
-        # Use OpenAI provider with its default model (gpt-5.2)
-        ./manage.py cms sync_and_translate_language el --provider openai
-
-        # Use OpenAI provider with a specific model
-        ./manage.py cms sync_and_translate_language el --provider openai --model gpt-5.2
-
-        # Use Mistral provider with a specific model and glossary
-        ./manage.py cms sync_and_translate_language el --provider mistral --model mistral-large-latest --glossary /path/to/glossary --batch-size 250
 
 License
 *******
