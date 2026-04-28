@@ -80,7 +80,7 @@ def apply_common_settings(settings):
         "de_DE": "German (Germany)",
         "el": "Greek",
         "en": "English",
-        "es": "Spanish",
+        "es_ES": "Spanish (Spain)",
         "es_419": "Spanish (Latin America)",
         "fr": "French",
         "hi": "Hindi",
