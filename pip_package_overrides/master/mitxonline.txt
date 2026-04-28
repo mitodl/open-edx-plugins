@@ -1,0 +1,2 @@
+ol-openedx-auto-select-language
+ol-openedx-ai-static-translations
