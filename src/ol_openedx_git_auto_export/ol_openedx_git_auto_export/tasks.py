@@ -25,23 +25,23 @@ LOGGER = get_task_logger(__name__)
 
 
 @shared_task
-def async_export_to_git(content_key_string, user=None):
+def async_export_to_git(context_key_string, user=None):
     """Export a course or library to Git.
 
     Args:
-        content_key_string (str): String representation of CourseKey or LibraryLocator
+        context_key_string (str): String representation of LearningContextKey
         user: Optional user for git export
     """
     # Parse as LearningContextKey to support all learning contexts
     try:
-        content_key = LearningContextKey.from_string(content_key_string)
-        content_info = get_content_info(content_key)
+        context_key = LearningContextKey.from_string(context_key_string)
+        content_info = get_content_info(context_key)
     except Exception:
-        LOGGER.exception("Failed to parse content key: %s", content_key_string)
+        LOGGER.exception("Failed to parse content key: %s", context_key_string)
         return
 
     try:
-        content_repo = ContentGitRepository.objects.get(content_key=content_key)
+        content_repo = ContentGitRepository.objects.get(content_key=context_key)
 
         if content_repo.is_export_enabled:
             LOGGER.info(
@@ -50,18 +50,18 @@ def async_export_to_git(content_key_string, user=None):
                 content_info["content_type"],
                 content_info["content_module"].id
                 if hasattr(content_info["content_module"], "id")
-                else content_key,
+                else context_key,
             )
             # Remove any stale .git/index.lock left by a previously crashed worker.
             # Dirty working-tree files from a prior crash are cleaned by the
             # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
             clear_stale_git_lock(content_repo.git_url)
-            export_to_git(content_key, content_repo.git_url, user=user)
+            export_to_git(context_key, content_repo.git_url, user=user)
         else:
             LOGGER.info(
                 "Git export is disabled for %s %s. Skipping export.",
                 content_info["content_type"],
-                content_key_string,
+                context_key_string,
             )
     except GitExportError:
         LOGGER.exception(
@@ -70,17 +70,17 @@ def async_export_to_git(content_key_string, user=None):
             content_info["content_type"],
             content_info["content_module"].id
             if hasattr(content_info["content_module"], "id")
-            else content_key,
+            else context_key,
         )
     except ContentGitRepository.DoesNotExist:
         LOGGER.exception(
             "Git repository does not exist for %s %s. "
             "Creating repository and exporting content.",
             content_info["content_type"],
-            content_key_string,
+            context_key_string,
         )
         if is_auto_repo_creation_enabled(is_library=content_info["is_library"]):
-            async_create_github_repo.delay(str(content_key), export_content=True)
+            async_create_github_repo.delay(str(context_key), export_content=True)
     except Exception:
         LOGGER.exception(
             "Unknown error occurred during async %s content export to git (%s id: %s)",
@@ -88,7 +88,7 @@ def async_export_to_git(content_key_string, user=None):
             content_info["content_type"],
             content_info["content_module"].id
             if hasattr(content_info["content_module"], "id")
-            else content_key,
+            else context_key,
         )
 
 
@@ -97,12 +97,12 @@ def async_export_to_git(content_key_string, user=None):
     autoretry_for=(requests.exceptions.RequestException,),
     retry_kwargs={"max_retries": 3, "countdown": 10},
 )
-def async_create_github_repo(self, content_key_str, export_content=False):  # noqa: FBT002
+def async_create_github_repo(self, context_key_str, export_content=False):  # noqa: FBT002
     """
     Create a GitHub repository for the given course or library key.
 
     Args:
-        content_key_str (str): The course/library key for which to create repository.
+        context_key_str (str): The course/library key for which to create repository.
         export_content (bool): Whether to export the content
             after creating the repo.
 
@@ -113,23 +113,23 @@ def async_create_github_repo(self, content_key_str, export_content=False):  # no
 
     # Parse as LearningContextKey to support all learning contexts
     try:
-        content_key = LearningContextKey.from_string(content_key_str)
-        content_info = get_content_info(content_key)
+        context_key = LearningContextKey.from_string(context_key_str)
+        content_info = get_content_info(context_key)
     except Exception:
-        LOGGER.exception("Failed to parse content key: %s", content_key_str)
-        return False, f"Invalid content key: {content_key_str}"
+        LOGGER.exception("Failed to parse context key: %s", context_key_str)
+        return False, f"Invalid context key: {context_key_str}"
 
-    content_id_slugified = github_repo_name_format(str(content_key))
+    content_id_slugified = github_repo_name_format(str(context_key))
     response_msg = ""
 
     # Check if repository already exists
-    if ContentGitRepository.objects.filter(content_key=content_key).exists():
-        response_msg = f"GitHub repository already exists for {content_info['content_type']} {content_key}. Skipping creation."  # noqa: E501
+    if ContentGitRepository.objects.filter(content_key=context_key).exists():
+        response_msg = f"GitHub repository already exists for {content_info['content_type']} {context_key}. Skipping creation."  # noqa: E501
         LOGGER.info(response_msg)
         return False, response_msg
 
     # Determine URL path based on content type
-    url_path = f"{content_info['content_type']}/{content_key_str}"
+    url_path = f"{content_info['content_type']}/{context_key_str}"
 
     # Get display name (v2 libraries use 'title', others use 'display_name')
     if content_info["is_v2_library"]:
@@ -156,7 +156,7 @@ def async_create_github_repo(self, content_key_str, export_content=False):  # no
     }
     response = requests.post(url, headers=headers, json=payload, timeout=30)
     if response.status_code != status.HTTP_201_CREATED:
-        response_msg = f"Failed to create GitHub repository for {content_info['content_type']} {content_key}: {response.json()}"  # noqa: E501
+        response_msg = f"Failed to create GitHub repository for {content_info['content_type']} {context_key}: {response.json()}"  # noqa: E501
         LOGGER.error(response_msg)
 
         # Retry the task if we haven't exceeded max retries
@@ -165,7 +165,7 @@ def async_create_github_repo(self, content_key_str, export_content=False):  # no
             LOGGER.info(
                 "Retrying GitHub repository creation for %s %s (attempt %d/%d)",
                 content_info["content_type"],
-                content_key,
+                context_key,
                 self.request.retries + 1,
                 max_retries,
             )
@@ -179,24 +179,24 @@ def async_create_github_repo(self, content_key_str, export_content=False):  # no
     if ssh_url:
         # Use the new ContentGitRepository model
         ContentGitRepository.objects.create(
-            content_key=content_key,
+            content_key=context_key,
             git_url=ssh_url,
         )
         LOGGER.info(
             "GitHub repository created for %s %s: %s",
             content_info["content_type"],
-            content_key,
+            context_key,
             ssh_url,
         )
     else:
         response_msg = f"""
             Failed to retrieve SSH URL from GitHub response
-            for {content_info["content_type"]} {content_key}.
+            for {content_info["content_type"]} {context_key}.
             Response data: {repo_data}
         """
         LOGGER.error(response_msg)
 
     if ssh_url and export_content:
-        async_export_to_git(content_key_str)
+        async_export_to_git(context_key_str)
 
     return True, response_msg or ssh_url
