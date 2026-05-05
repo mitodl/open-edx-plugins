@@ -19,7 +19,13 @@ def _is_eligible_for_certificate(user, course_id):
     """
     Determine whether certificate generation should be triggered.
     """
-    enrollment_mode, _ = CourseEnrollment.enrollment_mode_for_user(user, course_id)
+    enrollment_mode, is_active = CourseEnrollment.enrollment_mode_for_user(
+        user, course_id
+    )
+
+    if not is_active:
+        return False
+
     is_mode_eligible_for_cert = modes_api.is_eligible_for_certificate(enrollment_mode)
     course_overview = CourseOverview.get_from_id(course_id)
     certificate_display_behavior = course_overview.certificates_display_behavior
