@@ -23,7 +23,7 @@ def _get_certificate_webhook_access_token():
 
 @shared_task(
     autoretry_for=(requests.exceptions.RequestException,),
-    retry_kwargs={"max_retries": 3},
+    retry_kwargs={"max_retries": 2},
     retry_backoff=True,
     retry_backoff_max=120,
 )
@@ -62,7 +62,6 @@ def create_certificate_for_passing_grade(user_email, course_key):
         user_email,
         course_key,
     )
-
     response = requests.post(
         webhook_url,
         json=payload,

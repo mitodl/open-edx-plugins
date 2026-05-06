@@ -13,7 +13,7 @@ REQUEST_TIMEOUT = 30
 
 @shared_task(
     autoretry_for=(requests.exceptions.RequestException,),
-    retry_kwargs={"max_retries": 3},
+    retry_kwargs={"max_retries": 2},
     retry_backoff=True,
     retry_backoff_max=120,
 )
