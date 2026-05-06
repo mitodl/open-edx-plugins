@@ -18,6 +18,8 @@ Currently handled events:
   access role (e.g. instructor, staff) is added, notifies an external system
   via webhook so the user can be enrolled as an auditor in the corresponding
   course.
+* ``openedx.core.djangoapps.signals.signals.COURSE_GRADE_NOW_PASSED`` — When a learner earns a passing grade,
+  notifies an external system to create a certificate.
 
 
 Installation
@@ -43,6 +45,8 @@ edx-platform configuration
 
     ENROLLMENT_WEBHOOK_URL: "https://example.com/api/openedx_webhook/enrollment/"
     ENROLLMENT_WEBHOOK_ACCESS_TOKEN: "<your-oauth-access-token>"
+    CERTIFICATE_WEBHOOK_URL: "https://example.com/api/openedx_webhook/certificate/"
+    CERTIFICATE_WEBHOOK_ACCESS_TOKEN: "<your-oauth-access-token>"
 
 - Optionally, override the roles that trigger the webhook (defaults to ``["instructor", "staff"]``):
 

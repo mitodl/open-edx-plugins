@@ -14,3 +14,9 @@ def plugin_settings(settings):
 
     # Course access roles that should trigger the enrollment webhook.
     settings.ENROLLMENT_COURSE_ACCESS_ROLES = ["instructor", "staff"]
+
+    # Settings for the Certificate Webhook
+    # Webhook URL used to request certificate creation after course completion.
+    settings.CERTIFICATE_WEBHOOK_URL = None
+    # OAuth access token for the certificate webhook.
+    settings.CERTIFICATE_WEBHOOK_ACCESS_TOKEN = None

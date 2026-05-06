@@ -16,3 +16,10 @@ def plugin_settings(settings):
     settings.ENROLLMENT_COURSE_ACCESS_ROLES = env_tokens.get(
         "ENROLLMENT_COURSE_ACCESS_ROLES", settings.ENROLLMENT_COURSE_ACCESS_ROLES
     )
+
+    settings.CERTIFICATE_WEBHOOK_URL = env_tokens.get(
+        "CERTIFICATE_WEBHOOK_URL", settings.CERTIFICATE_WEBHOOK_URL
+    )
+    settings.CERTIFICATE_WEBHOOK_ACCESS_TOKEN = env_tokens.get(
+        "CERTIFICATE_WEBHOOK_ACCESS_TOKEN", settings.CERTIFICATE_WEBHOOK_ACCESS_TOKEN
+    )

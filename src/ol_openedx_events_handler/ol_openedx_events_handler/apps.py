@@ -15,6 +15,26 @@ _COURSE_ACCESS_ROLE_ADDED_RECEIVER = {
     ),
 }
 
+_COURSE_GRADE_NOW_PASSED_RECEIVER = {
+    PluginSignals.RECEIVER_FUNC_NAME: "listen_for_passing_grade",
+    PluginSignals.SIGNAL_PATH: (
+        "openedx.core.djangoapps.signals.signals.COURSE_GRADE_NOW_PASSED"
+    ),
+    PluginSignals.DISPATCH_UID: (
+        "ol_openedx_events_handler.receivers.certificate_passing_receiver"
+        ".listen_for_passing_grade"
+    ),
+}
+
+_SETTINGS_CONFIG = {
+    SettingsType.COMMON: {
+        PluginSettings.RELATIVE_PATH: "settings.common",
+    },
+    SettingsType.PRODUCTION: {
+        PluginSettings.RELATIVE_PATH: "settings.production",
+    },
+}
+
 
 class OlOpenedxEventsHandlerConfig(AppConfig):
     """App configuration for the OL Open edX events handler plugin."""
@@ -25,8 +45,11 @@ class OlOpenedxEventsHandlerConfig(AppConfig):
     plugin_app = {
         PluginSignals.CONFIG: {
             ProjectType.LMS: {
-                PluginSignals.RELATIVE_PATH: "handlers.course_access_role",
-                PluginSignals.RECEIVERS: [_COURSE_ACCESS_ROLE_ADDED_RECEIVER],
+                PluginSignals.RELATIVE_PATH: "handlers.lms",
+                PluginSignals.RECEIVERS: [
+                    _COURSE_ACCESS_ROLE_ADDED_RECEIVER,
+                    _COURSE_GRADE_NOW_PASSED_RECEIVER,
+                ],
             },
             ProjectType.CMS: {
                 PluginSignals.RELATIVE_PATH: "handlers.course_access_role",
@@ -34,21 +57,7 @@ class OlOpenedxEventsHandlerConfig(AppConfig):
             },
         },
         PluginSettings.CONFIG: {
-            ProjectType.LMS: {
-                SettingsType.COMMON: {
-                    PluginSettings.RELATIVE_PATH: "settings.common",
-                },
-                SettingsType.PRODUCTION: {
-                    PluginSettings.RELATIVE_PATH: "settings.production",
-                },
-            },
-            ProjectType.CMS: {
-                SettingsType.COMMON: {
-                    PluginSettings.RELATIVE_PATH: "settings.common",
-                },
-                SettingsType.PRODUCTION: {
-                    PluginSettings.RELATIVE_PATH: "settings.production",
-                },
-            },
+            ProjectType.LMS: _SETTINGS_CONFIG,
+            ProjectType.CMS: _SETTINGS_CONFIG,
         },
     }
