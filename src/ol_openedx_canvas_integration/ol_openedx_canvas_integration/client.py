@@ -143,6 +143,7 @@ class CanvasClient:
             assignment.get("integration_id"): {
                 "id": assignment["id"],
                 "is_published": assignment.get("published", False),
+                "due_at": assignment.get("due_at"),
             }
             for assignment in assignments
             if assignment.get("integration_id") is not None
@@ -246,32 +247,39 @@ class CanvasClient:
         )
 
 
-def create_assignment_payload(subsection_block):
+def create_assignment_payload(subsection_block, use_canvas_dates=False):  # noqa: FBT002
     """
     Create a Canvas assignment dict matching a subsection block on edX
 
     Args:
         subsection_block (openedx.core.djangoapps.content.block_structure.block_structure.BlockData):
             The block data for the graded assignment/exam (in the structure of a course, this unit is a subsection)
+        use_canvas_dates (bool): Whether to use the due dates from canvas instead of Open edX
 
     Returns:
         dict:
             Assignment payload to be sent to Canvas to create or update the assignment
     """  # noqa: E501
+    due_date_dict = {
+        "due_at": (
+            None
+            if not subsection_block.fields.get("due")
+            # The internal API gives us a TZ-naive datetime for the due date, but Studio indicates that  # noqa: E501
+            # the user should enter a UTC datetime for the due date. Coerce this to UTC before creating the  # noqa: E501
+            # string representation.
+            else subsection_block.fields["due"].astimezone(pytz.UTC).isoformat()
+        ),
+    }
+    # If we're using canvas dates, don't set the due dates from Open edX
+    if use_canvas_dates:
+        due_date_dict = {}
     return {
         "assignment": {
             "name": subsection_block.display_name,
             "integration_id": str(subsection_block.location),
             "grading_type": "percent",
             "points_possible": DEFAULT_ASSIGNMENT_POINTS,
-            "due_at": (
-                None
-                if not subsection_block.fields.get("due")
-                # The internal API gives us a TZ-naive datetime for the due date, but Studio indicates that  # noqa: E501
-                # the user should enter a UTC datetime for the due date. Coerce this to UTC before creating the  # noqa: E501
-                # string representation.
-                else subsection_block.fields["due"].astimezone(pytz.UTC).isoformat()
-            ),
+            **due_date_dict,
             "submission_types": ["none"],
             "published": False,
         }

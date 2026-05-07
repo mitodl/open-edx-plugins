@@ -6,6 +6,15 @@ def get_canvas_course_id(course=None):
     return course.other_course_settings.get("canvas_id") if course else None
 
 
+def get_use_canvas_due_dates(course=None):
+    """Get the canvas due dates setting from the course settings"""
+    return (
+        course.other_course_settings.get("use_canvas_due_dates", False)
+        if course
+        else None
+    )
+
+
 def get_task_output_formatted_message(task_output):
     """Take the edX task output and format a message for table display on task result"""
     # this reports on actions for a course as a whole
