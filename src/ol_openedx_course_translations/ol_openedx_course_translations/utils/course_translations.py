@@ -993,19 +993,31 @@ class HtmlXmlTranslationHelper:
         Serialize the DOM back to markup.
 
         For HTML parsing, lxml frequently wraps content in <html><body>.
-        If a <body> exists, this returns its inner HTML to better match original
-        fragment inputs while keeping structure valid.
+        We extract the inner content of both <head> and <body> so that
+        elements like <style> (which lxml hoists into <head>) are preserved.
         """
         if not self.is_xml:
+            parts: list[str] = []
+
+            head = root.find(".//head")
+            if head is not None:
+                if head.text:
+                    parts.append(head.text)
+                for child in head:
+                    parts.append(  # noqa: PERF401
+                        etree.tostring(child, encoding="unicode", method="html")
+                    )
+
             body = root.find(".//body")
             if body is not None:
-                parts: list[str] = []
                 if body.text:
                     parts.append(body.text)
                 for child in body:
                     parts.append(  # noqa: PERF401
                         etree.tostring(child, encoding="unicode", method="html")
                     )
+
+            if parts:
                 return "".join(parts)
 
         return etree.tostring(

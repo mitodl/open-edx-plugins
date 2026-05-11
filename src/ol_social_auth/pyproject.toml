@@ -1,6 +1,6 @@
 [project]
 name = "ol-social-auth"
-version = "0.2.0"
+version = "0.2.1"
 description = "An Open edX plugin implementing MIT social auth backend"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -11,8 +11,12 @@ requires-python = ">=3.11"
 keywords = ["Python", "edx"]
 dependencies = [
   "Django>=4.0",
+  "django-oauth-toolkit",
   "social-auth-core>=4.5.4",
 ]
+
+[project.entry-points."lms.djangoapp"]
+ol_social_auth = "ol_social_auth.apps:OLSocialAuthConfig"
 
 [build-system]
 requires = ["hatchling"]

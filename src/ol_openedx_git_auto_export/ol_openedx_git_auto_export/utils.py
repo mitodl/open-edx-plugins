@@ -5,15 +5,19 @@ Utility functions for the ol_openedx_git_auto_export app.
 import logging
 import os
 import re
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import (
     ENABLE_AUTO_GITHUB_REPO_CREATION,
     ENABLE_GIT_AUTO_EXPORT,
+    EXPORT_DEBOUNCE_CACHE_KEY,
+    EXPORT_DEBOUNCE_DELAY,
     REPOSITORY_NAME_MAX_LENGTH,
 )
 
@@ -100,7 +104,41 @@ def export_course_to_git(course_key):
         )
 
         user = get_publisher_username(course_module)
-        async_export_to_git.delay(str(course_key), user)
+
+        debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(course_key=str(course_key))
+        if cache.add(debounce_key, "1", timeout=EXPORT_DEBOUNCE_DELAY):
+            log.info(
+                "Scheduling git export for course %s with %ds debounce delay",
+                course_key,
+                EXPORT_DEBOUNCE_DELAY,
+            )
+            async_export_to_git.apply_async(
+                args=[str(course_key), user],
+                countdown=EXPORT_DEBOUNCE_DELAY,
+            )
+        else:
+            log.info(
+                "Git export already scheduled for course %s, skipping duplicate signal",
+                course_key,
+            )
+
+
+def clear_stale_git_lock(git_url):
+    """
+    Remove a stale .git/index.lock file for the local clone of git_url, if present.
+
+    A stale lock file can be left behind when a worker process is killed mid-operation.
+    """
+    git_repo_export_dir = getattr(
+        settings, "GIT_REPO_EXPORT_DIR", "/openedx/export_course_repos"
+    )
+    rdir = git_url.rsplit("/", 1)[-1].rsplit(".git", 1)[0]
+    index_lock = Path(git_repo_export_dir) / rdir / ".git" / "index.lock"
+    if index_lock.exists():
+        log.warning(
+            "Removing stale .git/index.lock for repo %s at %s", git_url, index_lock
+        )
+        index_lock.unlink()
 
 
 def is_auto_repo_creation_enabled():

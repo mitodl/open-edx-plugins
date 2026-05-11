@@ -1,6 +1,6 @@
 [project]
 name = "edx-sysadmin"
-version = "0.4.1"
+version = "0.4.2"
 description = "An Open edX plugin to enable SysAdmin panel"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -14,6 +14,7 @@ dependencies = [
   "djangorestframework>=3.14.0",
   "edx-django-utils>4.0.0",
   "edx-drf-extensions>=10.0.0",
+  "GitPython>=3.1.45",
   "edx-opaque-keys",
 ]
 

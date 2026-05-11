@@ -20,21 +20,10 @@ try:
 except ImportError:
     from xmodule.modulestore.xml import ImportSystem as XMLImportingModuleStoreRuntime
 
-try:
-    from xmodule.video_block.transcripts_utils import (
-        Transcript,
-        get_available_transcript_languages,
-    )
-except ImportError:
-    from openedx.core.djangoapps.video_config.transcripts_utils import (
-        Transcript,
-        get_available_transcript_languages,
-    )
 from xmodule.x_module import AUTHOR_VIEW, STUDENT_VIEW
 
 from ol_openedx_chat.compat import get_ol_openedx_chat_enabled_flag
 from ol_openedx_chat.constants import (
-    ENGLISH_LANGUAGE_TRANSCRIPT,
     MIT_AI_CHAT_URL_PATHS,
     PROBLEM_BLOCK_CATEGORY,
     TUTOR_INITIAL_MESSAGES,
@@ -42,6 +31,7 @@ from ol_openedx_chat.constants import (
 )
 from ol_openedx_chat.utils import (
     get_checkpoint_and_thread_id,
+    get_transcript_asset_id,
     is_aside_applicable_to_block,
     is_ol_chat_enabled_for_course,
 )
@@ -131,30 +121,9 @@ class OLChatAside(XBlockAside):
             ]
 
         if block_type == VIDEO_BLOCK_CATEGORY:
-            try:
-                transcripts_info = block.get_transcripts_info()
-                if transcripts_info.get("transcripts", {}).get(
-                    ENGLISH_LANGUAGE_TRANSCRIPT
-                ):
-                    request_body["transcript_asset_id"] = Transcript.asset_location(
-                        block.location,
-                        transcripts_info["transcripts"][ENGLISH_LANGUAGE_TRANSCRIPT],
-                    )
-                else:
-                    transcript_languages = get_available_transcript_languages(
-                        block.edx_video_id
-                    )
-                    if ENGLISH_LANGUAGE_TRANSCRIPT in transcript_languages:
-                        request_body["transcript_asset_id"] = Transcript.asset_location(
-                            block.location,
-                            f"{block.edx_video_id}-{ENGLISH_LANGUAGE_TRANSCRIPT}.srt",
-                        )
-
-            except Exception:  # noqa: BLE001
-                log.info(
-                    "Error while fetching transcripts for block %s",
-                    block.location,
-                )
+            transcript_asset_id = get_transcript_asset_id(block)
+            if transcript_asset_id:
+                request_body["transcript_asset_id"] = transcript_asset_id
 
         extra_context = {
             "block_id": block_id,
