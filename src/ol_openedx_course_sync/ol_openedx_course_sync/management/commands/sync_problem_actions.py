@@ -6,18 +6,17 @@ Resets or rescores learner attempts for a problem across all courses in a sync m
 
 Usage:
     python manage.py lms sync_problem_actions <action> \
-        <source_course_key> <problem_id> [OPTIONS]
+    <source_course_key> <problem_id> [OPTIONS]
 
 Actions:
-    reset       Reset learner attempts for a problem
-    rescore     Rescore learner attempts for a problem
+    reset: Resets learner attempts for a problem
+    rescore: Rescores learner attempts for a problem
 
 Options:
-    --username USERNAME         Username to run the task as
-                                (default: 'courses_service_worker')
+    --username USERNAME
+        Username to run the task as (default: 'studio_worker')
     --only-if-higher / --no-only-if-higher
-                                Whether to rescore only if the new score is higher
-                                (default: True, only for rescore)
+        Whether to rescore only if the new score is higher (default: True)
 
 Examples:
     python manage.py lms sync_problem_actions reset \
@@ -47,6 +46,14 @@ from ol_openedx_course_sync.utils import get_syncable_course_mappings
 
 User = get_user_model()
 
+ACTION_RESET = "reset"
+ACTION_RESCORE = "rescore"
+VALID_ACTIONS = [ACTION_RESET, ACTION_RESCORE]
+
+STATUS_SUBMITTED = "submitted"
+STATUS_ALREADY_RUNNING = "already_running"
+STATUS_FAILED = "failed"
+
 
 class Command(BaseCommand):
     """
@@ -60,7 +67,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "action",
             type=str,
-            choices=["reset", "rescore"],
+            choices=VALID_ACTIONS,
             help="Action to perform: 'reset' or 'rescore'",
         )
         parser.add_argument(
@@ -130,16 +137,16 @@ class Command(BaseCommand):
             raise CommandError(error_msg) from exc
 
         # Process action for all courses
-        if action == "reset":
+        if action == ACTION_RESET:
             results = self._submit_for_courses(
-                request_obj, courses, problem_usage_key, "reset"
+                request_obj, courses, problem_usage_key, ACTION_RESET
             )
         else:  # rescore
             results = self._submit_for_courses(
                 request_obj,
                 courses,
                 problem_usage_key,
-                "rescore",
+                ACTION_RESCORE,
                 only_if_higher=only_if_higher,
             )
 
@@ -205,7 +212,7 @@ class Command(BaseCommand):
             request: Request object with user context
             courses: List of course key strings
             problem_usage_key: UsageKey of the problem
-            action: Action to perform ("reset" or "rescore")
+            action: Action to perform (reset or rescore)
             only_if_higher: Only rescore if new score is higher (rescore only)
 
         Returns:
@@ -218,7 +225,7 @@ class Command(BaseCommand):
                 course_key = CourseKey.from_string(course_id_str)
                 mapped_problem_key = problem_usage_key.map_into_course(course_key)
 
-                if action == "reset":
+                if action == ACTION_RESET:
                     task = task_api.submit_reset_problem_attempts_for_all_students(
                         request, mapped_problem_key
                     )
@@ -232,13 +239,13 @@ class Command(BaseCommand):
                     "action": action,
                     "mapped_problem_id": str(mapped_problem_key),
                     "task_id": task.task_id,
-                    "status": "submitted",
+                    "status": STATUS_SUBMITTED,
                 }
-                if action == "rescore":
+                if action == ACTION_RESCORE:
                     row["only_if_higher"] = only_if_higher
 
                 results.append(row)
-                if action == "reset":
+                if action == ACTION_RESET:
                     self.stdout.write(
                         "OK | "
                         f"{action.upper()} | {course_id_str} | {mapped_problem_key} "
@@ -255,7 +262,7 @@ class Command(BaseCommand):
                 row = {
                     "course_id": course_id_str,
                     "action": action,
-                    "status": "already_running",
+                    "status": STATUS_ALREADY_RUNNING,
                     "error": str(exc),
                 }
                 results.append(row)
@@ -269,7 +276,7 @@ class Command(BaseCommand):
                 row = {
                     "course_id": course_id_str,
                     "action": action,
-                    "status": "failed",
+                    "status": STATUS_FAILED,
                     "error": str(exc),
                 }
                 results.append(row)
@@ -281,7 +288,7 @@ class Command(BaseCommand):
                 row = {
                     "course_id": course_id_str,
                     "action": action,
-                    "status": "failed",
+                    "status": STATUS_FAILED,
                     "error": str(exc),
                 }
                 results.append(row)
@@ -293,9 +300,11 @@ class Command(BaseCommand):
 
     def _print_summary(self, results, action):
         """Print summary of operation."""
-        submitted = sum(1 for r in results if r["status"] == "submitted")
-        already_running = sum(1 for r in results if r["status"] == "already_running")
-        failed = sum(1 for r in results if r["status"] == "failed")
+        submitted = sum(1 for r in results if r["status"] == STATUS_SUBMITTED)
+        already_running = sum(
+            1 for r in results if r["status"] == STATUS_ALREADY_RUNNING
+        )
+        failed = sum(1 for r in results if r["status"] == STATUS_FAILED)
 
         self.stdout.write("\n" + "=" * 50)
         self.stdout.write(f"{action.upper()} Summary")
