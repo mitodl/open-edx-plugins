@@ -19,6 +19,9 @@ dependencies = [
 [project.entry-points."cms.djangoapp"]
 ol_openedx_course_sync = "ol_openedx_course_sync.apps:OLOpenEdxCourseSyncConfig"
 
+[project.entry-points."lms.djangoapp"]
+ol_openedx_course_sync = "ol_openedx_course_sync.apps:OLOpenEdxCourseSyncConfig"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

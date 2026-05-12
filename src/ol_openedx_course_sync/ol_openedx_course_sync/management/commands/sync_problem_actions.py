@@ -1,7 +1,7 @@
 """
-Management command to reset or rescore problem attempts for synced courses.
+Management command to reset attempts or rescore problem for synced courses.
 
-Resets or rescores learner attempts for a problem across all courses in a sync mapping
+Resets attempts or rescores learners for a problem across all courses in a sync mapping
 (source course and all target courses).
 
 Usage:
@@ -9,8 +9,8 @@ Usage:
     <source_course_key> <problem_id> [OPTIONS]
 
 Actions:
-    reset: Resets learner attempts for a problem
-    rescore: Rescores learner attempts for a problem
+    reset_attempts: Resets learner attempts for a problem
+    rescore: Rescores learner for a problem
 
 Options:
     --username USERNAME
@@ -19,15 +19,15 @@ Options:
         Whether to rescore only if the new score is higher (default: True)
 
 Examples:
-    python manage.py lms sync_problem_actions reset \
+    python manage.py lms sync_problem_actions reset_attempts \
         "course-v1:ORG+COURSE+RUN" \
         "block-v1:ORG+COURSE+RUN+type@problem+block@abc123" \
-        --username studio_worker
+        --username courses_service_worker
 
     python manage.py lms sync_problem_actions rescore \
         "course-v1:ORG+COURSE+RUN" \
         "block-v1:ORG+COURSE+RUN+type@problem+block@abc123" \
-        --username studio_worker \
+        --username courses_service_worker \
         --only-if-higher
 """
 
@@ -46,9 +46,9 @@ from ol_openedx_course_sync.utils import get_syncable_course_mappings
 
 User = get_user_model()
 
-ACTION_RESET = "reset"
+ACTION_RESET_ATTEMPTS = "reset_attempts"
 ACTION_RESCORE = "rescore"
-VALID_ACTIONS = [ACTION_RESET, ACTION_RESCORE]
+VALID_ACTIONS = [ACTION_RESET_ATTEMPTS, ACTION_RESCORE]
 
 STATUS_SUBMITTED = "submitted"
 STATUS_ALREADY_RUNNING = "already_running"
@@ -57,7 +57,7 @@ STATUS_FAILED = "failed"
 
 class Command(BaseCommand):
     """
-    Reset or rescore problem attempts for all synced courses.
+    Reset attempts or rescore problem for all synced courses.
     """
 
     help = "Reset attempts or rescore problem across all synced courses"
@@ -68,7 +68,7 @@ class Command(BaseCommand):
             "action",
             type=str,
             choices=VALID_ACTIONS,
-            help="Action to perform: 'reset' or 'rescore'",
+            help="Action to perform: 'reset_attempts' or 'rescore'",
         )
         parser.add_argument(
             "source_course_key",
@@ -137,9 +137,9 @@ class Command(BaseCommand):
             raise CommandError(error_msg) from exc
 
         # Process action for all courses
-        if action == ACTION_RESET:
+        if action == ACTION_RESET_ATTEMPTS:
             results = self._submit_for_courses(
-                request_obj, courses, problem_usage_key, ACTION_RESET
+                request_obj, courses, problem_usage_key, ACTION_RESET_ATTEMPTS
             )
         else:  # rescore
             results = self._submit_for_courses(
@@ -212,7 +212,7 @@ class Command(BaseCommand):
             request: Request object with user context
             courses: List of course key strings
             problem_usage_key: UsageKey of the problem
-            action: Action to perform (reset or rescore)
+            action: Action to perform (reset_attempts or rescore)
             only_if_higher: Only rescore if new score is higher (rescore only)
 
         Returns:
@@ -225,7 +225,7 @@ class Command(BaseCommand):
                 course_key = CourseKey.from_string(course_id_str)
                 mapped_problem_key = problem_usage_key.map_into_course(course_key)
 
-                if action == ACTION_RESET:
+                if action == ACTION_RESET_ATTEMPTS:
                     task = task_api.submit_reset_problem_attempts_for_all_students(
                         request, mapped_problem_key
                     )
@@ -245,7 +245,7 @@ class Command(BaseCommand):
                     row["only_if_higher"] = only_if_higher
 
                 results.append(row)
-                if action == ACTION_RESET:
+                if action == ACTION_RESET_ATTEMPTS:
                     self.stdout.write(
                         "OK | "
                         f"{action.upper()} | {course_id_str} | {mapped_problem_key} "

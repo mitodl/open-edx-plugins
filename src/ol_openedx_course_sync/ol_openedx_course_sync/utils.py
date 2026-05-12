@@ -5,7 +5,6 @@ Utilities for the ol-openedx-course-sync plugin
 import logging
 from uuid import uuid4
 
-from cms.djangoapps.contentstore.utils import duplicate_block
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
@@ -56,6 +55,11 @@ def copy_static_tabs(source_course_key, target_course_key, user):
         target_course_key (CourseLocator): The course key of the target course.
         user (User): The user performing the update.
     """
+    # Local import to fix issues when we install the plugin in the LMS as CMS
+    # imports are not available in LMS. This function is only called in CMS
+    # during course publish, so it will not cause issues in LMS.
+    from cms.djangoapps.contentstore.utils import duplicate_block  # noqa: PLC0415
+
     store = modulestore()
     source_course = store.get_course(source_course_key)
     target_course = store.get_course(target_course_key)
