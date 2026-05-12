@@ -86,8 +86,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--username",
             type=str,
-            default="studio_worker",
-            help="Username to run the task as (default: 'studio_worker')",
+            default="courses_service_worker",
+            help="Username to run the task as (default: 'courses_service_worker')",
         )
         parser.add_argument(
             "--only-if-higher",
