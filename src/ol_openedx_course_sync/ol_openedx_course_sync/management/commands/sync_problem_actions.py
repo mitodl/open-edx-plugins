@@ -14,7 +14,7 @@ Actions:
 
 Options:
     --username USERNAME
-        Username to run the task as (default: 'studio_worker')
+        Username to run the task as (default: 'courses_service_worker')
     --only-if-higher / --no-only-if-higher
         Whether to rescore only if the new score is higher (default: True)
 
