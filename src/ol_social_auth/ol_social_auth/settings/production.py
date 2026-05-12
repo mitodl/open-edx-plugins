@@ -4,7 +4,7 @@ from celery.schedules import crontab
 
 
 def plugin_settings(settings):
-    """Production overrides for ol-social-auth plugin."""  # noqa: D401
+    """Production overrides for ol-social-auth plugin."""
     # Re-add the celery beat schedule here because the YAML config loading
     # in production.py replaces the entire CELERYBEAT_SCHEDULE dict,
     # wiping out what common.py set. This runs after YAML loading.
