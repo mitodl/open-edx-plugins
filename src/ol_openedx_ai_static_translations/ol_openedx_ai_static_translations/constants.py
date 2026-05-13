@@ -52,6 +52,7 @@ PLURAL_FORMS = {
     "fi": "nplurals=2; plural=(n != 1);",  # Finnish
     "is": "nplurals=2; plural=(n != 1);",  # Icelandic
     "et": "nplurals=2; plural=(n != 1);",  # Estonian
+    "sw": "nplurals=2; plural=(n != 1);",  # Swahili
     "lv": "nplurals=2; plural=(n != 1);",  # Latvian
     "he": "nplurals=2; plural=(n != 1);",  # Hebrew
     "hi": "nplurals=2; plural=(n != 1);",  # Hindi
@@ -204,6 +205,7 @@ LANGUAGE_MAPPING = {
     "pt": "Portuguese",
     "ru": "Russian",
     "sq": "Albanian",
+    "sw": "Swahili",
     "tr": "Turkish",
     "zh": "Chinese",
 }

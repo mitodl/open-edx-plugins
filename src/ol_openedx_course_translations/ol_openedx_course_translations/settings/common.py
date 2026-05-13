@@ -88,6 +88,7 @@ def apply_common_settings(settings):
         "pt": "Portuguese",
         "pt_BR": "Portuguese (Brazil)",
         "ru": "Russian",
+        "sw": "Swahili",
         "zh": "Chinese",
         "zh_HANS": "Chinese (Simplified)",
         "zh_HANT": "Chinese (Traditional)",
