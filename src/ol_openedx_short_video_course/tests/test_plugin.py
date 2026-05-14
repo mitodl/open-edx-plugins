@@ -1,8 +1,5 @@
 """
 Tests for ol_openedx_short_video_course.
-
-Run inside a Tutor/Open edX container:
-    ./run_edx_integration_tests.sh --plugin ol_openedx_short_video_course --skip-build
 """
 
 # ruff: noqa: PLC0415,PLR2004,S108,N818,TRY003,EM101
@@ -117,6 +114,7 @@ VID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 
 class TestParseCsv:
     def test_happy_path(self, tmp_path):
+        """Parses a valid update row into a single CsvRow."""
         p = _make_csv(
             tmp_path,
             [[SOURCE, SEC, SUB, "update", "Intro Video", "HC", "S", VID]],
@@ -130,6 +128,7 @@ class TestParseCsv:
         assert row.type_code == "S"
 
     def test_keep_and_remove_have_empty_video_id(self, tmp_path):
+        """Accepts keep/remove rows when video ID is empty."""
         p = _make_csv(
             tmp_path,
             [
@@ -150,16 +149,19 @@ class TestParseCsv:
         assert len(rows) == 2
 
     def test_file_not_found(self):
+        """Raises FileNotFoundError when the CSV path does not exist."""
         with pytest.raises(FileNotFoundError):
             parse_csv("/nonexistent/path/mapping.csv")
 
     def test_missing_column_raises(self, tmp_path):
+        """Raises ValueError when required CSV columns are missing."""
         p = tmp_path / "bad.csv"
         p.write_text("source_course_key,section,action\nval1,val2,keep\n")
         with pytest.raises(ValueError, match="missing required columns"):
             parse_csv(str(p))
 
     def test_invalid_action_raises(self, tmp_path):
+        """Rejects rows whose action is not keep/remove/update."""
         p = _make_csv(
             tmp_path,
             [[SOURCE, SEC, SUB, "INVALID", "", "HC", "S", ""]],
@@ -168,6 +170,7 @@ class TestParseCsv:
             parse_csv(str(p))
 
     def test_update_without_video_id_raises(self, tmp_path):
+        """Rejects update rows that do not provide a video ID."""
         p = _make_csv(
             tmp_path,
             [[SOURCE, SEC, SUB, "update", "Title", "HC", "S", ""]],
@@ -176,6 +179,7 @@ class TestParseCsv:
             parse_csv(str(p))
 
     def test_keep_with_video_id_raises(self, tmp_path):
+        """Rejects keep rows that incorrectly include a video ID."""
         p = _make_csv(
             tmp_path,
             [[SOURCE, SEC, SUB, "keep", "", "HC", "S", VID]],
@@ -184,6 +188,7 @@ class TestParseCsv:
             parse_csv(str(p))
 
     def test_row_with_extra_columns_raises(self, tmp_path):
+        """Rejects rows that contain unexpected trailing CSV columns."""
         p = tmp_path / "bad.csv"
         p.write_text(
             "source_course_key,section,subsection,action,unit display name,"
@@ -202,6 +207,7 @@ class TestParseCsv:
 
 class TestGroupRows:
     def test_groups_by_source_type_industry(self, tmp_path):
+        """Groups rows by (source_course_key, type, industry_code)."""
         p = _make_csv(
             tmp_path,
             [
@@ -225,6 +231,7 @@ class TestGroupRows:
 
 class TestDeriveDestCourseKey:
     def test_key_format(self):
+        """Builds a destination key with source org/run and type+industry suffix."""
         from opaque_keys.edx.locator import CourseLocator
 
         source = CourseLocator.from_string("course-v1:UAI_SOURCE+UAI.2+2T2025")
@@ -242,6 +249,7 @@ class TestDeriveDestCourseKey:
 
 class TestValidateVideoIds:
     def test_valid_ids(self):
+        """Marks a video ID as valid when VAL lookup succeeds."""
         from ol_openedx_short_video_course.utils.val_validator import validate_video_ids
 
         class FakeNotFound(Exception):
@@ -269,6 +277,7 @@ class TestValidateVideoIds:
         assert results["valid-id-123"] is True
 
     def test_invalid_id(self):
+        """Marks a video ID as invalid when VAL reports not found."""
         from ol_openedx_short_video_course.utils.val_validator import validate_video_ids
 
         class FakeNotFound(Exception):
@@ -296,6 +305,7 @@ class TestValidateVideoIds:
         assert results["bad-id"] is False
 
     def test_operational_error_raises(self):
+        """Raises a wrapped runtime error for VAL operational failures."""
         from ol_openedx_short_video_course.utils.val_validator import validate_video_ids
 
         class FakeNotFound(Exception):
@@ -324,6 +334,7 @@ class TestValidateVideoIds:
             validate_video_ids({"some-id"})
 
     def test_import_error_raises(self):
+        """Raises a runtime error when edxval.api cannot be imported."""
         from ol_openedx_short_video_course.utils.val_validator import validate_video_ids
 
         real_import = builtins.__import__
@@ -351,6 +362,7 @@ class TestValidateVideoIds:
 
 class TestCourseValidator:
     def test_reports_missing_source_subsection_coverage(self):
+        """Reports validation errors when a source subsection is not covered."""
         from ol_openedx_short_video_course.utils.course_validator import (
             validate_all_groups,
         )
@@ -398,6 +410,7 @@ class TestCourseValidator:
 
 class TestCourseTransformer:
     def test_apply_group_actions_keep_remove_update_and_empty_section_cleanup(self):
+        """Applies keep/remove/update actions and removes empty sections."""
         from ol_openedx_short_video_course.utils.course_transformer import (
             apply_group_actions,
         )
@@ -502,6 +515,7 @@ class TestCourseTransformer:
 
 class TestServices:
     def test_dry_run_returns_plan_and_skips_writes(self):
+        """Returns planned operations without destination writes in dry-run mode."""
         from ol_openedx_short_video_course.utils.course_validator import (
             ValidationReport,
         )
@@ -546,6 +560,7 @@ class TestServices:
         mock_apply.assert_not_called()
 
     def test_validation_failure_short_circuits_before_writes(self):
+        """Stops before writes when group validation fails."""
         from ol_openedx_short_video_course.utils.course_validator import (
             ValidationReport,
         )
