@@ -40,7 +40,9 @@ class Command(BaseCommand):
         "  update — replace all units with one video unit "
         "using the given VAL video ID\n\n"
         "One destination course is created per unique "
-        "(source_course_key, type, industry code) combination."
+        "(source_course_key, type, industry code) combination.\n\n"
+        "Special: If industry code is 'O' (Original), the generated course key "
+        "will not include the industry code (e.g., course-v1:ORG+NUM.TYPE+RUN)."
     )
 
     def add_arguments(self, parser):
@@ -108,6 +110,7 @@ class Command(BaseCommand):
                 csv_path=csv_path,
                 user_id=user.id,
                 dry_run=dry_run,
+                treat_industry_code_O_as_original=True,
             )
         except Exception as exc:
             if batch:

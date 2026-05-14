@@ -47,28 +47,112 @@ class Command(BaseCommand):
             metavar="PATH",
             help="File path for the generated CSV template",
         )
+        parser.add_argument(
+            "--industry-codes",
+            nargs="+",
+            required=False,
+            metavar="INDUSTRY_CODE",
+            help="List of industry codes to generate combinations for (optional)",
+        )
+        parser.add_argument(
+            "--types",
+            nargs="+",
+            required=False,
+            metavar="TYPE",
+            help="List of types to generate combinations for (optional)",
+        )
 
-    def handle(self, *_args, **options):
+    def handle(self, *_args, **options):  # noqa: C901
         """Generate and write a CSV template for provided source courses."""
         from xmodule.modulestore.django import modulestore  # noqa: PLC0415
 
         source_key_strs: list[str] = options["source_course_keys"]
         output_path: str = options["output_path"]
+        industry_codes: list[str] | None = options.get("industry_codes")
+        types: list[str] | None = options.get("types")
 
         store = modulestore()
         rows: list[list[str]] = []
         errors: list[str] = []
 
-        for key_str in source_key_strs:
+        def generate_rows(
+            key_str: str, section_key: str, subsection_key: str, display_name: str
+        ) -> list[list[str]]:
+            if industry_codes and types:
+                # All combinations
+                return [
+                    [
+                        key_str,
+                        section_key,
+                        subsection_key,
+                        "keep",
+                        display_name,
+                        industry_code,
+                        typ,
+                        "",  # video ID — operator fills in
+                    ]
+                    for industry_code in industry_codes
+                    for typ in types
+                ]
+            elif industry_codes:
+                # One row per industry_code
+                return [
+                    [
+                        key_str,
+                        section_key,
+                        subsection_key,
+                        "keep",
+                        display_name,
+                        industry_code,
+                        "",  # type — operator fills in
+                        "",  # video ID — operator fills in
+                    ]
+                    for industry_code in industry_codes
+                ]
+            elif types:
+                # One row per type
+                return [
+                    [
+                        key_str,
+                        section_key,
+                        subsection_key,
+                        "keep",
+                        display_name,
+                        "",  # industry code — operator fills in
+                        typ,
+                        "",  # video ID — operator fills in
+                    ]
+                    for typ in types
+                ]
+            else:
+                # Single row with blanks
+                return [
+                    [
+                        key_str,
+                        section_key,
+                        subsection_key,
+                        "keep",
+                        display_name,
+                        "",  # industry code — operator fills in
+                        "",  # type         — operator fills in
+                        "",  # video ID     — operator fills in
+                    ]
+                ]
+
+        def get_course_or_error(key_str: str):
             try:
                 course_key = CourseKey.from_string(key_str)
             except InvalidKeyError:
                 errors.append(f"Invalid course key: '{key_str}'")
-                continue
-
+                return None
             course = store.get_course(course_key, depth=4)
             if course is None:
                 errors.append(f"Course not found: '{key_str}'")
+            return course
+
+        for key_str in source_key_strs:
+            course = get_course_or_error(key_str)
+            if course is None:
                 continue
 
             section_count = 0
@@ -79,17 +163,13 @@ class Command(BaseCommand):
                 for subsection in section.get_children():
                     subsection_key = str(subsection.location)
                     display_name = subsection.display_name or ""
-                    rows.append(
-                        [
+                    rows.extend(
+                        generate_rows(
                             key_str,
                             section_key,
                             subsection_key,
-                            "keep",
                             display_name,
-                            "",  # industry code — operator fills in
-                            "",  # type         — operator fills in
-                            "",  # video ID     — operator fills in
-                        ]
+                        )
                     )
                     subsection_count += 1
                 section_count += 1

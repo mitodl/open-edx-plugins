@@ -56,11 +56,12 @@ class BatchResult:
     duration_seconds: float = 0.0
 
 
-def generate_custom_courses(
+def generate_custom_courses(  # noqa: C901
     csv_path: str,
     user_id: int,
     *,
     dry_run: bool = False,
+    treat_industry_code_O_as_original: bool = False,
 ) -> BatchResult:
     """
     Parse *csv_path*, validate all groups, then create destination courses.
@@ -119,7 +120,14 @@ def generate_custom_courses(
         planned: dict[str, dict] = {}
         for (src_str, type_code, industry_code), group_row_list in groups.items():
             src_key = CourseKey.from_string(src_str)
-            dest_key = derive_dest_course_key(src_key, type_code, industry_code)
+            if treat_industry_code_O_as_original and industry_code == "O":
+                dest_key = CourseKey(
+                    org=src_key.org,
+                    course=f"{src_key.course}.{type_code}",
+                    run=src_key.run,
+                )
+            else:
+                dest_key = derive_dest_course_key(src_key, type_code, industry_code)
             planned[str(dest_key)] = {
                 "source": src_str,
                 "type": type_code,
@@ -143,7 +151,14 @@ def generate_custom_courses(
 
     for (src_str, type_code, industry_code), group_row_list in groups.items():
         src_key = CourseKey.from_string(src_str)
-        dest_key = derive_dest_course_key(src_key, type_code, industry_code)
+        if treat_industry_code_O_as_original and industry_code == "O":
+            dest_key = CourseKey(
+                org=src_key.org,
+                course=f"{src_key.course}.{type_code}",
+                run=src_key.run,
+            )
+        else:
+            dest_key = derive_dest_course_key(src_key, type_code, industry_code)
 
         run_result = RunResult(
             source_course_key=src_str,
