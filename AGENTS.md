@@ -2,10 +2,10 @@
 
 ## Repository Overview
 
-This repository contains a collection of 17+ Open edX plugins that extend and enhance the Open edX platform functionality. The plugins are MIT Open Learning Engineering's custom extensions for features like system administration, authentication, monitoring, course management, and integrations.
+This repository contains a collection of 18+ Open edX plugins that extend and enhance the Open edX platform functionality. The plugins are MIT Open Learning Engineering's custom extensions for features like system administration, authentication, monitoring, course management, and integrations.
 
 **Repository Type:** Python monorepo with multiple independent plugin packages
-**Size:** ~170 Python source files across 17 plugins
+**Size:** ~190 Python source files across 18+ plugins
 **Languages/Frameworks:** Python 3.11+, Django 4.0+, Open edX platform
 **Build System:** UV (modern Python package manager), Hatchling backend
 **Target Runtime:** Open edX platform (tested against master, sumac.master, and teak releases)
@@ -26,6 +26,7 @@ edx-extensions/
 │   ├── ol_openedx_lti_utilities/ # LTI Utilities
 │   ├── ol_openedx_logging/      # Logging enhancements
 │   ├── ol_openedx_otel_monitoring/ # OpenTelemetry monitoring
+│   ├── ol_openedx_short_video_course/ # CSV-driven short video course variant generator
 │   ├── ol_openedx_sentry/       # Sentry integration
 │   ├── ol_social_auth/          # Social authentication
 │   ├── openedx_companion_auth/  # Companion authentication
@@ -217,6 +218,48 @@ plugin_name = "plugin_name.apps:ConfigClass"
 **Plugin Types:**
 - Django apps: Standard Open edX plugins (most plugins)
 - XBlocks: Course content components (ol_openedx_chat_xblock, rapid_response_xblock)
+
+## Plugin-Specific Notes
+
+### ol_openedx_short_video_course
+
+Purpose:
+- CMS-only plugin that generates short-video course variants from source courses using CSV mappings.
+
+Core behavior:
+- Groups CSV rows by `(source_course_key, type, industry_code)`.
+- Creates one destination course per group using key pattern:
+   - `course-v1:ORG+COURSE_NUM.TYPE.INDUSTRY+RUN`
+- Applies per-subsection actions:
+   - `keep`: leave subsection unchanged
+   - `remove`: delete subsection
+   - `update`: replace units with one vertical containing one `video` block (`edx_video_id` set to VAL ID)
+
+Commands:
+- `generate_courses_csv`
+   - Generates a CSV template from one or more source courses.
+- `generate_custom_courses`
+   - Executes generation from completed CSV.
+   - Supports `--dry-run` for full validation without writes.
+
+Validation model:
+- Pre-flight validation is all-or-nothing before writes begin.
+- Checks include:
+   - source key parseability and source existence
+   - destination non-existence
+   - duplicate CSV subsection mappings
+   - section/subsection key existence in source
+   - full source subsection coverage in each destination group
+   - VAL video existence for `update` rows
+
+Data models:
+- `ShortCourseCreationJob`: one command batch execution
+- `ShortCourseVariant`: one generated destination variant under a batch
+
+Testing guidance:
+- Follow normal repository rule: run in Tutor/Open edX context.
+- Plugin-specific test command:
+   - `./run_edx_integration_tests.sh --plugin ol_openedx_short_video_course --skip-build`
 
 ## Making Changes
 

@@ -1,0 +1,34 @@
+[project]
+name = "ol-openedx-short-video-course"
+version = "0.1.0"
+description = "An Open edX CMS plugin to generate derived short-video course variants from a source course via a CSV mapping."
+authors = [
+  {name = "MIT Office of Digital Learning"}
+]
+license = "BSD-3-Clause"
+readme = "README.rst"
+requires-python = ">=3.11"
+dependencies = [
+  "Django>=4.0",
+  "edx-opaque-keys",
+]
+
+[project.entry-points."cms.djangoapp"]
+ol_openedx_short_video_course = "ol_openedx_short_video_course.apps:OLOpenEdxShortVideoCourseConfig"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ol_openedx_short_video_course"]
+include = [
+  "ol_openedx_short_video_course/**/*.py",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "ol_openedx_short_video_course/**/*",
+  "README.rst",
+  "pyproject.toml",
+]

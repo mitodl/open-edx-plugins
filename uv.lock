@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -29,6 +29,7 @@ members = [
     "ol-openedx-otel-monitoring",
     "ol-openedx-rapid-response-reports",
     "ol-openedx-sentry",
+    "ol-openedx-short-video-course",
     "ol-social-auth",
     "open-edx-plugins",
     "openedx-companion-auth",
@@ -2062,7 +2063,7 @@ wheels = [
 
 [[package]]
 name = "ol-openedx-ai-static-translations"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "src/ol_openedx_ai_static_translations" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2282,7 +2283,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-translations"
-version = "0.6.1"
+version = "0.6.2"
 source = { editable = "src/ol_openedx_course_translations" }
 dependencies = [
     { name = "deepl" },
@@ -2446,6 +2447,22 @@ dependencies = [
 requires-dist = [
     { name = "django", specifier = ">=4.0" },
     { name = "sentry-sdk", specifier = ">=2.0.0" },
+]
+
+[[package]]
+name = "ol-openedx-short-video-course"
+version = "0.1.0"
+source = { editable = "src/ol_openedx_short_video_course" }
+dependencies = [
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "edx-opaque-keys" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "django", specifier = ">=4.0" },
+    { name = "edx-opaque-keys" },
 ]
 
 [[package]]
