@@ -38,6 +38,7 @@ Management Commands
 ``generate_courses_csv``
     Generates an 8-column CSV template from one or more source courses,
     pre-filled with ``keep`` actions and subsection display names.
+    Optionally, generates combination rows for multiple destination groups.
 
 ``generate_custom_courses``
     Consumes the completed CSV and creates the destination courses.
@@ -52,6 +53,8 @@ Generate a template CSV for one source course:
     ./manage.py cms generate_courses_csv \
       --source-course-keys course-v1:MITx+6.001x+2026_T1 \
       --output-path /tmp/short-video-mapping.csv
+      --industry-codes HC FN \
+      --types S F
 
 Generate a template for multiple source courses:
 
@@ -135,5 +138,3 @@ Operational Notes
 - Register this plugin in CMS only (it is a CMS plugin).
 - Run inside an Open edX environment where modulestore and edxval are available.
 - If VAL is operationally unavailable, the command fails with an explicit error rather than mislabeling video IDs as invalid.
-
-See the project README for the full CSV format and command reference.
