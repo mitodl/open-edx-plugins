@@ -85,7 +85,19 @@ def parse_csv(filepath: str) -> list[CsvRow]:
             raise ValueError(msg)
 
         for line_num, raw_row in enumerate(reader, start=2):
-            row = {_normalise_key(k): (v or "").strip() for k, v in raw_row.items()}
+            extra_values = raw_row.get(None) or []
+            if any(value.strip() for value in extra_values):
+                errors.append(
+                    f"Line {line_num}: extra columns detected. "
+                    "Expected exactly 8 columns."
+                )
+                continue
+
+            row = {
+                _normalise_key(k): (v or "").strip()
+                for k, v in raw_row.items()
+                if k is not None
+            }
 
             action = row.get("action", "").lower()
             if action not in VALID_ACTIONS:

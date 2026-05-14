@@ -7,6 +7,7 @@ Run inside a Tutor/Open edX container:
 
 # ruff: noqa: PLC0415,PLR2004,S108,N818,TRY003,EM101
 
+import builtins
 import csv
 import sys
 import types
@@ -182,6 +183,17 @@ class TestParseCsv:
         with pytest.raises(ValueError, match="'video ID' must be empty"):
             parse_csv(str(p))
 
+    def test_row_with_extra_columns_raises(self, tmp_path):
+        p = tmp_path / "bad.csv"
+        p.write_text(
+            "source_course_key,section,subsection,action,unit display name,"
+            "industry code,type,video ID\n"
+            f"{SOURCE},{SEC},{SUB},keep,,HC,S,,unexpected\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="extra columns detected"):
+            parse_csv(str(p))
+
 
 # ---------------------------------------------------------------------------
 # csv_parser — group_rows
@@ -308,6 +320,31 @@ class TestValidateVideoIds:
                 },
             ),
             pytest.raises(RuntimeError, match="Failed to validate VAL video ID"),
+        ):
+            validate_video_ids({"some-id"})
+
+    def test_import_error_raises(self):
+        from ol_openedx_short_video_course.utils.val_validator import validate_video_ids
+
+        real_import = builtins.__import__
+
+        def fake_import(
+            name, module_globals=None, module_locals=None, fromlist=(), level=0
+        ):
+            if name == "edxval.api":
+                raise ImportError("edxval missing")
+            return real_import(
+                name,
+                module_globals,
+                module_locals,
+                fromlist,
+                level,
+            )
+
+        with (
+            patch("builtins.__import__", side_effect=fake_import),
+            patch.dict(sys.modules, {"edxval": None, "edxval.api": None}),
+            pytest.raises(RuntimeError, match="cannot validate VAL video IDs"),
         ):
             validate_video_ids({"some-id"})
 

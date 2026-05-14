@@ -15,11 +15,12 @@ def validate_video_ids(video_ids: set[str]) -> dict[str, bool]:
     try:
         from edxval.api import ValVideoNotFoundError, get_video_info  # noqa: PLC0415
     except ImportError:
-        log.warning(
-            "edxval is not installed; skipping VAL video ID validation. "
-            "All video IDs will be treated as valid."
+        msg = (
+            "edxval is not installed or importable; cannot validate VAL video IDs. "
+            "Install/configure edxval and retry."
         )
-        return dict.fromkeys(video_ids, True)
+        log.exception(msg)
+        raise RuntimeError(msg) from None
 
     results: dict[str, bool] = {}
     for video_id in video_ids:
