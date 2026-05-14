@@ -2,9 +2,8 @@
 Tests for ol_openedx_short_video_course.
 """
 
-# ruff: noqa: PLC0415,PLR2004,S108,N818,TRY003,EM101
+# ruff: noqa: PLC0415, PLR2004, S108, PLR0913, ARG002
 
-import builtins
 import csv
 import sys
 import types
@@ -14,7 +13,6 @@ from unittest.mock import patch
 import pytest
 from ol_openedx_short_video_course.utils.csv_parser import (
     CsvRow,
-    derive_dest_course_key,
     group_rows,
     parse_csv,
 )
@@ -23,30 +21,47 @@ from ol_openedx_short_video_course.utils.csv_parser import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+CSV_HEADER = [
+    "course_name",
+    "course_key",
+    "section_name",
+    "subsection_name",
+    "vertical_name",
+    "edx_video_id",
+]
+
+COURSE_KEY = "course-v1:ORG+NUM+RUN"
+COURSE_KEY_2 = "course-v1:ORG+NUM2+RUN"
+COURSE_NAME = "Test Short Video Course"
+VID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
 
 def _make_csv(tmp_path: Path, rows: list[list[str]]) -> Path:
     """Write a CSV file with the standard header and given data rows."""
-    header = [
-        "source_course_key",
-        "section",
-        "subsection",
-        "action",
-        "unit display name",
-        "industry code",
-        "type",
-        "video ID",
-    ]
     p = tmp_path / "mapping.csv"
     with p.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
-        writer.writerow(header)
+        writer.writerow(CSV_HEADER)
         writer.writerows(rows)
     return p
 
 
-def _usage_key(block_type: str, block_id: str) -> str:
-    """Build a valid usage key string for tests."""
-    return f"block-v1:ORG+NUM+RUN+type@{block_type}+block@{block_id}"
+def _make_row(
+    course_name: str = COURSE_NAME,
+    course_key: str = COURSE_KEY,
+    section_name: str = "Section 1",
+    subsection_name: str = "Subsection 1",
+    vertical_name: str = "Unit 1",
+    edx_video_id: str = VID,
+) -> list[str]:
+    return [
+        course_name,
+        course_key,
+        section_name,
+        subsection_name,
+        vertical_name,
+        edx_video_id,
+    ]
 
 
 class _FakeLocation:
@@ -58,18 +73,9 @@ class _FakeLocation:
 
 
 class _FakeBlock:
-    def __init__(
-        self,
-        block_id: str,
-        children: list["_FakeBlock"] | None = None,
-        display_name: str = "",
-    ):
+    def __init__(self, block_id: str, display_name: str = ""):
         self.location = _FakeLocation(block_id)
-        self._children = children or []
         self.display_name = display_name
-
-    def get_children(self) -> list["_FakeBlock"]:
-        return self._children
 
 
 class _NullContext:
@@ -101,12 +107,6 @@ def _patch_modulestore(fake_store):
     )
 
 
-SOURCE = "course-v1:ORG+NUM+RUN"
-SEC = "block-v1:ORG+NUM+RUN+type@chapter+block@sec1"
-SUB = "block-v1:ORG+NUM+RUN+type@sequential+block@sub1"
-VID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-
-
 # ---------------------------------------------------------------------------
 # csv_parser — parse_csv
 # ---------------------------------------------------------------------------
@@ -114,39 +114,24 @@ VID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 
 class TestParseCsv:
     def test_happy_path(self, tmp_path):
-        """Parses a valid update row into a single CsvRow."""
-        p = _make_csv(
-            tmp_path,
-            [[SOURCE, SEC, SUB, "update", "Intro Video", "HC", "S", VID]],
-        )
+        """Parses a valid row into a CsvRow."""
+        p = _make_csv(tmp_path, [_make_row()])
         rows = parse_csv(str(p))
         assert len(rows) == 1
         row = rows[0]
-        assert row.action == "update"
-        assert row.video_id == VID
-        assert row.industry_code == "HC"
-        assert row.type_code == "S"
+        assert row.course_key_str == COURSE_KEY
+        assert row.course_name == COURSE_NAME
+        assert row.section_name == "Section 1"
+        assert row.subsection_name == "Subsection 1"
+        assert row.vertical_name == "Unit 1"
+        assert row.edx_video_id == VID
 
-    def test_keep_and_remove_have_empty_video_id(self, tmp_path):
-        """Accepts keep/remove rows when video ID is empty."""
-        p = _make_csv(
-            tmp_path,
-            [
-                [SOURCE, SEC, SUB, "keep", "Section 1", "HC", "S", ""],
-                [
-                    SOURCE,
-                    SEC,
-                    "block-v1:ORG+NUM+RUN+type@sequential+block@sub2",
-                    "remove",
-                    "",
-                    "HC",
-                    "S",
-                    "",
-                ],
-            ],
-        )
+    def test_empty_video_id_allowed(self, tmp_path):
+        """Accepts rows where edx_video_id is empty."""
+        p = _make_csv(tmp_path, [_make_row(edx_video_id="")])
         rows = parse_csv(str(p))
-        assert len(rows) == 2
+        assert len(rows) == 1
+        assert rows[0].edx_video_id == ""
 
     def test_file_not_found(self):
         """Raises FileNotFoundError when the CSV path does not exist."""
@@ -156,48 +141,45 @@ class TestParseCsv:
     def test_missing_column_raises(self, tmp_path):
         """Raises ValueError when required CSV columns are missing."""
         p = tmp_path / "bad.csv"
-        p.write_text("source_course_key,section,action\nval1,val2,keep\n")
+        p.write_text("course_name,course_key\nFoo,course-v1:X+Y+Z\n")
         with pytest.raises(ValueError, match="missing required columns"):
             parse_csv(str(p))
 
-    def test_invalid_action_raises(self, tmp_path):
-        """Rejects rows whose action is not keep/remove/update."""
+    def test_empty_required_field_raises(self, tmp_path):
+        """Raises ValueError when a required non-video field is blank."""
         p = _make_csv(
             tmp_path,
-            [[SOURCE, SEC, SUB, "INVALID", "", "HC", "S", ""]],
+            [_make_row(section_name="")],  # section_name is blank
         )
-        with pytest.raises(ValueError, match="invalid action"):
+        with pytest.raises(ValueError, match="'section_name' must not be empty"):
             parse_csv(str(p))
 
-    def test_update_without_video_id_raises(self, tmp_path):
-        """Rejects update rows that do not provide a video ID."""
+    def test_empty_csv_raises(self, tmp_path):
+        """Raises ValueError when the CSV has a header but no data rows."""
+        p = tmp_path / "empty.csv"
+        p.write_text(",".join(CSV_HEADER) + "\n")
+        with pytest.raises(ValueError, match="no data rows"):
+            parse_csv(str(p))
+
+    def test_multiple_rows_parsed(self, tmp_path):
+        """Parses multiple rows correctly."""
         p = _make_csv(
             tmp_path,
-            [[SOURCE, SEC, SUB, "update", "Title", "HC", "S", ""]],
+            [
+                _make_row(section_name="Sec 1", subsection_name="Sub 1"),
+                _make_row(section_name="Sec 1", subsection_name="Sub 2"),
+                _make_row(
+                    course_key=COURSE_KEY_2,
+                    section_name="Sec A",
+                    subsection_name="Sub A",
+                ),
+            ],
         )
-        with pytest.raises(ValueError, match="'video ID' is required"):
-            parse_csv(str(p))
-
-    def test_keep_with_video_id_raises(self, tmp_path):
-        """Rejects keep rows that incorrectly include a video ID."""
-        p = _make_csv(
-            tmp_path,
-            [[SOURCE, SEC, SUB, "keep", "", "HC", "S", VID]],
-        )
-        with pytest.raises(ValueError, match="'video ID' must be empty"):
-            parse_csv(str(p))
-
-    def test_row_with_extra_columns_raises(self, tmp_path):
-        """Rejects rows that contain unexpected trailing CSV columns."""
-        p = tmp_path / "bad.csv"
-        p.write_text(
-            "source_course_key,section,subsection,action,unit display name,"
-            "industry code,type,video ID\n"
-            f"{SOURCE},{SEC},{SUB},keep,,HC,S,,unexpected\n",
-            encoding="utf-8",
-        )
-        with pytest.raises(ValueError, match="extra columns detected"):
-            parse_csv(str(p))
+        rows = parse_csv(str(p))
+        assert len(rows) == 3
+        assert rows[0].section_name == "Sec 1"
+        assert rows[1].subsection_name == "Sub 2"
+        assert rows[2].course_key_str == COURSE_KEY_2
 
 
 # ---------------------------------------------------------------------------
@@ -206,401 +188,303 @@ class TestParseCsv:
 
 
 class TestGroupRows:
-    def test_groups_by_source_type_industry(self, tmp_path):
-        """Groups rows by (source_course_key, type, industry_code)."""
-        p = _make_csv(
-            tmp_path,
-            [
-                [SOURCE, SEC, SUB, "update", "Title", "HC", "S", VID],
-                [SOURCE, SEC, SUB, "update", "Title", "HC", "L", VID],
-                [SOURCE, SEC, SUB, "update", "Title", "MD", "S", VID],
-            ],
-        )
-        rows = parse_csv(str(p))
-        groups = group_rows(rows)
-        assert len(groups) == 3
-        assert (SOURCE, "S", "HC") in groups
-        assert (SOURCE, "L", "HC") in groups
-        assert (SOURCE, "S", "MD") in groups
-
-
-# ---------------------------------------------------------------------------
-# csv_parser — derive_dest_course_key
-# ---------------------------------------------------------------------------
-
-
-class TestDeriveDestCourseKey:
-    def test_key_format(self):
-        """Builds a destination key with source org/run and type+industry suffix."""
-        from opaque_keys.edx.locator import CourseLocator
-
-        source = CourseLocator.from_string("course-v1:UAI_SOURCE+UAI.2+2T2025")
-        dest = derive_dest_course_key(source, "S", "HC")
-        assert dest.org == "UAI_SOURCE"
-        assert dest.course == "UAI.2.S.HC"
-        assert dest.run == "2T2025"
-        assert str(dest) == "course-v1:UAI_SOURCE+UAI.2.S.HC+2T2025"
-
-
-# ---------------------------------------------------------------------------
-# val_validator
-# ---------------------------------------------------------------------------
-
-
-class TestValidateVideoIds:
-    def test_valid_ids(self):
-        """Marks a video ID as valid when VAL lookup succeeds."""
-        from ol_openedx_short_video_course.utils.val_validator import validate_video_ids
-
-        class FakeNotFound(Exception):
-            pass
-
-        def fake_get_video_info(video_id):
-            return {"id": video_id, "status": "ready"}
-
-        api_module = types.ModuleType("edxval.api")
-        api_module.ValVideoNotFoundError = FakeNotFound
-        api_module.get_video_info = fake_get_video_info
-
-        edxval_module = types.ModuleType("edxval")
-        edxval_module.api = api_module
-
-        with patch.dict(
-            sys.modules,
-            {
-                "edxval": edxval_module,
-                "edxval.api": api_module,
-            },
-        ):
-            results = validate_video_ids({"valid-id-123"})
-
-        assert results["valid-id-123"] is True
-
-    def test_invalid_id(self):
-        """Marks a video ID as invalid when VAL reports not found."""
-        from ol_openedx_short_video_course.utils.val_validator import validate_video_ids
-
-        class FakeNotFound(Exception):
-            pass
-
-        def fake_get_video_info(video_id):
-            raise FakeNotFound(video_id)
-
-        api_module = types.ModuleType("edxval.api")
-        api_module.ValVideoNotFoundError = FakeNotFound
-        api_module.get_video_info = fake_get_video_info
-
-        edxval_module = types.ModuleType("edxval")
-        edxval_module.api = api_module
-
-        with patch.dict(
-            sys.modules,
-            {
-                "edxval": edxval_module,
-                "edxval.api": api_module,
-            },
-        ):
-            results = validate_video_ids({"bad-id"})
-
-        assert results["bad-id"] is False
-
-    def test_operational_error_raises(self):
-        """Raises a wrapped runtime error for VAL operational failures."""
-        from ol_openedx_short_video_course.utils.val_validator import validate_video_ids
-
-        class FakeNotFound(Exception):
-            pass
-
-        def fake_get_video_info(_video_id):
-            raise RuntimeError("VAL timeout")
-
-        api_module = types.ModuleType("edxval.api")
-        api_module.ValVideoNotFoundError = FakeNotFound
-        api_module.get_video_info = fake_get_video_info
-
-        edxval_module = types.ModuleType("edxval")
-        edxval_module.api = api_module
-
-        with (
-            patch.dict(
-                sys.modules,
-                {
-                    "edxval": edxval_module,
-                    "edxval.api": api_module,
-                },
-            ),
-            pytest.raises(RuntimeError, match="Failed to validate VAL video ID"),
-        ):
-            validate_video_ids({"some-id"})
-
-    def test_import_error_raises(self):
-        """Raises a runtime error when edxval.api cannot be imported."""
-        from ol_openedx_short_video_course.utils.val_validator import validate_video_ids
-
-        real_import = builtins.__import__
-
-        def fake_import(
-            name, module_globals=None, module_locals=None, fromlist=(), level=0
-        ):
-            if name == "edxval.api":
-                raise ImportError("edxval missing")
-            return real_import(
-                name,
-                module_globals,
-                module_locals,
-                fromlist,
-                level,
-            )
-
-        with (
-            patch("builtins.__import__", side_effect=fake_import),
-            patch.dict(sys.modules, {"edxval": None, "edxval.api": None}),
-            pytest.raises(RuntimeError, match="cannot validate VAL video IDs"),
-        ):
-            validate_video_ids({"some-id"})
-
-
-class TestCourseValidator:
-    def test_reports_missing_source_subsection_coverage(self):
-        """Reports validation errors when a source subsection is not covered."""
-        from ol_openedx_short_video_course.utils.course_validator import (
-            validate_all_groups,
-        )
-
-        source_course = _FakeBlock(
-            "course",
-            children=[
-                _FakeBlock(
-                    "sec1",
-                    children=[
-                        _FakeBlock("sub1"),
-                        _FakeBlock("sub2"),
-                    ],
-                )
-            ],
-        )
-
-        class FakeStore:
-            def get_course(self, course_key, _depth=None):
-                if str(course_key) == SOURCE:
-                    return source_course
-                return None
-
+    def test_groups_by_course_key(self, tmp_path):
+        """Groups rows by course_key, preserving insertion order."""
         rows = [
-            CsvRow(
-                source_course_key_str=SOURCE,
-                section_key_str=_usage_key("chapter", "sec1"),
-                subsection_key_str=_usage_key("sequential", "sub1"),
-                action="keep",
-                unit_display_name="",
-                industry_code="HC",
-                type_code="S",
-                video_id="",
-                line_number=2,
-            )
+            CsvRow(COURSE_NAME, COURSE_KEY, "S1", "Sub1", "U1", VID, 2),
+            CsvRow(COURSE_NAME, COURSE_KEY, "S1", "Sub2", "U2", VID, 3),
+            CsvRow("Other Course", COURSE_KEY_2, "S1", "Sub1", "U1", "", 4),
         ]
-        groups = {(SOURCE, "S", "HC"): rows}
+        groups = group_rows(rows)
+        assert list(groups.keys()) == [COURSE_KEY, COURSE_KEY_2]
+        assert len(groups[COURSE_KEY]) == 2
+        assert len(groups[COURSE_KEY_2]) == 1
 
-        with _patch_modulestore(FakeStore()):
-            report = validate_all_groups(groups)
+    def test_preserves_row_order_within_group(self):
+        """Rows within a group retain their original CSV order."""
+        rows = [
+            CsvRow(COURSE_NAME, COURSE_KEY, "Sec A", "Sub 1", "U1", VID, 2),
+            CsvRow(COURSE_NAME, COURSE_KEY, "Sec B", "Sub 1", "U2", VID, 3),
+            CsvRow(COURSE_NAME, COURSE_KEY, "Sec A", "Sub 2", "U3", "", 4),
+        ]
+        groups = group_rows(rows)
+        section_names = [r.section_name for r in groups[COURSE_KEY]]
+        assert section_names == ["Sec A", "Sec B", "Sec A"]
 
-        assert report.is_valid is False
-        assert any("sub2" in err and "not covered" in err for err in report.errors)
+
+# ---------------------------------------------------------------------------
+# course_creator — build_course_structure
+# ---------------------------------------------------------------------------
 
 
-class TestCourseTransformer:
-    def test_apply_group_actions_keep_remove_update_and_empty_section_cleanup(self):
-        """Applies keep/remove/update actions and removes empty sections."""
-        from ol_openedx_short_video_course.utils.course_transformer import (
-            apply_group_actions,
+class TestBuildCourseStructure:
+    def test_creates_section_subsection_unit_video(self):
+        """Creates the full hierarchy for a simple single-section course."""
+        from ol_openedx_short_video_course.utils.course_creator import (
+            build_course_structure,
         )
         from opaque_keys.edx.keys import CourseKey
 
-        sub_keep = _FakeBlock("sub_keep", children=[_FakeBlock("keep_unit")])
-        sub_update = _FakeBlock(
-            "sub_update",
-            children=[_FakeBlock("old_unit")],
-            display_name="Old Subsection",
-        )
-        sub_remove = _FakeBlock("sub_remove", children=[_FakeBlock("remove_unit")])
-
-        section_with_content = _FakeBlock("sec1", children=[sub_keep, sub_update])
-        section_to_remove = _FakeBlock("sec2", children=[sub_remove])
-        course = _FakeBlock(
-            "course",
-            children=[section_with_content, section_to_remove],
-        )
+        rows = [
+            CsvRow(COURSE_NAME, COURSE_KEY, "Intro", "Overview", "Welcome", VID, 2),
+        ]
 
         class FakeStore:
             def __init__(self):
-                self.deleted_ids: list[str] = []
-                self.created: list[tuple[str, str, dict, str]] = []
+                self.created: list[tuple] = []
 
-            def bulk_operations(self, _dest_key):
+            def get_course(self, _key, depth=None):
+                return _FakeBlock("course", "Test Course")
+
+            def bulk_operations(self, _key):
                 return _NullContext()
 
-            def get_course(self, _dest_key, _depth=None):
-                return course
-
-            def delete_item(self, location, _user_id):
-                self.deleted_ids.append(location.block_id)
-
             def create_child(self, _user_id, parent_loc, block_type, block_id, fields):
-                self.created.append((block_type, block_id, fields, parent_loc.block_id))
-                return _FakeBlock(
-                    block_id,
-                    display_name=fields.get("display_name", ""),
-                )
-
-        rows = [
-            CsvRow(
-                source_course_key_str=SOURCE,
-                section_key_str=_usage_key("chapter", "sec1"),
-                subsection_key_str=_usage_key("sequential", "sub_keep"),
-                action="keep",
-                unit_display_name="",
-                industry_code="HC",
-                type_code="S",
-                video_id="",
-                line_number=2,
-            ),
-            CsvRow(
-                source_course_key_str=SOURCE,
-                section_key_str=_usage_key("chapter", "sec1"),
-                subsection_key_str=_usage_key("sequential", "sub_update"),
-                action="update",
-                unit_display_name="New Unit",
-                industry_code="HC",
-                type_code="S",
-                video_id=VID,
-                line_number=3,
-            ),
-            CsvRow(
-                source_course_key_str=SOURCE,
-                section_key_str=_usage_key("chapter", "sec2"),
-                subsection_key_str=_usage_key("sequential", "sub_remove"),
-                action="remove",
-                unit_display_name="",
-                industry_code="HC",
-                type_code="S",
-                video_id="",
-                line_number=4,
-            ),
-        ]
+                self.created.append((block_type, block_id, fields, str(parent_loc)))
+                return _FakeBlock(block_id, fields.get("display_name", ""))
 
         fake_store = FakeStore()
         with _patch_modulestore(fake_store):
-            result = apply_group_actions(
-                CourseKey.from_string(SOURCE),
-                rows,
-                user_id=7,
+            stats = build_course_structure(
+                CourseKey.from_string(COURSE_KEY), rows, user_id=1
             )
 
-        assert result.kept == 1
-        assert result.updated == 1
-        assert result.removed == 1
-        assert result.empty_sections_removed == 1
-        assert "sub_remove" in fake_store.deleted_ids
-        assert "old_unit" in fake_store.deleted_ids
-        assert "sec2" in fake_store.deleted_ids
-        assert any(
-            created[0] == "vertical" and created[1] == "svg_sub_update_unit"
-            for created in fake_store.created
+        block_types = [c[0] for c in fake_store.created]
+        assert "chapter" in block_types
+        assert "sequential" in block_types
+        assert "vertical" in block_types
+        assert "video" in block_types
+        assert stats.sections == 1
+        assert stats.subsections == 1
+        assert stats.units == 1
+
+    def test_multiple_sections_and_subsections(self):
+        """Creates multiple sections, each with their own subsections."""
+        from ol_openedx_short_video_course.utils.course_creator import (
+            build_course_structure,
         )
-        assert any(
-            created[0] == "video" and created[1] == "svg_sub_update_video"
-            for created in fake_store.created
+        from opaque_keys.edx.keys import CourseKey
+
+        rows = [
+            CsvRow(COURSE_NAME, COURSE_KEY, "Sec A", "Sub 1", "Unit 1", VID, 2),
+            CsvRow(COURSE_NAME, COURSE_KEY, "Sec A", "Sub 2", "Unit 2", VID, 3),
+            CsvRow(COURSE_NAME, COURSE_KEY, "Sec B", "Sub 1", "Unit 3", "", 4),
+        ]
+
+        class FakeStore:
+            def __init__(self):
+                self.created: list[tuple] = []
+
+            def get_course(self, _key, depth=None):
+                return _FakeBlock("course")
+
+            def bulk_operations(self, _key):
+                return _NullContext()
+
+            def create_child(self, _user_id, parent_loc, block_type, block_id, fields):
+                self.created.append((block_type, block_id, fields, str(parent_loc)))
+                return _FakeBlock(block_id, fields.get("display_name", ""))
+
+        fake_store = FakeStore()
+        with _patch_modulestore(fake_store):
+            stats = build_course_structure(
+                CourseKey.from_string(COURSE_KEY), rows, user_id=1
+            )
+
+        chapters = [c for c in fake_store.created if c[0] == "chapter"]
+        sequentials = [c for c in fake_store.created if c[0] == "sequential"]
+        verticals = [c for c in fake_store.created if c[0] == "vertical"]
+        assert len(chapters) == 2
+        assert len(sequentials) == 3
+        assert len(verticals) == 3
+        assert stats.sections == 2
+        assert stats.subsections == 3
+        assert stats.units == 3
+
+    def test_video_block_without_edx_video_id(self):
+        """Creates a video block even when edx_video_id is empty."""
+        from ol_openedx_short_video_course.utils.course_creator import (
+            build_course_structure,
         )
+        from opaque_keys.edx.keys import CourseKey
+
+        rows = [
+            CsvRow(COURSE_NAME, COURSE_KEY, "Sec", "Sub", "Unit", "", 2),
+        ]
+
+        class FakeStore:
+            def __init__(self):
+                self.video_fields: dict = {}
+
+            def get_course(self, _key, depth=None):
+                return _FakeBlock("course")
+
+            def bulk_operations(self, _key):
+                return _NullContext()
+
+            def create_child(self, _user_id, parent_loc, block_type, block_id, fields):
+                if block_type == "video":
+                    self.video_fields = fields
+                return _FakeBlock(block_id)
+
+        fake_store = FakeStore()
+        with _patch_modulestore(fake_store):
+            build_course_structure(CourseKey.from_string(COURSE_KEY), rows, user_id=1)
+
+        assert "edx_video_id" not in fake_store.video_fields
+
+    def test_video_block_with_edx_video_id(self):
+        """Sets edx_video_id on the video block when provided."""
+        from ol_openedx_short_video_course.utils.course_creator import (
+            build_course_structure,
+        )
+        from opaque_keys.edx.keys import CourseKey
+
+        rows = [
+            CsvRow(COURSE_NAME, COURSE_KEY, "Sec", "Sub", "Unit", VID, 2),
+        ]
+
+        class FakeStore:
+            def __init__(self):
+                self.video_fields: dict = {}
+
+            def get_course(self, _key, depth=None):
+                return _FakeBlock("course")
+
+            def bulk_operations(self, _key):
+                return _NullContext()
+
+            def create_child(self, _user_id, parent_loc, block_type, block_id, fields):
+                if block_type == "video":
+                    self.video_fields = fields
+                return _FakeBlock(block_id)
+
+        fake_store = FakeStore()
+        with _patch_modulestore(fake_store):
+            build_course_structure(CourseKey.from_string(COURSE_KEY), rows, user_id=1)
+
+        assert fake_store.video_fields.get("edx_video_id") == VID
+
+
+# ---------------------------------------------------------------------------
+# services — generate_custom_courses
+# ---------------------------------------------------------------------------
 
 
 class TestServices:
-    def test_dry_run_returns_plan_and_skips_writes(self):
-        """Returns planned operations without destination writes in dry-run mode."""
-        from ol_openedx_short_video_course.utils.course_validator import (
-            ValidationReport,
-        )
-
+    def test_dry_run_returns_plan_without_writes(self):
+        """Returns planned structure in dry-run mode without creating courses."""
         from ol_openedx_short_video_course import services
 
         rows = [
-            CsvRow(
-                source_course_key_str=SOURCE,
-                section_key_str=_usage_key("chapter", "sec1"),
-                subsection_key_str=_usage_key("sequential", "sub1"),
-                action="keep",
-                unit_display_name="",
-                industry_code="HC",
-                type_code="S",
-                video_id="",
-                line_number=2,
-            )
+            CsvRow(COURSE_NAME, COURSE_KEY, "Sec 1", "Sub 1", "Unit 1", VID, 2),
         ]
-        groups = {(SOURCE, "S", "HC"): rows}
+        groups = {COURSE_KEY: rows}
 
         with (
             patch.object(services, "parse_csv", return_value=rows),
             patch.object(services, "group_rows", return_value=groups),
-            patch.object(services, "validate_video_ids", return_value={}),
-            patch.object(
-                services, "validate_all_groups", return_value=ValidationReport()
-            ),
-            patch.object(services, "prepare_destination") as mock_prepare,
-            patch.object(services, "apply_group_actions") as mock_apply,
+            patch.object(services, "create_course") as mock_create,
+            patch.object(services, "build_course_structure") as mock_build,
         ):
             result = services.generate_custom_courses(
                 csv_path="/tmp/mapping.csv",
-                user_id=99,
+                user_id=1,
                 dry_run=True,
             )
 
         assert result.success is True
         assert result.dry_run is True
-        assert len(result.planned_ops) == 1
-        mock_prepare.assert_not_called()
-        mock_apply.assert_not_called()
+        assert COURSE_KEY in result.planned_ops
+        assert result.planned_ops[COURSE_KEY]["course_name"] == COURSE_NAME
+        assert result.planned_ops[COURSE_KEY]["total_units"] == 1
+        mock_create.assert_not_called()
+        mock_build.assert_not_called()
 
-    def test_validation_failure_short_circuits_before_writes(self):
-        """Stops before writes when group validation fails."""
-        from ol_openedx_short_video_course.utils.course_validator import (
-            ValidationReport,
-        )
+    def test_invalid_course_key_fails_validation(self):
+        """Returns validation error when a course key is malformed."""
+        from ol_openedx_short_video_course import services
+
+        rows = [
+            CsvRow(COURSE_NAME, "not-a-valid-key", "Sec", "Sub", "Unit", VID, 2),
+        ]
+
+        with patch.object(services, "parse_csv", return_value=rows):
+            result = services.generate_custom_courses(
+                csv_path="/tmp/mapping.csv",
+                user_id=1,
+            )
+
+        assert result.success is False
+        assert any("invalid course key" in e for e in result.validation_errors)
+
+    def test_live_run_creates_each_course(self):
+        """Calls create_course and build_course_structure for each course key."""
+        from ol_openedx_short_video_course.utils.course_creator import CreationStats
 
         from ol_openedx_short_video_course import services
 
         rows = [
-            CsvRow(
-                source_course_key_str=SOURCE,
-                section_key_str=_usage_key("chapter", "sec1"),
-                subsection_key_str=_usage_key("sequential", "sub1"),
-                action="keep",
-                unit_display_name="",
-                industry_code="HC",
-                type_code="S",
-                video_id="",
-                line_number=2,
-            )
+            CsvRow(COURSE_NAME, COURSE_KEY, "Sec", "Sub", "Unit", VID, 2),
+            CsvRow("Course 2", COURSE_KEY_2, "Sec", "Sub", "Unit", "", 3),
         ]
-        groups = {(SOURCE, "S", "HC"): rows}
+        groups = {COURSE_KEY: [rows[0]], COURSE_KEY_2: [rows[1]]}
+
+        with (
+            patch.object(services, "parse_csv", return_value=rows),
+            patch.object(services, "group_rows", return_value=groups),
+            patch.object(services, "create_course") as mock_create,
+            patch.object(
+                services,
+                "build_course_structure",
+                return_value=CreationStats(sections=1, subsections=1, units=1),
+            ) as mock_build,
+        ):
+            result = services.generate_custom_courses(
+                csv_path="/tmp/mapping.csv",
+                user_id=1,
+                dry_run=False,
+            )
+
+        assert result.success is True
+        assert len(result.run_results) == 2
+        assert mock_create.call_count == 2
+        assert mock_build.call_count == 2
+
+    def test_course_creation_error_is_captured(self):
+        """Records a failed run when course creation raises an error."""
+        from ol_openedx_short_video_course import services
+
+        rows = [CsvRow(COURSE_NAME, COURSE_KEY, "Sec", "Sub", "Unit", VID, 2)]
+        groups = {COURSE_KEY: rows}
 
         with (
             patch.object(services, "parse_csv", return_value=rows),
             patch.object(services, "group_rows", return_value=groups),
             patch.object(
-                services,
-                "validate_all_groups",
-                return_value=ValidationReport(errors=["boom"]),
+                services, "create_course", side_effect=ValueError("already exists")
             ),
-            patch.object(services, "prepare_destination") as mock_prepare,
-            patch.object(services, "apply_group_actions") as mock_apply,
         ):
             result = services.generate_custom_courses(
                 csv_path="/tmp/mapping.csv",
-                user_id=99,
-                dry_run=False,
+                user_id=1,
             )
 
         assert result.success is False
-        assert result.validation_errors == ["boom"]
-        assert result.run_results == []
-        mock_prepare.assert_not_called()
-        mock_apply.assert_not_called()
+        assert result.run_results[0].success is False
+        assert "already exists" in result.run_results[0].error
+
+    def test_parse_error_returns_validation_failure(self):
+        """Returns validation failure when CSV parsing raises."""
+        from ol_openedx_short_video_course import services
+
+        with patch.object(
+            services, "parse_csv", side_effect=ValueError("missing required columns")
+        ):
+            result = services.generate_custom_courses(
+                csv_path="/tmp/bad.csv",
+                user_id=1,
+            )
+
+        assert result.success is False
+        assert any("missing required columns" in e for e in result.validation_errors)

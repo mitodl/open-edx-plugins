@@ -1,140 +1,123 @@
 ol-openedx-short-video-course
 ==============================
 
-An Open edX CMS plugin that generates derived short-video course variants from a
-source course using a CSV mapping file.
-
-Each row in the CSV specifies a section and subsection (by usage key), an action
-(keep / remove / update), and for update rows, an edX VAL video ID and unit
-display name. One destination course is created per unique
-``(source_course_key, type, industry_code)`` combination, with the destination
-key auto-derived as ``course-v1:ORG+COURSE_NUM.TYPE.INDUSTRY+RUN``.
+An Open edX CMS plugin that creates short-video courses directly from a CSV
+mapping file.  Each row in the CSV fully describes one unit (section →
+subsection → vertical → video block) in the target course.  Multiple courses
+can be created in a single command run.
 
 What This Plugin Does
 ---------------------
 
-- Clones one source course into one destination per ``(source, type, industry)`` group.
-- Applies subsection-level actions from CSV:
+- Creates one new course per unique ``course_key`` value in the CSV.
+- Builds the full course hierarchy in CSV row order:
 
-  - ``keep``: leave subsection unchanged.
-  - ``remove``: delete subsection.
-  - ``update``: replace all units in subsection with one vertical containing one video block.
+  - **Section** (chapter) — one per unique ``section_name`` within a course.
+  - **Subsection** (sequential) — one per unique ``subsection_name`` within a section.
+  - **Unit** (vertical) — one per row within a subsection.
+  - **Video block** — one per unit, pre-loaded with the given ``edx_video_id``.
 
-- Validates all groups before writing (all-or-nothing validation).
-- Supports a dry run mode to preview planned work.
+- Supports a ``--dry-run`` flag to preview the planned structure without writing anything.
+- Tracks each run and every created course in audit models available in Django Admin.
+
+CSV Format
+----------
+
+The CSV **must** include a header row with these exact column names (order does
+not matter)::
+
+    course_name,course_key,section_name,subsection_name,vertical_name,edx_video_id
+
++------------------+----------------------------------------------------------+
+| Column           | Description                                              |
++==================+==========================================================+
+| course_name      | Display name of the course to create.                    |
++------------------+----------------------------------------------------------+
+| course_key       | Full course key, e.g. ``course-v1:ORG+NUM+RUN``.        |
++------------------+----------------------------------------------------------+
+| section_name     | Display name of the section (chapter).                   |
++------------------+----------------------------------------------------------+
+| subsection_name  | Display name of the subsection (sequential).             |
++------------------+----------------------------------------------------------+
+| vertical_name    | Display name of the unit (vertical) and video block.     |
++------------------+----------------------------------------------------------+
+| edx_video_id     | edX VAL video ID for the video block (may be empty).     |
++------------------+----------------------------------------------------------+
+
+Rows with the same ``course_key`` are grouped together.  Within a group, rows
+with the same ``section_name`` share one section, and rows with the same
+``section_name`` + ``subsection_name`` share one subsection.  All ordering
+follows the CSV row order.
+
+Example CSV
+~~~~~~~~~~~
+
+.. code-block:: text
+
+    course_name,course_key,section_name,subsection_name,vertical_name,edx_video_id
+    Intro to Python,course-v1:MIT+PY101+2T2025,Week 1,Variables,What is a variable?,abc-111
+    Intro to Python,course-v1:MIT+PY101+2T2025,Week 1,Loops,For loops explained,abc-222
+    Intro to Python,course-v1:MIT+PY101+2T2025,Week 2,Functions,Defining functions,abc-333
+    Advanced Python,course-v1:MIT+PY201+2T2025,Module 1,Decorators,Using decorators,xyz-444
 
 Typical Workflow
 ----------------
 
-1. Generate a CSV template from one or more source courses.
-2. Fill in ``industry code`` and ``type`` for every row, and set each row action.
-3. For rows with ``action=update``, set ``video ID`` and optional ``unit display name``.
-4. Run dry run and fix any validation errors.
-5. Run live generation.
+1. **Prepare the CSV** with one row per unit, following the schema above.
+
+2. **Dry-run** to validate and preview::
+
+       ./manage.py cms generate_custom_courses \
+           --csv-path /path/to/mapping.csv \
+           --user-email admin@example.com \
+           --dry-run
+
+3. **Create the courses**::
+
+       ./manage.py cms generate_custom_courses \
+           --csv-path /path/to/mapping.csv \
+           --user-email admin@example.com
 
 Management Commands
 -------------------
 
-``generate_courses_csv``
-    Generates an 8-column CSV template from one or more source courses,
-    pre-filled with ``keep`` actions and subsection display names.
-    Optionally, generates combination rows for multiple destination groups.
-
 ``generate_custom_courses``
-    Consumes the completed CSV and creates the destination courses.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Command Examples
-----------------
+.. code-block:: text
 
-Generate a template CSV for one source course:
+    usage: manage.py cms generate_custom_courses
+           --csv-path PATH --user-email EMAIL [--dry-run]
 
-.. code-block:: bash
+    --csv-path     Path to the CSV mapping file.
+    --user-email   Email of the user performing the creation (for audit trail).
+    --dry-run      Validate and preview without creating any courses.
 
-    ./manage.py cms generate_courses_csv \
-      --source-course-keys course-v1:MITx+6.001x+2026_T1 \
-      --output-path /tmp/short-video-mapping.csv
-      --industry-codes HC FN \
-      --types S F
+Installation
+------------
 
-Generate a template for multiple source courses:
+Add the plugin to your Tutor environment and enable it via the
+``cms.djangoapp`` entry point configured in ``pyproject.toml``::
 
-.. code-block:: bash
+    pip install ol-openedx-short-video-course
 
-    ./manage.py cms generate_courses_csv \
-      --source-course-keys \
-        course-v1:MITx+6.001x+2026_T1 \
-        course-v1:MITx+6.002x+2026_T1 \
-      --output-path /tmp/short-video-mapping.csv
+The plugin's Django app is registered automatically via the CMS plugin
+entry point.  Run Django migrations after installation::
 
-Validate only (no writes):
+    ./manage.py cms migrate
 
-.. code-block:: bash
+Django Admin
+------------
 
-    ./manage.py cms generate_custom_courses \
-      --csv-path /tmp/short-video-mapping.csv \
-      --user-email staff@example.com \
-      --dry-run
+The plugin registers two read-only models in Django Admin:
 
-Generate destination courses:
+- **Short Course Creation Jobs** — one record per command invocation.
+- **Short Course Variants** — one record per created course, linked to the job.
 
-.. code-block:: bash
+Development & Testing
+---------------------
 
-    ./manage.py cms generate_custom_courses \
-      --csv-path /tmp/short-video-mapping.csv \
-      --user-email staff@example.com
+Tests require an Open edX / Tutor environment.  From inside the LMS container::
 
-CSV Columns
------------
-
-Required columns:
-
-- ``source_course_key``
-- ``section``
-- ``subsection``
-- ``action``
-- ``unit display name``
-- ``industry code``
-- ``type``
-- ``video ID``
-
-Rules:
-
-- ``action`` must be one of ``keep``, ``remove``, ``update``.
-- ``video ID`` is required for ``update``.
-- ``video ID`` must be empty for ``keep`` and ``remove``.
-- ``industry code`` and ``type`` are required for every row.
-- Every source subsection must appear exactly once per destination group.
-
-Example CSV
------------
-
-.. code-block:: csv
-
-    source_course_key,section,subsection,action,unit display name,industry code,type,video ID
-    course-v1:MITx+6.001x+2026_T1,block-v1:MITx+6.001x+2026_T1+type@chapter+block@ch1,block-v1:MITx+6.001x+2026_T1+type@sequential+block@seq1,keep,,HC,S,
-    course-v1:MITx+6.001x+2026_T1,block-v1:MITx+6.001x+2026_T1+type@chapter+block@ch1,block-v1:MITx+6.001x+2026_T1+type@sequential+block@seq2,remove,,HC,S,
-    course-v1:MITx+6.001x+2026_T1,block-v1:MITx+6.001x+2026_T1+type@chapter+block@ch2,block-v1:MITx+6.001x+2026_T1+type@sequential+block@seq3,update,AI in Healthcare Intro,HC,S,aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
-    course-v1:MITx+6.001x+2026_T1,block-v1:MITx+6.001x+2026_T1+type@chapter+block@ch1,block-v1:MITx+6.001x+2026_T1+type@sequential+block@seq1,keep,,FN,L,
-    course-v1:MITx+6.001x+2026_T1,block-v1:MITx+6.001x+2026_T1+type@chapter+block@ch1,block-v1:MITx+6.001x+2026_T1+type@sequential+block@seq2,update,Risk Modeling Quickstart,FN,L,ffffffff-1111-2222-3333-444444444444
-
-In this example, two destination courses are created:
-
-- ``course-v1:MITx+6.001x.S.HC+2026_T1``
-- ``course-v1:MITx+6.001x.L.FN+2026_T1``
-
-Validation and Failure Behavior
--------------------------------
-
-- Validation runs before writes and aggregates all detected issues.
-- If validation fails, no destination course is created.
-- Live runs are recorded with batch/variant status in admin models:
-
-  - ``ShortCourseCreationJob``
-  - ``ShortCourseVariant``
-
-Operational Notes
------------------
-
-- Register this plugin in CMS only (it is a CMS plugin).
-- Run inside an Open edX environment where modulestore and edxval are available.
-- If VAL is operationally unavailable, the command fails with an explicit error rather than mislabeling video IDs as invalid.
+    cd /openedx/open-edx-plugins
+    ./run_edx_integration_tests.sh --plugin ol_openedx_short_video_course --skip-build

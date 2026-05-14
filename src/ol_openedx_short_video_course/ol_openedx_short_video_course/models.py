@@ -44,16 +44,14 @@ class ShortCourseCreationJob(models.Model):
 
 
 class ShortCourseVariant(models.Model):
-    """Audit record for one (source, type, industry) variant within a batch."""
+    """Audit record for one created course within a batch."""
 
     STATUS_PENDING = "pending"
-    STATUS_RUNNING = "running"
     STATUS_SUCCESS = "success"
     STATUS_FAILED = "failed"
 
     STATUS_CHOICES = [
         (STATUS_PENDING, "Pending"),
-        (STATUS_RUNNING, "Running"),
         (STATUS_SUCCESS, "Success"),
         (STATUS_FAILED, "Failed"),
     ]
@@ -61,22 +59,20 @@ class ShortCourseVariant(models.Model):
     batch = models.ForeignKey(
         ShortCourseCreationJob, on_delete=models.CASCADE, related_name="variants"
     )
-    source_course_key = CourseKeyField(max_length=255)
+    course_name = models.CharField(max_length=255)
     dest_course_key = CourseKeyField(max_length=255, null=True, blank=True)
-    type_code = models.CharField(max_length=50)
-    industry_code = models.CharField(max_length=50)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING
     )
     error_log = models.TextField(blank=True, default="")
-    sections_kept = models.IntegerField(default=0)
-    sections_removed = models.IntegerField(default=0)
-    sections_updated = models.IntegerField(default=0)
+    sections_created = models.IntegerField(default=0)
+    subsections_created = models.IntegerField(default=0)
+    units_created = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        """Django model metadata for generated short course variants."""
+        """Django model metadata for generated short courses."""
 
         app_label = "ol_openedx_short_video_course"
         verbose_name = "Short Course Variant"
@@ -86,6 +82,6 @@ class ShortCourseVariant(models.Model):
         """Return a compact human-readable description of this variant."""
 
         return (
-            f"ShortCourseVariant #{self.pk}: {self.source_course_key} → "
-            f"{self.dest_course_key} ({self.status})"
+            f"ShortCourseVariant #{self.pk}: '{self.course_name}' "
+            f"→ {self.dest_course_key} ({self.status})"
         )

@@ -9,20 +9,18 @@ from ol_openedx_short_video_course.models import (
 
 
 class ShortCourseVariantInline(admin.TabularInline):
-    """Inline view of short course variants within a creation job."""
+    """Inline view of created courses within a creation job."""
 
     model = ShortCourseVariant
     extra = 0
     readonly_fields = (
-        "source_course_key",
+        "course_name",
         "dest_course_key",
-        "type_code",
-        "industry_code",
         "status",
         "error_log",
-        "sections_kept",
-        "sections_removed",
-        "sections_updated",
+        "sections_created",
+        "subsections_created",
+        "units_created",
         "created_at",
         "updated_at",
     )
@@ -60,34 +58,30 @@ class ShortCourseCreationJobAdmin(admin.ModelAdmin):
 
 @admin.register(ShortCourseVariant)
 class ShortCourseVariantAdmin(admin.ModelAdmin):
-    """Read-only admin view of individual short course variants."""
+    """Read-only admin view of individual created courses."""
 
     list_display = (
         "pk",
         "batch",
-        "source_course_key",
+        "course_name",
         "dest_course_key",
-        "type_code",
-        "industry_code",
         "status",
-        "sections_kept",
-        "sections_removed",
-        "sections_updated",
+        "sections_created",
+        "subsections_created",
+        "units_created",
         "created_at",
     )
-    list_filter = ("status", "type_code", "industry_code")
-    search_fields = ("source_course_key", "dest_course_key")
+    list_filter = ("status",)
+    search_fields = ("course_name", "dest_course_key")
     readonly_fields = (
         "batch",
-        "source_course_key",
+        "course_name",
         "dest_course_key",
-        "type_code",
-        "industry_code",
         "status",
         "error_log",
-        "sections_kept",
-        "sections_removed",
-        "sections_updated",
+        "sections_created",
+        "subsections_created",
+        "units_created",
         "created_at",
         "updated_at",
     )
