@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from ol_openedx_short_video_course.utils.csv_parser import (
+from ol_openedx_short_video_course.utils import (
     CsvRow,
     group_rows,
     parse_csv,
@@ -220,7 +220,7 @@ class TestGroupRows:
 class TestBuildCourseStructure:
     def test_creates_section_subsection_unit_video(self):
         """Creates the full hierarchy for a simple single-section course."""
-        from ol_openedx_short_video_course.utils.course_creator import (
+        from ol_openedx_short_video_course.utils import (
             build_course_structure,
         )
         from opaque_keys.edx.keys import CourseKey
@@ -260,7 +260,7 @@ class TestBuildCourseStructure:
 
     def test_multiple_sections_and_subsections(self):
         """Creates multiple sections, each with their own subsections."""
-        from ol_openedx_short_video_course.utils.course_creator import (
+        from ol_openedx_short_video_course.utils import (
             build_course_structure,
         )
         from opaque_keys.edx.keys import CourseKey
@@ -303,7 +303,7 @@ class TestBuildCourseStructure:
 
     def test_video_block_without_edx_video_id(self):
         """Creates a video block even when edx_video_id is empty."""
-        from ol_openedx_short_video_course.utils.course_creator import (
+        from ol_openedx_short_video_course.utils import (
             build_course_structure,
         )
         from opaque_keys.edx.keys import CourseKey
@@ -335,7 +335,7 @@ class TestBuildCourseStructure:
 
     def test_video_block_with_edx_video_id(self):
         """Sets edx_video_id on the video block when provided."""
-        from ol_openedx_short_video_course.utils.course_creator import (
+        from ol_openedx_short_video_course.utils import (
             build_course_structure,
         )
         from opaque_keys.edx.keys import CourseKey
@@ -420,7 +420,7 @@ class TestServices:
 
     def test_live_run_creates_each_course(self):
         """Calls create_course and build_course_structure for each course key."""
-        from ol_openedx_short_video_course.utils.course_creator import CreationStats
+        from ol_openedx_short_video_course.utils import CreationStats
 
         from ol_openedx_short_video_course import services
 

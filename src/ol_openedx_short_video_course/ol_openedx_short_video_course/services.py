@@ -13,14 +13,12 @@ from dataclasses import dataclass, field
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 
-from ol_openedx_short_video_course.utils.course_creator import (
+from ol_openedx_short_video_course.utils import (
+    CourseGroups,
     CreationStats,
+    CsvRow,
     build_course_structure,
     create_course,
-)
-from ol_openedx_short_video_course.utils.csv_parser import (
-    CourseGroups,
-    CsvRow,
     group_rows,
     parse_csv,
 )
