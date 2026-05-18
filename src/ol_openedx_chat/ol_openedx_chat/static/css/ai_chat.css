@@ -113,3 +113,13 @@
 .video {
     margin: 0 0;
 }
+
+@media (min-width: 768px) {
+  .wrap-instructor-info {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+    flex-shrink: 0;
+  }
+}
