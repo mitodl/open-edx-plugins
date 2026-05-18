@@ -22,8 +22,14 @@ Installation required in:
 Overview
 --------
 
-Original UAI courses are transformed into multiple custom courses per industry
-and length combination:
+For each unique (course_key, industry, duration) row group in the CSV the
+command clones the source course into a new UAI-specific key, removes every
+existing section from the clone, and rebuilds the content from the CSV data.
+This produces multiple industry- and length-specific variants per source
+course while preserving all course settings (grading policy, certificates,
+pacing, advanced settings) from the original.
+
+Supported industry/length combinations:
 
 +--------------+------+-------------+--------+
 | Industry     | Code | Length code | Length |
@@ -82,21 +88,23 @@ You will need two CSV files:
 1. **Customized video metadata CSV** — produced by the video customization
    workflow. Required columns:
 
-   - ``Course Key`` — the original Open edX course key (e.g.
-     ``course-v1:UAI_SOURCE+UAI.2+1T2026``)
-   - ``Industry`` — one of: ``Healthcare``, ``Finance``, ``Energy``,
+    - ``course_key`` — the Open edX course key of the **source course to
+     clone** (e.g. ``course-v1:UAI_SOURCE+UAI.2+1T2026``).  This course
+     **must already exist** in the CMS modulestore before the command runs.
+     The command validates all source keys up-front and aborts with an error
+     if any are missing.
+    - ``industry`` — one of: ``Healthcare``, ``Finance``, ``Energy``,
      ``Original industry``
-   - ``Duration (Minutes)`` — a numeric value (≤30 = Short) or the literal
-     ``long`` (= Full)
-   - ``Video File Name`` — file name matching the Name column in the assets CSV
-   - ``Video Title (Lecture Title)`` — display name for the subsection/unit/video
-   - ``Module Name`` — used to build the course display name
+    - ``duration`` — ``short`` or ``long``
+    - ``video_file_name`` — file name matching the ``name`` column in the assets CSV
+    - ``video_title`` — display name for the subsection/unit/video
+    - ``module_name`` — used to build the course display name
 
 2. **Open edX video asset CSV** — exported from Studio / OVS after uploading
    the customized videos. Required columns:
 
-   - ``Name`` — video file name (matches ``Video File Name`` above)
-   - ``Video ID`` — the Open edX UUID for the video
+    - ``name`` — video file name (matches ``video_file_name`` above)
+    - ``video_id`` — the Open edX UUID for the video
 
 Running the Command
 ~~~~~~~~~~~~~~~~~~~
@@ -128,6 +136,33 @@ Options
 ``--dry-run``
     Print what would be created without writing anything to the modulestore.
     Use this to verify CSV mapping before committing.
+
+How It Works
+~~~~~~~~~~~~
+
+For each unique ``(course_key, industry, duration)`` group the command:
+
+1. **Validates** all source course keys against the live modulestore before
+   making any writes (fail-fast — aborts if any source is missing).
+2. **Clones** the source course into the new UAI-specific key, inheriting all
+   course settings.
+3. **Deletes** every existing section (chapter) from the clone.
+4. **Rebuilds** the content tree from the CSV rows::
+
+       Course  (cloned — settings inherited)
+       └── Lectures  (section)
+           └── <Video Title>  (subsection)
+               └── <Video Title>  (unit)
+                   └── <Video Title>  (video block)
+
+5. **Publishes** the course.
+
+.. note::
+
+   Course creation is **not atomic** (MongoDB is not covered by Django
+   transactions).  If a run fails partway through, already-created courses
+   remain; subsequent runs will skip them with a ``DuplicateCourseError``
+   warning.
 
 Development
 -----------
