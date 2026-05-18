@@ -7,31 +7,45 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from ol_openedx_uai_content_customization.constants import (
+    BLOCK_TYPE_CHAPTER,
+    BLOCK_TYPE_SEQUENTIAL,
+    BLOCK_TYPE_VERTICAL,
+    BLOCK_TYPE_VIDEO,
+)
 from xmodule.modulestore.exceptions import DuplicateCourseError
 
 CUSTOMIZED_CSV_CONTENT = (
-    "Course Key,Industry,Duration (Minutes),"
-    "Video File Name,Video Title (Lecture Title),Module Name\n"
-    "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,10,"
+    "course_key,industry,duration,"
+    "video_file_name,video_title,module_name\n"
+    "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
     "v004_h264.mp4,Machine Learning Concepts,Module 2\n"
-    "course-v1:UAI_SOURCE+UAI.2+1T2026,Finance,10,"
+    "course-v1:UAI_SOURCE+UAI.2+1T2026,Finance,short,"
     "v005_h264.mp4,Machine Learning Concepts,Module 2\n"
     "course-v1:UAI_SOURCE+UAI.3+1T2026,Original industry,long,"
     "v011_h264.mp4,Data Analytics,Module 3\n"
 )
 
 VIDEO_ASSETS_CSV_CONTENT = (
-    "Name,Video ID\n"
+    "name,video_id\n"
     "v004_h264.mp4,aaaaaaaa-1111-1111-1111-aaaaaaaaaaaa\n"
     "v005_h264.mp4,bbbbbbbb-2222-2222-2222-bbbbbbbbbbbb\n"
     "v011_h264.mp4,cccccccc-3333-3333-3333-cccccccccccc\n"
 )
 
-# Base patch path for all helpers imported into the management command module.
 _CMD = "ol_openedx_uai_content_customization.management.commands.generate_uai_courses"
-
-# Expected number of unique course variants in the test CSV.
 EXPECTED_COURSE_COUNT = 3
+EXPECTED_NEW_COURSE_KEYS = (
+    "course-v1:UAI_SOURCE+UAI.2.S.HC+1T2026",
+    "course-v1:UAI_SOURCE+UAI.2.S.F+1T2026",
+    "course-v1:UAI_SOURCE+UAI.3.F+1T2026",
+)
+EXPECTED_BLOCK_TYPES = (
+    BLOCK_TYPE_CHAPTER,
+    BLOCK_TYPE_SEQUENTIAL,
+    BLOCK_TYPE_VERTICAL,
+    BLOCK_TYPE_VIDEO,
+)
 
 
 @pytest.fixture
@@ -51,35 +65,30 @@ def mock_user(db):  # noqa: ARG001
     return User.objects.create_user(username="studio_worker", password="x")  # noqa: S106
 
 
-# ---------------------------------------------------------------------------
-# Helpers — keep tests DRY
-# ---------------------------------------------------------------------------
+def _modulestore_mock():
+    """
+    Return a mock for the ``modulestore`` callable imported by the command.
+
+    ``has_course`` returns True by default so source-key validation passes in
+    the majority of tests that are not testing that code path.
+    """
+    m = mock.MagicMock()
+    m.return_value.has_course.return_value = True
+    return m
 
 
-def _all_modulestore_mocks():
-    """Return a list of (patch_path, kwargs) pairs for all modulestore helpers."""
-    return [
-        (f"{_CMD}.create_course_in_modulestore", {"return_value": mock.Mock()}),
-        (f"{_CMD}.create_section", {"return_value": mock.Mock()}),
-        (f"{_CMD}.create_subsection", {"return_value": mock.Mock()}),
-        (f"{_CMD}.create_unit", {"return_value": mock.Mock()}),
-        (f"{_CMD}.create_video_block", {}),
-        (f"{_CMD}.publish_course", {}),
-        (f"{_CMD}.course_bulk_operations", {}),
-        (f"{_CMD}.initialize_course_permissions", {}),
-    ]
-
-
-# ---------------------------------------------------------------------------
-# Dry-run mode — no modulestore calls should occur
-# ---------------------------------------------------------------------------
-
-
-def test_dry_run_prints_summary_without_creating_courses(csv_files, mock_user):  # noqa: ARG001
+@pytest.mark.parametrize("expected_key", EXPECTED_NEW_COURSE_KEYS)
+def test_dry_run_prints_summary_without_creating_courses(
+    csv_files, mock_user, expected_key
+):
+    _ = mock_user
     customized_csv, assets_csv = csv_files
     out = StringIO()
 
-    with mock.patch(f"{_CMD}.create_course_in_modulestore") as mock_create:
+    with (
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
+    ):
         call_command(
             "generate_uai_courses",
             customized_csv=customized_csv,
@@ -87,38 +96,35 @@ def test_dry_run_prints_summary_without_creating_courses(csv_files, mock_user): 
             dry_run=True,
             stdout=out,
         )
-        mock_create.assert_not_called()
+        mock_clone.assert_not_called()
 
     output = out.getvalue()
     assert "DRY RUN" in output
-    assert "course-v1:UAI_SOURCE+UAI.2.S.HC+1T2026" in output
-    assert "course-v1:UAI_SOURCE+UAI.2.S.F+1T2026" in output
-    assert "course-v1:UAI_SOURCE+UAI.3.F+1T2026" in output
-
-
-# ---------------------------------------------------------------------------
-# Full run — verify modulestore helpers are called correctly
-# ---------------------------------------------------------------------------
+    assert expected_key in output
 
 
 def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG001
     customized_csv, assets_csv = csv_files
 
+    block_by_type = {
+        BLOCK_TYPE_CHAPTER: mock.Mock(),
+        BLOCK_TYPE_SEQUENTIAL: mock.Mock(),
+        BLOCK_TYPE_VERTICAL: mock.Mock(),
+        BLOCK_TYPE_VIDEO: mock.Mock(),
+    }
+
+    def mock_create_content_block(parent, block_type, display_name, user_id, **kwargs):  # noqa: ARG001
+        return block_by_type[block_type]
+
     with (
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
         mock.patch(
-            f"{_CMD}.create_course_in_modulestore", return_value=mock.Mock()
-        ) as mock_create_course,
+            f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()
+        ) as mock_clone,
+        mock.patch(f"{_CMD}.delete_course_sections") as mock_delete_sections,
         mock.patch(
-            f"{_CMD}.create_section", return_value=mock.Mock()
-        ) as mock_create_section,
-        mock.patch(
-            f"{_CMD}.create_subsection", return_value=mock.Mock()
-        ) as mock_create_subsection,
-        mock.patch(f"{_CMD}.create_unit", return_value=mock.Mock()) as mock_create_unit,
-        mock.patch(f"{_CMD}.create_video_block") as mock_create_video,
-        mock.patch(f"{_CMD}.publish_course"),
-        mock.patch(f"{_CMD}.course_bulk_operations"),
-        mock.patch(f"{_CMD}.initialize_course_permissions"),
+            f"{_CMD}.create_content_block", side_effect=mock_create_content_block
+        ) as mock_create_content_block_call,
     ):
         call_command(
             "generate_uai_courses",
@@ -126,33 +132,35 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
             video_assets_csv=assets_csv,
         )
 
-    # 3 unique (course_key, industry, duration) groups → 3 course creation calls
-    assert mock_create_course.call_count == EXPECTED_COURSE_COUNT
-    # Each course gets exactly one "Lectures" section
-    assert mock_create_section.call_count == EXPECTED_COURSE_COUNT
-    # One subsection per video row (3 video rows total)
-    assert mock_create_subsection.call_count == EXPECTED_COURSE_COUNT
-    assert mock_create_unit.call_count == EXPECTED_COURSE_COUNT
-    assert mock_create_video.call_count == EXPECTED_COURSE_COUNT
+    assert mock_clone.call_count == EXPECTED_COURSE_COUNT
+    assert mock_delete_sections.call_count == EXPECTED_COURSE_COUNT
+
+    create_calls = mock_create_content_block_call.call_args_list
+    assert len(create_calls) == EXPECTED_COURSE_COUNT * 4
+
+    counts_by_type = dict.fromkeys(EXPECTED_BLOCK_TYPES, 0)
+    for call in create_calls:
+        block_type = call.args[1]
+        counts_by_type[block_type] += 1
+
+    for block_type in EXPECTED_BLOCK_TYPES:
+        assert counts_by_type[block_type] == EXPECTED_COURSE_COUNT
 
 
-def test_course_keys_are_correct(csv_files, mock_user):  # noqa: ARG001
+@pytest.mark.parametrize("expected_key", EXPECTED_NEW_COURSE_KEYS)
+def test_course_keys_are_correct(csv_files, mock_user, expected_key):  # noqa: ARG001
     customized_csv, assets_csv = csv_files
     created_keys = []
 
-    def capture_course(org, number, run, display_name, user_id):  # noqa: ARG001
+    def capture_clone(source_key, org, number, run, display_name, user_id):  # noqa: ARG001, PLR0913
         created_keys.append(f"course-v1:{org}+{number}+{run}")
         return mock.Mock()
 
     with (
-        mock.patch(f"{_CMD}.create_course_in_modulestore", side_effect=capture_course),
-        mock.patch(f"{_CMD}.create_section", return_value=mock.Mock()),
-        mock.patch(f"{_CMD}.create_subsection", return_value=mock.Mock()),
-        mock.patch(f"{_CMD}.create_unit", return_value=mock.Mock()),
-        mock.patch(f"{_CMD}.create_video_block"),
-        mock.patch(f"{_CMD}.publish_course"),
-        mock.patch(f"{_CMD}.course_bulk_operations"),
-        mock.patch(f"{_CMD}.initialize_course_permissions"),
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", side_effect=capture_clone),
+        mock.patch(f"{_CMD}.delete_course_sections"),
+        mock.patch(f"{_CMD}.create_content_block", return_value=mock.Mock()),
     ):
         call_command(
             "generate_uai_courses",
@@ -160,34 +168,28 @@ def test_course_keys_are_correct(csv_files, mock_user):  # noqa: ARG001
             video_assets_csv=assets_csv,
         )
 
-    assert "course-v1:UAI_SOURCE+UAI.2.S.HC+1T2026" in created_keys
-    assert "course-v1:UAI_SOURCE+UAI.2.S.F+1T2026" in created_keys
-    assert "course-v1:UAI_SOURCE+UAI.3.F+1T2026" in created_keys
+    assert expected_key in created_keys
 
 
 def test_unmapped_video_is_skipped_with_warning(tmp_path, mock_user):  # noqa: ARG001
     """A video whose file name has no match in the assets CSV should be skipped."""
     customized = tmp_path / "customized.csv"
     customized.write_text(
-        "Course Key,Industry,Duration (Minutes),Video File Name,"
-        "Video Title (Lecture Title),Module Name\n"
-        "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,10,"
+        "course_key,industry,duration,video_file_name,"
+        "video_title,module_name\n"
+        "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
         "MISSING_FILE.mp4,Some Title,Module 2\n"
     )
     assets = tmp_path / "assets.csv"
-    assets.write_text("Name,Video ID\nv004_h264.mp4,abc-123\n")
+    assets.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
 
     out = StringIO()
 
     with (
-        mock.patch(f"{_CMD}.create_course_in_modulestore", return_value=mock.Mock()),
-        mock.patch(f"{_CMD}.create_section", return_value=mock.Mock()),
-        mock.patch(f"{_CMD}.create_subsection", return_value=mock.Mock()),
-        mock.patch(f"{_CMD}.create_unit", return_value=mock.Mock()),
-        mock.patch(f"{_CMD}.create_video_block") as mock_video,
-        mock.patch(f"{_CMD}.publish_course"),
-        mock.patch(f"{_CMD}.course_bulk_operations"),
-        mock.patch(f"{_CMD}.initialize_course_permissions"),
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
+        mock.patch(f"{_CMD}.delete_course_sections"),
+        mock.patch(f"{_CMD}.create_content_block") as mock_create_content_block,
     ):
         call_command(
             "generate_uai_courses",
@@ -195,7 +197,13 @@ def test_unmapped_video_is_skipped_with_warning(tmp_path, mock_user):  # noqa: A
             video_assets_csv=str(assets),
             stdout=out,
         )
-        mock_video.assert_not_called()
+
+    video_calls = [
+        call
+        for call in mock_create_content_block.call_args_list
+        if call.args[1] == BLOCK_TYPE_VIDEO
+    ]
+    assert not video_calls
 
     assert "Warning" in out.getvalue() or "MISSING_FILE" in out.getvalue()
 
@@ -206,12 +214,11 @@ def test_duplicate_course_is_skipped_with_warning(csv_files, mock_user):  # noqa
     out = StringIO()
 
     with (
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
         mock.patch(
-            f"{_CMD}.create_course_in_modulestore",
+            f"{_CMD}.clone_course_in_modulestore",
             side_effect=DuplicateCourseError("x", "x"),
         ),
-        mock.patch(f"{_CMD}.course_bulk_operations"),
-        mock.patch(f"{_CMD}.initialize_course_permissions"),
     ):
         call_command(
             "generate_uai_courses",
@@ -234,7 +241,7 @@ def test_missing_csv_raises_error(mock_user):  # noqa: ARG001
         )
 
 
-def test_invalid_user_id_raises_error(csv_files):
+def test_invalid_user_id_raises_error(csv_files, db):  # noqa: ARG001
     """Passing a non-existent username should raise CommandError before any writes."""
     customized_csv, assets_csv = csv_files
     with pytest.raises(CommandError, match="No user found with username"):
@@ -250,23 +257,85 @@ def test_unknown_industry_is_skipped_with_warning(tmp_path, mock_user):  # noqa:
     """A row with an unrecognised industry should be skipped with a warning."""
     customized = tmp_path / "customized.csv"
     customized.write_text(
-        "Course Key,Industry,Duration (Minutes),Video File Name,"
-        "Video Title (Lecture Title),Module Name\n"
-        "course-v1:UAI_SOURCE+UAI.2+1T2026,UnknownSector,10,"
+        "course_key,industry,duration,video_file_name,"
+        "video_title,module_name\n"
+        "course-v1:UAI_SOURCE+UAI.2+1T2026,UnknownSector,short,"
         "v004_h264.mp4,Some Title,Module 2\n"
     )
     assets = tmp_path / "assets.csv"
-    assets.write_text("Name,Video ID\nv004_h264.mp4,abc-123\n")
+    assets.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
 
     out = StringIO()
 
-    with mock.patch(f"{_CMD}.create_course_in_modulestore") as mock_create:
+    with (
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
+    ):
         call_command(
             "generate_uai_courses",
             customized_csv=str(customized),
             video_assets_csv=str(assets),
             stdout=out,
         )
-        mock_create.assert_not_called()
+        mock_clone.assert_not_called()
 
     assert "Skipping" in out.getvalue() or "skipping" in out.getvalue().lower()
+
+
+def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  # noqa: ARG001
+    """CommandError is raised before any writes when a source course is absent."""
+    customized_csv, assets_csv = csv_files
+
+    store_mock = _modulestore_mock()
+    store_mock.return_value.has_course.return_value = False
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", store_mock),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
+        pytest.raises(CommandError, match="not found in the modulestore"),
+    ):
+        call_command(
+            "generate_uai_courses",
+            customized_csv=customized_csv,
+            video_assets_csv=assets_csv,
+        )
+
+    mock_clone.assert_not_called()
+
+
+def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # noqa: ARG001
+    """delete_course_sections must run before chapter creation in each course."""
+    customized_csv, assets_csv = csv_files
+    call_order = []
+
+    def record_delete(course, user_id):  # noqa: ARG001
+        call_order.append("delete")
+
+    def record_create_content_block(
+        _parent, block_type, _display_name, _user_id, **_kwargs
+    ):
+        if block_type == BLOCK_TYPE_CHAPTER:
+            call_order.append("create_chapter")
+        return mock.Mock()
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
+        mock.patch(f"{_CMD}.delete_course_sections", side_effect=record_delete),
+        mock.patch(
+            f"{_CMD}.create_content_block", side_effect=record_create_content_block
+        ),
+    ):
+        call_command(
+            "generate_uai_courses",
+            customized_csv=customized_csv,
+            video_assets_csv=assets_csv,
+        )
+
+    assert call_order.count("delete") == EXPECTED_COURSE_COUNT
+    assert call_order.count("create_chapter") == EXPECTED_COURSE_COUNT
+    for i in range(0, len(call_order), 2):
+        assert call_order[i] == "delete", f"Expected delete at position {i}"
+        assert call_order[i + 1] == "create_chapter", (
+            f"Expected create_chapter at position {i + 1}"
+        )

@@ -2,19 +2,22 @@
 Management command: generate_uai_courses
 
 Reads two CSV files and uses Open edX modulestore APIs to build industry- and
-length-specific variants of UAI courses:
+length-specific variants of UAI courses by cloning a base course:
 
   - Customized video CSV  (produced by the video-generation workflow)
   - Open edX video asset CSV (exported from Studio / OVS)
 
-Each unique (source course key, industry, duration) combination produces one
-new course with the structure:
+For each unique (course_key, industry, duration) combination the command:
+    1. Clones the source course (identified by the ``course_key`` CSV column)
+     into a new UAI-specific course key, preserving all course settings.
+  2. Deletes every existing section from the clone.
+  3. Rebuilds the content tree from the CSV data:
 
-    Course
-    └── Lectures  (chapter)
-        └── <Video Title>  (sequential)
-            └── <Video Title>  (vertical)
-                └── <Video Title>  (video block)
+        Course  (cloned, settings inherited)
+        └── Lectures  (chapter)
+            └── <Video Title>  (sequential)
+                └── <Video Title>  (vertical)
+                    └── <Video Title>  (video block)
 
 Usage:
     python manage.py generate_uai_courses \\
@@ -34,10 +37,16 @@ import logging
 
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
+from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
+from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import DuplicateCourseError
 
 from ol_openedx_uai_content_customization.constants import (
+    BLOCK_TYPE_CHAPTER,
+    BLOCK_TYPE_SEQUENTIAL,
+    BLOCK_TYPE_VERTICAL,
+    BLOCK_TYPE_VIDEO,
     CSV_COL_MODULE_NAME,
     CSV_COL_VIDEO_FILE,
     CSV_COL_VIDEO_TITLE,
@@ -53,14 +62,10 @@ from ol_openedx_uai_content_customization.csv_utils import (
     validate_csv_columns,
 )
 from ol_openedx_uai_content_customization.modulestore_utils import (
-    course_bulk_operations,
-    create_course_in_modulestore,
-    create_section,
-    create_subsection,
-    create_unit,
-    create_video_block,
-    initialize_course_permissions,
-    publish_course,
+    clone_course_in_modulestore,
+    create_content_block,
+    delete_course_sections,
+    save_video_block_with_edx_video_id,
 )
 
 log = logging.getLogger(__name__)
@@ -109,16 +114,12 @@ class Command(BaseCommand):
                 self.style.WARNING("DRY RUN — no changes will be written.")
             )
 
-        # --- Validate that the acting user exists before touching any data ---
         User = get_user_model()
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
             msg = f"No user found with username {username!r}."
             raise CommandError(msg)  # noqa: B904
-        user_id = user.id
-
-        # --- Load and validate CSVs ---
         customized_rows, customized_fieldnames = parse_csv(customized_csv)
         video_asset_rows, video_asset_fieldnames = parse_csv(video_assets_csv)
 
@@ -143,13 +144,15 @@ class Command(BaseCommand):
             f"and {len(video_asset_rows)} video asset rows."
         )
 
-        # --- Group into courses ---
         course_groups = group_videos_by_course(customized_rows)
         self.stdout.write(f"Found {len(course_groups)} course variant(s) to create.")
+
+        self._validate_source_course_keys(course_groups)
 
         created, skipped = 0, 0
 
         for (orig_key, industry, duration), videos in course_groups.items():
+            source_key = CourseKey.from_string(orig_key)  # safe — already validated
             try:
                 new_key = build_new_course_key(orig_key, industry, duration)
             except ValueError as exc:
@@ -178,7 +181,12 @@ class Command(BaseCommand):
 
             try:
                 self._create_course(
-                    new_key, display_name, videos, video_id_map, user_id
+                    source_key,
+                    new_key,
+                    display_name,
+                    videos,
+                    video_id_map,
+                    user,
                 )
                 created += 1
             except DuplicateCourseError:
@@ -195,10 +203,6 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"\nDone. Created: {created}  Skipped: {skipped}")
         )
 
-    # ------------------------------------------------------------------ #
-    # Private helpers                                                      #
-    # ------------------------------------------------------------------ #
-
     def _build_display_name(self, videos):
         """
         Return the module name from the first video row as the course display name.
@@ -208,28 +212,64 @@ class Command(BaseCommand):
         module_name = videos[0].get(CSV_COL_MODULE_NAME, "").strip() if videos else ""
         return module_name or "UAI Course"
 
-    def _create_course(
-        self, course_key_str, display_name, videos, video_id_map, user_id
+    def _validate_source_course_keys(self, course_groups):
+        """
+        Raise CommandError if any source course key in the CSV is invalid or absent.
+
+        Collects all failures before raising so the operator sees every problem
+        in a single run rather than one at a time.
+
+        Args:
+            course_groups: dict keyed by (orig_key, industry, duration).
+        """
+        store = modulestore()
+        unique_keys = sorted({orig_key for orig_key, _, _ in course_groups})
+        missing = []
+        for key_str in unique_keys:
+            try:
+                parsed = CourseKey.from_string(key_str)
+            except InvalidKeyError:
+                missing.append(f"{key_str!r} (invalid course key format)")
+                continue
+            if not store.has_course(parsed):
+                missing.append(key_str)
+        if missing:
+            missing_list = "\n".join(f"  - {k}" for k in missing)
+            msg = f"Source course(s) not found in the modulestore:\n{missing_list}"
+            raise CommandError(msg)
+
+    def _create_course(  # noqa: PLR0913
+        self, source_key, course_key_str, display_name, videos, video_id_map, user
     ):
         """
-        Build a single course in the modulestore with one section, one subsection
-        per video, and a single video block in each unit.
+        Clone the source course, strip its sections, then populate with UAI content.
+
+        The clone inherits all course settings (grading, certificates, pacing,
+        advanced settings) from the source.  After cloning, every existing
+        section is removed and a fresh "Lectures" section is built from the CSV
+        data with one subsection → unit → video block per video row.
 
         All modulestore writes are wrapped in bulk_operations for performance.
-        initialize_course_permissions is called after the bulk context closes
-        because it touches Django ORM (enrollments, forum roles), not MongoDB.
         """
         parsed_key = CourseKey.from_string(course_key_str)
-
-        with course_bulk_operations(parsed_key):
-            course = create_course_in_modulestore(
+        user_id = user.id
+        store = modulestore()
+        with store.bulk_operations(parsed_key):
+            course = clone_course_in_modulestore(
+                source_key,
                 parsed_key.org,
                 parsed_key.course,
                 parsed_key.run,
                 display_name,
                 user_id,
             )
-            section = create_section(course, LECTURES_SECTION_DISPLAY_NAME, user_id)
+            delete_course_sections(course, user_id)
+            section = create_content_block(
+                course,
+                BLOCK_TYPE_CHAPTER,
+                LECTURES_SECTION_DISPLAY_NAME,
+                user_id,
+            )
 
             unmapped = []
 
@@ -248,15 +288,27 @@ class Command(BaseCommand):
                     unmapped.append(vid_file)
                     continue
 
-                subsection = create_subsection(section, title, user_id)
-                unit = create_unit(subsection, title, user_id)
-                create_video_block(unit, title, edx_video_id, user_id)
+                subsection = create_content_block(
+                    section,
+                    BLOCK_TYPE_SEQUENTIAL,
+                    title,
+                    user_id,
+                )
+                unit = create_content_block(
+                    subsection,
+                    BLOCK_TYPE_VERTICAL,
+                    title,
+                    user_id,
+                )
+                video_block = create_content_block(
+                    unit,
+                    BLOCK_TYPE_VIDEO,
+                    title,
+                    user_id,
+                )
+                save_video_block_with_edx_video_id(video_block, user, edx_video_id)
 
-            publish_course(course, user_id)
-
-        # Seed forum roles and enroll the creator — uses Django ORM, not MongoDB
-        initialize_course_permissions(course.id, user_id)
-
+        store.publish(course.location, user_id)
         if unmapped:
             self.stdout.write(
                 self.style.WARNING(

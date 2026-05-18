@@ -1,7 +1,5 @@
 """Constants for ol-openedx-uai-content-customization plugin."""
 
-# Industry short codes used in course key generation.
-# "Original industry" has no code — only a length code is appended.
 INDUSTRY_CODES = {
     "Healthcare": "HC",
     "Finance": "F",
@@ -9,8 +7,6 @@ INDUSTRY_CODES = {
     "Original industry": "",
 }
 
-# Duration label → short code used in course key generation.
-# Numeric minutes (e.g. "10") are treated as Short; "long" as Full.
 DURATION_CODE_SHORT = "S"
 DURATION_CODE_FULL = "F"
 
@@ -19,28 +15,23 @@ DURATION_CODES = {
     "long": DURATION_CODE_FULL,
 }
 
-# Duration threshold: any numeric value at or below this (in minutes) maps to
-# "Short" (code "S"). Values above it map to "Full" (code "F").
-# The spec defines short as ≤10 min; 30 allows headroom for slightly longer
-# short-form variants without requiring a CSV format change.
-SHORT_DURATION_THRESHOLD = 30
-
-# Display name for the top-level section added to every generated course
 LECTURES_SECTION_DISPLAY_NAME = "Lectures"
 
-# CSV column names — customized video metadata CSV
-CSV_COL_COURSE_KEY = "Course Key"
-CSV_COL_INDUSTRY = "Industry"
-CSV_COL_DURATION = "duration_minutes"
-CSV_COL_VIDEO_FILE = "Video File Name"
-CSV_COL_VIDEO_TITLE = "Video Title (Lecture Title)"
-CSV_COL_MODULE_NAME = "Module Name"
+BLOCK_TYPE_CHAPTER = "chapter"
+BLOCK_TYPE_SEQUENTIAL = "sequential"
+BLOCK_TYPE_VERTICAL = "vertical"
+BLOCK_TYPE_VIDEO = "video"
 
-# CSV column names — Open edX video asset CSV
-CSV_COL_ASSET_NAME = "Name"
-CSV_COL_ASSET_VIDEO_ID = "Video ID"
+CSV_COL_COURSE_KEY = "course_key"
+CSV_COL_INDUSTRY = "industry"
+CSV_COL_DURATION = "duration"
+CSV_COL_VIDEO_FILE = "video_file_name"
+CSV_COL_VIDEO_TITLE = "video_title"
+CSV_COL_MODULE_NAME = "module_name"
 
-# Required columns for each CSV — used to give early, clear error messages
+CSV_COL_ASSET_NAME = "name"
+CSV_COL_ASSET_VIDEO_ID = "video_id"
+
 REQUIRED_CUSTOMIZED_CSV_COLS = [
     CSV_COL_COURSE_KEY,
     CSV_COL_INDUSTRY,

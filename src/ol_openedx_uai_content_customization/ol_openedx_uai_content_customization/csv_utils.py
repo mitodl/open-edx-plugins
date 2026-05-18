@@ -1,7 +1,6 @@
 """CSV parsing and video-mapping utilities for ol-openedx-uai-content-customization."""
 
 import csv
-import logging
 from collections import defaultdict
 from pathlib import Path
 
@@ -13,14 +12,9 @@ from ol_openedx_uai_content_customization.constants import (
     CSV_COL_COURSE_KEY,
     CSV_COL_DURATION,
     CSV_COL_INDUSTRY,
-    DURATION_CODE_FULL,
-    DURATION_CODE_SHORT,
     DURATION_CODES,
     INDUSTRY_CODES,
-    SHORT_DURATION_THRESHOLD,
 )
-
-log = logging.getLogger(__name__)
 
 
 def parse_csv(path):
@@ -33,7 +27,7 @@ def parse_csv(path):
         column header strings as they appear in the file.  Both are empty
         lists when the file contains no header row at all.
     """
-    with Path(path).open(newline="") as f:
+    with Path(path).open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         fieldnames = list(reader.fieldnames or [])
         rows = list(reader)
@@ -78,34 +72,28 @@ def resolve_duration_code(duration_value):
     """
     Convert a duration cell value into a Short/Full code.
 
-    Numeric values at or below SHORT_DURATION_THRESHOLD map to "S" (Short).
-    The literal string "long" maps to "F" (Full).
-    Any other string is checked against DURATION_CODES (case-insensitive).
+    The CSV must provide explicit values: "short" or "long"
+    (case-insensitive).
 
     Args:
         duration_value: Raw string from the Duration column.
 
     Returns:
         "S" or "F"
+
+    Raises:
+        ValueError: if the value is not one of "short" or "long".
     """
     value = str(duration_value).strip().lower()
 
     if value in DURATION_CODES:
         return DURATION_CODES[value]
 
-    try:
-        minutes = float(value)
-    except ValueError:
-        log.warning(
-            "Unrecognised duration value %r - defaulting to Short (S)", duration_value
-        )
-        return DURATION_CODE_SHORT
-    else:
-        return (
-            DURATION_CODE_SHORT
-            if minutes <= SHORT_DURATION_THRESHOLD
-            else DURATION_CODE_FULL
-        )
+    msg = (
+        "Unrecognised duration value "
+        f"{duration_value!r}. Expected one of: {', '.join(DURATION_CODES)}"
+    )
+    raise ValueError(msg)
 
 
 def build_new_course_key(original_key, industry, duration_value):
