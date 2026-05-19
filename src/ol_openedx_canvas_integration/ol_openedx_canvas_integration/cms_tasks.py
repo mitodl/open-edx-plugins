@@ -15,8 +15,10 @@ import logging
 
 import requests
 from celery import shared_task
+from django.contrib.auth import get_user_model
 from django.utils.dateparse import parse_datetime
 from lms.djangoapps.courseware.courses import get_course_by_id
+from lms.djangoapps.instructor.views.tools import set_due_date_extension
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys.edx.locator import CourseLocator
@@ -33,6 +35,7 @@ from ol_openedx_canvas_integration.utils import (
 
 logger = logging.getLogger(__name__)
 TASK_LOG = logging.getLogger("edx.celery.task")
+User = get_user_model()
 
 
 def diff_assignments(
@@ -215,6 +218,38 @@ def sync_canvas_due_dates(course_id: str):
     _sync_canvas_due_dates(course_id)
 
 
+def sync_canvas_due_date_extensions(client, course, block, overrides):
+    """
+    Synchronize due date extensions for students in Canvas with the platform.
+
+    Parameters:
+        client (CanvasAPIClient): The Canvas API client for making requests.
+        course (Course): Course object for which due date extensions are being synced.
+        block (Block): Block object for which due date extensions are being synced.
+        overrides (list): List of due date overrides from Canvas.
+    """
+    if not overrides:
+        return
+    canvas_course_id = get_canvas_course_id(course)
+    for override in overrides:
+        if "student_ids" in override:
+            emails = client.get_emails_by_student_ids(override["student_ids"])
+            students = User.objects.filter(email__in=emails)
+            for student in students:
+                TASK_LOG.info(
+                    "Due Date Sync: Syncing due date for student %s in course %s",
+                    student.id,
+                    course.id,
+                )
+                set_due_date_extension(
+                    course,
+                    block,
+                    student,
+                    override["due_at"],
+                    reason=f"Synced from canvas course: {canvas_course_id}",
+                )
+
+
 def _sync_canvas_due_dates(course_id: str):
     """
     Synchronize assignment due dates from Canvas to a specific course in the platform.
@@ -259,6 +294,9 @@ def _sync_canvas_due_dates(course_id: str):
                 usage_key = UsageKey.from_string(usage_id)
                 due_at = canvas_assignment.get("due_at")
                 block = modulestore().get_item(usage_key)
+                sync_canvas_due_date_extensions(
+                    client, course, block, canvas_assignment.get("overrides")
+                )
                 if due_at:
                     block.due = parse_datetime(due_at)
                 else:

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import ddt
 import pytest
+from django.contrib.auth.models import User
 from django.test import override_settings
 from django.utils.dateparse import parse_datetime
 from ol_openedx_canvas_integration.api import create_assignment_payload
@@ -211,3 +212,71 @@ class CanvasDueDateSyncTests(ModuleStoreTestCase):
                 due_at = data.get("due_at", None)
                 due_at = parse_datetime(due_at) if due_at else None
                 assert self.store.get_item(seq_key).due == due_at
+
+    def test_sync_canvas_due_date_extensions(self):
+        for uid in [1, 4, 9, 11, 14, 37]:
+            User.objects.create_user(f"user{uid}", f"user{uid}@abc.xyz", "password")
+        course, sequentials = self.create_course(
+            {"canvas_id": 11, "use_canvas_due_dates": True}
+        )
+
+        sequential_0_student_ids = [11, 37, 4]
+        sequential_1_student_ids = [1, 9, 14]
+
+        mock_canvas_assignments = {
+            str(sequentials[0].location): {
+                "due_at": "2026-06-01T00:00:00Z",
+                "overrides": [
+                    {
+                        "due_at": "2026-06-02T00:00:00Z",
+                        "student_ids": sequential_0_student_ids,
+                    }
+                ],
+            },
+            str(sequentials[1].location): {
+                "due_at": None,
+                "overrides": [
+                    {
+                        "due_at": "2026-06-04T00:00:00Z",
+                        "student_ids": sequential_1_student_ids,
+                    }
+                ],
+            },
+        }
+
+        canvas_client_mock = MagicMock()
+        canvas_client_mock.get_canvas_assignments.return_value = mock_canvas_assignments
+        canvas_client_mock.get_emails_by_student_ids.side_effect = lambda ids: [
+            f"user{uid}@abc.xyz" for uid in ids
+        ]
+
+        with (
+            patch(
+                "ol_openedx_canvas_integration.cms_tasks.CanvasClient",
+                return_value=canvas_client_mock,
+            ),
+            patch(
+                "ol_openedx_canvas_integration.cms_tasks.set_due_date_extension"
+            ) as set_due_date_extension_mock,
+        ):
+            _sync_canvas_due_dates(str(course.id))
+            # 3 student extensions each for 2 assignments
+            assert set_due_date_extension_mock.call_count == (
+                len(sequential_0_student_ids) + len(sequential_1_student_ids)
+            )
+            for call_args, _ in set_due_date_extension_mock.call_args_list:
+                assert call_args[0].id == course.id
+                assert call_args[1].location in (
+                    sequentials[0].location,
+                    sequentials[1].location,
+                )
+
+            for student_id in sequential_0_student_ids:
+                for _ in sequentials:
+                    set_due_date_extension_mock.assert_any_call(
+                        ANY,
+                        ANY,
+                        User.objects.get(email=f"user{student_id}@abc.xyz"),
+                        "2026-06-02T00:00:00Z",
+                        reason="Synced from canvas course: 11",
+                    )

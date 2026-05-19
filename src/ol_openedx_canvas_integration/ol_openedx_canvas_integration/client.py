@@ -85,7 +85,7 @@ class CanvasClient:
             for enrollment in enrollments
         }
 
-    def list_canvas_assignments(self):
+    def list_canvas_assignments(self, *args, **kwargs):
         """
         List Canvas assignments
 
@@ -96,7 +96,7 @@ class CanvasClient:
             settings.CANVAS_BASE_URL,
             f"/api/v1/courses/{self.canvas_course_id}/assignments",
         )
-        return self._paginate(url)
+        return self._paginate(url, *args, **kwargs)
 
     def get_student_id_by_email(self, email: str):
         """
@@ -129,6 +129,24 @@ class CanvasClient:
             cache.set(key, student_id)
         return student_id
 
+    def get_emails_by_student_ids(self, student_ids: list[int]):
+        """
+        Retrieve emails for a list of student IDs from Canvas.
+
+        Args:
+            student_ids (list[int]): List of student IDs.
+
+        Returns:
+            list[str]: List of student emails.
+        """
+        url = urljoin(
+            settings.CANVAS_BASE_URL,
+            f"/api/v1/courses/{self.canvas_course_id}/users",
+        )
+        results = self._paginate(url, params={"user_ids[]": student_ids})
+
+        return [user["login_id"].lower() for user in results if "login_id" in user]
+
     def get_canvas_assignments(self):
         """
         Get Canvas assignments organized by integration_id.
@@ -138,12 +156,15 @@ class CanvasClient:
                   'id' and 'is_published' fields. Only includes assignments with
                   integration_id set.
         """
-        assignments = self.list_canvas_assignments()
+        # This query param makes canvas return all overrides for each assignment
+        query = {"include[]": ["overrides"]}
+        assignments = self.list_canvas_assignments(params=query)
         assignments_dict = {
             assignment.get("integration_id"): {
                 "id": assignment["id"],
                 "is_published": assignment.get("published", False),
                 "due_at": assignment.get("due_at"),
+                "overrides": assignment.get("overrides", []),
             }
             for assignment in assignments
             if assignment.get("integration_id") is not None
@@ -297,4 +318,4 @@ def update_grade_payload_kv(user_id, grade_percent):
     Returns:
         (tuple): A key/value pair that will be used in the body of a bulk grade update request
     """  # noqa: D401, E501
-    return (f"grade_data[{user_id}][posted_grade]", f"{grade_percent * 100}%")
+    return f"grade_data[{user_id}][posted_grade]", f"{grade_percent * 100}%"
