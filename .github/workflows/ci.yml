@@ -9,9 +9,20 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+env:
+  GHCR_CACHE_OWNER: mitodl
 jobs:
   integration-tests:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Used only on pushes to the upstream repository to cache openedx-dev
+      # images in GHCR; never exercised during pull_request runs or fork pushes
+      # because both the login and push steps are conditioned accordingly.
+      # GitHub Actions does not support conditional job-level permissions, so
+      # this is the closest we can get to granting packages:write only when it
+      # is actually needed.
+      packages: write
     strategy:
       matrix:
         python_version:
@@ -26,6 +37,18 @@ jobs:
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+    - name: Resolve edx-platform tip SHA
+      id: edx-sha
+      run: |
+        SHA=$(git ls-remote https://github.com/openedx/edx-platform "refs/heads/${{ matrix.edx_branch }}" | cut -f1)
+        if [ -z "$SHA" ]; then
+          echo "Failed to resolve SHA for branch ${{ matrix.edx_branch }}. git ls-remote returned empty output."
+          exit 1
+        fi
+        echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+        BRANCH_SLUG=$(echo "${{ matrix.edx_branch }}" | tr '/' '-')
+        echo "branch_slug=$BRANCH_SLUG" >> "$GITHUB_OUTPUT"
+
     - name: Set up uv
       uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       with:
@@ -34,8 +57,22 @@ jobs:
     - name: Set up Python ${{ matrix.python_version }}
       run: uv python install ${{ matrix.python_version }}
 
+    - name: Cache built packages
+      id: cache-dist
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: dist/
+        key: dist-${{ hashFiles('src/**', 'pyproject.toml', 'uv.lock') }}
+
     - name: Build all packages
+      if: steps.cache-dist.outputs.cache-hit != 'true'
       run: uv build --all-packages
+
+    - name: Cache pip packages
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ~/.cache/pip
+        key: pip-tutor-${{ matrix.edx_branch }}-${{ runner.os }}
 
     - name: Install tutor
       run: |
@@ -47,22 +84,102 @@ jobs:
         else
           pip install "tutor>=21.0.0,<22.0.0"
         fi
-    - name: clone edx-platform and add mounts
+
+    - name: Get Tutor version
+      id: tutor-version
       run: |
-        cd ..
-        git clone https://github.com/openedx/edx-platform
-        cd edx-platform
-        git checkout ${{ matrix.edx_branch }}
-        tutor mounts add .
+        version=$(tutor --version | awk '{print $NF}')
+        version_tag=${version//[^A-Za-z0-9_.-]/-}
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "version_tag=$version_tag" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Tutor config directory
+      id: cache-tutor-config
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: |
+          ~/.local/share/tutor
+          ~/.local/share/tutor-main
+        key: >-
+          tutor-config-${{ steps.tutor-version.outputs.version }}-${{ matrix.edx_branch
+          }}
+
+    - name: Generate Tutor config
+      if: steps.cache-tutor-config.outputs.cache-hit != 'true'
+      run: tutor config save
+
+    - name: Cache edx-platform
+      id: cache-edx-platform
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ${{ github.workspace }}/../edx-platform
+        key: edx-platform-${{ matrix.edx_branch }}-${{ steps.edx-sha.outputs.sha }}
+
+    - name: Clone edx-platform
+      if: steps.cache-edx-platform.outputs.cache-hit != 'true'
+      run: |
+        set -euo pipefail
+        EDX_DIR="${{ github.workspace }}/../edx-platform"
+        git init "$EDX_DIR"
+        git -C "$EDX_DIR" remote add origin https://github.com/openedx/edx-platform
+        git -C "$EDX_DIR" fetch --depth=1 origin "${{ steps.edx-sha.outputs.sha }}"
+        git -C "$EDX_DIR" checkout --detach FETCH_HEAD
+
+    - name: Generate edx-platform egg-info (registers Django app entry points)
+      run: pip install --no-deps -e ${{ github.workspace }}/../edx-platform
+
+    - name: Log in to GitHub Container Registry
+      if: github.event_name == 'push' && github.repository_owner == env.GHCR_CACHE_OWNER
+      uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Compute Docker image names
+      id: docker-names
+      run: |
+        OPENEDX_DEV_IMAGE="$(tutor config printvalue DOCKER_IMAGE_OPENEDX_DEV)"
+        if [ -z "$OPENEDX_DEV_IMAGE" ]; then
+          echo "Failed to determine DOCKER_IMAGE_OPENEDX_DEV from tutor config"
+          exit 1
+        fi
+        echo "openedx_dev_image=$OPENEDX_DEV_IMAGE" >> "$GITHUB_OUTPUT"
+        CACHE_IMAGE_TAG="ghcr.io/${{ env.GHCR_CACHE_OWNER }}/openedx-dev-cache:${{ steps.edx-sha.outputs.branch_slug }}-${{ steps.edx-sha.outputs.sha }}-${{ steps.tutor-version.outputs.version_tag }}"
+        echo "cache_image_tag=$CACHE_IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+    - name: Pull cached Docker image
+      id: pull-image
+      run: |
+        if docker pull "${{ steps.docker-names.outputs.cache_image_tag }}"; then
+          docker tag \
+            "${{ steps.docker-names.outputs.cache_image_tag }}" \
+            "${{ steps.docker-names.outputs.openedx_dev_image }}"
+          echo "cache_hit=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "cache_hit=false" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Build Tutor images
+      if: steps.pull-image.outputs.cache_hit != 'true'
       run: |
         tutor images build openedx-dev
 
-    - name: Launch Tutor
+    - name: Push Docker image to registry cache
+      if: >-
+        steps.pull-image.outputs.cache_hit != 'true' && github.event_name ==
+        'push' && github.repository_owner == env.GHCR_CACHE_OWNER
       run: |
-        tutor dev launch -I --skip-build
-        tutor dev stop
+        docker tag \
+          "${{ steps.docker-names.outputs.openedx_dev_image }}" \
+          "${{ steps.docker-names.outputs.cache_image_tag }}"
+        docker push "${{ steps.docker-names.outputs.cache_image_tag }}"
+
+    - name: Add edx-platform tutor mounts
+      run: |
+        cd "${{ github.workspace }}/../edx-platform"
+        tutor mounts add .
+        tutor config save
 
     - name: Run tests on tutor
       run: |
@@ -73,7 +190,14 @@ jobs:
           DEV="tutor_dev"
           DIRECTORY="tutor"
         fi
-        EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name $DEV run -v $PWD:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh --mount-dir /openedx/open-edx-plugins
+        EDX_WORKSPACE="$PWD/.." docker compose \
+          -f "/home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml" \
+          -f "/home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml" \
+          --project-name "$DEV" \
+          run -v "$PWD:/openedx/open-edx-plugins" \
+          lms /openedx/open-edx-plugins/run_edx_integration_tests.sh \
+          --mount-dir /openedx/open-edx-plugins
+
     - name: Upload coverage to CodeCov
       uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
       with:
