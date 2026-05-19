@@ -31,7 +31,7 @@ def generation_job_fixture(admin_user):
     """Create a minimal UAI generation job with uploaded CSV files."""
     customized_csv = SimpleUploadedFile(
         "customized.csv",
-        b"course_key,industry,duration_minutes,video_file_name,video_title,module_name\n",
+        b"course_key,industry,duration,video_file_name,video_title,module_name\n",
     )
     video_assets_csv = SimpleUploadedFile(
         "assets.csv",
