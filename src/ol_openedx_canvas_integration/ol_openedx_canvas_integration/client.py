@@ -143,6 +143,7 @@ class CanvasClient:
             assignment.get("integration_id"): {
                 "id": assignment["id"],
                 "is_published": assignment.get("published", False),
+                "due_at": assignment.get("due_at"),
             }
             for assignment in assignments
             if assignment.get("integration_id") is not None

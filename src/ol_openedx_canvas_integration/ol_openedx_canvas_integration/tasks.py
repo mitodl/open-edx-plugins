@@ -2,11 +2,13 @@
 
 import hashlib
 import logging
+from datetime import UTC, datetime
 from functools import partial
 
 import requests
 from celery import shared_task
 from django.contrib.auth import get_user_model
+from django.utils.dateparse import parse_datetime
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.grades.models import PersistentSubsectionGrade
 from lms.djangoapps.instructor_task.api_helper import submit_task
@@ -87,6 +89,13 @@ def sync_user_grade_with_canvas(grade_id):
     """
     Call the Canvas API and update the user's grade.
     """
+    _sync_user_grade_with_canvas(grade_id)
+
+
+def _sync_user_grade_with_canvas(grade_id):
+    """
+    Call the Canvas API and update the user's grade.
+    """
     grade_instance = PersistentSubsectionGrade.objects.get(id=grade_id)
     course = get_course_by_id(grade_instance.course_id)
     canvas_course_id = get_canvas_course_id(course)
@@ -106,6 +115,15 @@ def sync_user_grade_with_canvas(grade_id):
     if str(grade_instance.full_usage_key) not in existing_assignments_map:
         TASK_LOG.warning(
             "The assignment %s is not synced with Canvas. Skipping grade sync.",
+            grade_instance.usage_key,
+        )
+        return
+    due_date = existing_assignments_map[str(grade_instance.usage_key)]["due_at"]
+    if due_date:
+        due_date = parse_datetime(due_date)
+    if due_date and due_date < datetime.now(tz=UTC):
+        TASK_LOG.warning(
+            "The assignment %s is past its due date. Skipping grade sync.",
             grade_instance.usage_key,
         )
         return
