@@ -19,7 +19,7 @@ from ol_openedx_canvas_integration.client import (
 from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
 from ol_openedx_canvas_integration.utils import (
     get_canvas_course_id,
-    get_use_canvas_due_dates,
+    is_canvas_dates_sync_enabled,
 )
 
 log = logging.getLogger(__name__)
@@ -230,7 +230,7 @@ def push_edx_grades_to_canvas(course):
     if not canvas_course_id:
         msg = f"No canvas_course_id set for course: {course.id}"
         raise Exception(msg)  # noqa: TRY002
-    use_canvas_due_dates = get_use_canvas_due_dates(course)
+    use_canvas_due_dates = is_canvas_dates_sync_enabled(course)
 
     client = CanvasClient(canvas_course_id=canvas_course_id)
     existing_assignment_dict = client.get_canvas_assignments()

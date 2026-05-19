@@ -2,7 +2,7 @@
 
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import partial
 
 import requests
@@ -119,10 +119,10 @@ def _sync_user_grade_with_canvas(grade_id):
         )
         return
 
-    due_date = parse_datetime(
-        existing_assignments_map[str(grade_instance.usage_key)]["due_at"]
-    )
-    if due_date and due_date < datetime.now(tz=timezone.utc):
+    due_date = existing_assignments_map[str(grade_instance.usage_key)]["due_at"]
+    if due_date:
+        due_date = parse_datetime(due_date)
+    if due_date and due_date < datetime.now(tz=UTC):
         TASK_LOG.warning(
             "The assignment %s is past its due date. Skipping grade sync.",
             grade_instance.usage_key,

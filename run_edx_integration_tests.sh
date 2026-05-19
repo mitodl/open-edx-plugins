@@ -192,7 +192,7 @@ run_plugin_tests() {
 		exit $PYTEST_SUCCESS
 	fi
 
-	# Run the pytest command with CMS settings (for ol_openedx_chat)
+	# Run the pytest command with CMS settings (for plugins that have CMS tests)
 	if [[ "$plugin_dir" == *"ol_openedx_chat"* || "$plugin_dir" == *"ol_openedx_course_sync"* || "$plugin_dir" == *"ol_openedx_canvas_integration"* ]]; then
 		pytest . --cov . --ds=cms.envs.test
 

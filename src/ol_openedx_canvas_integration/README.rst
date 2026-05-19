@@ -129,13 +129,13 @@ Whenever the course is **Published** from the Studio, the **graded subsections**
 Whenever a learner interacts with a graded question in Open edX, the latest grades are automatically posted to Canvas, if it's a part of a synced assignment.
 
 3. Automatic Syncing of Due Dates
-""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""
 
 This feature allows for periodic syncing of assignment due dates from the linked Canvas course to Open edX.
 
 **Scheduling the Task**
 
-This sync does not happen automatically. Instead, it is triggered by a management command that needs to be scheduled as a periodic task (e.g., via cron).
+This task is automatically scheduled to run every hour by Celery beat. If Celery beat isn't configured you can also accomplish this via cron.
 
 The management command can be run (in the dev environment) using the following Tutor command:
 

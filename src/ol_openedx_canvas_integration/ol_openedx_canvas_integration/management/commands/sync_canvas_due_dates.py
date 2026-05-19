@@ -1,11 +1,20 @@
 """
 Script for syncing Canvas due dates with Open edX
+
+Usage:
+    python manage.py cms sync_canvas_due_dates <course-id>...
+    python manage.py cms sync_canvas_due_dates --all
+
+    # With Tutor (replace dev with local or k8s as appropriate)
+    tutor dev exec cms -- python manage.py cms sync_canvas_due_dates [options]
 """
 
 import logging
 from pathlib import Path
 
 from django.core.management.base import BaseCommand
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import CourseKey
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 
 from ol_openedx_canvas_integration.cms_tasks import sync_canvas_due_dates
@@ -34,7 +43,15 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):  # noqa: ARG002
-        course_keys = options.get("course_keys", [])
+        course_keys = []
+        for course_key in options.get("course_keys", []):
+            try:
+                course_keys.append(CourseKey.from_string(course_key.strip()))
+            except InvalidKeyError:
+                self.stderr.write(
+                    self.style.ERROR(f"Invalid course key: {course_key}"),
+                )
+                return
         all_courses = options.get("all")
 
         if not course_keys and not all_courses:
@@ -42,10 +59,10 @@ class Command(BaseCommand):
             command_name = Path(__file__).stem
             self.stderr.write(
                 self.style.ERROR(
-                    "Error: You must specify either course keys or use the --all flag.\n"  # noqa: E501
+                    "Error: You must specify course keys or use the --all flag.\n"
                     "Examples:\n"
-                    f"  python manage.py {command_name} --all\n"
-                    f"  python manage.py {command_name} course-v1:MITx+6.00x+2T2024"
+                    f"  python manage.py cms {command_name} --all\n"
+                    f"  python manage.py cms {command_name} course-v1:MITx+6.00x+2T2024"
                 )
             )
             return
@@ -65,6 +82,7 @@ class Command(BaseCommand):
             .order_by("created")
             .values_list("id", flat=True)
         )
+
         if course_keys:
             courses = courses.filter(id__in=course_keys)
             self.stdout.write(
