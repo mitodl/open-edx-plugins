@@ -125,6 +125,7 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
         mock.patch(
             f"{_CMD}.create_content_block", side_effect=mock_create_content_block
         ) as mock_create_content_block_call,
+        mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
     ):
         call_command(
             "generate_uai_courses",
@@ -161,6 +162,7 @@ def test_course_keys_are_correct(csv_files, mock_user, expected_key):  # noqa: A
         mock.patch(f"{_CMD}.clone_course_in_modulestore", side_effect=capture_clone),
         mock.patch(f"{_CMD}.delete_course_sections"),
         mock.patch(f"{_CMD}.create_content_block", return_value=mock.Mock()),
+        mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
     ):
         call_command(
             "generate_uai_courses",
@@ -325,6 +327,7 @@ def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # 
         mock.patch(
             f"{_CMD}.create_content_block", side_effect=record_create_content_block
         ),
+        mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
     ):
         call_command(
             "generate_uai_courses",
