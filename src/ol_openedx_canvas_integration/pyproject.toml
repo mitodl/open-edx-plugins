@@ -49,8 +49,8 @@ exclude = [
   "ol_openedx_canvas_integration/**/test_*"
 ]
 
-[tool.pytest]
-addopts = ["--nomigrations", "--reuse-db"]
+[tool.pytest.ini_options]
+addopts = ["--no-migrations", "--reuse-db"]
 filterwarnings = [
   "default",
   "ignore:'cgi' is deprecated and slated for removal in Python 3.13:DeprecationWarning",
