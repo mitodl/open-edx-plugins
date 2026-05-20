@@ -7,7 +7,7 @@ from common.djangoapps.student.models import CourseEnrollment
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from xmodule.data import CertificatesDisplayBehaviors
 
-from ol_openedx_events_handler.tasks.certificate_passing import (
+from ol_openedx_events_handler.tasks import (
     create_certificate_for_passing_grade,
 )
 from ol_openedx_events_handler.utils import validate_certificate_webhook

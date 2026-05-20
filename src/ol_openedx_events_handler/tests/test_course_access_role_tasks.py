@@ -5,7 +5,7 @@ from unittest import mock
 import pytest
 import requests
 from django.test import override_settings
-from ol_openedx_events_handler.tasks.course_access_role import (
+from ol_openedx_events_handler.tasks import (
     notify_course_access_role_addition,
 )
 
@@ -23,7 +23,7 @@ ROLE = "instructor"
         pytest.param(None, False, id="without-access-token"),
     ],
 )
-@mock.patch("ol_openedx_events_handler.tasks.course_access_role.requests.post")
+@mock.patch("ol_openedx_events_handler.tasks.requests.post")
 def test_sends_webhook_with_correct_payload(mock_post, access_token, expect_auth):
     """POST correct payload and conditionally include auth header."""
     mock_response = mock.MagicMock()
@@ -61,7 +61,7 @@ def test_sends_webhook_with_correct_payload(mock_post, access_token, expect_auth
     ENROLLMENT_WEBHOOK_URL=WEBHOOK_URL,
     ENROLLMENT_WEBHOOK_ACCESS_TOKEN=TEST_TOKEN,
 )
-@mock.patch("ol_openedx_events_handler.tasks.course_access_role.requests.post")
+@mock.patch("ol_openedx_events_handler.tasks.requests.post")
 def test_raises_on_http_error(mock_post):
     """HTTP errors should propagate for Celery retry."""
     mock_response = mock.MagicMock()

@@ -5,7 +5,7 @@ from unittest import mock
 import pytest
 import requests
 from django.test import override_settings
-from ol_openedx_events_handler.tasks.certificate_passing import (
+from ol_openedx_events_handler.tasks import (
     create_certificate_for_passing_grade,
 )
 
@@ -15,7 +15,7 @@ USER_EMAIL = "learner@example.com"
 COURSE_KEY = "course-v1:MITx+6.001x+2026_T1"
 
 
-@mock.patch("ol_openedx_events_handler.tasks.certificate_passing.requests.post")
+@mock.patch("ol_openedx_events_handler.tasks.requests.post")
 def test_sends_certificate_webhook(mock_post):
     """POST the certificate payload with the configured auth header."""
     mock_response = mock.MagicMock()
@@ -50,7 +50,7 @@ def test_sends_certificate_webhook(mock_post):
     CERTIFICATE_WEBHOOK_URL=WEBHOOK_URL,
     CERTIFICATE_WEBHOOK_ACCESS_TOKEN=ACCESS_TOKEN,
 )
-@mock.patch("ol_openedx_events_handler.tasks.certificate_passing.requests.post")
+@mock.patch("ol_openedx_events_handler.tasks.requests.post")
 def test_raises_on_http_error(mock_post):
     """HTTP errors should propagate for Celery retry."""
     mock_response = mock.MagicMock()
@@ -73,8 +73,8 @@ def test_raises_on_http_error(mock_post):
         pytest.param(WEBHOOK_URL, None, id="missing-access-token"),
     ],
 )
-@mock.patch("ol_openedx_events_handler.tasks.certificate_passing.log.error")
-@mock.patch("ol_openedx_events_handler.tasks.certificate_passing.requests.post")
+@mock.patch("ol_openedx_events_handler.tasks.log.error")
+@mock.patch("ol_openedx_events_handler.tasks.requests.post")
 def test_skips_dispatch_when_webhook_not_fully_configured(
     mock_post,
     mock_log_error,
