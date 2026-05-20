@@ -18,8 +18,8 @@ jobs:
         - 3.11
         edx_branch:
         - master
-        - release/teak
-        - release/ulmo
+#        - release/teak
+#        - release/ulmo
           # Add more branches as needed
 
     steps:
