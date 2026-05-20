@@ -39,7 +39,7 @@ jobs:
 
     - name: Install tutor
       run: |
-        if [[ "${{ matrix.edx_branch }}" == "open-release/teak.master" ]]; then
+        if [[ "${{ matrix.edx_branch }}" == "release/teak" ]]; then
           pip install "tutor>=20.0.0,<21.0.0"
         elif [[ "${{ matrix.edx_branch }}" == "master" ]]; then
           git clone --branch=main https://github.com/overhangio/tutor.git
