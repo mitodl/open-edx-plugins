@@ -137,6 +137,39 @@ Options
     Print what would be created without writing anything to the modulestore.
     Use this to verify CSV mapping before committing.
 
+Run from Django Admin
+~~~~~~~~~~~~~~~~~~~~~
+
+You can run the same workflow from CMS Django admin using an async job model:
+
+1. Open **Django Admin** and navigate to **UAI Course Generation Jobs**.
+2. Create a new job and upload:
+
+    - ``customized_csv``
+    - ``video_assets_csv``
+
+3. Optionally set:
+
+    - ``username`` (defaults to ``studio_worker``)
+    - ``dry_run``
+
+4. Save the job, select it in the changelist, then run action
+   **Run selected UAI generation job(s)**.
+5. Track progress via ``status`` and inspect command logs in ``output``.
+
+Status values:
+
+* ``pending`` - job queued to run.
+* ``running`` - task is currently executing.
+* ``succeeded`` - command completed successfully.
+* ``failed`` - command failed; check ``output`` for details.
+
+.. note::
+
+   Admin execution is asynchronous and requires a running Celery worker.
+   Use ``dry_run`` first for large CSV uploads to validate mappings before
+   creating courses.
+
 How It Works
 ~~~~~~~~~~~~
 
