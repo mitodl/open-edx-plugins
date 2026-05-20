@@ -108,20 +108,17 @@ class Command(BaseCommand):
         only_if_higher = options["only_if_higher"]
 
         try:
-            # Validate source course key
             source_course_key = CourseKey.from_string(source_course_key_str)
         except InvalidKeyError as exc:
             error_msg = f"Invalid source course key: {source_course_key_str}"
             raise CommandError(error_msg) from exc
 
         try:
-            # Validate problem ID
             problem_usage_key = UsageKey.from_string(problem_id_str)
         except InvalidKeyError as exc:
             error_msg = f"Invalid problem usage key: {problem_id_str}"
             raise CommandError(error_msg) from exc
 
-        # Get all courses for this sync mapping
         courses = self._get_synced_courses(source_course_key)
         if not courses:
             error_msg = (
@@ -129,19 +126,17 @@ class Command(BaseCommand):
             )
             raise CommandError(error_msg)
 
-        # Create request object
         try:
             request_obj = self._make_shell_request(username)
         except User.DoesNotExist as exc:
             error_msg = f"User not found: {username}"
             raise CommandError(error_msg) from exc
 
-        # Process action for all courses
         if action == ACTION_RESET_ATTEMPTS:
             results = self._submit_for_courses(
                 request_obj, courses, problem_usage_key, ACTION_RESET_ATTEMPTS
             )
-        else:  # rescore
+        elif action == ACTION_RESCORE:
             results = self._submit_for_courses(
                 request_obj,
                 courses,
@@ -150,7 +145,6 @@ class Command(BaseCommand):
                 only_if_higher=only_if_higher,
             )
 
-        # Print summary
         self._print_summary(results, action)
 
     def _get_synced_courses(self, source_course_key):
@@ -164,13 +158,9 @@ class Command(BaseCommand):
             List of course key strings
         """
         courses = [str(source_course_key)]
-
-        # Get all target courses for this source using the utility function
         mappings = get_syncable_course_mappings(source_course_key)
-
         if mappings:
             courses.extend(str(mapping.target_course) for mapping in mappings)
-
         return courses
 
     def _make_shell_request(self, username):
@@ -199,7 +189,7 @@ class Command(BaseCommand):
     def _submit_for_courses(
         self,
         request,
-        courses,
+        course_keys,
         problem_usage_key,
         action,
         *,
@@ -210,7 +200,7 @@ class Command(BaseCommand):
 
         Args:
             request: Request object with user context
-            courses: List of course key strings
+            course_keys: List of course keys
             problem_usage_key: UsageKey of the problem
             action: Action to perform (reset_attempts or rescore)
             only_if_higher: Only rescore if new score is higher (rescore only)
@@ -220,7 +210,7 @@ class Command(BaseCommand):
         """
         results = []
 
-        for course_id_str in courses:
+        for course_id_str in course_keys:
             try:
                 course_key = CourseKey.from_string(course_id_str)
                 mapped_problem_key = problem_usage_key.map_into_course(course_key)
@@ -229,7 +219,7 @@ class Command(BaseCommand):
                     task = task_api.submit_reset_problem_attempts_for_all_students(
                         request, mapped_problem_key
                     )
-                else:  # rescore
+                elif action == ACTION_RESCORE:
                     task = task_api.submit_rescore_problem_for_all_students(
                         request, mapped_problem_key, only_if_higher=only_if_higher
                     )
@@ -251,7 +241,7 @@ class Command(BaseCommand):
                         f"{action.upper()} | {course_id_str} | {mapped_problem_key} "
                         f"| task={task.task_id}"
                     )
-                else:  # rescore
+                elif action == ACTION_RESCORE:
                     self.stdout.write(
                         "OK | "
                         f"{action.upper()} | {course_id_str} | {mapped_problem_key} "
