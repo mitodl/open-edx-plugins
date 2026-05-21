@@ -120,12 +120,6 @@ class Command(BaseCommand):
             raise CommandError(error_msg) from exc
 
         courses = self._get_synced_courses(source_course_key)
-        if not courses:
-            error_msg = (
-                f"No sync mappings found for source course: {source_course_key_str}"
-            )
-            raise CommandError(error_msg)
-
         try:
             request_obj = self._make_shell_request(username)
         except User.DoesNotExist as exc:
