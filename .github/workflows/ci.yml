@@ -18,8 +18,9 @@ jobs:
         - 3.11
         edx_branch:
         - master
-        - open-release/sumac.master
         - release/teak
+        - release/ulmo
+
           # Add more branches as needed
 
     steps:
@@ -38,13 +39,13 @@ jobs:
 
     - name: Install tutor
       run: |
-        if [[ "${{ matrix.edx_branch }}" == "open-release/sumac.master" ]]; then
-          pip install "tutor>=19.0.0,<20.0.0"
+        if [[ "${{ matrix.edx_branch }}" == "release/teak" ]]; then
+          pip install "tutor>=20.0.0,<21.0.0"
         elif [[ "${{ matrix.edx_branch }}" == "master" ]]; then
           git clone --branch=main https://github.com/overhangio/tutor.git
           pip install -e "./tutor"
         else
-          pip install "tutor>=20.0.0,<21.0.0"
+          pip install "tutor>=21.0.0,<22.0.0"
         fi
     - name: clone edx-platform and add mounts
       run: |
