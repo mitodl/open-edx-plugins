@@ -25,7 +25,7 @@ def handle_course_access_role_added(
             assignment, including user info, course key, org, and role.
         **kwargs: Additional keyword arguments from the signal.
     """
-    from ol_openedx_events_handler.tasks.course_access_role import (  # noqa: PLC0415
+    from ol_openedx_events_handler.tasks import (  # noqa: PLC0415
         notify_course_access_role_addition,
     )
     from ol_openedx_events_handler.utils import (  # noqa: PLC0415

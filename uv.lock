@@ -2062,7 +2062,7 @@ wheels = [
 
 [[package]]
 name = "ol-openedx-ai-static-translations"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "src/ol_openedx_ai_static_translations" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2282,7 +2282,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-translations"
-version = "0.6.1"
+version = "0.6.2"
 source = { editable = "src/ol_openedx_course_translations" }
 dependencies = [
     { name = "deepl" },
@@ -2306,7 +2306,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-events-handler"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "src/ol_openedx_events_handler" }
 dependencies = [
     { name = "celery" },
@@ -2450,7 +2450,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-social-auth"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "src/ol_social_auth" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },

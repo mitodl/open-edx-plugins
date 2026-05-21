@@ -1,6 +1,12 @@
 Change Log
 ==========
 
+Version 0.2.1 (2026-05-19)
+---------------------------
+
+* Fixed Celery task autodiscovery by flattening the ``tasks/`` package
+  into a single ``tasks.py`` module.
+
 Version 0.2.0 (2026-04-17)
 ---------------------------
 
