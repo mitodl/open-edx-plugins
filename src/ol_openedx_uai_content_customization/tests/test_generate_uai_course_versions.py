@@ -33,7 +33,7 @@ EDX_VIDEOS_CSV_CONTENT = (
     "v011_h264.mp4,cccccccc-3333-3333-3333-cccccccccccc\n"
 )
 
-_CMD = "ol_openedx_uai_content_customization.management.commands.generate_uai_course_versions"
+_CMD = "ol_openedx_uai_content_customization.management.commands.generate_uai_course_versions"  # noqa: E501
 EXPECTED_COURSE_COUNT = 3
 EXPECTED_NEW_COURSE_KEYS = (
     "course-v1:UAI_SOURCE+UAI.2.S.HC+1T2026",

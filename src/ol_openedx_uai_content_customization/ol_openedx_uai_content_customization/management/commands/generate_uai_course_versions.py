@@ -88,8 +88,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--edx-videos-csv",
             required=True,
-            help="Path to the Open edX videos CSV file (exported from"
-            " Studio/OVS).",
+            help="Path to the Open edX videos CSV file (exported from Studio/OVS).",
         )
         parser.add_argument(
             "--username",
@@ -120,7 +119,9 @@ class Command(BaseCommand):
         except User.DoesNotExist:
             msg = f"No user found with username {username!r}."
             raise CommandError(msg)  # noqa: B904
-        processed_video_rows, processed_video_fieldnames = parse_csv(processed_videos_csv)
+        processed_video_rows, processed_video_fieldnames = parse_csv(
+            processed_videos_csv
+        )
         edx_video_rows, edx_video_fieldnames = parse_csv(edx_videos_csv)
 
         try:
