@@ -62,9 +62,9 @@ from ol_openedx_uai_content_customization.csv_utils import (
     validate_csv_columns,
 )
 from ol_openedx_uai_content_customization.modulestore_utils import (
-    clone_course_in_modulestore,
     create_content_block,
     delete_course_sections,
+    get_or_clone_course_in_modulestore,
     save_video_block_with_edx_video_id,
 )
 
@@ -263,7 +263,7 @@ class Command(BaseCommand):
         user_id = user.id
         store = modulestore()
         with store.bulk_operations(parsed_key):
-            course = clone_course_in_modulestore(
+            course = get_or_clone_course_in_modulestore(
                 source_key,
                 parsed_key.org,
                 parsed_key.course,

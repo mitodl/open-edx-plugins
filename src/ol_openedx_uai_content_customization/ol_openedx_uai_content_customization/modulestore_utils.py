@@ -22,35 +22,27 @@ from ol_openedx_uai_content_customization.constants import (
 log = logging.getLogger(__name__)
 
 
-def clone_course_in_modulestore(  # noqa: PLR0913
+def get_or_clone_course_in_modulestore(  # noqa: PLR0913
     source_course_key, dest_org, dest_number, dest_run, display_name, user_id
 ):
     """
-    Clone an existing course into a new course key in the Split modulestore.
+    Get or clone a course in the modulestore.
 
-    Uses ``modulestore().default_store`` as a context manager to ensure the
-    destination course lands in the Split store — mirroring how Studio's own
-    course-rerun feature works.  The ``display_name`` field is overridden in
-    the clone so each UAI variant carries its own title.
-
-    Raises:
-        xmodule.modulestore.exceptions.DuplicateCourseError: if the destination
-        course already exists.  Callers should catch this and handle accordingly.
-
-    Args:
-        source_course_key: CourseKey of the base course to clone.
-        dest_org: Organisation string for the new course.
-        dest_number: Course-number string for the new course (e.g. "UAI.2.S.HC").
-        dest_run: Run string for the new course (e.g. "1T2026").
-        display_name: Human-readable title for the cloned course.
-        user_id: ID of the user performing the operation.
-
-    Returns:
-        The cloned course XBlock descriptor.
+    If the destination course already exists, it is returned as-is.
+    Otherwise, a new course is cloned from the source course key with
+    the given destination parameters.
     """
     store = modulestore()
     with store.default_store(ModuleStoreEnum.Type.split):
         dest_course_key = store.make_course_key(dest_org, dest_number, dest_run)
+
+        # if the course already exists, we assume it was cloned previously
+        # and return it rather than erroring out. This allows the cloning
+        # operation to be idempotent and the management command to be
+        # re-runnable without manual cleanup.
+        if store.has_course(dest_course_key):
+            return store.get_course(dest_course_key)
+
         course = store.clone_course(
             source_course_key,
             dest_course_key,
