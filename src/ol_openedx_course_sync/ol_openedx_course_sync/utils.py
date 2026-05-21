@@ -55,9 +55,9 @@ def copy_static_tabs(source_course_key, target_course_key, user):
         target_course_key (CourseLocator): The course key of the target course.
         user (User): The user performing the update.
     """
-    # Local import to fix issues when we install the plugin in the LMS as CMS
-    # imports are not available in LMS. This function is only called in CMS
-    # during course publish, so it will not cause issues in LMS.
+    # This import is CMS-only, so it is intentionally delayed to avoid an
+    # ImportError when this plugin is installed in the LMS, where the CMS
+    # contentstore module is not available. This function is only called in CMS.
     from cms.djangoapps.contentstore.utils import duplicate_block  # noqa: PLC0415
 
     store = modulestore()
