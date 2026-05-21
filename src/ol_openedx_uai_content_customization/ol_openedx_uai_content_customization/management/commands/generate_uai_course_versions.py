@@ -75,7 +75,7 @@ class Command(BaseCommand):
     """Generate industry/length-specific UAI courses using Open edX modulestore APIs."""
 
     help = (
-        "Generate industry- and length-specific UAI courses by reading two CSV files "
+        "Generate industry and length-specific UAI courses by reading two CSV files "
         "and creating courses in the CMS modulestore."
     )
 
@@ -155,7 +155,7 @@ class Command(BaseCommand):
         for (orig_key, industry, duration), videos in course_groups.items():
             source_key = CourseKey.from_string(orig_key)  # safe — already validated
             try:
-                new_key = build_new_course_key(orig_key, industry, duration)
+                new_course_key = build_new_course_key(orig_key, industry, duration)
             except ValueError as exc:
                 self.stdout.write(
                     self.style.WARNING(
@@ -167,7 +167,9 @@ class Command(BaseCommand):
 
             display_name = self._build_display_name(videos)
 
-            self.stdout.write(f"\n-> {orig_key} [{industry}, {duration}] -> {new_key}")
+            self.stdout.write(
+                f"\n-> {orig_key} [{industry}, {duration}] -> {new_course_key}"
+            )
             self.stdout.write(f"  Display name : {display_name}")
             self.stdout.write(f"  Videos       : {len(videos)}")
 
@@ -183,7 +185,7 @@ class Command(BaseCommand):
             try:
                 self._create_course(
                     source_key,
-                    new_key,
+                    new_course_key,
                     display_name,
                     videos,
                     video_id_map,
@@ -192,12 +194,14 @@ class Command(BaseCommand):
                 created += 1
             except DuplicateCourseError:
                 self.stdout.write(
-                    self.style.WARNING(f"  Course {new_key} already exists — skipping.")
+                    self.style.WARNING(
+                        f"  Course {new_course_key} already exists — skipping."
+                    )
                 )
                 skipped += 1
             except Exception as exc:
-                log.exception("Failed to create course %s", new_key)
-                msg = f"Failed to create course {new_key}: {exc}"
+                log.exception("Failed to create course %s", new_course_key)
+                msg = f"Failed to create course {new_course_key}: {exc}"
                 raise CommandError(msg) from exc
 
         self.stdout.write(
@@ -210,8 +214,11 @@ class Command(BaseCommand):
 
         Falls back to "UAI Course" when no module name is available.
         """
-        module_name = videos[0].get(CSV_COL_MODULE_NAME, "").strip() if videos else ""
-        return module_name or "UAI Course"
+        return (
+            videos[0].get(CSV_COL_MODULE_NAME, "").strip()
+            if videos
+            else "UAI Short Course"
+        )
 
     def _validate_source_course_keys(self, course_groups):
         """
