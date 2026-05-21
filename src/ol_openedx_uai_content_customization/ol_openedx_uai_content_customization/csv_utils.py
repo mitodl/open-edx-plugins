@@ -31,6 +31,8 @@ def parse_csv(path):
         reader = csv.DictReader(f)
         fieldnames = list(reader.fieldnames or [])
         rows = list(reader)
+    fieldnames = [col.lower() for col in fieldnames]
+    rows = [{col.lower(): value for col, value in row.items()} for row in rows]
     return rows, fieldnames
 
 
@@ -46,8 +48,8 @@ def validate_csv_columns(fieldnames, required_cols, csv_label):
     Raises:
         ValueError: describing which columns are missing.
     """
-    actual_cols = set(fieldnames)
-    missing = [col for col in required_cols if col not in actual_cols]
+    actual_cols = {col.lower() for col in fieldnames}
+    missing = [col for col in required_cols if col.lower() not in actual_cols]
     if missing:
         msg = f"{csv_label} is missing required columns: {', '.join(missing)}"
         raise ValueError(msg)

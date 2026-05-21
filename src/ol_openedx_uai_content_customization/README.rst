@@ -85,26 +85,26 @@ Prerequisites
 
 You will need two CSV files:
 
-1. **Customized video metadata CSV** — produced by the video customization
+1. **Processed videos CSV** — produced by the video customization
    workflow. Required columns:
 
-    - ``course_key`` — the Open edX course key of the **source course to
+   - ``course_key`` — the Open edX course key of the **source course to
      clone** (e.g. ``course-v1:UAI_SOURCE+UAI.2+1T2026``).  This course
      **must already exist** in the CMS modulestore before the command runs.
      The command validates all source keys up-front and aborts with an error
      if any are missing.
-    - ``industry`` — one of: ``Healthcare``, ``Finance``, ``Energy``,
+   - ``industry`` — one of: ``Healthcare``, ``Finance``, ``Energy``,
      ``Original industry``
-    - ``duration`` — ``short`` or ``long``
-    - ``video_file_name`` — file name matching the ``name`` column in the assets CSV
-    - ``video_title`` — display name for the subsection/unit/video
-    - ``module_name`` — used to build the course display name
+   - ``duration`` — ``short`` or ``long``
+   - ``video_file_name`` — file name matching the ``name`` column in the edX videos CSV
+   - ``video_title`` — display name for the subsection/unit/video
+   - ``module_name`` — used to build the course display name
 
-2. **Open edX video asset CSV** — exported from Studio / OVS after uploading
+2. **Open edX videos CSV** — exported from Studio / OVS after uploading
    the customized videos. Required columns:
 
-    - ``name`` — video file name (matches ``video_file_name`` above)
-    - ``video_id`` — the Open edX UUID for the video
+   - ``name`` — video file name (matches ``video_file_name`` above)
+   - ``video_id`` — the Open edX UUID for the video
 
 Running the Command
 ~~~~~~~~~~~~~~~~~~~
@@ -114,20 +114,20 @@ shell):
 
 .. code-block:: bash
 
-    python manage.py generate_uai_courses \
-        --customized-csv /path/to/customized.csv \
-        --video-assets-csv /path/to/video_assets.csv \
+    python manage.py generate_uai_course_versions \
+        --processed-videos-csv /path/to/processed_videos.csv \
+        --edx-videos-csv /path/to/edx_videos.csv \
         [--username studio_worker] \
         [--dry-run]
 
 Options
 ~~~~~~~
 
-``--customized-csv``
-    Path to the customized video metadata CSV file. **Required.**
+``--processed-videos-csv``
+    Path to the processed video metadata CSV file. **Required.**
 
-``--video-assets-csv``
-    Path to the Open edX video asset CSV file. **Required.**
+``--edx-videos-csv``
+    Path to the Open edX videos CSV file. **Required.**
 
 ``--username``
     Username of the platform user under whose authority the courses are

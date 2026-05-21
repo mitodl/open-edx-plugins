@@ -1,10 +1,10 @@
-"""Tests for the generate_uai_courses management command."""
+"""Tests for the generate_uai_course_versions management command."""
 
 from io import StringIO
 from unittest import mock
 
 import pytest
-from django.contrib.auth import get_user_model
+from common.djangoapps.student.tests.factories import UserFactory
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from ol_openedx_uai_content_customization.constants import (
@@ -15,7 +15,7 @@ from ol_openedx_uai_content_customization.constants import (
 )
 from xmodule.modulestore.exceptions import DuplicateCourseError
 
-CUSTOMIZED_CSV_CONTENT = (
+PROCESSED_VIDEOS_CSV_CONTENT = (
     "course_key,industry,duration,"
     "video_file_name,video_title,module_name\n"
     "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
@@ -26,14 +26,14 @@ CUSTOMIZED_CSV_CONTENT = (
     "v011_h264.mp4,Data Analytics,Module 3\n"
 )
 
-VIDEO_ASSETS_CSV_CONTENT = (
+EDX_VIDEOS_CSV_CONTENT = (
     "name,video_id\n"
     "v004_h264.mp4,aaaaaaaa-1111-1111-1111-aaaaaaaaaaaa\n"
     "v005_h264.mp4,bbbbbbbb-2222-2222-2222-bbbbbbbbbbbb\n"
     "v011_h264.mp4,cccccccc-3333-3333-3333-cccccccccccc\n"
 )
 
-_CMD = "ol_openedx_uai_content_customization.management.commands.generate_uai_courses"
+_CMD = "ol_openedx_uai_content_customization.management.commands.generate_uai_course_versions"
 EXPECTED_COURSE_COUNT = 3
 EXPECTED_NEW_COURSE_KEYS = (
     "course-v1:UAI_SOURCE+UAI.2.S.HC+1T2026",
@@ -51,18 +51,17 @@ EXPECTED_BLOCK_TYPES = (
 @pytest.fixture
 def csv_files(tmp_path):
     """Write sample CSVs to tmp_path and return their paths."""
-    customized = tmp_path / "customized.csv"
-    customized.write_text(CUSTOMIZED_CSV_CONTENT)
-    assets = tmp_path / "video_assets.csv"
-    assets.write_text(VIDEO_ASSETS_CSV_CONTENT)
-    return str(customized), str(assets)
+    processed_videos = tmp_path / "processed_videos.csv"
+    processed_videos.write_text(PROCESSED_VIDEOS_CSV_CONTENT)
+    edx_videos = tmp_path / "edx_videos.csv"
+    edx_videos.write_text(EDX_VIDEOS_CSV_CONTENT)
+    return str(processed_videos), str(edx_videos)
 
 
 @pytest.fixture
 def mock_user(db):  # noqa: ARG001
-    """Create and return a minimal User so the user-existence check passes."""
-    User = get_user_model()
-    return User.objects.create_user(username="studio_worker", password="x")  # noqa: S106
+    """Create and return a studio_worker user so the user-existence check passes."""
+    return UserFactory.create(username="studio_worker")
 
 
 def _modulestore_mock():
@@ -82,7 +81,7 @@ def test_dry_run_prints_summary_without_creating_courses(
     csv_files, mock_user, expected_key
 ):
     _ = mock_user
-    customized_csv, assets_csv = csv_files
+    processed_videos_csv, edx_videos_csv = csv_files
     out = StringIO()
 
     with (
@@ -90,9 +89,9 @@ def test_dry_run_prints_summary_without_creating_courses(
         mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
     ):
         call_command(
-            "generate_uai_courses",
-            customized_csv=customized_csv,
-            video_assets_csv=assets_csv,
+            "generate_uai_course_versions",
+            processed_videos_csv=processed_videos_csv,
+            edx_videos_csv=edx_videos_csv,
             dry_run=True,
             stdout=out,
         )
@@ -104,7 +103,7 @@ def test_dry_run_prints_summary_without_creating_courses(
 
 
 def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG001
-    customized_csv, assets_csv = csv_files
+    processed_videos_csv, edx_videos_csv = csv_files
 
     block_by_type = {
         BLOCK_TYPE_CHAPTER: mock.Mock(),
@@ -128,9 +127,9 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
         mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
     ):
         call_command(
-            "generate_uai_courses",
-            customized_csv=customized_csv,
-            video_assets_csv=assets_csv,
+            "generate_uai_course_versions",
+            processed_videos_csv=processed_videos_csv,
+            edx_videos_csv=edx_videos_csv,
         )
 
     assert mock_clone.call_count == EXPECTED_COURSE_COUNT
@@ -150,7 +149,7 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
 
 @pytest.mark.parametrize("expected_key", EXPECTED_NEW_COURSE_KEYS)
 def test_course_keys_are_correct(csv_files, mock_user, expected_key):  # noqa: ARG001
-    customized_csv, assets_csv = csv_files
+    processed_videos_csv, edx_videos_csv = csv_files
     created_keys = []
 
     def capture_clone(source_key, org, number, run, display_name, user_id):  # noqa: ARG001, PLR0913
@@ -165,25 +164,25 @@ def test_course_keys_are_correct(csv_files, mock_user, expected_key):  # noqa: A
         mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
     ):
         call_command(
-            "generate_uai_courses",
-            customized_csv=customized_csv,
-            video_assets_csv=assets_csv,
+            "generate_uai_course_versions",
+            processed_videos_csv=processed_videos_csv,
+            edx_videos_csv=edx_videos_csv,
         )
 
     assert expected_key in created_keys
 
 
 def test_unmapped_video_is_skipped_with_warning(tmp_path, mock_user):  # noqa: ARG001
-    """A video whose file name has no match in the assets CSV should be skipped."""
-    customized = tmp_path / "customized.csv"
-    customized.write_text(
+    """A video whose file name has no match in the edX videos CSV should be skipped."""
+    processed_videos = tmp_path / "processed_videos.csv"
+    processed_videos.write_text(
         "course_key,industry,duration,video_file_name,"
         "video_title,module_name\n"
         "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
         "MISSING_FILE.mp4,Some Title,Module 2\n"
     )
-    assets = tmp_path / "assets.csv"
-    assets.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
+    edx_videos = tmp_path / "edx_videos.csv"
+    edx_videos.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
 
     out = StringIO()
 
@@ -194,9 +193,9 @@ def test_unmapped_video_is_skipped_with_warning(tmp_path, mock_user):  # noqa: A
         mock.patch(f"{_CMD}.create_content_block") as mock_create_content_block,
     ):
         call_command(
-            "generate_uai_courses",
-            customized_csv=str(customized),
-            video_assets_csv=str(assets),
+            "generate_uai_course_versions",
+            processed_videos_csv=str(processed_videos),
+            edx_videos_csv=str(edx_videos),
             stdout=out,
         )
 
@@ -212,7 +211,7 @@ def test_unmapped_video_is_skipped_with_warning(tmp_path, mock_user):  # noqa: A
 
 def test_duplicate_course_is_skipped_with_warning(csv_files, mock_user):  # noqa: ARG001
     """DuplicateCourseError should be caught and the course skipped, not crash."""
-    customized_csv, assets_csv = csv_files
+    processed_videos_csv, edx_videos_csv = csv_files
     out = StringIO()
 
     with (
@@ -223,9 +222,9 @@ def test_duplicate_course_is_skipped_with_warning(csv_files, mock_user):  # noqa
         ),
     ):
         call_command(
-            "generate_uai_courses",
-            customized_csv=customized_csv,
-            video_assets_csv=assets_csv,
+            "generate_uai_course_versions",
+            processed_videos_csv=processed_videos_csv,
+            edx_videos_csv=edx_videos_csv,
             stdout=out,
         )
 
@@ -237,35 +236,35 @@ def test_duplicate_course_is_skipped_with_warning(csv_files, mock_user):  # noqa
 def test_missing_csv_raises_error(mock_user):  # noqa: ARG001
     with pytest.raises((CommandError, FileNotFoundError)):
         call_command(
-            "generate_uai_courses",
-            customized_csv="/nonexistent/path.csv",
-            video_assets_csv="/also/nonexistent.csv",
+            "generate_uai_course_versions",
+            processed_videos_csv="/nonexistent/path.csv",
+            edx_videos_csv="/also/nonexistent.csv",
         )
 
 
 def test_invalid_user_id_raises_error(csv_files, db):  # noqa: ARG001
     """Passing a non-existent username should raise CommandError before any writes."""
-    customized_csv, assets_csv = csv_files
+    processed_videos_csv, edx_videos_csv = csv_files
     with pytest.raises(CommandError, match="No user found with username"):
         call_command(
-            "generate_uai_courses",
-            customized_csv=customized_csv,
-            video_assets_csv=assets_csv,
+            "generate_uai_course_versions",
+            processed_videos_csv=processed_videos_csv,
+            edx_videos_csv=edx_videos_csv,
             username="nonexistent_user",
         )
 
 
 def test_unknown_industry_is_skipped_with_warning(tmp_path, mock_user):  # noqa: ARG001
     """A row with an unrecognised industry should be skipped with a warning."""
-    customized = tmp_path / "customized.csv"
-    customized.write_text(
+    processed_videos = tmp_path / "processed_videos.csv"
+    processed_videos.write_text(
         "course_key,industry,duration,video_file_name,"
         "video_title,module_name\n"
         "course-v1:UAI_SOURCE+UAI.2+1T2026,UnknownSector,short,"
         "v004_h264.mp4,Some Title,Module 2\n"
     )
-    assets = tmp_path / "assets.csv"
-    assets.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
+    edx_videos = tmp_path / "edx_videos.csv"
+    edx_videos.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
 
     out = StringIO()
 
@@ -274,9 +273,9 @@ def test_unknown_industry_is_skipped_with_warning(tmp_path, mock_user):  # noqa:
         mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
     ):
         call_command(
-            "generate_uai_courses",
-            customized_csv=str(customized),
-            video_assets_csv=str(assets),
+            "generate_uai_course_versions",
+            processed_videos_csv=str(processed_videos),
+            edx_videos_csv=str(edx_videos),
             stdout=out,
         )
         mock_clone.assert_not_called()
@@ -286,7 +285,7 @@ def test_unknown_industry_is_skipped_with_warning(tmp_path, mock_user):  # noqa:
 
 def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  # noqa: ARG001
     """CommandError is raised before any writes when a source course is absent."""
-    customized_csv, assets_csv = csv_files
+    processed_videos_csv, edx_videos_csv = csv_files
 
     store_mock = _modulestore_mock()
     store_mock.return_value.has_course.return_value = False
@@ -297,9 +296,9 @@ def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  #
         pytest.raises(CommandError, match="not found in the modulestore"),
     ):
         call_command(
-            "generate_uai_courses",
-            customized_csv=customized_csv,
-            video_assets_csv=assets_csv,
+            "generate_uai_course_versions",
+            processed_videos_csv=processed_videos_csv,
+            edx_videos_csv=edx_videos_csv,
         )
 
     mock_clone.assert_not_called()
@@ -307,7 +306,7 @@ def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  #
 
 def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # noqa: ARG001
     """delete_course_sections must run before chapter creation in each course."""
-    customized_csv, assets_csv = csv_files
+    processed_videos_csv, edx_videos_csv = csv_files
     call_order = []
 
     def record_delete(course, user_id):  # noqa: ARG001
@@ -330,9 +329,9 @@ def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # 
         mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
     ):
         call_command(
-            "generate_uai_courses",
-            customized_csv=customized_csv,
-            video_assets_csv=assets_csv,
+            "generate_uai_course_versions",
+            processed_videos_csv=processed_videos_csv,
+            edx_videos_csv=edx_videos_csv,
         )
 
     assert call_order.count("delete") == EXPECTED_COURSE_COUNT

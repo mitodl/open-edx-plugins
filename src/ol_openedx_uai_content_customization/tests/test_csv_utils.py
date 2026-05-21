@@ -40,6 +40,7 @@ def test_parse_csv_empty_file(tmp_path):
     ("fieldnames", "required", "should_raise"),
     [
         (["name", "video_id"], ["name", "video_id"], False),
+        (["Name", "Video_ID"], ["name", "video_id"], False),
         (["name"], ["name", "video_id"], True),
         ([], ["name", "video_id"], True),
     ],

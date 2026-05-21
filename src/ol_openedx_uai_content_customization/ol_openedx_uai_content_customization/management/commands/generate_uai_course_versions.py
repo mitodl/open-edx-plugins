@@ -1,11 +1,11 @@
 """
-Management command: generate_uai_courses
+Management command: generate_uai_course_versions
 
 Reads two CSV files and uses Open edX modulestore APIs to build industry- and
 length-specific variants of UAI courses by cloning a base course:
 
-  - Customized video CSV  (produced by the video-generation workflow)
-  - Open edX video asset CSV (exported from Studio / OVS)
+  - Processed videos CSV  (produced by the video-generation workflow)
+  - Open edX videos CSV (exported from Studio / OVS)
 
 For each unique (course_key, industry, duration) combination the command:
     1. Clones the source course (identified by the ``course_key`` CSV column)
@@ -20,9 +20,9 @@ For each unique (course_key, industry, duration) combination the command:
                     └── <Video Title>  (video block)
 
 Usage:
-    python manage.py generate_uai_courses \\
-        --customized-csv /path/to/customized.csv \\
-        --video-assets-csv /path/to/video_assets.csv \\
+    python manage.py generate_uai_course_versions \\
+        --processed-videos-csv /path/to/processed_videos.csv \\
+        --edx-videos-csv /path/to/edx_videos.csv \\
         [--username studio_worker] \\
         [--dry-run]
 
@@ -48,7 +48,7 @@ from ol_openedx_uai_content_customization.constants import (
     BLOCK_TYPE_VERTICAL,
     BLOCK_TYPE_VIDEO,
     CSV_COL_MODULE_NAME,
-    CSV_COL_VIDEO_FILE,
+    CSV_COL_VIDEO_FILE_NAME,
     CSV_COL_VIDEO_TITLE,
     LECTURES_SECTION_DISPLAY_NAME,
     REQUIRED_ASSET_CSV_COLS,
@@ -81,14 +81,14 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--customized-csv",
+            "--processed-videos-csv",
             required=True,
-            help="Path to the customized video metadata CSV file.",
+            help="Path to the processed video metadata CSV file.",
         )
         parser.add_argument(
-            "--video-assets-csv",
+            "--edx-videos-csv",
             required=True,
-            help="Path to the Open edX video asset CSV file (exported from"
+            help="Path to the Open edX videos CSV file (exported from"
             " Studio/OVS).",
         )
         parser.add_argument(
@@ -104,8 +104,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):  # noqa: ARG002, PLR0915
-        customized_csv = options["customized_csv"]
-        video_assets_csv = options["video_assets_csv"]
+        processed_videos_csv = options["processed_videos_csv"]
+        edx_videos_csv = options["edx_videos_csv"]
         username = options["username"]
         dry_run = options["dry_run"]
 
@@ -120,31 +120,31 @@ class Command(BaseCommand):
         except User.DoesNotExist:
             msg = f"No user found with username {username!r}."
             raise CommandError(msg)  # noqa: B904
-        customized_rows, customized_fieldnames = parse_csv(customized_csv)
-        video_asset_rows, video_asset_fieldnames = parse_csv(video_assets_csv)
+        processed_video_rows, processed_video_fieldnames = parse_csv(processed_videos_csv)
+        edx_video_rows, edx_video_fieldnames = parse_csv(edx_videos_csv)
 
         try:
             validate_csv_columns(
-                customized_fieldnames,
+                processed_video_fieldnames,
                 REQUIRED_CUSTOMIZED_CSV_COLS,
-                "customized video CSV",
+                "processed videos CSV",
             )
             validate_csv_columns(
-                video_asset_fieldnames,
+                edx_video_fieldnames,
                 REQUIRED_ASSET_CSV_COLS,
-                "video asset CSV",
+                "edX videos CSV",
             )
         except ValueError as exc:
             raise CommandError(str(exc)) from exc
 
-        video_id_map = build_video_id_map(video_asset_rows)
+        video_id_map = build_video_id_map(edx_video_rows)
 
         self.stdout.write(
-            f"Loaded {len(customized_rows)} customized video rows "
-            f"and {len(video_asset_rows)} video asset rows."
+            f"Loaded {len(processed_video_rows)} processed video rows "
+            f"and {len(edx_video_rows)} edX video rows."
         )
 
-        course_groups = group_videos_by_course(customized_rows)
+        course_groups = group_videos_by_course(processed_video_rows)
         self.stdout.write(f"Found {len(course_groups)} course variant(s) to create.")
 
         self._validate_source_course_keys(course_groups)
@@ -172,7 +172,7 @@ class Command(BaseCommand):
 
             if dry_run:
                 for video in videos:
-                    vid_file = video[CSV_COL_VIDEO_FILE]
+                    vid_file = video[CSV_COL_VIDEO_FILE_NAME]
                     vid_title = video[CSV_COL_VIDEO_TITLE]
                     mapped_id = video_id_map.get(vid_file, "<NOT FOUND>")
                     self.stdout.write(f"    - {vid_title} ({vid_file} -> {mapped_id})")
@@ -275,7 +275,7 @@ class Command(BaseCommand):
 
             for video in videos:
                 title = video[CSV_COL_VIDEO_TITLE]
-                vid_file = video[CSV_COL_VIDEO_FILE]
+                vid_file = video[CSV_COL_VIDEO_FILE_NAME]
                 edx_video_id = video_id_map.get(vid_file)
 
                 if not edx_video_id:
