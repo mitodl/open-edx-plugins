@@ -7,9 +7,6 @@ command stays thin and these helpers can be mocked cleanly in tests.
 
 import logging
 
-from cms.djangoapps.contentstore.xblock_storage_handlers.view_handlers import (
-    save_xblock_with_callback,
-)
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.inheritance import own_metadata
@@ -147,6 +144,9 @@ def save_video_block_with_edx_video_id(video_block, user, edx_video_id):
     Returns:
         Updated video block descriptor returned by save callback utility.
     """
+    from cms.djangoapps.contentstore.xblock_storage_handlers.view_handlers import (  # noqa: PLC0415
+        save_xblock_with_callback,
+    )
     old_metadata = own_metadata(video_block)
     video_block.edx_video_id = edx_video_id.strip()
 
