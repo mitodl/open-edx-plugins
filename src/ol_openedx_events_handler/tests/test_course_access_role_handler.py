@@ -13,8 +13,7 @@ VALID_WEBHOOK_PATCH = mock.patch(
     return_value=True,
 )
 TASK_PATCH = mock.patch(
-    "ol_openedx_events_handler.tasks"
-    ".notify_course_access_role_addition"
+    "ol_openedx_events_handler.tasks.notify_course_access_role_addition"
 )
 COURSE_KEY = "course-v1:OpenedX+DemoX+DemoCourse"
 DEFAULT_ROLES = ["instructor", "staff"]
