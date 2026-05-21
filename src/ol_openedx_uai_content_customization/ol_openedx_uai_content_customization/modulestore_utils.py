@@ -147,6 +147,7 @@ def save_video_block_with_edx_video_id(video_block, user, edx_video_id):
     from cms.djangoapps.contentstore.xblock_storage_handlers.view_handlers import (  # noqa: PLC0415
         save_xblock_with_callback,
     )
+
     old_metadata = own_metadata(video_block)
     video_block.edx_video_id = edx_video_id.strip()
 
