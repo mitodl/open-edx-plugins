@@ -1,8 +1,10 @@
 """Common settings unique to the git auto export plugin."""
 
 from ol_openedx_git_auto_export.constants import (
+    ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION,
     ENABLE_AUTO_GITHUB_REPO_CREATION,
     ENABLE_GIT_AUTO_EXPORT,
+    ENABLE_GIT_AUTO_LIBRARY_EXPORT,
 )
 
 
@@ -14,9 +16,19 @@ def plugin_settings(settings):
     )
     settings.GITHUB_ORG_API_URL = env_tokens.get("GITHUB_ORG_API_URL", "")
     settings.GITHUB_ACCESS_TOKEN = env_tokens.get("GITHUB_ACCESS_TOKEN")
+
+    # Course-specific settings
     settings.FEATURES[ENABLE_GIT_AUTO_EXPORT] = env_tokens.get("FEATURES", {}).get(
         ENABLE_GIT_AUTO_EXPORT, True
     )
     settings.FEATURES[ENABLE_AUTO_GITHUB_REPO_CREATION] = env_tokens.get(
         "FEATURES", {}
     ).get(ENABLE_AUTO_GITHUB_REPO_CREATION, False)
+
+    # Library-specific settings (disabled by default)
+    settings.FEATURES[ENABLE_GIT_AUTO_LIBRARY_EXPORT] = env_tokens.get(
+        "FEATURES", {}
+    ).get(ENABLE_GIT_AUTO_LIBRARY_EXPORT, False)
+    settings.FEATURES[ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION] = env_tokens.get(
+        "FEATURES", {}
+    ).get(ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION, False)

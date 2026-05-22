@@ -4,22 +4,25 @@ Django models for the git auto-export plugin.
 
 from django.db import models
 from model_utils.models import TimeStampedModel
-from opaque_keys.edx.django.models import CourseKeyField
+from opaque_keys.edx.django.models import LearningContextKeyField
 
 
-class CourseGitRepository(TimeStampedModel):
+class ContentGitRepository(TimeStampedModel):
     """
-    Model to store Git repository information for courses.
+    Model to store Git repository information for courses and libraries.
+
+    This model uses LearningContextKeyField which supports both CourseKey
+    and LibraryLocator, making it suitable for both courses and libraries.
     """
 
-    course_key = CourseKeyField(max_length=255, primary_key=True)
+    content_key = LearningContextKeyField(max_length=255, primary_key=True)
     git_url = models.CharField(max_length=255)
     is_export_enabled = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name = "Course Git Repository"
-        verbose_name_plural = "Course Git Repositories"
+        verbose_name = "Content Git Repository"
+        verbose_name_plural = "Content Git Repositories"
         ordering = ["-created"]
 
     def __str__(self):
-        return f"CourseGitRepository (course_key={self.course_key})"
+        return f"ContentGitRepository (content_key={self.content_key})"
