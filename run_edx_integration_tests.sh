@@ -156,8 +156,12 @@ run_plugin_tests() {
     echo "==============Running $plugin_dir tests=================="
     cd "$plugin_dir"
 
+    # Run this plugin with CMS settings only.
+    if [[ "$plugin_dir" == *"ol_openedx_uai_content_customization"* ]]; then
+        echo "Using CMS settings only for $plugin_dir (skipping LMS run)."
+        pytest_command="pytest . --cov . --ds=cms.envs.test"
     # Check for the existence of settings/test.py
-    if [ -f "settings/test.py" ]; then
+    elif [ -f "settings/test.py" ]; then
         pytest_command="pytest . --cov . --ds=settings.test"
     else
         pytest_command="pytest . --cov . --ds=lms.envs.test"

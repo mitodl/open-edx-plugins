@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -29,6 +29,7 @@ members = [
     "ol-openedx-otel-monitoring",
     "ol-openedx-rapid-response-reports",
     "ol-openedx-sentry",
+    "ol-openedx-uai-content-customization",
     "ol-social-auth",
     "open-edx-plugins",
     "openedx-companion-auth",
@@ -2446,6 +2447,24 @@ dependencies = [
 requires-dist = [
     { name = "django", specifier = ">=4.0" },
     { name = "sentry-sdk", specifier = ">=2.0.0" },
+]
+
+[[package]]
+name = "ol-openedx-uai-content-customization"
+version = "0.1.0"
+source = { editable = "src/ol_openedx_uai_content_customization" }
+dependencies = [
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "edx-django-utils" },
+    { name = "edx-opaque-keys" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "django", specifier = ">=4.0" },
+    { name = "edx-django-utils", specifier = ">4.0.0" },
+    { name = "edx-opaque-keys" },
 ]
 
 [[package]]
