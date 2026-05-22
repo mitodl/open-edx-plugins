@@ -10,7 +10,7 @@ This document describes the available feature flags for controlling git auto-exp
 - **Type**: Boolean
 - **Default**: `True`
 - **Purpose**: Controls automatic git export for courses when they are published
-- **Scope**: Courses only (unless library flag not set, see below)
+- **Scope**: Courses only
 - **Location**: `settings.FEATURES['ENABLE_GIT_AUTO_EXPORT']`
 
 **Example**:
@@ -22,7 +22,7 @@ FEATURES['ENABLE_GIT_AUTO_EXPORT'] = True
 - **Type**: Boolean
 - **Default**: `False`
 - **Purpose**: Controls automatic GitHub repository creation for new courses
-- **Scope**: Courses only (unless library flag not set, see below)
+- **Scope**: Courses only
 - **Location**: `settings.FEATURES['ENABLE_AUTO_GITHUB_REPO_CREATION']`
 
 **Example**:
