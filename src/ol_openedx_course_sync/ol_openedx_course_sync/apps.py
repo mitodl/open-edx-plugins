@@ -34,5 +34,11 @@ class OLOpenEdxCourseSyncConfig(AppConfig):
                 },
                 SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
             },
+            ProjectType.LMS: {
+                SettingsType.PRODUCTION: {
+                    PluginSettings.RELATIVE_PATH: "settings.production"
+                },
+                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
+            },
         },
     }
