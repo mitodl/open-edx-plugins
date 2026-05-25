@@ -103,21 +103,21 @@ You will need two CSV files:
    - ``video_file_name`` — file name matching the ``name`` column in the edX videos CSV
    - ``video_title`` — display name for the subsection/unit/video
    - ``module_name`` — used to build the course display name
-     - ``course_intro`` — optional introduction content for the generated course.
-         If this value contains HTML tags, it is used as-is. If it is plain text,
-         the command wraps it in ``<p>...</p>``.
+   - ``course_intro`` — optional introduction content for the generated course.
+     If this value contains HTML tags, it is used as-is. If it is plain text,
+     the command wraps it in ``<p>...</p>``.
 
-      Intro resolution precedence for each generated
-      ``(course_key, industry, duration)`` variant:
+     Intro resolution precedence for each generated
+     ``(course_key, industry, duration)`` variant:
 
-      1. exact match on ``(course_key, industry, duration)``
-      2. fallback to ``(course_key, industry)`` (industry-only intro, reused for
-          both short and long)
-      3. fallback to ``(course_key, Original industry)`` (reused across all
-          industries and durations for that source course)
+     1. exact match on ``(course_key, industry, duration)``
+     2. fallback to ``(course_key, industry)`` (industry-only intro, reused for
+        both short and long)
+     3. fallback to ``(course_key, Original industry)`` (reused across all
+        industries and durations for that source course)
 
-      If no intro is resolved, no Introduction section is created for that
-      variant.
+     If no intro is resolved, no Introduction section is created for that
+     variant.
 
 2. **Open edX videos CSV** — exported from Studio / OVS after uploading
    the customized videos. Required columns:
