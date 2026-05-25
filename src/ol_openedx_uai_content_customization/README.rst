@@ -105,7 +105,7 @@ You will need two CSV files:
    - ``module_name`` — used to build the course display name
    - ``course_intro`` — optional introduction content for the generated course.
      If this value contains HTML tags, it is used as-is. If it is plain text,
-     the command wraps it in ``<p>...</p>``.
+     the command HTML-escapes it and wraps it in ``<p>...</p>``.
 
      Intro resolution precedence for each generated
      ``(course_key, industry, duration)`` variant:
