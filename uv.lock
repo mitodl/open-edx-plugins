@@ -2129,7 +2129,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat"
-version = "0.5.6"
+version = "0.5.8"
 source = { editable = "src/ol_openedx_chat" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2261,7 +2261,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-sync"
-version = "0.5.4"
+version = "1.0.0"
 source = { editable = "src/ol_openedx_course_sync" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2329,7 +2329,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-git-auto-export"
-version = "0.7.2"
+version = "0.8.1"
 source = { editable = "src/ol_openedx_git_auto_export" }
 dependencies = [
     { name = "celery" },
@@ -2451,7 +2451,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-uai-content-customization"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "src/ol_openedx_uai_content_customization" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
