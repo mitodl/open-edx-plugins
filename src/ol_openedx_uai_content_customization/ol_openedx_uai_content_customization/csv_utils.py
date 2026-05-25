@@ -185,7 +185,7 @@ def build_course_intro_lookup(customized_rows):
         exact.setdefault((course_key, industry_name, duration), intro_text)
         industry.setdefault((course_key, industry_name), intro_text)
 
-        if industry_name == "Original industry":
+        if INDUSTRY_CODES.get(industry_name) == "":
             original.setdefault(course_key, intro_text)
 
     return {
