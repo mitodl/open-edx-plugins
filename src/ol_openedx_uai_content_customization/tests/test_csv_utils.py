@@ -6,6 +6,7 @@ from ol_openedx_uai_content_customization.csv_utils import (
     build_new_course_key,
     build_video_id_map,
     group_videos_by_course,
+    normalize_course_intro,
     parse_csv,
     resolve_course_intro,
     resolve_duration_code,
@@ -300,3 +301,13 @@ def test_build_course_intro_lookup_first_row_wins_for_conflicts():
         resolve_course_intro(lookup, "course-v1:ORG+NUM+RUN", "Finance", "short")
         == "<p>First intro</p>"
     )
+
+
+def test_normalize_course_intro_keeps_html_as_is():
+    """Existing HTML content should be stored without modification."""
+    assert normalize_course_intro("<p>Already HTML</p>") == "<p>Already HTML</p>"
+
+
+def test_normalize_course_intro_wraps_plain_text_in_paragraph():
+    """Plain text should be wrapped in a paragraph tag and escaped."""
+    assert normalize_course_intro("Hello & welcome") == "<p>Hello &amp; welcome</p>"

@@ -103,8 +103,9 @@ You will need two CSV files:
    - ``video_file_name`` — file name matching the ``name`` column in the edX videos CSV
    - ``video_title`` — display name for the subsection/unit/video
    - ``module_name`` — used to build the course display name
-    - ``course_intro`` — HTML content used to create an optional Introduction
-      section in the generated course.
+     - ``course_intro`` — optional introduction content for the generated course.
+         If this value contains HTML tags, it is used as-is. If it is plain text,
+         the command wraps it in ``<p>...</p>``.
 
       Intro resolution precedence for each generated
       ``(course_key, industry, duration)`` variant:

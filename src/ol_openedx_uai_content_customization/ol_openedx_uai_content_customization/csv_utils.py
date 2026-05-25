@@ -4,6 +4,7 @@ import csv
 from collections import defaultdict
 from pathlib import Path
 
+from django.utils.html import escape, strip_tags
 from opaque_keys.edx.keys import CourseKey
 
 from ol_openedx_uai_content_customization.constants import (
@@ -173,7 +174,7 @@ def build_course_intro_lookup(customized_rows):
     original = {}
 
     for row in customized_rows:
-        intro_text = str(row.get(CSV_COL_COURSE_INTRO, "")).strip()
+        intro_text = normalize_course_intro(row.get(CSV_COL_COURSE_INTRO, ""))
         if not intro_text:
             continue
 
@@ -192,6 +193,29 @@ def build_course_intro_lookup(customized_rows):
         "industry": industry,
         "original": original,
     }
+
+
+def normalize_course_intro(intro_value):
+    """
+    Normalize course intro content to HTML.
+
+    If the intro already contains HTML tags, return it as-is. Otherwise,
+    treat the value as plain text and wrap it in a paragraph tag.
+
+    Args:
+        intro_value: Raw course_intro cell value from CSV.
+
+    Returns:
+        HTML string or empty string.
+    """
+    intro_text = str(intro_value).strip()
+    if not intro_text:
+        return ""
+
+    if strip_tags(intro_text) != intro_text:
+        return intro_text
+
+    return f"<p>{escape(intro_text)}</p>"
 
 
 def resolve_course_intro(course_intro_lookup, course_key, industry, duration):
