@@ -72,7 +72,7 @@ Course Structure
 Each generated course has the following structure::
 
     Course (<display name>)
-    └── Introduction  (section, optional)
+    ├── Introduction  (section, optional)
         └── Introduction  (subsection)
             └── Introduction  (unit)
                 └── Introduction  (HTML block)
@@ -169,7 +169,7 @@ For each unique ``(course_key, industry, duration)`` group the command:
 4. **Rebuilds** the content tree from the CSV rows::
 
        Course  (cloned — settings inherited)
-       └── Introduction  (optional, created only when ``course_intro`` resolves)
+       ├── Introduction  (optional, created only when ``course_intro`` resolves)
            └── Introduction  (subsection)
                └── Introduction  (unit)
                    └── Introduction  (HTML block)
