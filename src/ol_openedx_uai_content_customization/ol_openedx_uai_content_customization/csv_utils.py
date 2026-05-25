@@ -208,7 +208,7 @@ def normalize_course_intro(intro_value):
     Returns:
         HTML string or empty string.
     """
-    intro_text = str(intro_value).strip()
+    intro_text = ("" if intro_value is None else str(intro_value)).strip()
     if not intro_text:
         return ""
 
