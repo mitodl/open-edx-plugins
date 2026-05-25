@@ -9,6 +9,7 @@ from opaque_keys.edx.keys import CourseKey
 from ol_openedx_uai_content_customization.constants import (
     CSV_COL_ASSET_NAME,
     CSV_COL_ASSET_VIDEO_ID,
+    CSV_COL_COURSE_INTRO,
     CSV_COL_COURSE_KEY,
     CSV_COL_DURATION,
     CSV_COL_INDUSTRY,
@@ -152,3 +153,64 @@ def group_videos_by_course(customized_rows):
         )
         groups[key].append(row)
     return groups
+
+
+def build_course_intro_lookup(customized_rows):
+    """
+    Build lookup maps for resolving a course intro by specificity.
+
+    Uses first-row-wins behavior when multiple rows provide conflicting
+    ``course_intro`` values for the same lookup key.
+
+    Returns:
+        dict with keys:
+            - "exact": (course_key, industry, duration) -> intro
+            - "industry": (course_key, industry) -> intro
+            - "original": course_key -> intro (from Original industry rows)
+    """
+    exact = {}
+    industry = {}
+    original = {}
+
+    for row in customized_rows:
+        intro_text = str(row.get(CSV_COL_COURSE_INTRO, "")).strip()
+        if not intro_text:
+            continue
+
+        course_key = row[CSV_COL_COURSE_KEY]
+        industry_name = row[CSV_COL_INDUSTRY]
+        duration = row[CSV_COL_DURATION]
+
+        exact.setdefault((course_key, industry_name, duration), intro_text)
+        industry.setdefault((course_key, industry_name), intro_text)
+
+        if industry_name == "Original industry":
+            original.setdefault(course_key, intro_text)
+
+    return {
+        "exact": exact,
+        "industry": industry,
+        "original": original,
+    }
+
+
+def resolve_course_intro(course_intro_lookup, course_key, industry, duration):
+    """
+    Resolve intro text for a generated course variant.
+
+    Precedence:
+        1. exact match: (course_key, industry, duration)
+        2. industry-level: (course_key, industry)
+        3. original-industry fallback: (course_key)
+        4. no match -> empty string
+    """
+    exact = course_intro_lookup["exact"]
+    by_industry = course_intro_lookup["industry"]
+    original = course_intro_lookup["original"]
+
+    return (
+        exact.get((course_key, industry, duration))
+        or by_industry.get((course_key, industry))
+        or original.get(course_key)
+        or ""
+    )

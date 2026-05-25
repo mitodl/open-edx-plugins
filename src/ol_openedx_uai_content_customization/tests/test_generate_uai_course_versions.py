@@ -9,6 +9,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from ol_openedx_uai_content_customization.constants import (
     BLOCK_TYPE_CHAPTER,
+    BLOCK_TYPE_HTML,
     BLOCK_TYPE_SEQUENTIAL,
     BLOCK_TYPE_VERTICAL,
     BLOCK_TYPE_VIDEO,
@@ -17,13 +18,13 @@ from xmodule.modulestore.exceptions import DuplicateCourseError
 
 PROCESSED_VIDEOS_CSV_CONTENT = (
     "course_key,industry,duration,"
-    "video_file_name,video_title,module_name\n"
+    "video_file_name,video_title,module_name,course_intro\n"
     "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
-    "v004_h264.mp4,Machine Learning Concepts,Module 2\n"
+    "v004_h264.mp4,Machine Learning Concepts,Module 2,<p>Healthcare short intro</p>\n"
     "course-v1:UAI_SOURCE+UAI.2+1T2026,Finance,short,"
-    "v005_h264.mp4,Machine Learning Concepts,Module 2\n"
+    "v005_h264.mp4,Machine Learning Concepts,Module 2,<p>Finance short intro</p>\n"
     "course-v1:UAI_SOURCE+UAI.3+1T2026,Original industry,long,"
-    "v011_h264.mp4,Data Analytics,Module 3\n"
+    "v011_h264.mp4,Data Analytics,Module 3,<p>Original long intro</p>\n"
 )
 
 EDX_VIDEOS_CSV_CONTENT = (
@@ -45,6 +46,7 @@ EXPECTED_BLOCK_TYPES = (
     BLOCK_TYPE_SEQUENTIAL,
     BLOCK_TYPE_VERTICAL,
     BLOCK_TYPE_VIDEO,
+    BLOCK_TYPE_HTML,
 )
 
 
@@ -110,6 +112,7 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
         BLOCK_TYPE_SEQUENTIAL: mock.Mock(),
         BLOCK_TYPE_VERTICAL: mock.Mock(),
         BLOCK_TYPE_VIDEO: mock.Mock(),
+        BLOCK_TYPE_HTML: mock.Mock(),
     }
 
     def mock_create_content_block(parent, block_type, display_name, user_id, **kwargs):  # noqa: ARG001
@@ -136,15 +139,18 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
     assert mock_delete_sections.call_count == EXPECTED_COURSE_COUNT
 
     create_calls = mock_create_content_block_call.call_args_list
-    assert len(create_calls) == EXPECTED_COURSE_COUNT * 4
+    assert len(create_calls) == EXPECTED_COURSE_COUNT * 8
 
     counts_by_type = dict.fromkeys(EXPECTED_BLOCK_TYPES, 0)
     for call in create_calls:
         block_type = call.args[1]
         counts_by_type[block_type] += 1
 
-    for block_type in EXPECTED_BLOCK_TYPES:
-        assert counts_by_type[block_type] == EXPECTED_COURSE_COUNT
+    assert counts_by_type[BLOCK_TYPE_CHAPTER] == EXPECTED_COURSE_COUNT * 2
+    assert counts_by_type[BLOCK_TYPE_SEQUENTIAL] == EXPECTED_COURSE_COUNT * 2
+    assert counts_by_type[BLOCK_TYPE_VERTICAL] == EXPECTED_COURSE_COUNT * 2
+    assert counts_by_type[BLOCK_TYPE_VIDEO] == EXPECTED_COURSE_COUNT
+    assert counts_by_type[BLOCK_TYPE_HTML] == EXPECTED_COURSE_COUNT
 
 
 @pytest.mark.parametrize("expected_key", EXPECTED_NEW_COURSE_KEYS)
@@ -179,9 +185,9 @@ def test_unmapped_video_is_skipped_with_warning(tmp_path, mock_user):  # noqa: A
     processed_videos = tmp_path / "processed_videos.csv"
     processed_videos.write_text(
         "course_key,industry,duration,video_file_name,"
-        "video_title,module_name\n"
+        "video_title,module_name,course_intro\n"
         "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
-        "MISSING_FILE.mp4,Some Title,Module 2\n"
+        "MISSING_FILE.mp4,Some Title,Module 2,<p>Missing mapping intro</p>\n"
     )
     edx_videos = tmp_path / "edx_videos.csv"
     edx_videos.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
@@ -263,9 +269,9 @@ def test_unknown_industry_is_skipped_with_warning(tmp_path, mock_user):  # noqa:
     processed_videos = tmp_path / "processed_videos.csv"
     processed_videos.write_text(
         "course_key,industry,duration,video_file_name,"
-        "video_title,module_name\n"
+        "video_title,module_name,course_intro\n"
         "course-v1:UAI_SOURCE+UAI.2+1T2026,UnknownSector,short,"
-        "v004_h264.mp4,Some Title,Module 2\n"
+        "v004_h264.mp4,Some Title,Module 2,<p>Unknown sector intro</p>\n"
     )
     edx_videos = tmp_path / "edx_videos.csv"
     edx_videos.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
@@ -347,3 +353,38 @@ def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # 
         assert call_order[i + 1] == "create_chapter", (
             f"Expected create_chapter at position {i + 1}"
         )
+
+
+def test_skips_introduction_when_course_intro_missing(tmp_path, mock_user):  # noqa: ARG001
+    """If no intro resolves for a variant, no HTML intro block should be created."""
+    processed_videos = tmp_path / "processed_videos.csv"
+    processed_videos.write_text(
+        "course_key,industry,duration,video_file_name,"
+        "video_title,module_name,course_intro\n"
+        "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
+        "v004_h264.mp4,Some Title,Module 2,\n"
+    )
+    edx_videos = tmp_path / "edx_videos.csv"
+    edx_videos.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
+        mock.patch(
+            f"{_CMD}.get_or_clone_course_in_modulestore", return_value=mock.Mock()
+        ),
+        mock.patch(f"{_CMD}.delete_course_sections"),
+        mock.patch(f"{_CMD}.create_content_block") as mock_create_content_block,
+        mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
+    ):
+        call_command(
+            "generate_uai_course_versions",
+            processed_videos_csv=str(processed_videos),
+            edx_videos_csv=str(edx_videos),
+        )
+
+    html_calls = [
+        call
+        for call in mock_create_content_block.call_args_list
+        if call.args[1] == BLOCK_TYPE_HTML
+    ]
+    assert not html_calls

@@ -2,10 +2,12 @@
 
 import pytest
 from ol_openedx_uai_content_customization.csv_utils import (
+    build_course_intro_lookup,
     build_new_course_key,
     build_video_id_map,
     group_videos_by_course,
     parse_csv,
+    resolve_course_intro,
     resolve_duration_code,
     validate_csv_columns,
 )
@@ -160,6 +162,7 @@ def _make_row(course_key, industry, duration, video_file="v001.mp4", title="Titl
         "video_file_name": video_file,
         "video_title": title,
         "module_name": "Module 2",
+        "course_intro": "",
     }
 
 
@@ -213,3 +216,87 @@ def test_group_videos_by_course(rows, expected_group_count, expected_group_sizes
     assert len(groups) == expected_group_count
     for key, size in expected_group_sizes.items():
         assert len(groups[key]) == size
+
+
+def test_resolve_course_intro_precedence_exact_overrides_industry_and_original():
+    """Exact (course, industry, duration) intro should have highest precedence."""
+    rows = [
+        {
+            **_make_row("course-v1:ORG+NUM+RUN", "Original industry", "short"),
+            "course_intro": "<p>Original fallback</p>",
+        },
+        {
+            **_make_row("course-v1:ORG+NUM+RUN", "Healthcare", "long"),
+            "course_intro": "<p>Healthcare industry intro</p>",
+        },
+        {
+            **_make_row("course-v1:ORG+NUM+RUN", "Healthcare", "short"),
+            "course_intro": "<p>Healthcare short intro</p>",
+        },
+    ]
+
+    lookup = build_course_intro_lookup(rows)
+
+    assert (
+        resolve_course_intro(lookup, "course-v1:ORG+NUM+RUN", "Healthcare", "short")
+        == "<p>Healthcare short intro</p>"
+    )
+
+
+def test_resolve_course_intro_industry_fallback_applies_across_durations():
+    """Industry intro should apply when no duration-specific intro exists."""
+    rows = [
+        {
+            **_make_row("course-v1:ORG+NUM+RUN", "Healthcare", "long"),
+            "course_intro": "<p>Healthcare generic intro</p>",
+        }
+    ]
+
+    lookup = build_course_intro_lookup(rows)
+
+    assert (
+        resolve_course_intro(lookup, "course-v1:ORG+NUM+RUN", "Healthcare", "short")
+        == "<p>Healthcare generic intro</p>"
+    )
+    assert (
+        resolve_course_intro(lookup, "course-v1:ORG+NUM+RUN", "Healthcare", "long")
+        == "<p>Healthcare generic intro</p>"
+    )
+
+
+def test_resolve_course_intro_original_industry_fallback_across_industries():
+    """Original industry intro should be fallback for other industries."""
+    rows = [
+        {
+            **_make_row("course-v1:ORG+NUM+RUN", "Original industry", "short"),
+            "course_intro": "<p>Original intro</p>",
+        }
+    ]
+
+    lookup = build_course_intro_lookup(rows)
+
+    assert (
+        resolve_course_intro(lookup, "course-v1:ORG+NUM+RUN", "Finance", "long")
+        == "<p>Original intro</p>"
+    )
+
+
+def test_build_course_intro_lookup_first_row_wins_for_conflicts():
+    """When same lookup key appears more than once, first row should win."""
+    rows = [
+        {
+            **_make_row("course-v1:ORG+NUM+RUN", "Finance", "short"),
+            "course_intro": "<p>First intro</p>",
+        },
+        {
+            **_make_row("course-v1:ORG+NUM+RUN", "Finance", "short"),
+            "course_intro": "<p>Second intro</p>",
+        },
+    ]
+
+    lookup = build_course_intro_lookup(rows)
+
+    assert (
+        resolve_course_intro(lookup, "course-v1:ORG+NUM+RUN", "Finance", "short")
+        == "<p>First intro</p>"
+    )
