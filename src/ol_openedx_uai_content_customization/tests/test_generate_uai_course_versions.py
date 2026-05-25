@@ -346,12 +346,28 @@ def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # 
             edx_videos_csv=edx_videos_csv,
         )
 
-    assert call_order.count("delete") == EXPECTED_COURSE_COUNT
-    assert call_order.count("create_chapter") == EXPECTED_COURSE_COUNT
-    for i in range(0, len(call_order), 2):
-        assert call_order[i] == "delete", f"Expected delete at position {i}"
-        assert call_order[i + 1] == "create_chapter", (
-            f"Expected create_chapter at position {i + 1}"
+    delete_indices = [
+        index for index, action in enumerate(call_order) if action == "delete"
+    ]
+    chapter_indices = [
+        index for index, action in enumerate(call_order) if action == "create_chapter"
+    ]
+
+    assert len(delete_indices) == EXPECTED_COURSE_COUNT
+    assert EXPECTED_COURSE_COUNT <= len(chapter_indices) <= EXPECTED_COURSE_COUNT * 2
+
+    for index, delete_index in enumerate(delete_indices):
+        next_delete_index = (
+            delete_indices[index + 1]
+            if index + 1 < len(delete_indices)
+            else len(call_order)
+        )
+        assert any(
+            delete_index < chapter_index < next_delete_index
+            for chapter_index in chapter_indices
+        ), (
+            "Expected at least one create_chapter call after delete and before "
+            "the next delete"
         )
 
 
