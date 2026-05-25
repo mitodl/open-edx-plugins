@@ -4,7 +4,7 @@ INDUSTRY_CODES = {
     "Healthcare": "HC",
     "Finance": "F",
     "Energy": "E",
-    "Original industry": "",
+    "Original": "",
 }
 
 DURATION_CODE_SHORT = "S"

@@ -128,13 +128,13 @@ def test_resolve_duration_code_unknown_raises():
         ),
         (
             "course-v1:UAI_SOURCE+UAI.3+1T2026",
-            "Original industry",
+            "Original",
             "short",
             "course-v1:UAI_SOURCE+UAI.3.S+1T2026",
         ),
         (
             "course-v1:UAI_SOURCE+UAI.3+1T2026",
-            "Original industry",
+            "Original",
             "long",
             "course-v1:UAI_SOURCE+UAI.3.F+1T2026",
         ),
@@ -195,7 +195,7 @@ def _make_row(course_key, industry, duration, video_file="v001.mp4", title="Titl
                 _make_row("course-v1:ORG+NUM+RUN", "Healthcare", "short"),
                 _make_row("course-v1:ORG+NUM+RUN", "Finance", "short"),
                 _make_row("course-v1:ORG+NUM+RUN", "Energy", "long"),
-                _make_row("course-v1:ORG+NUM+RUN", "Original industry", "short"),
+                _make_row("course-v1:ORG+NUM+RUN", "Original", "short"),
             ],
             4,
             {},
@@ -223,7 +223,7 @@ def test_resolve_course_intro_precedence_exact_overrides_industry_and_original()
     """Exact (course, industry, duration) intro should have highest precedence."""
     rows = [
         {
-            **_make_row("course-v1:ORG+NUM+RUN", "Original industry", "short"),
+            **_make_row("course-v1:ORG+NUM+RUN", "Original", "short"),
             "course_intro": "<p>Original fallback</p>",
         },
         {
@@ -269,7 +269,7 @@ def test_resolve_course_intro_original_industry_fallback_across_industries():
     """Original industry intro should be fallback for other industries."""
     rows = [
         {
-            **_make_row("course-v1:ORG+NUM+RUN", "Original industry", "short"),
+            **_make_row("course-v1:ORG+NUM+RUN", "Original", "short"),
             "course_intro": "<p>Original intro</p>",
         }
     ]

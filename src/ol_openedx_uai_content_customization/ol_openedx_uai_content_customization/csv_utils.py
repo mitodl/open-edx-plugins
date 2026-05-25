@@ -106,7 +106,7 @@ def build_new_course_key(original_key, industry, duration_value):
 
     Format:  course-v1:ORG+NUMBER.<DURATION>[.<INDUSTRY>]+RUN
 
-    For "Original industry" no industry code is appended, so the format is:
+    For "Original" industry no industry code is appended, so the format is:
         course-v1:ORG+NUMBER.<DURATION>+RUN
 
     Args:
@@ -185,6 +185,9 @@ def build_course_intro_lookup(customized_rows):
         exact.setdefault((course_key, industry_name, duration), intro_text)
         industry.setdefault((course_key, industry_name), intro_text)
 
+        # Short code for "Original" industry is empty string.
+        # We use this to identify which rows are intended
+        # to provide original-industry fallback intros.
         if INDUSTRY_CODES.get(industry_name) == "":
             original.setdefault(course_key, intro_text)
 

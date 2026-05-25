@@ -98,7 +98,7 @@ You will need two CSV files:
      The command validates all source keys up-front and aborts with an error
      if any are missing.
    - ``industry`` — one of: ``Healthcare``, ``Finance``, ``Energy``,
-     ``Original industry``
+     ``Original``
    - ``duration`` — ``short`` or ``long``
    - ``video_file_name`` — file name matching the ``name`` column in the edX videos CSV
    - ``video_title`` — display name for the subsection/unit/video

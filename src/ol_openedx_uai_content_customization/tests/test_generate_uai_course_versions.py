@@ -23,7 +23,7 @@ PROCESSED_VIDEOS_CSV_CONTENT = (
     "v004_h264.mp4,Machine Learning Concepts,Module 2,<p>Healthcare short intro</p>\n"
     "course-v1:UAI_SOURCE+UAI.2+1T2026,Finance,short,"
     "v005_h264.mp4,Machine Learning Concepts,Module 2,<p>Finance short intro</p>\n"
-    "course-v1:UAI_SOURCE+UAI.3+1T2026,Original industry,long,"
+    "course-v1:UAI_SOURCE+UAI.3+1T2026,Original,long,"
     "v011_h264.mp4,Data Analytics,Module 3,<p>Original long intro</p>\n"
 )
 
