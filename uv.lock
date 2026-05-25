@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -2129,7 +2129,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat"
-version = "0.5.8"
+version = "0.5.6"
 source = { editable = "src/ol_openedx_chat" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2261,7 +2261,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-sync"
-version = "1.0.0"
+version = "0.5.4"
 source = { editable = "src/ol_openedx_course_sync" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2329,7 +2329,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-git-auto-export"
-version = "0.8.1"
+version = "0.7.2"
 source = { editable = "src/ol_openedx_git_auto_export" }
 dependencies = [
     { name = "celery" },
