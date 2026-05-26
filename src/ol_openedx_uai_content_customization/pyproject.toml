@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-uai-content-customization"
-version = "0.1.0"
+version = "0.1.1"
 description = "An Open edX plugin to generate industry/length-specific UAI custom courses from video CSV data."
 authors = [
   {name = "MIT Office of Digital Learning"}

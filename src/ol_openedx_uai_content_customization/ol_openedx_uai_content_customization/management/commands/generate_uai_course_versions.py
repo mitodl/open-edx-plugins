@@ -44,27 +44,34 @@ from xmodule.modulestore.exceptions import DuplicateCourseError
 
 from ol_openedx_uai_content_customization.constants import (
     BLOCK_TYPE_CHAPTER,
+    BLOCK_TYPE_HTML,
     BLOCK_TYPE_SEQUENTIAL,
     BLOCK_TYPE_VERTICAL,
     BLOCK_TYPE_VIDEO,
     CSV_COL_MODULE_NAME,
     CSV_COL_VIDEO_FILE_NAME,
     CSV_COL_VIDEO_TITLE,
+    INTRO_HTML_DISPLAY_NAME,
+    INTRO_SECTION_DISPLAY_NAME,
+    INTRO_SUBSECTION_DISPLAY_NAME,
+    INTRO_UNIT_DISPLAY_NAME,
     LECTURES_SECTION_DISPLAY_NAME,
     REQUIRED_ASSET_CSV_COLS,
     REQUIRED_CUSTOMIZED_CSV_COLS,
 )
 from ol_openedx_uai_content_customization.csv_utils import (
+    build_course_intro_lookup,
     build_new_course_key,
     build_video_id_map,
     group_videos_by_course,
     parse_csv,
+    resolve_course_intro,
     validate_csv_columns,
 )
 from ol_openedx_uai_content_customization.modulestore_utils import (
+    clone_course_in_modulestore,
     create_content_block,
     delete_course_sections,
-    get_or_clone_course_in_modulestore,
     save_video_block_with_edx_video_id,
 )
 
@@ -146,6 +153,8 @@ class Command(BaseCommand):
         )
 
         course_groups = group_videos_by_course(processed_video_rows)
+        course_intro_lookup = build_course_intro_lookup(processed_video_rows)
+        intro_by_course_key = {}
         self.stdout.write(f"Found {len(course_groups)} course variant(s) to create.")
 
         self._validate_source_course_keys(course_groups)
@@ -166,12 +175,22 @@ class Command(BaseCommand):
                 continue
 
             display_name = self._build_display_name(videos)
+            course_intro = resolve_course_intro(
+                course_intro_lookup,
+                orig_key,
+                industry,
+                duration,
+            )
+            intro_by_course_key[new_course_key] = course_intro
 
             self.stdout.write(
                 f"\n-> {orig_key} [{industry}, {duration}] -> {new_course_key}"
             )
             self.stdout.write(f"  Display name : {display_name}")
             self.stdout.write(f"  Videos       : {len(videos)}")
+            self.stdout.write(
+                f"  Intro        : {'present' if course_intro else 'missing'}"
+            )
 
             if dry_run:
                 for video in videos:
@@ -187,6 +206,7 @@ class Command(BaseCommand):
                     source_key,
                     new_course_key,
                     display_name,
+                    intro_by_course_key[new_course_key],
                     videos,
                     video_id_map,
                     user,
@@ -247,7 +267,14 @@ class Command(BaseCommand):
             raise CommandError(msg)
 
     def _create_course(  # noqa: PLR0913
-        self, source_key, course_key_str, display_name, videos, video_id_map, user
+        self,
+        source_key,
+        course_key_str,
+        display_name,
+        course_intro,
+        videos,
+        video_id_map,
+        user,
     ):
         """
         Clone the source course, strip its sections, then populate with UAI content.
@@ -262,16 +289,54 @@ class Command(BaseCommand):
         parsed_key = CourseKey.from_string(course_key_str)
         user_id = user.id
         store = modulestore()
+
+        course = None
+        # Delete existing course content if the course
+        # already exists, to ensure a clean slate.
+        if store.has_course(parsed_key):
+            course = store.get_course(parsed_key)
+            with store.bulk_operations(parsed_key):
+                delete_course_sections(course, user_id)
+
         with store.bulk_operations(parsed_key):
-            course = get_or_clone_course_in_modulestore(
-                source_key,
-                parsed_key.org,
-                parsed_key.course,
-                parsed_key.run,
-                display_name,
-                user_id,
-            )
-            delete_course_sections(course, user_id)
+            if not course:
+                course = clone_course_in_modulestore(
+                    source_key,
+                    parsed_key.org,
+                    parsed_key.course,
+                    parsed_key.run,
+                    display_name,
+                    user_id,
+                )
+                delete_course_sections(course, user_id)
+
+            if course_intro:
+                intro_section = create_content_block(
+                    course,
+                    BLOCK_TYPE_CHAPTER,
+                    INTRO_SECTION_DISPLAY_NAME,
+                    user_id,
+                )
+                intro_subsection = create_content_block(
+                    intro_section,
+                    BLOCK_TYPE_SEQUENTIAL,
+                    INTRO_SUBSECTION_DISPLAY_NAME,
+                    user_id,
+                )
+                intro_unit = create_content_block(
+                    intro_subsection,
+                    BLOCK_TYPE_VERTICAL,
+                    INTRO_UNIT_DISPLAY_NAME,
+                    user_id,
+                )
+                create_content_block(
+                    intro_unit,
+                    BLOCK_TYPE_HTML,
+                    INTRO_HTML_DISPLAY_NAME,
+                    user_id,
+                    data=course_intro,
+                )
+
             section = create_content_block(
                 course,
                 BLOCK_TYPE_CHAPTER,

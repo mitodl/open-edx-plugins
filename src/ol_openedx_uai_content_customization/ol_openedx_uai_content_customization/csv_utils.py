@@ -1,14 +1,17 @@
 """CSV parsing and video-mapping utilities for ol-openedx-uai-content-customization."""
 
 import csv
+import re
 from collections import defaultdict
 from pathlib import Path
 
+from django.utils.html import escape
 from opaque_keys.edx.keys import CourseKey
 
 from ol_openedx_uai_content_customization.constants import (
     CSV_COL_ASSET_NAME,
     CSV_COL_ASSET_VIDEO_ID,
+    CSV_COL_COURSE_INTRO,
     CSV_COL_COURSE_KEY,
     CSV_COL_DURATION,
     CSV_COL_INDUSTRY,
@@ -104,7 +107,7 @@ def build_new_course_key(original_key, industry, duration_value):
 
     Format:  course-v1:ORG+NUMBER.<DURATION>[.<INDUSTRY>]+RUN
 
-    For "Original industry" no industry code is appended, so the format is:
+    For "Original" industry no industry code is appended, so the format is:
         course-v1:ORG+NUMBER.<DURATION>+RUN
 
     Args:
@@ -152,3 +155,91 @@ def group_videos_by_course(customized_rows):
         )
         groups[key].append(row)
     return groups
+
+
+def build_course_intro_lookup(customized_rows):
+    """
+    Build lookup maps for resolving a course intro by specificity.
+
+    Uses first-row-wins behavior when multiple rows provide conflicting
+    ``course_intro`` values for the same lookup key.
+
+    Returns:
+        dict with keys:
+            - "exact": (course_key, industry, duration) -> intro
+            - "industry": (course_key, industry) -> intro
+            - "original": course_key -> intro (from Original industry rows)
+    """
+    exact = {}
+    industry = {}
+    original = {}
+
+    for row in customized_rows:
+        intro_text = normalize_course_intro(row.get(CSV_COL_COURSE_INTRO, ""))
+        if not intro_text:
+            continue
+
+        course_key = row[CSV_COL_COURSE_KEY]
+        industry_name = row[CSV_COL_INDUSTRY]
+        duration = row[CSV_COL_DURATION]
+
+        exact.setdefault((course_key, industry_name, duration), intro_text)
+        industry.setdefault((course_key, industry_name), intro_text)
+
+        # Short code for "Original" industry is empty string.
+        # We use this to identify which rows are intended
+        # to provide original-industry fallback intros.
+        if INDUSTRY_CODES.get(industry_name) == "":
+            original.setdefault(course_key, intro_text)
+
+    return {
+        "exact": exact,
+        "industry": industry,
+        "original": original,
+    }
+
+
+def normalize_course_intro(intro_value):
+    """
+    Normalize course intro content to HTML.
+
+    If the intro already contains HTML tags, return it as-is. Otherwise,
+    treat the value as plain text and wrap it in a paragraph tag.
+
+    Args:
+        intro_value: Raw course_intro cell value from CSV.
+
+    Returns:
+        HTML string or empty string.
+    """
+    HTML_TAG_RE = re.compile(r"</?[a-zA-Z][a-zA-Z0-9]*(\s+[^<>]*)?>")
+    intro_text = ("" if not intro_value else str(intro_value)).strip()
+    if not intro_text:
+        return ""
+
+    if HTML_TAG_RE.search(intro_text):
+        return intro_text
+
+    return f"<p>{escape(intro_text)}</p>"
+
+
+def resolve_course_intro(course_intro_lookup, course_key, industry, duration):
+    """
+    Resolve intro text for a generated course variant.
+
+    Precedence:
+        1. exact match: (course_key, industry, duration)
+        2. industry-level: (course_key, industry)
+        3. original-industry fallback: (course_key)
+        4. no match -> empty string
+    """
+    exact = course_intro_lookup["exact"]
+    by_industry = course_intro_lookup["industry"]
+    original = course_intro_lookup["original"]
+
+    return (
+        exact.get((course_key, industry, duration))
+        or by_industry.get((course_key, industry))
+        or original.get(course_key)
+        or ""
+    )

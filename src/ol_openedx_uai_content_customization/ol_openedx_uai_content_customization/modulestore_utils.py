@@ -19,27 +19,15 @@ from ol_openedx_uai_content_customization.constants import (
 log = logging.getLogger(__name__)
 
 
-def get_or_clone_course_in_modulestore(  # noqa: PLR0913
+def clone_course_in_modulestore(  # noqa: PLR0913
     source_course_key, dest_org, dest_number, dest_run, display_name, user_id
 ):
     """
-    Get or clone a course in the modulestore.
-
-    If the destination course already exists, it is returned as-is.
-    Otherwise, a new course is cloned from the source course key with
-    the given destination parameters.
+    Clone a course in the modulestore.
     """
     store = modulestore()
     with store.default_store(ModuleStoreEnum.Type.split):
         dest_course_key = store.make_course_key(dest_org, dest_number, dest_run)
-
-        # if the course already exists, we assume it was cloned previously
-        # and return it rather than erroring out. This allows the cloning
-        # operation to be idempotent and the management command to be
-        # re-runnable without manual cleanup.
-        if store.has_course(dest_course_key):
-            return store.get_course(dest_course_key)
-
         course = store.clone_course(
             source_course_key,
             dest_course_key,

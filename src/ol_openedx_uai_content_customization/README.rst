@@ -72,6 +72,10 @@ Course Structure
 Each generated course has the following structure::
 
     Course (<display name>)
+    ├── Introduction  (section, optional)
+        └── Introduction  (subsection)
+            └── Introduction  (unit)
+                └── Introduction  (HTML block)
     └── Lectures  (section)
         └── <Video Title>  (subsection)
             └── <Video Title>  (unit)
@@ -94,11 +98,26 @@ You will need two CSV files:
      The command validates all source keys up-front and aborts with an error
      if any are missing.
    - ``industry`` — one of: ``Healthcare``, ``Finance``, ``Energy``,
-     ``Original industry``
+     ``Original``
    - ``duration`` — ``short`` or ``long``
    - ``video_file_name`` — file name matching the ``name`` column in the edX videos CSV
    - ``video_title`` — display name for the subsection/unit/video
    - ``module_name`` — used to build the course display name
+   - ``course_intro`` — optional introduction content for the generated course.
+     If this value contains HTML tags, it is used as-is. If it is plain text,
+     the command HTML-escapes it and wraps it in ``<p>...</p>``.
+
+     Intro resolution precedence for each generated
+     ``(course_key, industry, duration)`` variant:
+
+     1. exact match on ``(course_key, industry, duration)``
+     2. fallback to ``(course_key, industry)`` (industry-only intro, reused for
+        both short and long)
+     3. fallback to ``(course_key, Original industry)`` (reused across all
+        industries and durations for that source course)
+
+     If no intro is resolved, no Introduction section is created for that
+     variant.
 
 2. **Open edX videos CSV** — exported from Studio / OVS after uploading
    the customized videos. Required columns:
@@ -150,6 +169,10 @@ For each unique ``(course_key, industry, duration)`` group the command:
 4. **Rebuilds** the content tree from the CSV rows::
 
        Course  (cloned — settings inherited)
+       ├── Introduction  (optional, created only when ``course_intro`` resolves)
+           └── Introduction  (subsection)
+               └── Introduction  (unit)
+                   └── Introduction  (HTML block)
        └── Lectures  (section)
            └── <Video Title>  (subsection)
                └── <Video Title>  (unit)

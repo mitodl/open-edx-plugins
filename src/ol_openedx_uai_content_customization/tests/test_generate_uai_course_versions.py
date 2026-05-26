@@ -9,6 +9,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from ol_openedx_uai_content_customization.constants import (
     BLOCK_TYPE_CHAPTER,
+    BLOCK_TYPE_HTML,
     BLOCK_TYPE_SEQUENTIAL,
     BLOCK_TYPE_VERTICAL,
     BLOCK_TYPE_VIDEO,
@@ -17,13 +18,13 @@ from xmodule.modulestore.exceptions import DuplicateCourseError
 
 PROCESSED_VIDEOS_CSV_CONTENT = (
     "course_key,industry,duration,"
-    "video_file_name,video_title,module_name\n"
+    "video_file_name,video_title,module_name,course_intro\n"
     "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
-    "v004_h264.mp4,Machine Learning Concepts,Module 2\n"
+    "v004_h264.mp4,Machine Learning Concepts,Module 2,<p>Healthcare short intro</p>\n"
     "course-v1:UAI_SOURCE+UAI.2+1T2026,Finance,short,"
-    "v005_h264.mp4,Machine Learning Concepts,Module 2\n"
-    "course-v1:UAI_SOURCE+UAI.3+1T2026,Original industry,long,"
-    "v011_h264.mp4,Data Analytics,Module 3\n"
+    "v005_h264.mp4,Machine Learning Concepts,Module 2,<p>Finance short intro</p>\n"
+    "course-v1:UAI_SOURCE+UAI.3+1T2026,Original,long,"
+    "v011_h264.mp4,Data Analytics,Module 3,<p>Original long intro</p>\n"
 )
 
 EDX_VIDEOS_CSV_CONTENT = (
@@ -34,17 +35,22 @@ EDX_VIDEOS_CSV_CONTENT = (
 )
 
 _CMD = "ol_openedx_uai_content_customization.management.commands.generate_uai_course_versions"  # noqa: E501
-EXPECTED_COURSE_COUNT = 3
 EXPECTED_NEW_COURSE_KEYS = (
     "course-v1:UAI_SOURCE+UAI.2.S.HC+1T2026",
     "course-v1:UAI_SOURCE+UAI.2.S.F+1T2026",
     "course-v1:UAI_SOURCE+UAI.3.F+1T2026",
 )
+EXPECTED_SOURCE_COURSE_KEYS = (
+    "course-v1:UAI_SOURCE+UAI.2+1T2026",
+    "course-v1:UAI_SOURCE+UAI.3+1T2026",
+)
+EXPECTED_COURSE_COUNT = len(EXPECTED_NEW_COURSE_KEYS)
 EXPECTED_BLOCK_TYPES = (
     BLOCK_TYPE_CHAPTER,
     BLOCK_TYPE_SEQUENTIAL,
     BLOCK_TYPE_VERTICAL,
     BLOCK_TYPE_VIDEO,
+    BLOCK_TYPE_HTML,
 )
 
 
@@ -64,15 +70,27 @@ def mock_user(db):  # noqa: ARG001
     return UserFactory.create(username="studio_worker")
 
 
-def _modulestore_mock():
+def _modulestore_mock(*, source_course_exists=True, destination_course_exists=False):
     """
     Return a mock for the ``modulestore`` callable imported by the command.
 
-    ``has_course`` returns True by default so source-key validation passes in
-    the majority of tests that are not testing that code path.
+    ``has_course`` distinguishes source-vs-destination keys so tests can
+    exercise both paths in ``_create_course`` deterministically.
     """
     m = mock.MagicMock()
-    m.return_value.has_course.return_value = True
+
+    source_keys = set(EXPECTED_SOURCE_COURSE_KEYS)
+    destination_keys = set(EXPECTED_NEW_COURSE_KEYS)
+
+    def _has_course(course_key):
+        key = str(course_key)
+        if key in source_keys:
+            return source_course_exists
+        if key in destination_keys:
+            return destination_course_exists
+        return source_course_exists
+
+    m.return_value.has_course.side_effect = _has_course
     return m
 
 
@@ -86,7 +104,7 @@ def test_dry_run_prints_summary_without_creating_courses(
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(f"{_CMD}.get_or_clone_course_in_modulestore") as mock_clone,
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
     ):
         call_command(
             "generate_uai_course_versions",
@@ -110,6 +128,7 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
         BLOCK_TYPE_SEQUENTIAL: mock.Mock(),
         BLOCK_TYPE_VERTICAL: mock.Mock(),
         BLOCK_TYPE_VIDEO: mock.Mock(),
+        BLOCK_TYPE_HTML: mock.Mock(),
     }
 
     def mock_create_content_block(parent, block_type, display_name, user_id, **kwargs):  # noqa: ARG001
@@ -118,7 +137,7 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
         mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore", return_value=mock.Mock()
+            f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()
         ) as mock_clone,
         mock.patch(f"{_CMD}.delete_course_sections") as mock_delete_sections,
         mock.patch(
@@ -136,15 +155,18 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
     assert mock_delete_sections.call_count == EXPECTED_COURSE_COUNT
 
     create_calls = mock_create_content_block_call.call_args_list
-    assert len(create_calls) == EXPECTED_COURSE_COUNT * 4
+    assert len(create_calls) == EXPECTED_COURSE_COUNT * 8
 
     counts_by_type = dict.fromkeys(EXPECTED_BLOCK_TYPES, 0)
     for call in create_calls:
         block_type = call.args[1]
         counts_by_type[block_type] += 1
 
-    for block_type in EXPECTED_BLOCK_TYPES:
-        assert counts_by_type[block_type] == EXPECTED_COURSE_COUNT
+    assert counts_by_type[BLOCK_TYPE_CHAPTER] == EXPECTED_COURSE_COUNT * 2
+    assert counts_by_type[BLOCK_TYPE_SEQUENTIAL] == EXPECTED_COURSE_COUNT * 2
+    assert counts_by_type[BLOCK_TYPE_VERTICAL] == EXPECTED_COURSE_COUNT * 2
+    assert counts_by_type[BLOCK_TYPE_VIDEO] == EXPECTED_COURSE_COUNT
+    assert counts_by_type[BLOCK_TYPE_HTML] == EXPECTED_COURSE_COUNT
 
 
 @pytest.mark.parametrize("expected_key", EXPECTED_NEW_COURSE_KEYS)
@@ -158,9 +180,7 @@ def test_course_keys_are_correct(csv_files, mock_user, expected_key):  # noqa: A
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore", side_effect=capture_clone
-        ),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", side_effect=capture_clone),
         mock.patch(f"{_CMD}.delete_course_sections"),
         mock.patch(f"{_CMD}.create_content_block", return_value=mock.Mock()),
         mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
@@ -179,9 +199,9 @@ def test_unmapped_video_is_skipped_with_warning(tmp_path, mock_user):  # noqa: A
     processed_videos = tmp_path / "processed_videos.csv"
     processed_videos.write_text(
         "course_key,industry,duration,video_file_name,"
-        "video_title,module_name\n"
+        "video_title,module_name,course_intro\n"
         "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
-        "MISSING_FILE.mp4,Some Title,Module 2\n"
+        "MISSING_FILE.mp4,Some Title,Module 2,<p>Missing mapping intro</p>\n"
     )
     edx_videos = tmp_path / "edx_videos.csv"
     edx_videos.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
@@ -190,9 +210,7 @@ def test_unmapped_video_is_skipped_with_warning(tmp_path, mock_user):  # noqa: A
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore", return_value=mock.Mock()
-        ),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
         mock.patch(f"{_CMD}.delete_course_sections"),
         mock.patch(f"{_CMD}.create_content_block") as mock_create_content_block,
     ):
@@ -221,7 +239,7 @@ def test_duplicate_course_is_skipped_with_warning(csv_files, mock_user):  # noqa
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
         mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore",
+            f"{_CMD}.clone_course_in_modulestore",
             side_effect=DuplicateCourseError("x", "x"),
         ),
     ):
@@ -263,9 +281,9 @@ def test_unknown_industry_is_skipped_with_warning(tmp_path, mock_user):  # noqa:
     processed_videos = tmp_path / "processed_videos.csv"
     processed_videos.write_text(
         "course_key,industry,duration,video_file_name,"
-        "video_title,module_name\n"
+        "video_title,module_name,course_intro\n"
         "course-v1:UAI_SOURCE+UAI.2+1T2026,UnknownSector,short,"
-        "v004_h264.mp4,Some Title,Module 2\n"
+        "v004_h264.mp4,Some Title,Module 2,<p>Unknown sector intro</p>\n"
     )
     edx_videos = tmp_path / "edx_videos.csv"
     edx_videos.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
@@ -274,7 +292,7 @@ def test_unknown_industry_is_skipped_with_warning(tmp_path, mock_user):  # noqa:
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(f"{_CMD}.get_or_clone_course_in_modulestore") as mock_clone,
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
     ):
         call_command(
             "generate_uai_course_versions",
@@ -291,12 +309,11 @@ def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  #
     """CommandError is raised before any writes when a source course is absent."""
     processed_videos_csv, edx_videos_csv = csv_files
 
-    store_mock = _modulestore_mock()
-    store_mock.return_value.has_course.return_value = False
+    store_mock = _modulestore_mock(source_course_exists=False)
 
     with (
         mock.patch(f"{_CMD}.modulestore", store_mock),
-        mock.patch(f"{_CMD}.get_or_clone_course_in_modulestore") as mock_clone,
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
         pytest.raises(CommandError, match="not found in the modulestore"),
     ):
         call_command(
@@ -306,6 +323,35 @@ def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  #
         )
 
     mock_clone.assert_not_called()
+
+
+def test_existing_destination_course_is_rebuilt_without_clone(csv_files, mock_user):  # noqa: ARG001
+    """When destination exists, command should rebuild content without cloning."""
+    processed_videos_csv, edx_videos_csv = csv_files
+    existing_course = mock.Mock()
+    existing_course.location = mock.Mock()
+
+    store_mock = _modulestore_mock(
+        source_course_exists=True,
+        destination_course_exists=True,
+    )
+    store_mock.return_value.get_course.return_value = existing_course
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", store_mock),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
+        mock.patch(f"{_CMD}.delete_course_sections") as mock_delete_sections,
+        mock.patch(f"{_CMD}.create_content_block", return_value=mock.Mock()),
+        mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
+    ):
+        call_command(
+            "generate_uai_course_versions",
+            processed_videos_csv=processed_videos_csv,
+            edx_videos_csv=edx_videos_csv,
+        )
+
+    assert mock_clone.call_count == 0
+    assert mock_delete_sections.call_count == EXPECTED_COURSE_COUNT
 
 
 def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # noqa: ARG001
@@ -325,9 +371,7 @@ def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # 
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore", return_value=mock.Mock()
-        ),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
         mock.patch(f"{_CMD}.delete_course_sections", side_effect=record_delete),
         mock.patch(
             f"{_CMD}.create_content_block", side_effect=record_create_content_block
@@ -340,10 +384,59 @@ def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # 
             edx_videos_csv=edx_videos_csv,
         )
 
-    assert call_order.count("delete") == EXPECTED_COURSE_COUNT
-    assert call_order.count("create_chapter") == EXPECTED_COURSE_COUNT
-    for i in range(0, len(call_order), 2):
-        assert call_order[i] == "delete", f"Expected delete at position {i}"
-        assert call_order[i + 1] == "create_chapter", (
-            f"Expected create_chapter at position {i + 1}"
+    delete_indices = [
+        index for index, action in enumerate(call_order) if action == "delete"
+    ]
+    chapter_indices = [
+        index for index, action in enumerate(call_order) if action == "create_chapter"
+    ]
+
+    assert len(delete_indices) == EXPECTED_COURSE_COUNT
+    assert EXPECTED_COURSE_COUNT <= len(chapter_indices) <= EXPECTED_COURSE_COUNT * 2
+
+    for index, delete_index in enumerate(delete_indices):
+        next_delete_index = (
+            delete_indices[index + 1]
+            if index + 1 < len(delete_indices)
+            else len(call_order)
         )
+        assert any(
+            delete_index < chapter_index < next_delete_index
+            for chapter_index in chapter_indices
+        ), (
+            "Expected at least one create_chapter call after delete and before "
+            "the next delete"
+        )
+
+
+def test_skips_introduction_when_course_intro_missing(tmp_path, mock_user):  # noqa: ARG001
+    """If no intro resolves for a variant, no HTML intro block should be created."""
+    processed_videos = tmp_path / "processed_videos.csv"
+    processed_videos.write_text(
+        "course_key,industry,duration,video_file_name,"
+        "video_title,module_name,course_intro\n"
+        "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
+        "v004_h264.mp4,Some Title,Module 2,\n"
+    )
+    edx_videos = tmp_path / "edx_videos.csv"
+    edx_videos.write_text("name,video_id\nv004_h264.mp4,abc-123\n")
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
+        mock.patch(f"{_CMD}.delete_course_sections"),
+        mock.patch(f"{_CMD}.create_content_block") as mock_create_content_block,
+        mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
+    ):
+        call_command(
+            "generate_uai_course_versions",
+            processed_videos_csv=str(processed_videos),
+            edx_videos_csv=str(edx_videos),
+        )
+
+    html_calls = [
+        call
+        for call in mock_create_content_block.call_args_list
+        if call.args[1] == BLOCK_TYPE_HTML
+    ]
+    assert not html_calls
