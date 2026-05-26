@@ -1,10 +1,11 @@
 """CSV parsing and video-mapping utilities for ol-openedx-uai-content-customization."""
 
 import csv
+import re
 from collections import defaultdict
 from pathlib import Path
 
-from django.utils.html import escape, strip_tags
+from django.utils.html import escape
 from opaque_keys.edx.keys import CourseKey
 
 from ol_openedx_uai_content_customization.constants import (
@@ -211,11 +212,12 @@ def normalize_course_intro(intro_value):
     Returns:
         HTML string or empty string.
     """
-    intro_text = ("" if intro_value is None else str(intro_value)).strip()
+    HTML_TAG_RE = re.compile(r"</?[a-zA-Z][a-zA-Z0-9]*(\s+[^<>]*)?>")
+    intro_text = ("" if not intro_value else str(intro_value)).strip()
     if not intro_text:
         return ""
 
-    if strip_tags(intro_text) != intro_text:
+    if HTML_TAG_RE.search(intro_text):
         return intro_text
 
     return f"<p>{escape(intro_text)}</p>"
