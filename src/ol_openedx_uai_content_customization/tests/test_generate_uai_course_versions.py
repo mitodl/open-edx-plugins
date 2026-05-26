@@ -40,6 +40,10 @@ EXPECTED_NEW_COURSE_KEYS = (
     "course-v1:UAI_SOURCE+UAI.2.S.F+1T2026",
     "course-v1:UAI_SOURCE+UAI.3.F+1T2026",
 )
+EXPECTED_SOURCE_COURSE_KEYS = (
+    "course-v1:UAI_SOURCE+UAI.2+1T2026",
+    "course-v1:UAI_SOURCE+UAI.3+1T2026",
+)
 EXPECTED_COURSE_COUNT = len(EXPECTED_NEW_COURSE_KEYS)
 EXPECTED_BLOCK_TYPES = (
     BLOCK_TYPE_CHAPTER,
@@ -66,15 +70,27 @@ def mock_user(db):  # noqa: ARG001
     return UserFactory.create(username="studio_worker")
 
 
-def _modulestore_mock():
+def _modulestore_mock(*, source_course_exists=True, destination_course_exists=False):
     """
     Return a mock for the ``modulestore`` callable imported by the command.
 
-    ``has_course`` returns True by default so source-key validation passes in
-    the majority of tests that are not testing that code path.
+    ``has_course`` distinguishes source-vs-destination keys so tests can
+    exercise both paths in ``_create_course`` deterministically.
     """
     m = mock.MagicMock()
-    m.return_value.has_course.return_value = True
+
+    source_keys = set(EXPECTED_SOURCE_COURSE_KEYS)
+    destination_keys = set(EXPECTED_NEW_COURSE_KEYS)
+
+    def _has_course(course_key):
+        key = str(course_key)
+        if key in source_keys:
+            return source_course_exists
+        if key in destination_keys:
+            return destination_course_exists
+        return source_course_exists
+
+    m.return_value.has_course.side_effect = _has_course
     return m
 
 
@@ -293,8 +309,7 @@ def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  #
     """CommandError is raised before any writes when a source course is absent."""
     processed_videos_csv, edx_videos_csv = csv_files
 
-    store_mock = _modulestore_mock()
-    store_mock.return_value.has_course.return_value = False
+    store_mock = _modulestore_mock(source_course_exists=False)
 
     with (
         mock.patch(f"{_CMD}.modulestore", store_mock),
@@ -308,6 +323,35 @@ def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  #
         )
 
     mock_clone.assert_not_called()
+
+
+def test_existing_destination_course_is_rebuilt_without_clone(csv_files, mock_user):  # noqa: ARG001
+    """When destination exists, command should rebuild content without cloning."""
+    processed_videos_csv, edx_videos_csv = csv_files
+    existing_course = mock.Mock()
+    existing_course.location = mock.Mock()
+
+    store_mock = _modulestore_mock(
+        source_course_exists=True,
+        destination_course_exists=True,
+    )
+    store_mock.return_value.get_course.return_value = existing_course
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", store_mock),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
+        mock.patch(f"{_CMD}.delete_course_sections") as mock_delete_sections,
+        mock.patch(f"{_CMD}.create_content_block", return_value=mock.Mock()),
+        mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
+    ):
+        call_command(
+            "generate_uai_course_versions",
+            processed_videos_csv=processed_videos_csv,
+            edx_videos_csv=edx_videos_csv,
+        )
+
+    assert mock_clone.call_count == 0
+    assert mock_delete_sections.call_count == EXPECTED_COURSE_COUNT
 
 
 def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # noqa: ARG001
