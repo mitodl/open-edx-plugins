@@ -241,11 +241,12 @@ def sync_canvas_due_date_extensions(client, course, block, overrides):
                     student.id,
                     course.id,
                 )
+                due_date_override = parse_datetime(override["due_at"])
                 set_due_date_extension(
                     course,
                     block,
                     student,
-                    override["due_at"],
+                    due_date_override,
                     reason=f"Synced from canvas course: {canvas_course_id}",
                 )
 
@@ -305,14 +306,14 @@ def _sync_canvas_due_dates(course_id: str):
             except ItemNotFoundError:
                 TASK_LOG.error(
                     "Due Date Sync: Error updating due date for %s: block not found.",
-                    usage_key,
+                    usage_id,
                 )
             except InvalidKeyError:
                 TASK_LOG.error(
                     "Due Date Sync: Error updating due date for %s: invalid key.",
-                    usage_key,
+                    usage_id,
                 )
             except Exception as e:  # noqa: BLE001
                 TASK_LOG.error(
-                    "Due Date Sync: Error updating due date for %s: %s", usage_key, e
+                    "Due Date Sync: Error updating due date for %s: %s", usage_id, e
                 )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import ANY, MagicMock, patch
 
 import ddt
@@ -277,6 +278,6 @@ class CanvasDueDateSyncTests(ModuleStoreTestCase):
                         ANY,
                         ANY,
                         User.objects.get(email=f"user{student_id}@abc.xyz"),
-                        "2026-06-02T00:00:00Z",
+                        parse_datetime("2026-06-02T00:00:00Z"),
                         reason="Synced from canvas course: 11",
                     )
