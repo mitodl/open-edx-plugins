@@ -88,7 +88,7 @@ def test_dry_run_prints_summary_without_creating_courses(
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(f"{_CMD}.get_or_clone_course_in_modulestore") as mock_clone,
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
     ):
         call_command(
             "generate_uai_course_versions",
@@ -121,7 +121,7 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
         mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore", return_value=mock.Mock()
+            f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()
         ) as mock_clone,
         mock.patch(f"{_CMD}.delete_course_sections") as mock_delete_sections,
         mock.patch(
@@ -164,9 +164,7 @@ def test_course_keys_are_correct(csv_files, mock_user, expected_key):  # noqa: A
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore", side_effect=capture_clone
-        ),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", side_effect=capture_clone),
         mock.patch(f"{_CMD}.delete_course_sections"),
         mock.patch(f"{_CMD}.create_content_block", return_value=mock.Mock()),
         mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
@@ -196,9 +194,7 @@ def test_unmapped_video_is_skipped_with_warning(tmp_path, mock_user):  # noqa: A
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore", return_value=mock.Mock()
-        ),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
         mock.patch(f"{_CMD}.delete_course_sections"),
         mock.patch(f"{_CMD}.create_content_block") as mock_create_content_block,
     ):
@@ -227,7 +223,7 @@ def test_duplicate_course_is_skipped_with_warning(csv_files, mock_user):  # noqa
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
         mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore",
+            f"{_CMD}.clone_course_in_modulestore",
             side_effect=DuplicateCourseError("x", "x"),
         ),
     ):
@@ -280,7 +276,7 @@ def test_unknown_industry_is_skipped_with_warning(tmp_path, mock_user):  # noqa:
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(f"{_CMD}.get_or_clone_course_in_modulestore") as mock_clone,
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
     ):
         call_command(
             "generate_uai_course_versions",
@@ -302,7 +298,7 @@ def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  #
 
     with (
         mock.patch(f"{_CMD}.modulestore", store_mock),
-        mock.patch(f"{_CMD}.get_or_clone_course_in_modulestore") as mock_clone,
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
         pytest.raises(CommandError, match="not found in the modulestore"),
     ):
         call_command(
@@ -331,9 +327,7 @@ def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # 
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore", return_value=mock.Mock()
-        ),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
         mock.patch(f"{_CMD}.delete_course_sections", side_effect=record_delete),
         mock.patch(
             f"{_CMD}.create_content_block", side_effect=record_create_content_block
@@ -385,9 +379,7 @@ def test_skips_introduction_when_course_intro_missing(tmp_path, mock_user):  # n
 
     with (
         mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
-        mock.patch(
-            f"{_CMD}.get_or_clone_course_in_modulestore", return_value=mock.Mock()
-        ),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
         mock.patch(f"{_CMD}.delete_course_sections"),
         mock.patch(f"{_CMD}.create_content_block") as mock_create_content_block,
         mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),

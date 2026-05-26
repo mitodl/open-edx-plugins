@@ -69,9 +69,9 @@ from ol_openedx_uai_content_customization.csv_utils import (
     validate_csv_columns,
 )
 from ol_openedx_uai_content_customization.modulestore_utils import (
+    clone_course_in_modulestore,
     create_content_block,
     delete_course_sections,
-    get_or_clone_course_in_modulestore,
     save_video_block_with_edx_video_id,
 )
 
@@ -289,16 +289,26 @@ class Command(BaseCommand):
         parsed_key = CourseKey.from_string(course_key_str)
         user_id = user.id
         store = modulestore()
+
+        course = None
+        # Delete existing course content if the course
+        # already exists, to ensure a clean slate.
+        if store.has_course(parsed_key):
+            course = store.get_course(parsed_key)
+            with store.bulk_operations(parsed_key):
+                delete_course_sections(course, user_id)
+
         with store.bulk_operations(parsed_key):
-            course = get_or_clone_course_in_modulestore(
-                source_key,
-                parsed_key.org,
-                parsed_key.course,
-                parsed_key.run,
-                display_name,
-                user_id,
-            )
-            delete_course_sections(course, user_id)
+            if not course:
+                course = clone_course_in_modulestore(
+                    source_key,
+                    parsed_key.org,
+                    parsed_key.course,
+                    parsed_key.run,
+                    display_name,
+                    user_id,
+                )
+                delete_course_sections(course, user_id)
 
             if course_intro:
                 intro_section = create_content_block(
