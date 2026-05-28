@@ -1,48 +1,35 @@
+"""Production settings for ol_openedx_logging.
+
+This module is loaded by the Open edX plugin settings machinery before
+``django.setup()`` runs.  Its sole responsibility is to translate edX
+environment tokens into the canonical ``LOG_LEVEL`` environment variable so
+that ``configure_structlog()`` (called later in ``AppConfig.ready()``) picks
+up the correct log level without needing direct access to ``ENV_TOKENS``.
+
+The old JSON-file handler and ``RotatingFileHandler`` configuration has been
+removed.  Structured JSON logs are now written to stdout/stderr by structlog's
+``JSONRenderer`` and should be captured by the container / log-shipper layer.
+"""
+
 from __future__ import annotations
 
+import os
 from typing import Any
 
-MEGABYTE = 1024 * 1024
 
+def plugin_settings(edx_settings: Any) -> None:
+    """Translate edX log-level tokens into the canonical ``LOG_LEVEL`` env var.
 
-def _load_env_tokens(edx_settings, default_settings: dict[str, Any]) -> dict[str, Any]:
-    configured_tokens = getattr(edx_settings, "ENV_TOKENS", {})
-    default_settings.update(configured_tokens)
-    return default_settings
+    If the operator has set ``EDXAPP_LOG_LEVEL`` via ``ENV_TOKENS`` (or the
+    environment directly) and ``LOG_LEVEL`` is not already set, we forward the
+    value so that ``configure_structlog()`` honours it without any edX-specific
+    knowledge.
+    """
+    env_tokens: dict[str, Any] = getattr(edx_settings, "ENV_TOKENS", {})
 
+    edxapp_log_level: str = (
+        env_tokens.get("EDXAPP_LOG_LEVEL") or os.environ.get("EDXAPP_LOG_LEVEL") or ""
+    ).upper()
 
-def plugin_settings(edx_settings):
-    env_tokens = _load_env_tokens(
-        edx_settings,
-        {
-            "EDXAPP_LOG_LEVEL": "INFO",
-            "EDXAPP_LOG_FILE_PATH": "/var/log/edxapp/app.log",
-            "EDXAPP_LOG_FILE_MAX_MEGABYTES": 10,
-        },
-    )
-    edx_logging = getattr(edx_settings, "LOGGING", {})
-    edx_log_level = env_tokens["EDXAPP_LOG_LEVEL"]
-
-    edx_logging["formatters"]["json_format"] = {
-        "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-        "timestamp": True,
-        "reserved_attrs": [],  # Add all log attributes to JSON object
-    }
-
-    edx_logging["handlers"]["file"] = {
-        "level": edx_log_level,
-        "class": "logging.handlers.RotatingFileHandler",
-        "filename": env_tokens["EDXAPP_LOG_FILE_PATH"],
-        "formatter": "json_format",
-        "backupCount": 3,
-        "mode": "a",
-        "maxBytes": MEGABYTE * env_tokens["EDXAPP_LOG_FILE_MAX_MEGABYTES"],
-    }
-
-    edx_logging["loggers"][""] = {
-        "handlers": ["console", "local", "file"],
-        "level": edx_log_level,
-        "propagate": False,
-    }
-
-    edx_settings.LOGGING = edx_logging
+    if edxapp_log_level and not os.environ.get("LOG_LEVEL"):
+        os.environ["LOG_LEVEL"] = edxapp_log_level
