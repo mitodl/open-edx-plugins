@@ -64,8 +64,8 @@ class TestConfigureStructlogProduction:
         handler_classes = {type(h).__name__ for h in tracking.handlers}
         assert "MemoryHandler" in handler_classes
 
-    def test_tracking_handler_attached_when_logger_handlers_missing(self):
-        """tracking handler is attached even if settings LOGGING omits logger handlers."""
+    def test_tracking_handler_attached_without_logger_handlers(self):
+        """Tracking handler is attached even if settings LOGGING omits logger handlers."""
         from django.conf import settings  # noqa: PLC0415
 
         logging_config = copy.deepcopy(settings.LOGGING)
