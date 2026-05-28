@@ -180,7 +180,19 @@ def configure_structlog(*, debug: bool | None = None, force: bool = False) -> No
 
     tracking_logger = existing_logging.get("loggers", {}).get("tracking")
     if tracking_logger:
+        tracking_logger = dict(tracking_logger)
+        if tracking_handler:
+            handlers = list(tracking_logger.get("handlers", []))
+            if "tracking" not in handlers:
+                handlers.append("tracking")
+            tracking_logger["handlers"] = handlers
         extra_loggers["tracking"] = tracking_logger
+    elif tracking_handler:
+        extra_loggers["tracking"] = {
+            "handlers": ["tracking"],
+            "level": log_level,
+            "propagate": False,
+        }
 
     logging.config.dictConfig(
         {

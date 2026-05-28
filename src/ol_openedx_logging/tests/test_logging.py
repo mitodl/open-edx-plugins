@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import logging as stdlib_logging
 import os
 from unittest.mock import patch
@@ -58,6 +59,21 @@ class TestConfigureStructlogProduction:
     def test_tracking_handler_preserved(self):
         """edX ``tracking`` logger and its MemoryHandler are preserved."""
         configure_structlog(debug=False)
+        tracking = stdlib_logging.getLogger("tracking")
+        assert tracking.handlers, "tracking logger has no handlers"
+        handler_classes = {type(h).__name__ for h in tracking.handlers}
+        assert "MemoryHandler" in handler_classes
+
+    def test_tracking_handler_attached_when_logger_handlers_missing(self):
+        """tracking handler is attached even if settings LOGGING omits logger handlers."""
+        from django.conf import settings  # noqa: PLC0415
+
+        logging_config = copy.deepcopy(settings.LOGGING)
+        logging_config["loggers"]["tracking"].pop("handlers", None)
+
+        with patch.object(settings, "LOGGING", logging_config):
+            configure_structlog(debug=False)
+
         tracking = stdlib_logging.getLogger("tracking")
         assert tracking.handlers, "tracking logger has no handlers"
         handler_classes = {type(h).__name__ for h in tracking.handlers}
