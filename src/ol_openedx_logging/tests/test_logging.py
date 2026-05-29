@@ -7,17 +7,9 @@ import logging as stdlib_logging
 import os
 from unittest.mock import patch
 
-import django
 import pytest
 import structlog
-
-os.environ.setdefault(
-    "DJANGO_SETTINGS_MODULE",
-    "ol_openedx_logging.settings.test",
-)
-django.setup()
-
-from ol_openedx_logging.logging import (  # noqa: E402
+from ol_openedx_logging.logging import (
     configure_structlog,
     reset_configuration,
 )

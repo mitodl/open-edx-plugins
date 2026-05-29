@@ -14,6 +14,9 @@ ol_openedx_logging = "ol_openedx_logging.app:EdxLoggingLMS"
 [project.entry-points."cms.djangoapp"]
 ol_openedx_logging = "ol_openedx_logging.app:EdxLoggingCMS"
 
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "ol_openedx_logging.settings.test"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
