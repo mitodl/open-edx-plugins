@@ -1,0 +1,32 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+  "include": ["src"],
+  "extraPaths": [
+    "src/edx_sysadmin",
+    "src/edx_username_changer",
+    "src/ol_openedx_ai_static_translations",
+    "src/ol_openedx_auto_select_language",
+    "src/ol_openedx_canvas_integration",
+    "src/ol_openedx_chat",
+    "src/ol_openedx_chat_xblock",
+    "src/ol_openedx_checkout_external",
+    "src/ol_openedx_course_export",
+    "src/ol_openedx_course_outline_api",
+    "src/ol_openedx_course_structure_api",
+    "src/ol_openedx_course_sync",
+    "src/ol_openedx_course_translations",
+    "src/ol_openedx_events_handler",
+    "src/ol_openedx_git_auto_export",
+    "src/ol_openedx_logging",
+    "src/ol_openedx_lti_utilities",
+    "src/ol_openedx_otel_monitoring",
+    "src/ol_openedx_rapid_response_reports",
+    "src/ol_openedx_sentry",
+    "src/ol_openedx_uai_content_customization",
+    "src/ol_social_auth",
+    "src/openedx_companion_auth",
+    "src/rapid_response_xblock"
+  ]
+}
