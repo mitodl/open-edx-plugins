@@ -20,6 +20,8 @@ def test_view_is_public_and_throttled():
         CourseLanguageAnonRateThrottle,
         CourseLanguageUserRateThrottle,
     ]
+    assert CourseLanguageAnonRateThrottle.scope == "course_language_anon"
+    assert CourseLanguageUserRateThrottle.scope == "course_language_user"
     assert CourseLanguageAnonRateThrottle.rate == "20/min"
     assert CourseLanguageUserRateThrottle.rate == "20/min"
 
