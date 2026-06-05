@@ -12,6 +12,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
+from django.conf import settings
 
 from ol_openedx_auto_select_language.utils import LanguageCode
 
@@ -22,14 +23,14 @@ class CourseLanguageAnonRateThrottle(AnonRateThrottle):
     """Throttle anonymous requests for course language endpoint."""
 
     scope = "course_language_anon"
-    rate = "20/min"
+    rate = settings.COURSE_LANGUAGE_ANON_THROTTLE_RATE
 
 
 class CourseLanguageUserRateThrottle(UserRateThrottle):
     """Throttle authenticated requests for course language endpoint."""
 
     scope = "course_language_user"
-    rate = "20/min"
+    rate = settings.COURSE_LANGUAGE_USER_THROTTLE_RATE
 
 
 class CourseLanguageView(APIView):

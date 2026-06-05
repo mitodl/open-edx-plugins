@@ -12,3 +12,5 @@ def apply_common_settings(settings):
     """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["admin", "sysadmin", "instructor"]
+    settings.COURSE_LANGUAGE_ANON_THROTTLE_RATE = "30/min"
+    settings.COURSE_LANGUAGE_USER_THROTTLE_RATE = "30/min"

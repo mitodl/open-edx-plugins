@@ -1,6 +1,7 @@
 """Tests for CourseLanguageView API view."""
 
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from ol_openedx_auto_select_language.views import (
     CourseLanguageAnonRateThrottle,
     CourseLanguageUserRateThrottle,
@@ -13,17 +14,44 @@ from rest_framework.permissions import AllowAny
 MODULE = "ol_openedx_auto_select_language.views"
 
 
-def test_view_is_public_and_throttled():
-    """Test view uses public access with basic DRF throttling."""
-    assert CourseLanguageView.permission_classes == [AllowAny]
+def test_course_language_view_is_throttled():
+    """Test that throttling classes are configured."""
     assert CourseLanguageView.throttle_classes == [
         CourseLanguageAnonRateThrottle,
         CourseLanguageUserRateThrottle,
     ]
     assert CourseLanguageAnonRateThrottle.scope == "course_language_anon"
     assert CourseLanguageUserRateThrottle.scope == "course_language_user"
-    assert CourseLanguageAnonRateThrottle.rate == "20/min"
-    assert CourseLanguageUserRateThrottle.rate == "20/min"
+
+
+@pytest.mark.parametrize(
+    "user_type",
+    [
+        ("authenticated", "mock_user"),
+        ("anonymous", AnonymousUser()),
+    ],
+)
+def test_course_language_view_is_public(request_factory, mock_user, mocker, user_type):
+    """Test view uses public access and both user and anonymous users can access."""
+    assert CourseLanguageView.permission_classes == [AllowAny]
+
+    # Mock the CourseOverview
+    mock_overview_cls = mocker.patch(f"{MODULE}.CourseOverview")
+    mock_course = mocker.Mock()
+    mock_course.language = "es"
+    mock_overview_cls.get_from_id.return_value = mock_course
+
+    # Get the user for this test run
+    user_name, user_fixture = user_type
+    user = mock_user if user_name == "authenticated" else user_fixture
+
+    request = request_factory.get("/")
+    request.user = user
+    view = CourseLanguageView()
+    response = view.get(request, course_key_string="course-v1:edX+DemoX+2024")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == {"language": "es"}
 
 
 @pytest.mark.parametrize(
