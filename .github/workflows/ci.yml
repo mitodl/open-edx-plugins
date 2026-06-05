@@ -89,6 +89,10 @@ jobs:
       id: tutor-version
       run: |
         version=$(tutor --version | awk '{print $NF}')
+        if [[ -d "./tutor/.git" ]]; then
+          tutor_sha=$(git -C ./tutor rev-parse --short HEAD)
+          version="${version}+git.${tutor_sha}"
+        fi
         version_tag=${version//[^A-Za-z0-9_.-]/-}
         echo "version=$version" >> "$GITHUB_OUTPUT"
         echo "version_tag=$version_tag" >> "$GITHUB_OUTPUT"
