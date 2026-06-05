@@ -4,6 +4,7 @@ API Views for ol_openedx_auto_select_language App
 
 import logging
 
+from django.conf import settings
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
@@ -12,7 +13,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
-from django.conf import settings
 
 from ol_openedx_auto_select_language.utils import LanguageCode
 
