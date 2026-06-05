@@ -176,10 +176,10 @@ jobs:
         docker push "${{ steps.docker-names.outputs.cache_image_tag }}"
 
     - name: Add edx-platform tutor mounts
+      if: steps.cache-tutor-config.outputs.cache-hit != 'true'
       run: |
         cd "${{ github.workspace }}/../edx-platform"
         tutor mounts add .
-        tutor config save
 
     - name: Run tests on tutor
       run: |
