@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 class CourseLanguageAnonRateThrottle(AnonRateThrottle):
     """Throttle anonymous requests for course language endpoint."""
 
+    scope = "course_language_anon"
     rate = "20/min"
 
 
