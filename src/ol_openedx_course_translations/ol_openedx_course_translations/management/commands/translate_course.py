@@ -15,14 +15,10 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from opaque_keys.edx.locator import CourseLocator
 
+from ol_openedx_course_translations import tasks as translation_tasks
 from ol_openedx_course_translations.models import CourseTranslationLog
-from ol_openedx_course_translations.tasks import (
-    translate_file_task,
-    translate_policy_json_task,
-)
 from ol_openedx_course_translations.utils.constants import (
     ENGLISH_LANGUAGE_CODE,
-    PROVIDER_DEEPL,
     PROVIDER_MISTRAL,
 )
 from ol_openedx_course_translations.utils.course_translations import (
@@ -64,7 +60,6 @@ class Command(BaseCommand):
         "Configuration:\n"
         "All translation providers should be configured in TRANSLATIONS_PROVIDERS:\n"
         "{\n"
-        '    "deepl": {"api_key": "<YOUR_DEEPL_API_KEY>"},\n'
         '    "openai": {"api_key": "<KEY>", "default_model": "gpt-5.2"},\n'
         '    "gemini": {"api_key": "<KEY>", "default_model": "gemini-3-pro-preview"},\n'
         '    "mistral": {"api_key": "<KEY>", "default_model": "mistral-large-latest"}\n'
@@ -119,7 +114,7 @@ class Command(BaseCommand):
             required=True,
             help=(
                 "Translation provider for content (XML/HTML and text). "
-                "Format: 'deepl', 'PROVIDER', or 'PROVIDER/MODEL' "
+                "Format: 'PROVIDER' or 'PROVIDER/MODEL' "
                 "(e.g., 'openai', 'openai/gpt-5.2', 'gemini', 'gemini/gemini-3-pro-preview'). "  # noqa: E501
                 "If model is not specified, uses the default model from settings."
             ),
@@ -130,7 +125,7 @@ class Command(BaseCommand):
             required=True,
             help=(
                 "Translation provider for SRT subtitles. "
-                "Format: 'deepl', 'PROVIDER', or 'PROVIDER/MODEL' "
+                "Format: 'PROVIDER' or 'PROVIDER/MODEL' "
                 "(e.g., 'openai', 'openai/gpt-5.2', 'gemini', 'gemini/gemini-3-pro-preview'). "  # noqa: E501
                 "If model is not specified, uses the default model from settings."
             ),
@@ -185,8 +180,8 @@ class Command(BaseCommand):
             provider_spec: Provider specification
 
         Returns:
-            Tuple of (provider_name, model_name). model_name is None for DeepL or
-            resolved from settings if not specified.
+            Tuple of (provider_name, model_name), resolved from settings if not
+            specified.
 
         Raises:
             CommandError: If provider specification format is invalid
@@ -225,10 +220,6 @@ class Command(BaseCommand):
                 "TRANSLATIONS_PROVIDERS. Please set the 'api_key' in settings."
             )
             raise CommandError(error_msg)
-
-        # DeepL doesn't use models
-        if provider_name == PROVIDER_DEEPL:
-            return provider_name, None
 
         # If model is explicitly provided, return it
         if model_name:
@@ -480,6 +471,9 @@ class Command(BaseCommand):
         # Add tasks for policy.json files
         self._add_policy_json_tasks(course_dir, target_language)
 
+        # Add task for info/updates.items.json file
+        self._add_info_updates_task(course_dir, source_language, target_language)
+
     def _add_file_translation_tasks(
         self,
         directory_path: Path,
@@ -508,7 +502,7 @@ class Command(BaseCommand):
                 if file_path.suffix == ".srt"
                 else FILE_TRANSLATION_TASK_TYPE
             )
-            task = translate_file_task.s(
+            task = translation_tasks.translate_file_task.s(
                 str(file_path),
                 source_language,
                 target_language,
@@ -611,7 +605,7 @@ class Command(BaseCommand):
 
             policy_file = policy_child_dir / "policy.json"
             if policy_file.exists():
-                task = translate_policy_json_task.s(
+                task = translation_tasks.translate_policy_json_task.s(
                     str(policy_file),
                     target_language,
                     self.content_provider_name,
@@ -620,6 +614,42 @@ class Command(BaseCommand):
                 )
                 self.tasks.append(("policy", str(policy_file), task))
                 logger.info("Added policy.json task for: %s", policy_file)
+
+    def _add_info_updates_task(
+        self, course_dir: Path, source_language: str, target_language: str
+    ) -> None:
+        """
+        Add Celery task for translating info/updates.items.json content.
+
+        Args:
+            course_dir: Path to the course directory
+            source_language: Source language code
+            target_language: Target language code
+        """
+        updates_relative_path = getattr(
+            settings,
+            "COURSE_TRANSLATIONS_UPDATES_ITEMS_JSON_RELATIVE_PATH",
+            "info/updates.items.json",
+        )
+        updates_file_path = (
+            course_dir / "course" / Path(updates_relative_path).as_posix().lstrip("/")
+        )
+
+        if not updates_file_path.exists() or not updates_file_path.is_file():
+            return
+
+        task = translation_tasks.translate_info_updates_task.s(
+            str(updates_file_path),
+            source_language,
+            target_language,
+            self.content_provider_name,
+            self.content_model,
+            self.content_glossary,
+            self.translation_validation_provider_name,
+            self.translation_validation_model,
+        )
+        self.tasks.append(("updates", str(updates_file_path), task))
+        logger.info("Added updates.items.json task for: %s", updates_file_path)
 
     def _render_progress(self, *, header: str, done: int, total: int) -> None:
         """Render a single-line progress message."""

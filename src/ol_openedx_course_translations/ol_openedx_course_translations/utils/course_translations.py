@@ -25,7 +25,6 @@ from django.core.management.base import CommandError
 from lxml import etree
 from opaque_keys.edx.locator import CourseLocator
 
-from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
 from ol_openedx_course_translations.providers.llm_providers import (
     GeminiProvider,
     LLMProvider,
@@ -34,7 +33,6 @@ from ol_openedx_course_translations.providers.llm_providers import (
 )
 from ol_openedx_course_translations.utils.constants import (
     NEVER_TRANSLATE_ATTRS,
-    PROVIDER_DEEPL,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
     PROVIDER_OPENAI,
@@ -49,32 +47,6 @@ logger = logging.getLogger(__name__)
 TAR_FILE_SIZE_LIMIT = 512 * 1024 * 1024  # 512MB
 
 
-def _get_deepl_api_key() -> str:
-    """
-    Get DeepL API key from settings.
-
-    Returns:
-        DeepL API key
-
-    Raises:
-        ValueError: If DeepL API key is not configured
-    """
-    providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
-
-    if PROVIDER_DEEPL in providers_config:
-        deepl_config = providers_config[PROVIDER_DEEPL]
-        if isinstance(deepl_config, dict):
-            api_key = deepl_config.get("api_key", "")
-            if api_key:
-                return api_key
-
-    msg = (
-        "DeepL API key is required. Configure it in "
-        "TRANSLATIONS_PROVIDERS['deepl']['api_key']"
-    )
-    raise ValueError(msg)
-
-
 def get_translation_provider(
     provider_name: str,
     model_name: str | None = None,
@@ -86,7 +58,7 @@ def get_translation_provider(
     _parse_and_validate_provider_spec() in the management command.
 
     Args:
-        provider_name: Name of the provider (deepl, openai, gemini, mistral)
+        provider_name: Name of the provider (openai, gemini, mistral)
         model_name: Model name to use
 
     Returns:
@@ -95,11 +67,6 @@ def get_translation_provider(
     Raises:
         ValueError: If provider configuration is invalid
     """
-    # Handle DeepL
-    if provider_name == PROVIDER_DEEPL:
-        deepl_api_key = _get_deepl_api_key()
-        return DeepLProvider(deepl_api_key)
-
     # Handle LLM providers
     providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
     provider_config = providers_config[provider_name]
@@ -116,7 +83,7 @@ def get_translation_provider(
     raise ValueError(msg)
 
 
-def translate_grading_policy(  # noqa: C901, PLR0912
+def translate_grading_policy(  # noqa: C901
     policy_file_path: Path,
     target_language: str,
     provider,
@@ -137,9 +104,6 @@ def translate_grading_policy(  # noqa: C901, PLR0912
     with a clear error — duplicate grading-type translations would corrupt
     course grading.
 
-    For non-LLM providers (e.g., DeepL), each value is translated individually
-    using the standard ``translate_text`` interface.
-
     Args:
         policy_file_path: Path to the grading_policy.json file
         target_language: Target language code
@@ -151,7 +115,7 @@ def translate_grading_policy(  # noqa: C901, PLR0912
         Empty dict if no types were translated.
 
     Raises:
-        ValueError: (LLM providers only) If the LLM returns duplicate
+        ValueError: If the LLM returns duplicate
             translations for different grading type strings.
     """
     grading_policy_data = json.loads(policy_file_path.read_text(encoding="utf-8"))
@@ -164,45 +128,35 @@ def translate_grading_policy(  # noqa: C901, PLR0912
     type_mapping: dict[str, str] = {}
     policy_updated = False
 
-    if isinstance(provider, LLMProvider):
-        # Collect every value that needs translating across all GRADER entries.
-        # Duplicates are fine — translate_grading_types deduplicates internally.
-        all_terms: list[str] = []
-        for grader_item in grader_items:
-            for key in keys_to_translate:
-                value = grader_item.get(key)
-                if value:
-                    all_terms.append(value)
+    if not isinstance(provider, LLMProvider):
+        msg = "translate_grading_policy requires an LLMProvider instance"
+        raise TypeError(msg)
 
-        # Single LLM call — raises ValueError on duplicate translations.
-        terms_mapping = provider.translate_grading_types(
-            all_terms, target_language, content_glossary
-        )
+    # Collect every value that needs translating across all GRADER entries.
+    # Duplicates are fine — translate_grading_types deduplicates internally.
+    all_terms: list[str] = []
+    for grader_item in grader_items:
+        for key in keys_to_translate:
+            value = grader_item.get(key)
+            if value:
+                all_terms.append(value)
 
-        for grader_item in grader_items:
-            for key in keys_to_translate:
-                if key in grader_item:
-                    original_value = grader_item[key]
-                    translated_value = terms_mapping.get(original_value, original_value)
-                    if key == "type":
-                        type_mapping[original_value] = translated_value
-                    grader_item[key] = translated_value
-                    policy_updated = True
-    else:
-        # Non-LLM providers (e.g., DeepL): translate each value individually.
-        for grader_item in grader_items:
-            for key in keys_to_translate:
-                if key in grader_item:
-                    original_value = grader_item[key]
-                    translated_value = provider.translate_text(
-                        original_value,
-                        target_language,
-                        glossary_directory=content_glossary,
-                    )
-                    if key == "type":
-                        type_mapping[original_value] = translated_value
-                    grader_item[key] = translated_value
-                    policy_updated = True
+    # Single LLM call — raises ValueError on duplicate translations.
+    terms_mapping = provider.translate_grading_types(
+        all_terms, target_language, content_glossary
+    )
+
+    for grader_item in grader_items:
+        for key in keys_to_translate:
+            if key in grader_item:
+                original_value = grader_item[key]
+                translated_value = terms_mapping.get(original_value)
+                if translated_value is None:
+                    translated_value = original_value
+                if key == "type":
+                    type_mapping[original_value] = translated_value
+                grader_item[key] = translated_value
+                policy_updated = True
 
     if policy_updated:
         policy_file_path.write_text(
@@ -224,7 +178,7 @@ def apply_format_attribute_mapping(
     Looks up *original_format* (the pre-translation value) in *grading_type_mapping*
     and, if found, overwrites whatever the translation provider wrote for the
     ``format`` attribute with the consistent pre-translated value.  This prevents
-    the LLM or DeepL from producing a different translation of the same grading
+    the translation provider from producing a different translation of the same grading
     type string in the policy file vs. individual XML content files.
 
     Args:
@@ -253,49 +207,6 @@ def apply_format_attribute_mapping(
             mapped_format,
             e,
         )
-
-    return xml_content
-
-
-def translate_xml_attributes(
-    xml_content: str,
-    target_language: str,
-    provider,
-    glossary_directory: str | None = None,
-) -> str:
-    """
-    Translate display_name attribute in XML content.
-
-    This function is used primarily with DeepL for separate display_name translation.
-    LLM providers handle display_name translation as part of the full XML translation.
-
-    Args:
-        xml_content: XML content as string
-        target_language: Target language code
-        provider: Translation provider instance
-        glossary_directory: Optional glossary directory path
-
-    Returns:
-        Updated XML content with translated display_name
-    """
-    attribute_names = ["display_name"]
-    try:
-        xml_root = ElementTree.fromstring(xml_content)
-        is_xml_updated = False
-        for attribute_name in attribute_names:
-            attribute_value = xml_root.attrib.get(attribute_name)
-            if attribute_value:
-                translated_value = provider.translate_text(
-                    attribute_value,
-                    target_language,
-                    glossary_directory=glossary_directory,
-                )
-                xml_root.set(attribute_name, translated_value)
-                is_xml_updated = True
-        if is_xml_updated:
-            return ElementTree.tostring(xml_root, encoding="unicode")
-    except ElementTree.ParseError as e:
-        logger.warning("Failed to parse XML for display_name translation: %s", e)
 
     return xml_content
 
