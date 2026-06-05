@@ -28,6 +28,7 @@ class CourseLanguageAnonRateThrottle(AnonRateThrottle):
 class CourseLanguageUserRateThrottle(UserRateThrottle):
     """Throttle authenticated requests for course language endpoint."""
 
+    scope = "course_language_user"
     rate = "20/min"
 
 
