@@ -1,11 +1,14 @@
 """Tests for CourseLanguageView API view."""
 
 import pytest
-from ol_openedx_auto_select_language.views import CourseLanguageView
+from ol_openedx_auto_select_language.views import (
+    CourseLanguageAnonRateThrottle,
+    CourseLanguageUserRateThrottle,
+    CourseLanguageView,
+)
 from opaque_keys import InvalidKeyError
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 MODULE = "ol_openedx_auto_select_language.views"
 
@@ -13,7 +16,12 @@ MODULE = "ol_openedx_auto_select_language.views"
 def test_view_is_public_and_throttled():
     """Test view uses public access with basic DRF throttling."""
     assert CourseLanguageView.permission_classes == [AllowAny]
-    assert CourseLanguageView.throttle_classes == [AnonRateThrottle, UserRateThrottle]
+    assert CourseLanguageView.throttle_classes == [
+        CourseLanguageAnonRateThrottle,
+        CourseLanguageUserRateThrottle,
+    ]
+    assert CourseLanguageAnonRateThrottle.rate == "20/min"
+    assert CourseLanguageUserRateThrottle.rate == "20/min"
 
 
 @pytest.mark.parametrize(

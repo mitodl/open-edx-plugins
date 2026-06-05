@@ -18,6 +18,18 @@ from ol_openedx_auto_select_language.utils import LanguageCode
 log = logging.getLogger(__name__)
 
 
+class CourseLanguageAnonRateThrottle(AnonRateThrottle):
+    """Throttle anonymous requests for course language endpoint."""
+
+    rate = "20/min"
+
+
+class CourseLanguageUserRateThrottle(UserRateThrottle):
+    """Throttle authenticated requests for course language endpoint."""
+
+    rate = "20/min"
+
+
 class CourseLanguageView(APIView):
     """
     API View to retrieve the language of a specified course.
@@ -47,7 +59,7 @@ class CourseLanguageView(APIView):
     """
 
     permission_classes = [AllowAny]
-    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+    throttle_classes = [CourseLanguageAnonRateThrottle, CourseLanguageUserRateThrottle]
 
     def get(self, request, course_key_string):  # noqa: ARG002
         """
