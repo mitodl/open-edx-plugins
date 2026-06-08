@@ -4,15 +4,12 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import requests
-from django.contrib.auth import get_user_model
+from common.djangoapps.student.tests.factories import UserFactory
 from django.test import TestCase, override_settings
 from lms.djangoapps.grades.models import PersistentSubsectionGrade
 from ol_openedx_canvas_integration.tasks import _sync_user_grade_with_canvas
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from openedx.core.djangolib.testing.utils import skip_unless_lms
-from pytz import UTC
-
-USER_MODEL = get_user_model()
 
 
 @override_settings(BULK_EMAIL_DEFAULT_RETRY_DELAY=10, BULK_EMAIL_MAX_RETRIES=5)
@@ -36,7 +33,7 @@ class TestSyncUserGradeWithCanvas(TestCase):
         self.email = "student@example.com"
         self.canvas_user_id = 456
         self.canvas_assignment_id = 789
-        self.user = USER_MODEL.objects.create_user(
+        self.user = UserFactory.create(
             username="student",
             email="student@example.com",
         )

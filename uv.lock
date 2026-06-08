@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -2091,7 +2091,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-canvas-integration"
-version = "0.7.0"
+version = "0.7.2"
 source = { editable = "src/ol_openedx_canvas_integration" }
 dependencies = [
     { name = "celery" },
@@ -2437,7 +2437,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-uai-content-customization"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "src/ol_openedx_uai_content_customization" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },

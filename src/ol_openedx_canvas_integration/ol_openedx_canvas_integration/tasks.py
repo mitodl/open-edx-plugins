@@ -92,7 +92,7 @@ def sync_user_grade_with_canvas(grade_id):
     _sync_user_grade_with_canvas(grade_id)
 
 
-def _sync_user_grade_with_canvas(grade_id):
+def _sync_user_grade_with_canvas(grade_id):  # noqa: PLR0911
     """
     Call the Canvas API and update the user's grade.
     """
