@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
 from unittest.mock import ANY, MagicMock, patch
 
 import ddt
 import pytest
+from common.djangoapps.student.tests.factories import UserFactory
 from django.contrib.auth.models import User
 from django.test import override_settings
 from django.utils.dateparse import parse_datetime
@@ -216,7 +216,7 @@ class CanvasDueDateSyncTests(ModuleStoreTestCase):
 
     def test_sync_canvas_due_date_extensions(self):
         for uid in [1, 4, 9, 11, 14, 37]:
-            User.objects.create_user(f"user{uid}", f"user{uid}@abc.xyz", "password")
+            UserFactory.create(username=f"user{uid}", email=f"user{uid}@abc.xyz")
         course, sequentials = self.create_course(
             {"canvas_id": 11, "use_canvas_due_dates": True}
         )

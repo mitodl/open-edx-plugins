@@ -30,7 +30,7 @@ from ol_openedx_canvas_integration.api import course_graded_items
 from ol_openedx_canvas_integration.client import CanvasClient, create_assignment_payload
 from ol_openedx_canvas_integration.utils import (
     get_canvas_course_id,
-    get_use_canvas_due_dates,
+    is_canvas_dates_sync_enabled,
 )
 
 logger = logging.getLogger(__name__)
@@ -172,7 +172,7 @@ def sync_course_assignments_with_canvas(course_id):
     course_key = CourseLocator.from_string(course_id)
     course = get_course_by_id(course_key)
     canvas_course_id = get_canvas_course_id(course)
-    use_canvas_due_dates = get_use_canvas_due_dates(course)
+    use_canvas_due_dates = is_canvas_dates_sync_enabled(course)
 
     if not canvas_course_id:
         logger.info(
@@ -272,7 +272,7 @@ def _sync_canvas_due_dates(course_id: str):
             course_id,
         )
         return
-    use_canvas_due_dates = get_use_canvas_due_dates(course)
+    use_canvas_due_dates = is_canvas_dates_sync_enabled(course)
     if not use_canvas_due_dates:
         TASK_LOG.info(
             "Due Date Sync: Disabled. Skipped for course %s",

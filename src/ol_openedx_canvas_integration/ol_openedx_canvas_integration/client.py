@@ -281,19 +281,19 @@ def create_assignment_payload(subsection_block, use_canvas_dates=False):  # noqa
         dict:
             Assignment payload to be sent to Canvas to create or update the assignment
     """  # noqa: E501
-    due_date_dict = {
-        "due_at": (
-            None
-            if not subsection_block.fields.get("due")
-            # The internal API gives us a TZ-naive datetime for the due date, but Studio indicates that  # noqa: E501
-            # the user should enter a UTC datetime for the due date. Coerce this to UTC before creating the  # noqa: E501
-            # string representation.
-            else subsection_block.fields["due"].astimezone(pytz.UTC).isoformat()
-        ),
-    }
-    # If we're using canvas dates, don't set the due dates from Open edX
-    if use_canvas_dates:
-        due_date_dict = {}
+    due_date_dict = {}
+    # If we're not using canvas dates, set the due dates from Open edX
+    if not use_canvas_dates:
+        due_date_dict = {
+            "due_at": (
+                None
+                if not subsection_block.fields.get("due")
+                # The internal API gives us a TZ-naive datetime for the due date, but
+                # Studio indicates that the user should enter a UTC datetime for the due
+                # date. Coerce this to UTC before creating the string representation.
+                else subsection_block.fields["due"].astimezone(pytz.UTC).isoformat()
+            ),
+        }
     return {
         "assignment": {
             "name": subsection_block.display_name,
