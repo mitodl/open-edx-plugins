@@ -128,10 +128,6 @@ def translate_grading_policy(  # noqa: C901
     type_mapping: dict[str, str] = {}
     policy_updated = False
 
-    if not isinstance(provider, LLMProvider):
-        msg = "translate_grading_policy requires an LLMProvider instance"
-        raise TypeError(msg)
-
     # Collect every value that needs translating across all GRADER entries.
     # Duplicates are fine — translate_grading_types deduplicates internally.
     all_terms: list[str] = []
