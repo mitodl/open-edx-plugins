@@ -2,7 +2,7 @@
 
 import logging
 from collections import defaultdict
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from common.djangoapps.student.models import CourseEnrollment, CourseEnrollmentAllowed
 from django.contrib.auth.models import User
@@ -264,7 +264,10 @@ def push_edx_grades_to_canvas(course):
     # Send requests to update grades in each relevant course
     assignment_grades_updated = {}
     for subsection_block, grade_request_payload in grade_update_payloads.items():
-        if grade_request_payload and str(subsection_block.location) in existing_assignment_dict:
+        if (
+            grade_request_payload
+            and str(subsection_block.location) in existing_assignment_dict
+        ):
             block_data = existing_assignment_dict[str(subsection_block.location)]
             due_date = block_data.get("due_at")
             if due_date:
@@ -275,9 +278,11 @@ def push_edx_grades_to_canvas(course):
                     subsection_block.location,
                 )
                 continue
-            assignment_grades_updated[subsection_block] = client.update_assignment_grades(
-                canvas_assignment_id=block_data["id"],
-                payload=grade_request_payload,
+            assignment_grades_updated[subsection_block] = (
+                client.update_assignment_grades(
+                    canvas_assignment_id=block_data["id"],
+                    payload=grade_request_payload,
+                )
             )
 
     return assignment_grades_updated, created_assignments

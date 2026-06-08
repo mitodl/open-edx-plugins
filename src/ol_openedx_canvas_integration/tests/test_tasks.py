@@ -4,14 +4,12 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import requests
-from django.test import TestCase, override_settings
 from common.djangoapps.student.tests.factories import UserFactory
+from django.test import TestCase, override_settings
 from lms.djangoapps.grades.models import PersistentSubsectionGrade
-
 from ol_openedx_canvas_integration.tasks import _sync_user_grade_with_canvas
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from openedx.core.djangolib.testing.utils import skip_unless_lms
-
 
 
 @override_settings(BULK_EMAIL_DEFAULT_RETRY_DELAY=10, BULK_EMAIL_MAX_RETRIES=5)
