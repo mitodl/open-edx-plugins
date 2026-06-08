@@ -77,12 +77,12 @@ jobs:
     - name: Install tutor
       run: |
         if [[ "${{ matrix.edx_branch }}" == "release/teak" ]]; then
-          pip install "tutor>=20.0.0,<21.0.0"
+          uv pip install "tutor>=20.0.0,<21.0.0"
         elif [[ "${{ matrix.edx_branch }}" == "master" ]]; then
           git clone --branch=main https://github.com/overhangio/tutor.git
-          pip install -e "./tutor"
+          uv pip install -e "./tutor"
         else
-          pip install "tutor>=21.0.0,<22.0.0"
+          uv pip install "tutor>=21.0.0,<22.0.0"
         fi
 
     - name: Get Tutor version
@@ -130,7 +130,7 @@ jobs:
         git -C "$EDX_DIR" checkout --detach FETCH_HEAD
 
     - name: Generate edx-platform egg-info (registers Django app entry points)
-      run: pip install --no-deps -e ${{ github.workspace }}/../edx-platform
+      run: uv pip install --no-deps -e ${{ github.workspace }}/../edx-platform
 
     - name: Log in to GitHub Container Registry
       if: github.event_name == 'push' && github.repository_owner == env.GHCR_CACHE_OWNER
@@ -180,7 +180,6 @@ jobs:
         docker push "${{ steps.docker-names.outputs.cache_image_tag }}"
 
     - name: Add edx-platform tutor mounts
-      if: steps.cache-tutor-config.outputs.cache-hit != 'true'
       run: |
         cd "${{ github.workspace }}/../edx-platform"
         tutor mounts add .
