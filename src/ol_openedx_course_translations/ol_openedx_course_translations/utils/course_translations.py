@@ -27,7 +27,6 @@ from opaque_keys.edx.locator import CourseLocator
 
 from ol_openedx_course_translations.providers.llm_providers import (
     GeminiProvider,
-    LLMProvider,
     MistralProvider,
     OpenAIProvider,
 )
