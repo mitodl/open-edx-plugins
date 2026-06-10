@@ -157,7 +157,7 @@ class CanvasClient:
                   integration_id set.
         """
         # This query param makes canvas return all overrides for each assignment
-        query = {"include[]": ["overrides"]}
+        query = {"include[]": ["overrides"], "override_assignment_dates": False}
         assignments = self.list_canvas_assignments(params=query)
         assignments_dict = {
             assignment.get("integration_id"): {

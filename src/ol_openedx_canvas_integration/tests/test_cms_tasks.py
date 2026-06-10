@@ -189,7 +189,10 @@ class CanvasDueDateSyncTests(ModuleStoreTestCase):
 
     def test_sync_canvas_due_dates_updates_due_dates(self):
         course, sequentials = self.create_course(
-            {"canvas_id": 11, "use_canvas_due_dates": True}
+            {
+                "canvas_id": 11,
+                "use_canvas_due_dates": True,
+            }
         )
 
         mock_canvas_assignments = {
@@ -218,7 +221,10 @@ class CanvasDueDateSyncTests(ModuleStoreTestCase):
         for uid in [1, 4, 9, 11, 14, 37]:
             UserFactory.create(username=f"user{uid}", email=f"user{uid}@abc.xyz")
         course, sequentials = self.create_course(
-            {"canvas_id": 11, "use_canvas_due_dates": True}
+            {
+                "canvas_id": 11,
+                "use_canvas_due_dates": True,
+            }
         )
 
         sequential_0_student_ids = [11, 37, 4]

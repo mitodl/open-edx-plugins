@@ -22,6 +22,7 @@ from lms.djangoapps.instructor.views.tools import set_due_date_extension
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys.edx.locator import CourseLocator
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
@@ -200,6 +201,24 @@ def sync_course_assignments_with_canvas(course_id):
     add_assignments(canvas, operations_map["add"])
     update_assignments(canvas, operations_map["update"])
     delete_assignments(canvas, operations_map["delete"])
+
+
+@shared_task
+def sync_canvas_due_dates_for_all_courses():
+    """
+    Synchronize due dates from Canvas for all courses in the system.
+
+    This task retrieves a list of all course IDs and triggers an asynchronous
+    task to synchronize Canvas due dates for each course.
+
+    Returns:
+        None
+    """
+    courses = (
+        CourseOverview.objects.all().order_by("created").values_list("id", flat=True)
+    )
+    for course_id in courses:
+        sync_canvas_due_dates.delay(str(course_id))
 
 
 @shared_task

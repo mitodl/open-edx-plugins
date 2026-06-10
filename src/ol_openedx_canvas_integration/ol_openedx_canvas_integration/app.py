@@ -32,15 +32,19 @@ class CanvasIntegrationConfig(AppConfig):
         PluginSettings.CONFIG: {
             ProjectType.LMS: {
                 SettingsType.PRODUCTION: {
-                    PluginSettings.RELATIVE_PATH: "settings.production"
+                    PluginSettings.RELATIVE_PATH: "settings.lms.production"
                 },
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
+                SettingsType.COMMON: {
+                    PluginSettings.RELATIVE_PATH: "settings.lms.common"
+                },
             },
             ProjectType.CMS: {
                 SettingsType.PRODUCTION: {
-                    PluginSettings.RELATIVE_PATH: "settings.production"
+                    PluginSettings.RELATIVE_PATH: "settings.cms.production"
                 },
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
+                SettingsType.COMMON: {
+                    PluginSettings.RELATIVE_PATH: "settings.cms.common"
+                },
             },
         },
         PluginContexts.CONFIG: {
