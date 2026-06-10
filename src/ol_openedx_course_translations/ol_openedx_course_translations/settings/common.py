@@ -27,11 +27,6 @@ def apply_common_settings(settings):
         "static",
         "tabs",
     ]
-    settings.COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS = [
-        ".tar.gz",
-        ".tgz",
-        ".tar",
-    ]
     settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS = [
         ".html",
         ".xml",
