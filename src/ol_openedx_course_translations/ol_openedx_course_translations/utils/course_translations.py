@@ -11,7 +11,6 @@ import json
 import logging
 import re
 import shutil
-import tarfile
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -365,43 +364,6 @@ def get_srt_output_filename(input_filename: str, target_language: str) -> str:
         filename_parts = input_filename.rsplit("-", 1)
         return f"{filename_parts[0]}-{target_language}.srt"
     return input_filename
-
-
-def get_supported_archive_extension(filename: str) -> str | None:
-    """
-    Return the supported archive extension if filename ends with one, else None.
-
-    Args:
-        filename: Name of the archive file
-
-    Returns:
-        Archive extension if supported, None otherwise
-    """
-    for ext in settings.COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS:
-        if filename.endswith(ext):
-            return ext
-    return None
-
-
-def validate_tar_file(tar_file: tarfile.TarFile) -> None:
-    """
-    Validate tar file contents for security.
-
-    Args:
-        tar_file: Open tarfile object
-
-    Raises:
-        CommandError: If tar file contains unsafe members or excessively large files
-    """
-    for tar_member in tar_file.getmembers():
-        # Check for directory traversal attacks
-        if tar_member.name.startswith("/") or ".." in tar_member.name:
-            error_msg = f"Unsafe tar member: {tar_member.name}"
-            raise CommandError(error_msg)
-        # Check for excessively large files (512MB limit)
-        if tar_member.size > TAR_FILE_SIZE_LIMIT:
-            error_msg = f"File too large: {tar_member.name}"
-            raise CommandError(error_msg)
 
 
 def create_translated_copy(source_course_dir: Path, target_language: str) -> Path:
