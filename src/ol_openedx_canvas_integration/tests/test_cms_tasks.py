@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 import pytest
-
 from ol_openedx_canvas_integration.api import create_assignment_payload
 from ol_openedx_canvas_integration.cms_tasks import diff_assignments
 
 
 class MockSubsection:
+    """Subsection stub that exposes a precomputed Canvas payload helper."""
+
     def __init__(self, location) -> None:
+        """Initialize subsection identity and display metadata."""
         self.location = location
         self.display_name = "Mock Assignment in " + str(location)
         self.fields: dict[str, str] = {}
 
     @property
     def payload(self):
+        """Return the Canvas assignment payload for this subsection."""
         return create_assignment_payload(self)
 
 
@@ -39,8 +42,8 @@ subsection_mocks = [MockSubsection(f"id-{i}") for i in range(10)]
         (
             subsection_mocks[8:],
             {
-                "id-8": 1008,
-                "id-9": 1009,
+                "id-8": {"id": 1008},
+                "id-9": {"id": 1009},
             },
             {
                 "add": [],
@@ -55,8 +58,8 @@ subsection_mocks = [MockSubsection(f"id-{i}") for i in range(10)]
         (
             [],
             {
-                "synced-1": 1002,
-                "synced-2": 1003,
+                "synced-1": {"id": 1002},
+                "synced-2": {"id": 1003},
             },
             {"add": [], "update": {}, "delete": [1002, 1003]},
         ),
@@ -64,10 +67,10 @@ subsection_mocks = [MockSubsection(f"id-{i}") for i in range(10)]
         (
             subsection_mocks[4:8],
             {
-                "id-2": 12,  # remove
-                "id-3": 13,  # remove
-                "id-4": 14,  # update
-                "id-5": 15,  # update
+                "id-2": {"id": 12},  # remove
+                "id-3": {"id": 13},  # remove
+                "id-4": {"id": 14},  # update
+                "id-5": {"id": 15},  # update
             },
             {
                 "add": [s.payload for s in subsection_mocks[6:8]],
@@ -81,6 +84,7 @@ subsection_mocks = [MockSubsection(f"id-{i}") for i in range(10)]
     ],
 )
 def test_diff_assignments(openedx_assignments, canvas_assignments_map, expected_output):
+    """Test that diff assignments."""
     assert (
         diff_assignments(openedx_assignments, canvas_assignments_map) == expected_output
     )
