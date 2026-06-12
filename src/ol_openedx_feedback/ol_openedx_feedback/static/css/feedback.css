@@ -1,370 +1,73 @@
-/* ---- Trigger button(s): subtle, right-aligned affordance below the block ---- */
+/* =========================================================================
+   ol_openedx_feedback — minimal megaphone trigger + compact feedback panel.
+   Trigger docks left of the AskTIM button (ol_openedx_chat); with no AskTIM
+   button it right-aligns to the same spot. Frontend only.
+   ========================================================================= */
+
 .ol-feedback-container {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  justify-content: flex-end; /* fallback position when there's no AskTIM button */
   margin: 8px 0 4px;
 }
 
-.ol-feedback-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #fff;
-  border: 1px solid #d3d6db;
-  border-radius: 16px;
-  padding: 4px 12px;
-  font-size: 0.8125rem;
-  line-height: 1.2;
-  color: #3d4148;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+.ol-feedback-container--relocated {
+  margin: 0;
 }
 
-.ol-feedback-button:hover,
-.ol-feedback-button:focus {
-  background: #f2f3f5;
-  border-color: #a7adb5;
+/* Brand token lives on the anchor because JS relocates the anchor (with the
+   panel) into the AskTIM row — keeping it here means it always inherits. */
+.ol-feedback-anchor {
+  --ol-fb-brand: #8a1e2d;       /* MIT-ish maroon; tokenizable per deployment */
+  --ol-fb-brand-tint: #fbeef1;
+  /* Semantic reaction colors (icons + selected card) */
+  --ol-fb-pos: #1e9e5a;         /* positive  — green */
+  --ol-fb-pos-tint: #e9f7f0;
+  --ol-fb-neg: #d8443b;         /* negative  — red */
+  --ol-fb-neg-tint: #fdecea;
+  --ol-fb-idea: #d99405;        /* idea      — amber */
+  --ol-fb-idea-tint: #fbf3dd;
+  position: relative;
+  display: inline-flex;
+  align-self: center;
+}
+
+/* Spacing between the megaphone and the AskTIM button when docked beside it. */
+.ol-feedback-anchor--docked {
+  margin-right: 10px;
+}
+
+/* ---- Minimal, icon-only megaphone trigger ---- */
+.ol-feedback-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #e0a106; /* yellow/gold megaphone */
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ol-feedback-trigger:hover {
+  background: #fbf3dd;
+  color: #c98a00;
+}
+
+.ol-feedback-trigger:focus-visible {
+  outline: 2px solid var(--ol-fb-brand);
+  outline-offset: 2px;
+}
+
+.ol-feedback-trigger:focus:not(:focus-visible) {
   outline: none;
 }
 
-.ol-feedback-icon {
-  font-size: 0.9rem;
-}
-
-/* ---- Variant 1 modal ---- */
-.ol-feedback-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.45);
-}
-
-.ol-feedback-modal[hidden] {
-  display: none;
-}
-
-.ol-feedback-card {
-  position: relative;
-  width: 100%;
-  max-width: 420px;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 24px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-}
-
-.ol-feedback-close {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  line-height: 1;
-  color: #6b7077;
-  cursor: pointer;
-}
-
-.ol-feedback-title {
-  margin: 0 0 16px;
-  font-size: 1.125rem;
-}
-
-.ol-feedback-rating-label {
-  margin: 0 0 8px;
-  font-size: 0.9rem;
-  color: #3d4148;
-}
-
-.ol-feedback-rating {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.ol-feedback-rating-option {
-  flex: 1 1 0;
-  min-width: 40px;
-  height: 40px;
-  border: 1px solid #d3d6db;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.ol-feedback-rating-option:hover {
-  border-color: #a7adb5;
-}
-
-.ol-feedback-rating-option.is-selected {
-  background: #1d68c3;
-  border-color: #1d68c3;
-  color: #fff;
-}
-
-.ol-feedback-comment-label {
+.ol-feedback-trigger .ol-fb-ic {
+  width: 18px;
+  height: 18px;
   display: block;
-  margin-bottom: 4px;
-  font-size: 0.9rem;
-}
-
-.ol-feedback-comment {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px;
-  border: 1px solid #d3d6db;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  resize: vertical;
-}
-
-.ol-feedback-error {
-  margin: 8px 0 0;
-  color: #c0392b;
-  font-size: 0.85rem;
-}
-
-.ol-feedback-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.ol-feedback-actions button {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.ol-feedback-cancel {
-  background: #fff;
-  border: 1px solid #d3d6db;
-}
-
-.ol-feedback-submit {
-  background: #1d68c3;
-  border: 1px solid #1d68c3;
-  color: #fff;
-}
-
-.ol-feedback-submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.ol-feedback-success {
-  text-align: center;
-  padding: 12px 0;
-}
-
-.ol-feedback-success-text {
-  margin: 0 0 16px;
-  font-size: 1rem;
-}
-
-/* ---- Variant 2 modal (stars + reasons) ---- */
-.olfb2-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.35);
-}
-
-.olfb2-modal[hidden] {
-  display: none;
-}
-
-.olfb2-card {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-  max-height: 90vh;
-  overflow-y: auto;
-  padding: 20px 22px;
-  background: #fff;
-  border: 1px solid #d3d6db;
-  border-radius: 10px;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
-}
-
-.olfb2-close {
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  background: none;
-  border: none;
-  font-size: 1.4rem;
-  line-height: 1;
-  color: #6b7077;
-  cursor: pointer;
-}
-
-.olfb2-title {
-  margin: 0 0 12px;
-  font-size: 1.05rem;
-}
-
-.olfb2-hint {
-  margin: 0 0 6px;
-  font-size: 0.8rem;
-  color: #6b7077;
-}
-
-.olfb2-stars {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.olfb2-star {
-  background: none;
-  border: none;
-  padding: 2px;
-  cursor: pointer;
-  font-size: 1.9rem;
-  line-height: 1;
-  color: #cfd3d9;
-  transition: color 0.12s ease, transform 0.08s ease;
-}
-
-.olfb2-star:hover {
-  transform: scale(1.08);
-}
-
-.olfb2-star.on {
-  color: #f5a623;
-}
-
-.olfb2-detail {
-  margin-top: 14px;
-}
-
-.olfb2-detail[hidden] {
-  display: none;
-}
-
-.olfb2-more {
-  margin: 0 0 8px;
-  font-size: 0.9rem;
-  color: #3d4148;
-}
-
-.olfb2-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.olfb2-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid #d3d6db;
-  background: #fff;
-  border-radius: 8px;
-  padding: 7px 12px;
-  font-size: 0.875rem;
-  color: #3d4148;
-  cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease;
-}
-
-.olfb2-chip:hover {
-  border-color: #a7adb5;
-}
-
-.olfb2-chip.on {
-  background: #e9eef7;
-  border-color: #1d68c3;
-  color: #1d68c3;
-}
-
-.olfb2-ic {
-  font-size: 0.95rem;
-  line-height: 1;
-}
-
-.olfb2-comment {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #d3d6db;
-  border-radius: 8px;
-  padding: 9px 12px;
-  font-size: 0.9rem;
-  resize: vertical;
-}
-
-.olfb2-error {
-  margin: 8px 0 0;
-  color: #c0392b;
-  font-size: 0.85rem;
-}
-
-.olfb2-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
-
-.olfb2-actions[hidden] {
-  display: none;
-}
-
-.olfb2-submit {
-  border: 1px solid #1d68c3;
-  background: #fff;
-  color: #1d68c3;
-  border-radius: 8px;
-  padding: 8px 18px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.olfb2-submit:hover {
-  background: #1d68c3;
-  color: #fff;
-}
-
-.olfb2-submit:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  background: #fff;
-  color: #1d68c3;
-}
-
-.olfb2-success {
-  padding: 10px 0 2px;
-  font-size: 0.95rem;
-}
-
-/* ---- Small screens ---- */
-@media (max-width: 480px) {
-  .ol-feedback-card,
-  .olfb2-card {
-    max-width: 100%;
-    padding: 18px;
-  }
-  .ol-feedback-rating-option {
-    min-width: 0;
-  }
-  .ol-feedback-text {
-    display: none; /* icon-only triggers on narrow viewports */
-  }
 }
