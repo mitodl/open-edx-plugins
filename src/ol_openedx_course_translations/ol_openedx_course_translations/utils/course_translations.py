@@ -11,10 +11,8 @@ import json
 import logging
 import re
 import shutil
-import tarfile
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from xml.etree.ElementTree import Element
 
@@ -23,7 +21,6 @@ from defusedxml import ElementTree
 from django.conf import settings
 from django.core.management.base import CommandError
 from lxml import etree
-from opaque_keys.edx.locator import CourseLocator
 
 from ol_openedx_course_translations.providers.llm_providers import (
     GeminiProvider,
@@ -369,83 +366,6 @@ def get_srt_output_filename(input_filename: str, target_language: str) -> str:
     return input_filename
 
 
-def get_supported_archive_extension(filename: str) -> str | None:
-    """
-    Return the supported archive extension if filename ends with one, else None.
-
-    Args:
-        filename: Name of the archive file
-
-    Returns:
-        Archive extension if supported, None otherwise
-    """
-    for ext in settings.COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS:
-        if filename.endswith(ext):
-            return ext
-    return None
-
-
-def validate_tar_file(tar_file: tarfile.TarFile) -> None:
-    """
-    Validate tar file contents for security.
-
-    Args:
-        tar_file: Open tarfile object
-
-    Raises:
-        CommandError: If tar file contains unsafe members or excessively large files
-    """
-    for tar_member in tar_file.getmembers():
-        # Check for directory traversal attacks
-        if tar_member.name.startswith("/") or ".." in tar_member.name:
-            error_msg = f"Unsafe tar member: {tar_member.name}"
-            raise CommandError(error_msg)
-        # Check for excessively large files (512MB limit)
-        if tar_member.size > TAR_FILE_SIZE_LIMIT:
-            error_msg = f"File too large: {tar_member.name}"
-            raise CommandError(error_msg)
-
-
-def extract_course_archive(course_archive_path: Path, extract_to_dir: Path) -> Path:
-    """
-    Extract course archive to the specified directory.
-
-    Args:
-        course_archive_path: Path to the course archive file
-        extract_to_dir: Directory to extract the course archive to
-
-    Returns:
-        Path to extracted course directory
-
-    Raises:
-        CommandError: If extraction fails
-    """
-    extraction_base_dir = extract_to_dir
-
-    # Get base name without extension
-    archive_extension = get_supported_archive_extension(course_archive_path.name)
-    archive_base_name = (
-        course_archive_path.name[: -len(archive_extension)]
-        if archive_extension
-        else course_archive_path.name
-    )
-
-    extracted_course_dir = extraction_base_dir / archive_base_name
-
-    if not extracted_course_dir.exists():
-        try:
-            with tarfile.open(course_archive_path, "r:*") as tar_file:
-                # Validate tar file before extraction
-                validate_tar_file(tar_file)
-                tar_file.extractall(path=extracted_course_dir, filter="data")
-        except (tarfile.TarError, OSError) as e:
-            error_msg = f"Failed to extract archive: {e}"
-            raise CommandError(error_msg) from e
-
-    logger.info("Extracted course to: %s", extracted_course_dir)
-    return extracted_course_dir
-
-
 def create_translated_copy(source_course_dir: Path, target_language: str) -> Path:
     """
     Create a copy of the course for translation.
@@ -471,55 +391,6 @@ def create_translated_copy(source_course_dir: Path, target_language: str) -> Pat
     shutil.copytree(source_course_dir, translated_course_dir)
     logger.info("Created translation copy: %s", translated_course_dir)
     return translated_course_dir
-
-
-def create_translated_archive(
-    translated_course_dir: Path,
-    target_language: str,
-    original_archive_name: str,
-    output_dir: Path,
-) -> Path:
-    """
-    Create tar.gz archive of translated course.
-
-    Args:
-        translated_course_dir: Path to translated course directory
-        target_language: Target language code
-        original_archive_name: Original archive filename
-        output_dir: Path to the output directory
-
-    Returns:
-        Path to created archive
-    """
-    # Remove all archive extensions from the original name
-    archive_extension = get_supported_archive_extension(original_archive_name)
-    clean_archive_name = (
-        original_archive_name[: -len(archive_extension)]
-        if archive_extension
-        else original_archive_name
-    )
-
-    generated_at = datetime.now(UTC).strftime("%Y%m%d_%H%MZ")
-    translated_archive_name = (
-        f"{target_language}_{clean_archive_name}_{generated_at}.tar.gz"
-    )
-    translated_archive_path = output_dir / translated_archive_name
-
-    # Remove existing archive
-    if translated_archive_path.exists():
-        translated_archive_path.unlink()
-
-    # Create tar.gz archive containing only the 'course' directory
-    course_directory_path = translated_course_dir / "course"
-    with tarfile.open(translated_archive_path, "w:gz") as tar_archive:
-        tar_archive.add(course_directory_path, arcname="course")
-
-    # Delete extracted directory after archiving
-    if translated_course_dir.exists():
-        shutil.rmtree(translated_course_dir)
-
-    logger.info("Created tar.gz archive: %s", translated_archive_path)
-    return translated_archive_path
 
 
 def update_video_xml_complete(xml_content: str, target_language: str) -> str:  # noqa: C901
@@ -596,30 +467,6 @@ def update_video_xml_complete(xml_content: str, target_language: str) -> str:  #
         return xml_content
 
 
-def validate_course_inputs(
-    course_archive_path: Path,
-) -> None:
-    """
-    Validate command inputs for course translation.
-
-    Args:
-        course_archive_path: Path to course archive file
-
-    Raises:
-        CommandError: If validation fails
-    """
-    if not course_archive_path.exists():
-        error_msg = f"Course archive not found: {course_archive_path}"
-        raise CommandError(error_msg)
-
-    if get_supported_archive_extension(course_archive_path.name) is None:
-        supported_extensions = ", ".join(
-            settings.COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS
-        )
-        error_msg = f"Course archive must be a tar file: {supported_extensions}"
-        raise CommandError(error_msg)
-
-
 def get_translatable_file_paths(
     directory_path: Path,
     *,
@@ -651,32 +498,6 @@ def get_translatable_file_paths(
         ]
 
     return translatable_file_paths
-
-
-def generate_course_key_from_xml(course_dir_path: Path) -> str:
-    """
-    Generate the course id of the source course
-    """
-    try:
-        about_file_path = course_dir_path / "course" / "course.xml"
-        xml_content = about_file_path.read_text(encoding="utf-8")
-        xml_root = ElementTree.fromstring(xml_content)
-
-        org = xml_root.get("org", "")
-        course = xml_root.get("course", "")
-        url_name = xml_root.get("url_name", "")
-
-        if not all([org, course, url_name]):
-            error_msg = (
-                "Missing required attributes in course.xml: org, course, url_name"
-            )
-            raise CommandError(error_msg)
-    except (OSError, ElementTree.ParseError) as e:
-        error_msg = f"Failed to read course id from about.xml: {e}"
-        raise CommandError(error_msg) from e
-    else:
-        # URL name is the run ID of the course
-        return CourseLocator(org=org, course=course, run=url_name)
 
 
 @dataclass(frozen=True)
