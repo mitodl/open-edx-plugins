@@ -1,6 +1,6 @@
 from __future__ import annotations
-
-from unittest.mock import ANY, MagicMock, patch
+from openedx.core.djangoapps.content.course_overviews.tests.factories import CourseOverviewFactory
+from unittest.mock import ANY, MagicMock, patch, call
 
 import ddt
 import pytest
@@ -11,7 +11,7 @@ from django.utils.dateparse import parse_datetime
 from ol_openedx_canvas_integration.api import create_assignment_payload
 from ol_openedx_canvas_integration.cms_tasks import (
     _sync_canvas_due_dates,
-    diff_assignments,
+    diff_assignments, sync_canvas_due_dates_for_all_courses,
 )
 from opaque_keys.edx.keys import UsageKey
 from openedx.core.djangolib.testing.utils import skip_unless_cms
@@ -287,3 +287,34 @@ class CanvasDueDateSyncTests(ModuleStoreTestCase):
                         parse_datetime("2026-06-02T00:00:00Z"),
                         reason="Synced from canvas course: 11",
                     )
+
+    def test_sync_canvas_due_dates_for_all_courses_enqueues_each_course(self):
+        course_1, _ = self.create_course()
+        course_2, _ = self.create_course()
+        course_3, _ = self.create_course()
+
+        CourseOverviewFactory.create(id=course_1.id)
+        CourseOverviewFactory.create(id=course_2.id)
+        CourseOverviewFactory.create(id=course_3.id)
+
+        with patch(
+                "ol_openedx_canvas_integration.cms_tasks.sync_canvas_due_dates.delay"
+        ) as sync_canvas_due_dates_delay_mock:
+            sync_canvas_due_dates_for_all_courses()
+
+        sync_canvas_due_dates_delay_mock.assert_has_calls(
+            [
+                call(str(course_1.id)),
+                call(str(course_2.id)),
+                call(str(course_3.id)),
+            ]
+        )
+        assert sync_canvas_due_dates_delay_mock.call_count == 3
+
+    def test_sync_canvas_due_dates_for_all_courses_with_no_courses(self):
+        with patch(
+                "ol_openedx_canvas_integration.cms_tasks.sync_canvas_due_dates.delay"
+        ) as sync_canvas_due_dates_delay_mock:
+            sync_canvas_due_dates_for_all_courses()
+
+        sync_canvas_due_dates_delay_mock.assert_not_called()
