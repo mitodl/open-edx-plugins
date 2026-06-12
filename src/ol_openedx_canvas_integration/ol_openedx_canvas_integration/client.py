@@ -143,6 +143,7 @@ class CanvasClient:
             assignment.get("integration_id"): {
                 "id": assignment["id"],
                 "is_published": assignment.get("published", False),
+                "due_at": assignment.get("due_at"),
             }
             for assignment in assignments
             if assignment.get("integration_id") is not None
@@ -280,13 +281,13 @@ def create_assignment_payload(subsection_block):
 
 def update_grade_payload_kv(user_id, grade_percent):
     """
-    Returns a key/value pair that will be used in the body of a bulk grade update request
+    Return a key-value pair to be used in the body of a bulk grade update request.
 
     Args:
         user_id (int): The Canvas user ID
         grade_percent (numpy.float64): The percent score of the grade (between 0 and 1)
 
     Returns:
-        (tuple): A key/value pair that will be used in the body of a bulk grade update request
-    """  # noqa: D401, E501
-    return (f"grade_data[{user_id}][posted_grade]", f"{grade_percent * 100}%")
+        (tuple): A key-value pair to be used in the body of a bulk grade update request
+    """
+    return f"grade_data[{user_id}][posted_grade]", f"{grade_percent * 100}%"
