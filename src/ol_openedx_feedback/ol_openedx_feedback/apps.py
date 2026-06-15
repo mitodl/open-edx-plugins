@@ -1,30 +1,17 @@
 """ol_openedx_feedback Django application initialization."""
 
 from django.apps import AppConfig
-from edx_django_utils.plugins import PluginSettings, PluginURLs
-from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 
 
 class OLOpenedxFeedbackConfig(AppConfig):
-    """Configuration for the ol_openedx_feedback Django application."""
+    """Configuration for the ol_openedx_feedback Django application.
+
+    Aside-only plugin: the feedback trigger is registered via the
+    ``xblock_asides.v1`` entry point. There are no URLs, models, or settings —
+    feedback is persisted in learn-ai, and the MFE owns the submit URL.
+    """
 
     name = "ol_openedx_feedback"
     verbose_name = "Open edX Block Feedback"
 
-    plugin_app = {
-        PluginURLs.CONFIG: {
-            ProjectType.LMS: {
-                PluginURLs.NAMESPACE: "ol_openedx_feedback",
-                PluginURLs.REGEX: "^api/feedback/v1/",
-                PluginURLs.RELATIVE_PATH: "urls",
-            }
-        },
-        PluginSettings.CONFIG: {
-            ProjectType.LMS: {
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
-            },
-            ProjectType.CMS: {
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
-            },
-        },
-    }
+    plugin_app = {}

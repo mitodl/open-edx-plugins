@@ -9,8 +9,6 @@ requires-python = ">=3.11"
 keywords = ["Python", "edx"]
 dependencies = [
   "Django>=4.0",
-  "djangorestframework>=3.14.0",
-  "edx-django-utils>4.0.0",
   "XBlock",
 ]
 
