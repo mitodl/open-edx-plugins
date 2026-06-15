@@ -139,7 +139,9 @@ class Command(BaseCommand):
             repos_to_create.append(course.id)
 
         if repos_to_create:
-            self.stdout.write(f"Processing repository creation for {course.id}...")
+            self.stdout.write(
+                f"Creating repositories for {len(repos_to_create)} course(s)..."
+            )
             self._process_repositories_in_parallel(repos_to_create, migration_logs)
 
         self._display_migration_summary(migration_logs)
@@ -157,7 +159,7 @@ class Command(BaseCommand):
 
         # Create group of tasks for all repositories
         job = group(
-            async_create_github_repo.s(str(course_id), export_course=True)
+            async_create_github_repo.s(str(course_id), export_content=True)
             for course_id in repos_to_create
         )
 

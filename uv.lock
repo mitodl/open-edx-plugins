@@ -2073,7 +2073,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-auto-select-language"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "src/ol_openedx_auto_select_language" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2315,7 +2315,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-git-auto-export"
-version = "0.8.1"
+version = "0.8.2"
 source = { editable = "src/ol_openedx_git_auto_export" }
 dependencies = [
     { name = "celery" },
