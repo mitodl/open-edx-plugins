@@ -527,6 +527,13 @@ class Command(BaseCommand):
                 str(export_dir),
                 "course",
             )
+
+            exported_course_dir = export_dir / "course"
+            if not exported_course_dir.is_dir():
+                error_msg = (
+                    f"Export did not create expected directory: {exported_course_dir}"
+                )
+                raise CommandError(error_msg)  # noqa: TRY301
         except Exception as e:
             shutil.rmtree(export_dir, ignore_errors=True)
             error_msg = f"Failed to export source course '{source_course_key}': {e}"
