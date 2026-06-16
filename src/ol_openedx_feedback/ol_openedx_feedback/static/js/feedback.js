@@ -24,6 +24,26 @@
       $anchor.closest(".ol-feedback-container").addClass("ol-feedback-container--relocated");
       $anchor.addClass("ol-feedback-anchor--docked");
       $chatBtn.before($anchor);
+
+      // AskTIM shifts its own button up via relative positioning that differs by
+      // block type (problem blocks lift it with `bottom: 70px`; video resets it).
+      // That offset is outside layout flow, so the docked megaphone would
+      // otherwise sit lower than the AskTIM button. Align the megaphone's
+      // vertical center to the chat button's actual rendered position — this
+      // works for any offset/block type and is a no-op when they already line up.
+      var alignToChatButton = function () {
+        $anchor.css("transform", "");
+        var btnRect = $chatBtn[0].getBoundingClientRect();
+        var anchorRect = $anchor[0].getBoundingClientRect();
+        var delta =
+          (btnRect.top + btnRect.height / 2) -
+          (anchorRect.top + anchorRect.height / 2);
+        if (Math.abs(delta) > 0.5) {
+          $anchor.css("transform", "translateY(" + delta + "px)");
+        }
+      };
+      window.requestAnimationFrame(alignToChatButton);
+      $(window).on("resize", alignToChatButton);
     }
   }
 
