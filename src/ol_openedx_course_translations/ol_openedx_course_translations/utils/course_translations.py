@@ -39,9 +39,6 @@ from ol_openedx_course_translations.utils.constants import (
 
 logger = logging.getLogger(__name__)
 
-# Archive and file size limits
-TAR_FILE_SIZE_LIMIT = 512 * 1024 * 1024  # 512MB
-
 
 def get_translation_provider(
     provider_name: str,
