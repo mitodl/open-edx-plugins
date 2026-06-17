@@ -1,18 +1,15 @@
 """Tests for Canvas integration tasks"""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import requests
-from django.contrib.auth import get_user_model
+from common.djangoapps.student.tests.factories import UserFactory
 from django.test import TestCase, override_settings
 from lms.djangoapps.grades.models import PersistentSubsectionGrade
 from ol_openedx_canvas_integration.tasks import _sync_user_grade_with_canvas
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from openedx.core.djangolib.testing.utils import skip_unless_lms
-from pytz import UTC
-
-USER_MODEL = get_user_model()
 
 
 @override_settings(BULK_EMAIL_DEFAULT_RETRY_DELAY=10, BULK_EMAIL_MAX_RETRIES=5)
@@ -36,10 +33,9 @@ class TestSyncUserGradeWithCanvas(TestCase):
         self.email = "student@example.com"
         self.canvas_user_id = 456
         self.canvas_assignment_id = 789
-        self.user = USER_MODEL.objects.create_user(
+        self.user = UserFactory.create(
             username="student",
             email="student@example.com",
-            password="password",  # noqa: S106 # pragma: allowlist secret
         )
         self.grade_instance = PersistentSubsectionGrade.update_or_create_grade(
             user_id=self.user.id,
@@ -71,12 +67,14 @@ class TestSyncUserGradeWithCanvas(TestCase):
     ):
         """Test successful grade sync to Canvas"""
         mock_client = mock_client_class.return_value
+        # The graded assignment is linked to canvas
         mock_client.get_canvas_assignments.return_value = {
             str(self.usage_key): {
                 "id": self.canvas_assignment_id,
                 "due_at": "",
             }
         }
+        # The user is linked to a Canvas user
         mock_client.get_student_id_by_email.return_value = self.canvas_user_id
         mock_client.update_assignment_grades.return_value = MagicMock(
             status_code=requests.codes.ok
@@ -101,7 +99,7 @@ class TestSyncUserGradeWithCanvas(TestCase):
         self,
         mock_client_class,
     ):
-
+        """Test that grades are not synced if course has no linked canvas id"""
         _sync_user_grade_with_canvas(self.grade_id)
 
         mock_client_class.assert_not_called()
@@ -115,7 +113,9 @@ class TestSyncUserGradeWithCanvas(TestCase):
         self,
         mock_client_class,
     ):
+        """Test that assignments that are not synced to Canvas are not updated."""
         mock_client = mock_client_class.return_value
+        # There are assignment synced to Canvas, but not the one being graded
         mock_client.get_canvas_assignments.return_value = {
             "dummy-key": {
                 "id": self.canvas_assignment_id,
@@ -136,9 +136,11 @@ class TestSyncUserGradeWithCanvas(TestCase):
         self,
         mock_client_class,
     ):
+        """Test that grades are not synced for assignments past due date"""
         mock_client = mock_client_class.return_value
+        # Assignment is synced to Canvas, but past due date
         mock_client.get_canvas_assignments.return_value = {
-            "dummy-key": {
+            str(self.usage_key): {
                 "id": self.canvas_assignment_id,
                 "due_at": str(datetime.now(tz=UTC) - timedelta(days=1)),
             }
@@ -157,13 +159,16 @@ class TestSyncUserGradeWithCanvas(TestCase):
         self,
         mock_client_class,
     ):
+        """Test that grades are not synced if user is not linked to a Canvas user"""
         mock_client = mock_client_class.return_value
+        # The assignment is linked to Canvas ...
         mock_client.get_canvas_assignments.return_value = {
             str(self.usage_key): {
                 "id": self.canvas_assignment_id,
                 "due_at": "",
             }
         }
+        # ... but the user is not linked to a Canvas user
         mock_client.get_student_id_by_email.return_value = None
 
         _sync_user_grade_with_canvas(self.grade_id)
@@ -215,6 +220,7 @@ class TestSyncUserGradeWithCanvas(TestCase):
         mock_get_grades,
         mock_client_class,
     ):
+        """Test that grades are not synced if the Canvas API returns an error"""
         mock_client = mock_client_class.return_value
         mock_client.get_canvas_assignments.return_value = {
             str(self.usage_key): {

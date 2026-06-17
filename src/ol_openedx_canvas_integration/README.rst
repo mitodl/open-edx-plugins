@@ -126,7 +126,7 @@ Whenever the course is **Published** from the Studio, the **graded subsections**
 2. Automatic Syncing of Grades
 """"""""""""""""""""""""""""""
 
-Whenever a learner interacts with a graded question in Open edX, the latest grades are automatically posted to Canvas, if it's a part of a synced assignment.
+Whenever a learner interacts with a graded question in Open edX, the latest grades are automatically posted to Canvas, if it's a part of a synced assignment. If a grade in Open edX is past the canvas due date, it will not be synced.
 
 3. Automatic Syncing of Due Dates
 """""""""""""""""""""""""""""""""

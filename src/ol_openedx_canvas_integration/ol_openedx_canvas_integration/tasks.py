@@ -92,7 +92,7 @@ def sync_user_grade_with_canvas(grade_id):
     _sync_user_grade_with_canvas(grade_id)
 
 
-def _sync_user_grade_with_canvas(grade_id):
+def _sync_user_grade_with_canvas(grade_id):  # noqa: PLR0911
     """
     Call the Canvas API and update the user's grade.
     """
@@ -115,6 +115,15 @@ def _sync_user_grade_with_canvas(grade_id):
     if str(grade_instance.full_usage_key) not in existing_assignments_map:
         TASK_LOG.warning(
             "The assignment %s is not synced with Canvas. Skipping grade sync.",
+            grade_instance.usage_key,
+        )
+        return
+    due_date = existing_assignments_map[str(grade_instance.usage_key)]["due_at"]
+    if due_date:
+        due_date = parse_datetime(due_date)
+    if due_date and due_date < datetime.now(tz=UTC):
+        TASK_LOG.warning(
+            "The assignment %s is past its due date. Skipping grade sync.",
             grade_instance.usage_key,
         )
         return
