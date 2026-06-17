@@ -10,21 +10,21 @@ import tempfile
 import time
 from enum import StrEnum
 from pathlib import Path
-from xmodule.modulestore.django import modulestore
-from xmodule.contentstore.django import contentstore
-from xmodule.modulestore.xml_exporter import (
-    export_course_to_xml,
-)
-from xmodule.modulestore import ModuleStoreEnum  # noqa: PLC0415
-from xmodule.modulestore.xml_importer import (  # noqa: PLC0415
-    import_course_from_xml,
-)
 
 from celery import group
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.locator import CourseLocator
+from xmodule.contentstore.django import contentstore
+from xmodule.modulestore import ModuleStoreEnum
+from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.xml_exporter import (
+    export_course_to_xml,
+)
+from xmodule.modulestore.xml_importer import (
+    import_course_from_xml,
+)
 
 from ol_openedx_course_translations import tasks as translation_tasks
 from ol_openedx_course_translations.models import CourseTranslationLog
