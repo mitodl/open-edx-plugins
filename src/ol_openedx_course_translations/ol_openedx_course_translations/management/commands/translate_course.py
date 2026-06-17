@@ -10,6 +10,15 @@ import tempfile
 import time
 from enum import StrEnum
 from pathlib import Path
+from xmodule.modulestore.django import modulestore
+from xmodule.contentstore.django import contentstore
+from xmodule.modulestore.xml_exporter import (
+    export_course_to_xml,
+)
+from xmodule.modulestore import ModuleStoreEnum  # noqa: PLC0415
+from xmodule.modulestore.xml_importer import (  # noqa: PLC0415
+    import_course_from_xml,
+)
 
 from celery import group
 from django.conf import settings
@@ -393,15 +402,12 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(total_time_taken_msg))
             command_stats.append(total_time_taken_msg)
 
-            # The source course key is known directly from the argument
-            source_course_id = source_course_key
-
             # Add translation log entry
             self._add_translation_log_entry(
                 source_language=source_language,
                 target_language=target_language,
                 command_stats=command_stats,
-                source_course_id=source_course_id,
+                source_course_id=source_course_key,
             )
 
             # Write translations metadata into the translated course output
@@ -411,7 +417,7 @@ class Command(BaseCommand):
                 target_language=target_language,
                 command_stats=command_stats,
                 command_options=options,
-                source_course_id=source_course_id,
+                source_course_id=source_course_key,
             )
 
             # Import translated content into the target course, creating it if needed
@@ -479,8 +485,6 @@ class Command(BaseCommand):
         Raises:
             CommandError: If the course does not exist
         """
-        from xmodule.modulestore.django import modulestore  # noqa: PLC0415
-
         course = modulestore().get_course(source_course_key)
         if course is None:
             error_msg = (
@@ -508,12 +512,6 @@ class Command(BaseCommand):
         Raises:
             CommandError: If the export fails
         """
-        from xmodule.contentstore.django import contentstore  # noqa: PLC0415
-        from xmodule.modulestore.django import modulestore  # noqa: PLC0415
-        from xmodule.modulestore.xml_exporter import (  # noqa: PLC0415
-            export_course_to_xml,
-        )
-
         export_dir = Path(tempfile.mkdtemp(dir=base_dir))
         try:
             self.stdout.write(f"Exporting source course {source_course_key} ...")
@@ -561,13 +559,6 @@ class Command(BaseCommand):
         Raises:
             CommandError: If the import fails
         """
-        from xmodule.contentstore.django import contentstore  # noqa: PLC0415
-        from xmodule.modulestore import ModuleStoreEnum  # noqa: PLC0415
-        from xmodule.modulestore.django import modulestore  # noqa: PLC0415
-        from xmodule.modulestore.xml_importer import (  # noqa: PLC0415
-            import_course_from_xml,
-        )
-
         self.stdout.write(
             f"Importing translated content into target course {target_course_key} ..."
         )
