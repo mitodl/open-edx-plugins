@@ -310,6 +310,10 @@ class Command(BaseCommand):
                 )
                 delete_course_sections(course, user_id)
 
+            # Delete all course assets to prevent orphaned assets from
+            # the source course, which may be shared across multiple
+            # courses in a split modulestore setup.
+            store.contentstore.delete_all_course_assets(parsed_key)
             if course_intro:
                 intro_section = create_content_block(
                     course,
