@@ -19,6 +19,15 @@ dependencies = [
 [project.entry-points."lms.djangoapp"]
 ol_openedx_rapid_response_reports = "ol_openedx_rapid_response_reports.app:RapidResponsePluginConfig"
 
+[tool.pytest.ini_options]
+addopts = ["--no-migrations", "--reuse-db"]
+filterwarnings = [
+  "default",
+  "ignore:'cgi' is deprecated and slated for removal in Python 3.13:DeprecationWarning",
+  "ignore:.*pkg_resources.*:DeprecationWarning",
+  "ignore:.*Python 3.13.*:DeprecationWarning",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
