@@ -36,7 +36,9 @@ class AddRapidResponseInstructorTab(PipelineStep):
                 {
                     "tab_id": RAPID_RESPONSE_TAB_ID,
                     "title": _("Rapid Responses"),
-                    "url": f"/instructor-dashboard/{course_key}/{RAPID_RESPONSE_TAB_ID}",
+                    "url": (
+                        f"/instructor-dashboard/{course_key}/{RAPID_RESPONSE_TAB_ID}"
+                    ),
                     "sort_order": RAPID_RESPONSE_TAB_SORT_ORDER,
                 }
             )

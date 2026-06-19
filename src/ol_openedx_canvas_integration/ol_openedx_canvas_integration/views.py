@@ -14,13 +14,18 @@ from django.views.decorators.http import require_GET, require_POST
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.instructor import permissions
 from lms.djangoapps.instructor.views.api import require_course_permission
-from lms.djangoapps.instructor.views.instructor_task_helpers import extract_task_features
+from lms.djangoapps.instructor.views.instructor_task_helpers import (
+    extract_task_features,
+)
 from lms.djangoapps.instructor_task.api_helper import AlreadyRunningError
 from opaque_keys.edx.locator import CourseLocator
 
 from ol_openedx_canvas_integration import tasks
 from ol_openedx_canvas_integration.client import CanvasClient
-from ol_openedx_canvas_integration.constants import CANVAS_TASK_TYPES, COURSE_KEY_ID_EMPTY
+from ol_openedx_canvas_integration.constants import (
+    CANVAS_TASK_TYPES,
+    COURSE_KEY_ID_EMPTY,
+)
 from ol_openedx_canvas_integration.task_helpers import get_filtered_instructor_tasks
 from ol_openedx_canvas_integration.utils import (
     get_canvas_course_id,
@@ -209,7 +214,9 @@ def list_canvas_tasks(request, course_id):
                     json.loads(task.task_output)
                 )
             except (ValueError, TypeError):
-                log.exception("Could not format Canvas task output for %s", task.task_id)
+                log.exception(
+                    "Could not format Canvas task output for %s", task.task_id
+                )
         task_features.append(feature)
 
     return JsonResponse({"tasks": task_features})

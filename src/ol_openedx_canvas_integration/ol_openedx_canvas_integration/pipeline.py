@@ -42,11 +42,13 @@ class AddCanvasInstructorTab(PipelineStep):
                         {
                             "tab_id": CANVAS_TAB_ID,
                             "title": _("Canvas"),
-                            "url": f"/instructor-dashboard/{course_key}/{CANVAS_TAB_ID}",
+                            "url": (
+                                f"/instructor-dashboard/{course_key}/{CANVAS_TAB_ID}"
+                            ),
                             "sort_order": CANVAS_TAB_SORT_ORDER,
                         }
                     )
-        except Exception:  # noqa: BLE001
+        except Exception:
             # Never let a Canvas lookup failure break instructor dashboard tabs.
             log.exception(
                 "Failed to evaluate Canvas instructor tab for course %s", course_key

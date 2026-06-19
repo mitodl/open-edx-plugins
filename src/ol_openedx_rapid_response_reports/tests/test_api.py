@@ -2,6 +2,7 @@
 
 import json
 from datetime import UTC, datetime
+from http import HTTPStatus
 from unittest.mock import patch
 
 from common.djangoapps.student.roles import CourseStaffRole
@@ -38,13 +39,13 @@ class ListRapidResponseRunsViewTests(ModuleStoreTestCase):
 
     def test_requires_course_permission(self):
         """A user without dashboard permission gets a 403."""
-        assert self._get(UserFactory.create()).status_code == 403
+        assert self._get(UserFactory.create()).status_code == HTTPStatus.FORBIDDEN
 
     @patch("rapid_response_xblock.utils.get_run_data_for_course")
     def test_returns_empty_list_when_no_runs(self, mock_runs):
         mock_runs.return_value = []
         response = self._get(self.staff)
-        assert response.status_code == 200
+        assert response.status_code == HTTPStatus.OK
         assert json.loads(response.content) == []
 
     @patch(
@@ -52,8 +53,8 @@ class ListRapidResponseRunsViewTests(ModuleStoreTestCase):
         return_value="My Rapid Problem",
     )
     @patch("rapid_response_xblock.utils.get_run_data_for_course")
-    def test_serializes_runs(self, mock_runs, _mock_display_name):
-        """Runs are returned as a JSON array with id, usage key, display name, created."""
+    def test_serializes_runs(self, mock_runs, mock_display_name):  # noqa: ARG002
+        """Runs are serialized as a JSON array with the expected fields."""
         usage_key = "block-v1:org+course+run+type@problem+block@p1"
         mock_runs.return_value = [
             {
@@ -65,7 +66,7 @@ class ListRapidResponseRunsViewTests(ModuleStoreTestCase):
 
         response = self._get(self.staff)
 
-        assert response.status_code == 200
+        assert response.status_code == HTTPStatus.OK
         data = json.loads(response.content)
         assert isinstance(data, list)
         assert len(data) == 1

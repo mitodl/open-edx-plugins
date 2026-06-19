@@ -1,6 +1,7 @@
 """Tests for the Canvas integration MFE endpoints."""
 
 import json
+from http import HTTPStatus
 from unittest.mock import patch
 
 from common.djangoapps.student.roles import CourseInstructorRole
@@ -53,11 +54,11 @@ class ListCanvasTasksViewTests(ModuleStoreTestCase):
 
     def test_requires_course_permission(self):
         """A user without instructor permission gets a 403."""
-        assert self._get(UserFactory.create()).status_code == 403
+        assert self._get(UserFactory.create()).status_code == HTTPStatus.FORBIDDEN
 
     def test_returns_empty_list_when_no_tasks(self):
         response = self._get(self.instructor)
-        assert response.status_code == 200
+        assert response.status_code == HTTPStatus.OK
         assert json.loads(response.content) == {"tasks": []}
 
     def test_lists_canvas_tasks(self):
@@ -68,7 +69,7 @@ class ListCanvasTasksViewTests(ModuleStoreTestCase):
 
         response = self._get(self.instructor)
 
-        assert response.status_code == 200
+        assert response.status_code == HTTPStatus.OK
         tasks = json.loads(response.content)["tasks"]
         assert len(tasks) == 1
         assert tasks[0]["task_type"] == "push_edx_grades_to_canvas"
@@ -87,6 +88,6 @@ class ListCanvasTasksViewTests(ModuleStoreTestCase):
         ):
             response = self._get(self.instructor)
 
-        assert response.status_code == 200
+        assert response.status_code == HTTPStatus.OK
         tasks = json.loads(response.content)["tasks"]
         assert tasks[0]["task_message"] == "CANVAS SENTINEL MESSAGE"

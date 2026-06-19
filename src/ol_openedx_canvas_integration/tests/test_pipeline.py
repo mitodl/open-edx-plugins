@@ -49,7 +49,7 @@ def test_tab_not_added_when_course_not_linked(mock_modulestore, mock_get_canvas_
 @patch("ol_openedx_canvas_integration.pipeline.get_canvas_course_id")
 @patch("ol_openedx_canvas_integration.pipeline.modulestore")
 def test_existing_tabs_preserved(mock_modulestore, mock_get_canvas_id):
-    """Tabs already provided by the platform are preserved and the Canvas tab appended."""
+    """Existing platform tabs are preserved and the Canvas tab is appended."""
     mock_modulestore.return_value.get_course.return_value = MagicMock()
     mock_get_canvas_id.return_value = "12345"
 
