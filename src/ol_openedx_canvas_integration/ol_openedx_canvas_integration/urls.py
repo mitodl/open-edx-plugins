@@ -24,4 +24,5 @@ urlpatterns = [
     ),
     path("list_canvas_grades", views.list_canvas_grades, name="list_canvas_grades"),
     path("push_edx_grades", views.push_edx_grades, name="push_edx_grades"),
+    path("list_canvas_tasks", views.list_canvas_tasks, name="list_canvas_tasks"),
 ]

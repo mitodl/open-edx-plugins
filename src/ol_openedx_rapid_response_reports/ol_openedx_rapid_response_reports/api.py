@@ -1,11 +1,13 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_GET
 from lms.djangoapps.instructor.permissions import VIEW_DASHBOARD
 from lms.djangoapps.instructor.views.api import require_course_permission
 from lms.djangoapps.instructor_analytics import csvs
 from opaque_keys.edx.keys import CourseKey
 
 
+@require_GET
 @ensure_csrf_cookie
 @require_course_permission(VIEW_DASHBOARD)
 def list_rapid_response_runs(

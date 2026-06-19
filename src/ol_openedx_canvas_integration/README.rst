@@ -3,11 +3,31 @@ Canvas Integration Plugin
 
 A django app plugin to add Canvas integration to Open edX.
 
-**NOTE:**
+**NOTE — edx-platform cherry-pick (legacy instructor dashboard only):**
 
-We had to make some changes to edx-platform itself in order to add the "Canvas" tab to the instructor dashboard.
+The cherry-pick described below is **only required for the legacy (Django-rendered)
+instructor dashboard**. It patches edx-platform to render the "Canvas" tab/section
+and its tables, and to surface Canvas background-task status in the legacy
+"Pending Tasks" panel.
 
-The ``edx-platform`` branch/tag you're using must include one of the below commit for ``ol-openedx-canvas-integration`` plugin to work properly:
+**It is NOT required when using the OEP-65 ``frontend-base`` instructor dashboard
+MFE.** On the MFE, this plugin is self-contained:
+
+- The "Canvas" tab is added via the ``InstructorDashboardTabsRequested`` filter
+  (``org.openedx.learning.instructor.dashboard.tabs.requested.v1``) — see
+  ``pipeline.py`` — and only for courses with ``canvas_id`` set.
+- Background-task status is served as JSON by the plugin's own
+  ``list_canvas_tasks`` endpoint (see ``views.py``), which formats Canvas task
+  output itself, so no edx-platform patch to ``get_task_completion_info`` /
+  ``list_instructor_tasks`` is needed.
+- The tab content (tables, etc.) is rendered by the MFE's React components.
+
+If you run **only** the MFE instructor dashboard, you can skip the cherry-pick
+entirely. The section below applies if you still serve the legacy instructor
+dashboard.
+
+**Legacy instructor dashboard** — the ``edx-platform`` branch/tag you're using must
+include one of the below commits for the legacy "Canvas" tab to work properly:
 
 **For "Sumac" or more recent release of edX platform, you should cherry-pick below commit:**
 

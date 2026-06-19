@@ -10,7 +10,7 @@ from ol_openedx_rapid_response_reports.api import (
 )
 
 urlpatterns = [
-    # rapid response runs listing (JSON)
+    # rapid response runs list (JSON, consumed by the instructor dashboard MFE)
     re_path(
         r"rapid_response_runs$",
         list_rapid_response_runs,
