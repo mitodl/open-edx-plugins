@@ -1,6 +1,11 @@
 Release Notes
 =============
 
+Version 0.29.0
+--------------
+
+- chore: remove web-fragments as a dependency (#383)
+
 Version 0.28.0 (Released April 17, 2026)
 --------------
 
