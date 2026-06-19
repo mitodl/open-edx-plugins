@@ -43,7 +43,7 @@ class AddCanvasInstructorTab(PipelineStep):
                             "tab_id": CANVAS_TAB_ID,
                             "title": _("Canvas"),
                             "url": (
-                                f"/instructor-dashboard/{course_key}/{CANVAS_TAB_ID}"
+                                f"/apps/instructor-dashboard/{course_key}/{CANVAS_TAB_ID}"
                             ),
                             "sort_order": CANVAS_TAB_SORT_ORDER,
                         }

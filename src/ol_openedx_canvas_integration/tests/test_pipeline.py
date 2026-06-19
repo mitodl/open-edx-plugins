@@ -30,7 +30,7 @@ def test_tab_added_when_course_linked_to_canvas(mock_modulestore, mock_get_canva
     tab = tabs[0]
     assert tab["tab_id"] == CANVAS_TAB_ID
     assert tab["title"] == "Canvas"
-    assert tab["url"] == f"/instructor-dashboard/{COURSE_KEY}/{CANVAS_TAB_ID}"
+    assert tab["url"] == f"/apps/instructor-dashboard/{COURSE_KEY}/{CANVAS_TAB_ID}"
     assert "sort_order" in tab
 
 
