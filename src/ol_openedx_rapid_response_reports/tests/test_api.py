@@ -1,9 +1,11 @@
 """Tests for the rapid response reports MFE endpoint."""
 
 import json
+import sys
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from http import HTTPStatus
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from common.djangoapps.student.roles import CourseStaffRole
 from common.djangoapps.student.tests.factories import UserFactory
@@ -12,6 +14,31 @@ from ol_openedx_rapid_response_reports.api import list_rapid_response_runs
 from openedx.core.djangolib.testing.utils import skip_unless_lms
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory
+
+
+@contextmanager
+def fake_rapid_response_runs(runs):
+    """Stub ``rapid_response_xblock.utils`` for the duration of the block.
+
+    The view lazily imports ``get_run_data_for_course`` from
+    ``rapid_response_xblock.utils``. That package is a separate plugin and is not
+    a declared dependency, so it may not be importable in the test environment
+    (CI installs plugins alphabetically and cumulatively, running these tests
+    before ``rapid_response_xblock`` is installed). Injecting a stub module makes
+    the lazy import resolve deterministically and lets us control the run data.
+    """
+    utils_stub = MagicMock()
+    utils_stub.get_run_data_for_course.return_value = runs
+    parent_stub = MagicMock()
+    parent_stub.utils = utils_stub
+    with patch.dict(
+        sys.modules,
+        {
+            "rapid_response_xblock": parent_stub,
+            "rapid_response_xblock.utils": utils_stub,
+        },
+    ):
+        yield utils_stub
 
 
 @skip_unless_lms
@@ -41,10 +68,9 @@ class ListRapidResponseRunsViewTests(ModuleStoreTestCase):
         """A user without dashboard permission gets a 403."""
         assert self._get(UserFactory.create()).status_code == HTTPStatus.FORBIDDEN
 
-    @patch("rapid_response_xblock.utils.get_run_data_for_course")
-    def test_returns_empty_list_when_no_runs(self, mock_runs):
-        mock_runs.return_value = []
-        response = self._get(self.staff)
+    def test_returns_empty_list_when_no_runs(self):
+        with fake_rapid_response_runs([]):
+            response = self._get(self.staff)
         assert response.status_code == HTTPStatus.OK
         assert json.loads(response.content) == []
 
@@ -52,11 +78,10 @@ class ListRapidResponseRunsViewTests(ModuleStoreTestCase):
         "ol_openedx_rapid_response_reports.utils.get_display_name_from_usage_key",
         return_value="My Rapid Problem",
     )
-    @patch("rapid_response_xblock.utils.get_run_data_for_course")
-    def test_serializes_runs(self, mock_runs, mock_display_name):  # noqa: ARG002
+    def test_serializes_runs(self, mock_display_name):  # noqa: ARG002
         """Runs are serialized as a JSON array with the expected fields."""
         usage_key = "block-v1:org+course+run+type@problem+block@p1"
-        mock_runs.return_value = [
+        runs = [
             {
                 "id": 7,
                 "created": datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC),
@@ -64,7 +89,8 @@ class ListRapidResponseRunsViewTests(ModuleStoreTestCase):
             }
         ]
 
-        response = self._get(self.staff)
+        with fake_rapid_response_runs(runs):
+            response = self._get(self.staff)
 
         assert response.status_code == HTTPStatus.OK
         data = json.loads(response.content)
