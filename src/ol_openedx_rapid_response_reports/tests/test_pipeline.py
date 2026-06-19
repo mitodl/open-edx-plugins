@@ -23,7 +23,9 @@ def test_tab_added():
     tab = tabs[0]
     assert tab["tab_id"] == RAPID_RESPONSE_TAB_ID
     assert tab["title"] == "Rapid Responses"
-    assert tab["url"] == f"/apps/instructor-dashboard/{COURSE_KEY}/{RAPID_RESPONSE_TAB_ID}"
+    assert (
+        tab["url"] == f"/apps/instructor-dashboard/{COURSE_KEY}/{RAPID_RESPONSE_TAB_ID}"
+    )
     assert "sort_order" in tab
 
 
