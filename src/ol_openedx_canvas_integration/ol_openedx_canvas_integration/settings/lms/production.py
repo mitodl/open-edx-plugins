@@ -2,7 +2,7 @@
 
 from path import Path as path  # noqa: N813
 
-PLUGIN_TEMPLATES_ROOT = path(__file__).abspath().dirname().dirname()
+PLUGIN_TEMPLATES_ROOT = path(__file__).abspath().dirname().dirname().dirname()
 
 
 def plugin_settings(settings):

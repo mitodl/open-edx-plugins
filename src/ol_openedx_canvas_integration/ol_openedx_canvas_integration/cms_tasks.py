@@ -15,23 +15,43 @@ import logging
 
 import requests
 from celery import shared_task
+from django.contrib.auth import get_user_model
+from django.utils.dateparse import parse_datetime
 from lms.djangoapps.courseware.courses import get_course_by_id
+from lms.djangoapps.instructor.views.tools import set_due_date_extension
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from opaque_keys.edx.locator import CourseLocator
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
+from xmodule.modulestore import ModuleStoreEnum
+from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.exceptions import ItemNotFoundError
 
 from ol_openedx_canvas_integration.api import course_graded_items
 from ol_openedx_canvas_integration.client import CanvasClient, create_assignment_payload
-from ol_openedx_canvas_integration.utils import get_canvas_course_id
+from ol_openedx_canvas_integration.utils import (
+    get_canvas_course_id,
+    is_canvas_dates_sync_enabled,
+)
 
 logger = logging.getLogger(__name__)
+TASK_LOG = logging.getLogger("edx.celery.task")
+User = get_user_model()
 
 
-def diff_assignments(openedx_assignments, canvas_assignments_map):
+def diff_assignments(
+    openedx_assignments,
+    canvas_assignments_map,
+    use_canvas_dates=False,  # noqa: FBT002
+):
     """Perform a diff between the assignments in Canvas and Open edX.
 
     Args:
         openedx_assignments (list): List of Open edX subsection objects
         canvas_assignments_map (dict): Map of assignment integration IDs to Canvas
                                        assignment IDs
+        use_canvas_dates (bool): Whether to sync the due dates of the assignments
+                                 with the due dates of the subsections
 
     Returns:
         dict: The diff between the assignments with the following structure:
@@ -44,7 +64,9 @@ def diff_assignments(openedx_assignments, canvas_assignments_map):
     assignment_diff = {"add": [], "update": {}, "delete": []}
     for subsection in openedx_assignments:
         integration_id = str(subsection.location)
-        payload = create_assignment_payload(subsection)
+        payload = create_assignment_payload(
+            subsection, use_canvas_dates=use_canvas_dates
+        )
         canvas_assignment = canvas_assignments_map.pop(integration_id, None)
         if canvas_assignment:
             # if the assignment exists in Canvas, remove from the map to indicate
@@ -151,6 +173,7 @@ def sync_course_assignments_with_canvas(course_id):
     course_key = CourseLocator.from_string(course_id)
     course = get_course_by_id(course_key)
     canvas_course_id = get_canvas_course_id(course)
+    use_canvas_due_dates = is_canvas_dates_sync_enabled(course)
 
     if not canvas_course_id:
         logger.info(
@@ -165,7 +188,9 @@ def sync_course_assignments_with_canvas(course_id):
     canvas = CanvasClient(canvas_course_id=canvas_course_id)
     canvas_assignments = canvas.get_canvas_assignments()
 
-    operations_map = diff_assignments(openedx_assignments, canvas_assignments)
+    operations_map = diff_assignments(
+        openedx_assignments, canvas_assignments, use_canvas_due_dates
+    )
     logger.info(
         "Syncing assignments with Canvas. Adding: %d, Updating: %d, Deleting: %d",
         len(operations_map["add"]),
@@ -176,3 +201,138 @@ def sync_course_assignments_with_canvas(course_id):
     add_assignments(canvas, operations_map["add"])
     update_assignments(canvas, operations_map["update"])
     delete_assignments(canvas, operations_map["delete"])
+
+
+@shared_task
+def sync_canvas_due_dates_for_all_courses():
+    """
+    Synchronize due dates from Canvas for all courses in the system.
+
+    This task retrieves a list of all course IDs and triggers an asynchronous
+    task to synchronize Canvas due dates for each course.
+
+    Returns:
+        None
+    """
+    courses = (
+        CourseOverview.objects.all().order_by("created").values_list("id", flat=True)
+    )
+    for course_id in courses:
+        sync_canvas_due_dates.delay(str(course_id))
+
+
+@shared_task
+def sync_canvas_due_dates(course_id: str):
+    """
+    Synchronize due dates for the specified course with the Canvas platform.
+
+    This task is a wrapper around the `_sync_canvas_due_dates` function, which
+    performs the actual synchronization of assignment due dates from Canvas to
+    the platform.
+
+    Parameters:
+        course_id (str): The unique identifier of the course whose due
+        dates need to be synchronized.
+    """
+    _sync_canvas_due_dates(course_id)
+
+
+def sync_canvas_due_date_extensions(client, course, block, overrides):
+    """
+    Synchronize due date extensions for students in Canvas with the platform.
+
+    Parameters:
+        client (CanvasAPIClient): The Canvas API client for making requests.
+        course (Course): Course object for which due date extensions are being synced.
+        block (Block): Block object for which due date extensions are being synced.
+        overrides (list): List of due date overrides from Canvas.
+    """
+    if not overrides:
+        return
+    canvas_course_id = get_canvas_course_id(course)
+    for override in overrides:
+        if "student_ids" in override:
+            emails = client.get_emails_by_student_ids(override["student_ids"])
+            students = User.objects.filter(email__in=emails)
+            for student in students:
+                TASK_LOG.info(
+                    "Due Date Sync: Syncing due date for student %s in course %s",
+                    student.id,
+                    course.id,
+                )
+                due_date_override = parse_datetime(override["due_at"])
+                set_due_date_extension(
+                    course,
+                    block,
+                    student,
+                    due_date_override,
+                    reason=f"Synced from canvas course: {canvas_course_id}",
+                )
+
+
+def _sync_canvas_due_dates(course_id: str):
+    """
+    Synchronize assignment due dates from Canvas to a specific course in the platform.
+
+    This function retrieves assignment due dates from Canvas associated with a
+    given course and updates the platform's course content accordingly. The
+    function skips synchronization if the course has no Canvas ID or if using
+    Canvas due dates is disabled for the course.
+
+    Arguments:
+        course_id (str): The unique identifier of the course to be synchronized.
+    """
+    course_key = CourseKey.from_string(course_id)
+    course = get_course_by_id(course_key)
+    canvas_course_id = get_canvas_course_id(course)
+    if not canvas_course_id:
+        TASK_LOG.info(
+            "Due Date Sync: No canvas ID. Skipped for course %s",
+            course_id,
+        )
+        return
+    use_canvas_due_dates = is_canvas_dates_sync_enabled(course)
+    if not use_canvas_due_dates:
+        TASK_LOG.info(
+            "Due Date Sync: Disabled. Skipped for course %s",
+            course_id,
+        )
+        return
+
+    TASK_LOG.info(
+        "Due Date Sync: Starting for course %s with canvas course id: %s",
+        course_id,
+        canvas_course_id,
+    )
+
+    client = CanvasClient(canvas_course_id=canvas_course_id)
+    canvas_assignments = client.get_canvas_assignments()
+
+    with modulestore().bulk_operations(course_key):
+        for usage_id, canvas_assignment in canvas_assignments.items():
+            try:
+                usage_key = UsageKey.from_string(usage_id)
+                due_at = canvas_assignment.get("due_at")
+                block = modulestore().get_item(usage_key)
+                sync_canvas_due_date_extensions(
+                    client, course, block, canvas_assignment.get("overrides")
+                )
+                if due_at:
+                    block.due = parse_datetime(due_at)
+                else:
+                    block.due = None
+                modulestore().update_item(block, ModuleStoreEnum.UserID.mgmt_command)
+            except ItemNotFoundError:
+                TASK_LOG.error(
+                    "Due Date Sync: Error updating due date for %s: block not found.",
+                    usage_id,
+                )
+            except InvalidKeyError:
+                TASK_LOG.error(
+                    "Due Date Sync: Error updating due date for %s: invalid key.",
+                    usage_id,
+                )
+            except Exception as e:  # noqa: BLE001
+                TASK_LOG.error(
+                    "Due Date Sync: Error updating due date for %s: %s", usage_id, e
+                )

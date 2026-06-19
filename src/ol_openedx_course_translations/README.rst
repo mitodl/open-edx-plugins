@@ -29,12 +29,14 @@ Configuration
        # Default: /openedx/data/course_translations/
        COURSE_TRANSLATIONS_BASE_DIR: "/openedx/data/course_translations/"
 
+       # Relative path (within exported course/course/) for course updates JSON
+       # where each item's `content` HTML is translated.
+       # Default: info/updates.items.json
+       COURSE_TRANSLATIONS_UPDATES_ITEMS_JSON_RELATIVE_PATH: "info/updates.items.json"
+
        # Translation providers configuration
        TRANSLATIONS_PROVIDERS: {
            "default_provider": "mistral",  # Default provider to use
-           "deepl": {
-               "api_key": "<YOUR_DEEPL_API_KEY>",
-           },
            "openai": {
                "api_key": "<YOUR_OPENAI_API_KEY>",
                "default_model": "gpt-5.2",
@@ -57,7 +59,6 @@ Translation Providers
 
 The plugin supports multiple translation providers:
 
-- DeepL
 - OpenAI (GPT models)
 - Gemini (Google)
 - Mistral
@@ -70,9 +71,6 @@ All providers are configured through the ``TRANSLATIONS_PROVIDERS`` dictionary i
 
     TRANSLATIONS_PROVIDERS = {
         "default_provider": "mistral",  # Optional: default provider for commands
-        "deepl": {
-            "api_key": "<YOUR_DEEPL_API_KEY>",
-        },
         "openai": {
             "api_key": "<YOUR_OPENAI_API_KEY>",
             "default_model": "gpt-5.2",  # Optional: used when model not specified
@@ -89,15 +87,11 @@ All providers are configured through the ``TRANSLATIONS_PROVIDERS`` dictionary i
 
 **Important Notes:**
 
-1. **DeepL Configuration**: DeepL must be configured in ``TRANSLATIONS_PROVIDERS['deepl']['api_key']``.
-
-2. **DeepL for Subtitle Repair**: DeepL is used as a fallback repair mechanism for subtitle translations when LLM providers fail validation. Even if you use LLM providers for primary translation, you should configure DeepL to enable automatic repair.
-
-3. **Default Models**: The ``default_model`` in each provider's configuration is used when you specify a provider without a model (e.g., ``openai`` instead of ``openai/gpt-5.2``).
+1. **Default Models**: The ``default_model`` in each provider's configuration is used when you specify a provider without a model (e.g., ``openai`` instead of ``openai/gpt-5.2``).
 
 **Provider Selection**
 
-You can specify providers in three ways:
+You can specify providers in two ways:
 
 1. **Provider only** (uses default model from settings):
 
@@ -118,16 +112,6 @@ You can specify providers in three ways:
         --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai/gpt-5.2 \
         --srt-translation-provider gemini/gemini-3-pro-preview
-
-3. **DeepL** (no model needed):
-
-.. code-block:: bash
-
-    ./manage.py cms translate_course \
-        --target-language ar \
-        --course-dir /path/to/course.tar.gz \
-        --content-translation-provider deepl \
-        --srt-translation-provider deepl
 
 **Note:** If you specify a provider without a model (e.g., ``openai`` instead of ``openai/gpt-5.2``), the system will use the ``default_model`` configured in ``TRANSLATIONS_PROVIDERS`` for that provider.
 
@@ -160,7 +144,6 @@ Translating a Course
 
   Format:
 
-  - ``deepl`` - uses DeepL (no model needed)
   - ``PROVIDER`` - uses provider with default model from settings (e.g., ``openai``, ``gemini``, ``mistral``)
   - ``PROVIDER/MODEL`` - uses provider with specific model (e.g., ``openai/gpt-5.2``, ``gemini/gemini-3-pro-preview``, ``mistral/mistral-large-latest``)
 
@@ -169,16 +152,13 @@ Translating a Course
 - ``--content-glossary``: Path to glossary directory for content (XML/HTML and text) translation (optional)
 - ``--srt-glossary``: Path to glossary directory for SRT subtitle translation (optional)
 
+The command also translates ``course/info/updates.items.json`` (or the path
+configured in ``COURSE_TRANSLATIONS_UPDATES_ITEMS_JSON_RELATIVE_PATH``) by
+translating each update item's ``content`` field as HTML.
+
 **Examples:**
 
 .. code-block:: bash
-
-    # Use DeepL for both content and subtitles
-    ./manage.py cms translate_course \
-        --target-language ar \
-        --course-dir /path/to/course.tar.gz \
-        --content-translation-provider deepl \
-        --srt-translation-provider deepl
 
     # Use OpenAI and Gemini with default models from settings
     ./manage.py cms translate_course \
@@ -216,7 +196,7 @@ Translating a Course
 
 You can use separate glossaries for content and subtitle translation. This allows you to apply different terminology choices based on context:
 
-- **Content glossary** (``--content-glossary``): Used for XML/HTML content, policy files, and text-based course materials. Typically contains more formal or technical terminology.
+- **Content glossary** (``--content-glossary``): Used for XML/HTML content, policy files, ``info/updates.items.json`` HTML content, and text-based course materials. Typically contains more formal or technical terminology.
 - **SRT glossary** (``--srt-glossary``): Used for subtitle translation. Can contain more conversational or context-specific terms appropriate for spoken content.
 
 Create language-specific glossary files in each glossary directory:
@@ -259,7 +239,7 @@ The course translation system includes robust subtitle (SRT) translation with au
 
 The subtitle translation follows a multi-stage process with built-in quality checks:
 
-1. **Initial Translation**: Subtitles are translated using your configured provider (DeepL or LLM)
+1. **Initial Translation**: Subtitles are translated using your configured provider
 2. **Validation**: Timestamps, subtitle count, and content are validated to ensure integrity
 3. **Automatic Retry**: If validation fails, the system automatically retries translation (up to 1 additional attempt)
 4. **Task Failure**: If all retries fail validation, the translation task fails to prevent corrupted subtitle files

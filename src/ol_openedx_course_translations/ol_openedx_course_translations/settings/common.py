@@ -37,11 +37,12 @@ def apply_common_settings(settings):
         ".xml",
         ".srt",
     ]
+    # Relative to extracted ``course/`` directory in exported archive.
+    settings.COURSE_TRANSLATIONS_UPDATES_ITEMS_JSON_RELATIVE_PATH = (
+        "info/updates.items.json"
+    )
     settings.TRANSLATIONS_PROVIDERS = {
         "default_provider": "mistral",
-        "deepl": {
-            "api_key": "",
-        },
         "openai": {
             "api_key": "",
             "default_model": "gpt-5.2",

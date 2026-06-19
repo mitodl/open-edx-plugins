@@ -409,6 +409,31 @@ def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # 
         )
 
 
+def test_delete_all_course_assets_called_for_new_courses(csv_files, mock_user):  # noqa: ARG001
+    """delete_all_course_assets must be called once per new course created."""
+    processed_videos_csv, edx_videos_csv = csv_files
+    store_mock = _modulestore_mock()
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", store_mock),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
+        mock.patch(f"{_CMD}.delete_course_sections"),
+        mock.patch(f"{_CMD}.create_content_block", return_value=mock.Mock()),
+        mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
+    ):
+        call_command(
+            "generate_uai_course_versions",
+            processed_videos_csv=processed_videos_csv,
+            edx_videos_csv=edx_videos_csv,
+        )
+
+    delete_assets = store_mock.return_value.contentstore.delete_all_course_assets
+    assert delete_assets.call_count == EXPECTED_COURSE_COUNT
+
+    called_keys = {str(call.args[0]) for call in delete_assets.call_args_list}
+    assert called_keys == set(EXPECTED_NEW_COURSE_KEYS)
+
+
 def test_skips_introduction_when_course_intro_missing(tmp_path, mock_user):  # noqa: ARG001
     """If no intro resolves for a variant, no HTML intro block should be created."""
     processed_videos = tmp_path / "processed_videos.csv"
