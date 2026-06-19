@@ -175,4 +175,4 @@ def sync_course_assignments_with_canvas(course_id):
 
     add_assignments(canvas, operations_map["add"])
     update_assignments(canvas, operations_map["update"])
-    # delete_assignments(canvas, operations_map["delete"])
+    delete_assignments(canvas, operations_map["delete"])
