@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import logging.config
 import os
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -73,6 +74,21 @@ def _shared_processors() -> list[Any]:
         inject_k8s_context,
         structlog.processors.StackInfoRenderer(),
     ]
+
+
+def _syslog_handler_usable(handler_config: dict) -> bool:
+    """Return False when handler is a SysLogHandler targeting a missing Unix socket.
+
+    In containerised environments /dev/log (or any custom socket path) is often
+    absent.  Preserving such a handler produces a flood of ``--- Logging error
+    ---`` tracebacks on every request.  We detect this case at startup and fall
+    back to the console handler so events are not silently dropped.
+    """
+    if "SysLogHandler" not in handler_config.get("class", ""):
+        return True
+    address = handler_config.get("address")
+    # A string address is a Unix-domain socket path; check it exists.
+    return not isinstance(address, str) or Path(address).exists()
 
 
 def configure_structlog(*, debug: bool | None = None, force: bool = False) -> None:
@@ -171,7 +187,8 @@ def configure_structlog(*, debug: bool | None = None, force: bool = False) -> No
     existing_formatters = existing_logging.get("formatters", {})
 
     tracking_handler = existing_logging.get("handlers", {}).get("tracking")
-    if tracking_handler:
+    handler_usable = tracking_handler and _syslog_handler_usable(tracking_handler)
+    if handler_usable:
         extra_handlers["tracking"] = tracking_handler
         # Carry over the formatter referenced by this handler, if any.
         fmt_name = tracking_handler.get("formatter")
@@ -181,13 +198,18 @@ def configure_structlog(*, debug: bool | None = None, force: bool = False) -> No
     tracking_logger = existing_logging.get("loggers", {}).get("tracking")
     if tracking_logger:
         tracking_logger = dict(tracking_logger)
-        if tracking_handler:
+        if handler_usable:
             handlers = list(tracking_logger.get("handlers", []))
             if "tracking" not in handlers:
                 handlers.append("tracking")
             tracking_logger["handlers"] = handlers
+        else:
+            # SysLogHandler targets a missing Unix socket; strip it and let
+            # events propagate to the root console handler instead.
+            tracking_logger["handlers"] = []
+            tracking_logger["propagate"] = True
         extra_loggers["tracking"] = tracking_logger
-    elif tracking_handler:
+    elif handler_usable:
         extra_loggers["tracking"] = {
             "handlers": ["tracking"],
             "level": log_level,

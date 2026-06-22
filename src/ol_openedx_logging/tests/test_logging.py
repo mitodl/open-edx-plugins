@@ -95,6 +95,28 @@ class TestConfigureStructlogProduction:
         django_logger = stdlib_logging.getLogger("django")
         assert django_logger.handlers, "django logger has no handlers"
 
+    def test_syslog_handler_missing_socket_falls_back_to_console(self):
+        """Tracking events propagate to root when SysLogHandler socket is absent."""
+        import copy  # noqa: PLC0415
+
+        from django.conf import settings  # noqa: PLC0415
+
+        syslog_config = copy.deepcopy(settings.LOGGING)
+        syslog_config["handlers"]["tracking"] = {
+            "level": "DEBUG",
+            "class": "logging.handlers.SysLogHandler",
+            "facility": "local0",
+            "address": "/nonexistent/dev/log",
+            "formatter": "raw",
+        }
+        with patch.object(settings, "LOGGING", syslog_config):
+            configure_structlog(debug=False)
+
+        tracking = stdlib_logging.getLogger("tracking")
+        # No handler attached — events propagate to root console handler.
+        assert tracking.propagate is True
+        assert not any(type(h).__name__ == "SysLogHandler" for h in tracking.handlers)
+
 
 class TestConfigureStructlogDebug:
     """configure_structlog in debug mode."""
