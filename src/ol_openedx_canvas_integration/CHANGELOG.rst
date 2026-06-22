@@ -16,6 +16,17 @@ Unreleased
 * Updated management command instructions for Tutor.
 * Fixed the Tutor patch example in README.rst.
 
+[0.8.0] - 2026-06-22
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Added
+-----
+* Instructor dashboard MFE support: an ``InstructorDashboardTabsRequested`` filter
+  step that adds the "Canvas" tab only for courses linked to Canvas (``canvas_id``
+  set), and a ``list_canvas_tasks`` JSON endpoint the MFE polls for Canvas task
+  status. Tab links target ``/apps/instructor-dashboard/<course>/<tab>``. This
+  removes the need for the edx-platform cherry-pick when running the frontend-base
+  instructor dashboard (see README).
+
 [0.7.0] - 2026-05-12
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Added
