@@ -2,9 +2,11 @@
 
 import logging
 from collections import defaultdict
+from datetime import UTC, datetime
 
 from common.djangoapps.student.models import CourseEnrollment, CourseEnrollmentAllowed
 from django.contrib.auth.models import User
+from django.utils.dateparse import parse_datetime
 from lms.djangoapps.courseware.access import has_access
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.grades.context import grading_context_for_course
@@ -17,7 +19,10 @@ from ol_openedx_canvas_integration.client import (
     update_grade_payload_kv,
 )
 from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
-from ol_openedx_canvas_integration.utils import get_canvas_course_id
+from ol_openedx_canvas_integration.utils import (
+    get_canvas_course_id,
+    is_canvas_dates_sync_enabled,
+)
 
 log = logging.getLogger(__name__)
 
@@ -211,15 +216,16 @@ def sync_canvas_enrollments(course_key, canvas_course_id, unenroll_current):
 
 def push_edx_grades_to_canvas(course):
     """
-    Gathers all student grades for each assignment in the given course, creates equivalent assignment in Canvas
-    if they don't exist already, and adds/updates the student grades for those assignments in Canvas.
+    Gathers all student grades for each assignment in the given course, creates
+    equivalent assignment in Canvas if they don't exist already, and
+    adds/updates the student grades for those assignments in Canvas.
 
     Args:
-        course: The course object (of the type returned by courseware.courses.get_course_by_id)
+        course: The course object (as returned by `courseware.courses.get_course_by_id`)
 
     Returns:
-        dict: A dictionary with some information about the success/failure of the updates
-    """  # noqa: E501
+        dict: A dictionary with information about the success/failure of the updates
+    """
     if not course:
         raise Exception(COURSE_KEY_ID_EMPTY)  # noqa: TRY002
 
@@ -227,6 +233,7 @@ def push_edx_grades_to_canvas(course):
     if not canvas_course_id:
         msg = f"No canvas_course_id set for course: {course.id}"
         raise Exception(msg)  # noqa: TRY002
+    use_canvas_due_dates = is_canvas_dates_sync_enabled(course)
 
     client = CanvasClient(canvas_course_id=canvas_course_id)
     existing_assignment_dict = client.get_canvas_assignments()
@@ -240,7 +247,7 @@ def push_edx_grades_to_canvas(course):
     )
     created_assignments = {
         subsection_block: client.create_canvas_assignment(
-            create_assignment_payload(subsection_block)
+            create_assignment_payload(subsection_block, use_canvas_due_dates)
         )
         for subsection_block in new_assignment_blocks
     }
@@ -259,16 +266,27 @@ def push_edx_grades_to_canvas(course):
         )
 
     # Send requests to update grades in each relevant course
-    assignment_grades_updated = {
-        subsection_block: client.update_assignment_grades(
-            canvas_assignment_id=existing_assignment_dict[
-                str(subsection_block.location)
-            ]["id"],
-            payload=grade_request_payload,
-        )
-        for subsection_block, grade_request_payload in grade_update_payloads.items()
-        if grade_request_payload
-        and str(subsection_block.location) in existing_assignment_dict
-    }
+    assignment_grades_updated = {}
+    for subsection_block, grade_request_payload in grade_update_payloads.items():
+        if (
+            grade_request_payload
+            and str(subsection_block.location) in existing_assignment_dict
+        ):
+            block_data = existing_assignment_dict[str(subsection_block.location)]
+            due_date = block_data.get("due_at")
+            if due_date:
+                due_date = parse_datetime(due_date)
+            if due_date and due_date < datetime.now(tz=UTC):
+                log.warning(
+                    "The assignment %s is past its due date. Skipping grade sync.",
+                    subsection_block.location,
+                )
+                continue
+            assignment_grades_updated[subsection_block] = (
+                client.update_assignment_grades(
+                    canvas_assignment_id=block_data["id"],
+                    payload=grade_request_payload,
+                )
+            )
 
     return assignment_grades_updated, created_assignments

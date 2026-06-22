@@ -717,18 +717,6 @@ wheels = [
 ]
 
 [[package]]
-name = "deepl"
-version = "1.28.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "requests" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/19/50/250fcdf450b35139df0521e2578eef898e4705ebb772680f9b782676f510/deepl-1.28.0.tar.gz", hash = "sha256:7b35816ca8ff40609746586145ec3e9d7c758b546f353ea73f24118e56a1fdad", size = 51260, upload-time = "2026-02-05T19:28:19.025Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b9/33/17c72c38d4f696a8de2af26a301235b99002e0cc5f9a2c4210f060d67290/deepl-1.28.0-py3-none-any.whl", hash = "sha256:d43ae248f74a81150765e303cc62aef7d2ddbf40f2d5454a6b4cf3f54ac69619", size = 46268, upload-time = "2026-02-05T19:28:17.783Z" },
-]
-
-[[package]]
 name = "defusedxml"
 version = "0.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2085,7 +2073,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-auto-select-language"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "src/ol_openedx_auto_select_language" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2103,7 +2091,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-canvas-integration"
-version = "0.6.0"
+version = "0.7.2"
 source = { editable = "src/ol_openedx_canvas_integration" }
 dependencies = [
     { name = "celery" },
@@ -2283,10 +2271,9 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-translations"
-version = "0.6.2"
+version = "0.7.0"
 source = { editable = "src/ol_openedx_course_translations" }
 dependencies = [
-    { name = "deepl" },
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
@@ -2297,7 +2284,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "deepl", specifier = ">=1.25.0" },
     { name = "django", specifier = ">=4.0" },
     { name = "djangorestframework", specifier = ">=3.14.0" },
     { name = "edx-opaque-keys" },
@@ -2329,7 +2315,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-git-auto-export"
-version = "0.8.1"
+version = "0.8.2"
 source = { editable = "src/ol_openedx_git_auto_export" }
 dependencies = [
     { name = "celery" },
@@ -2451,7 +2437,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-uai-content-customization"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "src/ol_openedx_uai_content_customization" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },

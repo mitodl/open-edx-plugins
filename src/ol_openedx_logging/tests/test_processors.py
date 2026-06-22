@@ -74,19 +74,9 @@ class TestInjectOtelContext:
         assert result["trace_id"] == "aaa"
         assert result["span_id"] == "bbb"
 
-    def test_otel_import_error_returns_unchanged(self):
+    def test_otel_unavailable_returns_unchanged(self):
         """Returns event dict unchanged when opentelemetry is not installed."""
-        import builtins  # noqa: PLC0415
-
-        real_import = builtins.__import__
-        err_msg = "not installed"
-
-        def mock_import(name, *args, **kwargs):
-            if name.startswith("opentelemetry"):
-                raise ImportError(err_msg)
-            return real_import(name, *args, **kwargs)
-
-        with patch("builtins.__import__", side_effect=mock_import):
+        with patch("ol_openedx_logging.processors._OTEL_AVAILABLE", new=False):
             result = self._call({"event": "hello"})
 
         assert result == {"event": "hello"}

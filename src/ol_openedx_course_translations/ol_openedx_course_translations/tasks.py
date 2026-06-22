@@ -9,11 +9,9 @@ from celery import shared_task
 from defusedxml import ElementTree
 from django.conf import settings
 
-from ol_openedx_course_translations.providers.deepl_provider import DeepLProvider
 from ol_openedx_course_translations.providers.llm_providers import (
     TRANSLATION_MARKER_END,
     TRANSLATION_MARKER_START,
-    LLMProvider,
 )
 from ol_openedx_course_translations.utils.constants import XML_FORMAT_ATTR
 from ol_openedx_course_translations.utils.course_translations import (
@@ -21,7 +19,6 @@ from ol_openedx_course_translations.utils.course_translations import (
     get_srt_output_filename,
     get_translation_provider,
     translate_policy_fields,
-    translate_xml_attributes,
     update_video_xml_complete,
 )
 
@@ -97,7 +94,7 @@ def _looks_like_markup(value: str) -> bool:
     },
     retry_backoff=False,  # keep retries predictable
 )
-def translate_file_task(  # noqa: PLR0913, PLR0912, PLR0915, C901
+def translate_file_task(  # noqa: PLR0913, PLR0912, C901
     _self,
     file_path_str: str,
     source_language: str,
@@ -198,16 +195,6 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, PLR0915, C901
             glossary_directory=content_glossary,
         )
 
-        # Handle XML display_name translation only for DeepL provider
-        # LLM providers translate display_name as part of the XML translation
-        if file_path.suffix == ".xml" and isinstance(provider, DeepLProvider):
-            translated_content = translate_xml_attributes(
-                translated_content,
-                target_language,
-                provider,
-                content_glossary,
-            )
-
         # Update video XML if needed (use complete version)
         if file_path.suffix == ".xml" and file_path.parent.name == "video":
             translated_content = update_video_xml_complete(
@@ -225,41 +212,29 @@ def translate_file_task(  # noqa: PLR0913, PLR0912, PLR0915, C901
             validation_provider = get_translation_provider(
                 translation_validation_provider_name, translation_validation_model
             )
-
             validated_content = None
-            if isinstance(validation_provider, LLMProvider):
-                try:
-                    validated_response = validation_provider.validate_translation(
-                        source_language=source_language,
-                        target_language=target_language,
-                        source_content=file_content,
-                        translated_content=translated_content,
-                    )
-                    # validate_translation already parses markers via
-                    # _parse_text_response, but keep an extra safety parse
-                    # in case provider returns raw marker-wrapped text.
-                    validated_content = (
-                        _parse_marker_wrapped_translation(validated_response)
-                        or validated_response
-                    )
-                except Exception as e:  # noqa: BLE001
-                    logger.warning(
-                        "XML/HTML validation via LLM provider %s failed for %s: %s",
-                        translation_validation_provider_name,
-                        file_path_str,
-                        str(e),
-                    )
-                    validated_content = None
-            else:
-                msg = (
-                    "Content translation validation provider %s does not support "
-                    "raw XML/HTML validation; skipping validation for %s."
+            try:
+                validated_response = validation_provider.validate_translation(
+                    source_language=source_language,
+                    target_language=target_language,
+                    source_content=file_content,
+                    translated_content=translated_content,
                 )
+                # validate_translation already parses markers via
+                # _parse_text_response, but keep an extra safety parse
+                # in case provider returns raw marker-wrapped text.
+                validated_content = (
+                    _parse_marker_wrapped_translation(validated_response)
+                    or validated_response
+                )
+            except Exception as e:  # noqa: BLE001
                 logger.warning(
-                    msg,
+                    "XML/HTML validation via LLM provider %s failed for %s: %s",
                     translation_validation_provider_name,
                     file_path_str,
+                    str(e),
                 )
+                validated_content = None
 
             if validated_content is None:
                 pass
@@ -345,3 +320,115 @@ def translate_policy_json_task(
         return {"status": "error", "file": policy_file_path_str, "error": str(e)}
     else:
         return {"status": "success", "file": policy_file_path_str}
+
+
+@shared_task(bind=True, name="translate_info_updates_task")
+def translate_info_updates_task(  # noqa: PLR0913, C901
+    _self,
+    updates_file_path_str: str,
+    source_language: str,
+    target_language: str,
+    content_provider_name: str,
+    content_model: str | None,
+    content_glossary: str | None = None,
+    translation_validation_provider_name: str | None = None,
+    translation_validation_model: str | None = None,
+):
+    """
+    Translate info/updates.items.json file.
+
+    Translates the ``content`` field (HTML string) for each update item.
+
+    Args:
+        _self: Celery task instance (bound)
+        updates_file_path_str: Path to the updates.items.json file
+        source_language: Source language code
+        target_language: Target language code
+        content_provider_name: Provider name for content translation
+        content_model: Model name for content provider (optional)
+        content_glossary: Path to glossary directory for content (optional)
+        translation_validation_provider_name: Provider name for post-translation
+            validation (optional)
+        translation_validation_model: Model name for validation provider (optional)
+
+    Returns:
+        Dict with status, file path, and optional error information
+    """
+    try:
+        updates_file_path = Path(updates_file_path_str)
+        provider = get_translation_provider(content_provider_name, content_model)
+
+        updates_data = json.loads(updates_file_path.read_text(encoding="utf-8"))
+        if not isinstance(updates_data, list):
+            msg = "updates.items.json must contain a list of update items"
+            raise TypeError(msg)  # noqa: TRY301
+
+        for update_item in updates_data:
+            if not isinstance(update_item, dict):
+                continue
+
+            content = update_item.get("content")
+            if not isinstance(content, str) or not content.strip():
+                continue
+
+            translated_content = provider.translate_text(
+                content,
+                target_language,
+                tag_handling="html",
+                glossary_directory=content_glossary,
+            )
+
+            if (
+                translation_validation_provider_name
+                and translated_content
+                and translated_content.strip()
+            ):
+                validation_provider = get_translation_provider(
+                    translation_validation_provider_name,
+                    translation_validation_model,
+                )
+                validated_content = None
+                try:
+                    validated_response = validation_provider.validate_translation(
+                        source_language=source_language,
+                        target_language=target_language,
+                        source_content=content,
+                        translated_content=translated_content,
+                    )
+                    validated_content = (
+                        _parse_marker_wrapped_translation(validated_response)
+                        or validated_response
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        "updates.items.json validation via provider %s failed "
+                        "for %s: %s",
+                        translation_validation_provider_name,
+                        updates_file_path_str,
+                        str(e),
+                    )
+
+                if validated_content and _looks_like_markup(validated_content):
+                    translated_content = validated_content
+                elif validated_content is not None:
+                    logger.warning(
+                        "updates.items.json validation provider returned "
+                        "non-markup output for %s; keeping original translation. "
+                        "Response snippet: %r",
+                        updates_file_path_str,
+                        validated_content[:500],
+                    )
+
+            update_item["content"] = translated_content
+
+        updates_file_path.write_text(
+            json.dumps(updates_data, ensure_ascii=False, indent=4),
+            encoding="utf-8",
+        )
+    except Exception as e:
+        logger.exception(
+            "Failed to translate updates.items.json %s", updates_file_path_str
+        )
+        return {"status": "error", "file": updates_file_path_str, "error": str(e)}
+    else:
+        return {"status": "success", "file": updates_file_path_str}

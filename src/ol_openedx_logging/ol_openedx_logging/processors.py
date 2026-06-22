@@ -21,6 +21,20 @@ _K8S_CONTEXT: dict[str, str] = {
     if v
 }
 
+# Import otel at module load time, not inside the processor.  Lazy imports
+# inside a structlog processor are unsafe: importing otel triggers a
+# DeprecationWarning from importlib.metadata, that warning re-enters the
+# logging system, which calls this processor again before the first import
+# completes, producing a recursive error loop.
+try:
+    from opentelemetry import trace as _otel_trace
+    from opentelemetry.trace.span import format_span_id as _format_span_id
+    from opentelemetry.trace.span import format_trace_id as _format_trace_id
+
+    _OTEL_AVAILABLE = True
+except ImportError:
+    _OTEL_AVAILABLE = False
+
 
 def inject_otel_context(
     _logger: Any,
@@ -32,30 +46,14 @@ def inject_otel_context(
     Skips injection when ``opentelemetry`` is not installed (soft dependency),
     when trace/span IDs are already present, or when there is no active
     recording span.
-
-    ``opentelemetry`` is imported lazily inside the function so that the plugin
-    can be installed in environments without the OTel SDK.  Python caches
-    modules after the first import, so the per-call overhead is negligible.
-
-    Performance notes:
-    - Fast-path on ``ImportError`` (otel not installed).
-    - Skips when trace_id/span_id already present (bound via contextvars).
-    - Checks ``is_valid`` before ``is_recording`` for the fastest invalid-
-      context short-circuit.
     """
+    if not _OTEL_AVAILABLE:
+        return event_dict
+
     if "trace_id" in event_dict and "span_id" in event_dict:
         return event_dict
 
-    try:
-        from opentelemetry import trace  # noqa: PLC0415
-        from opentelemetry.trace.span import (  # noqa: PLC0415
-            format_span_id,
-            format_trace_id,
-        )
-    except ImportError:
-        return event_dict
-
-    span = trace.get_current_span()
+    span = _otel_trace.get_current_span()
     ctx = span.get_span_context()
 
     if not ctx.is_valid:
@@ -63,8 +61,8 @@ def inject_otel_context(
     if not span.is_recording():
         return event_dict
 
-    event_dict["trace_id"] = format_trace_id(ctx.trace_id)
-    event_dict["span_id"] = format_span_id(ctx.span_id)
+    event_dict["trace_id"] = _format_trace_id(ctx.trace_id)
+    event_dict["span_id"] = _format_span_id(ctx.span_id)
     return event_dict
 
 
