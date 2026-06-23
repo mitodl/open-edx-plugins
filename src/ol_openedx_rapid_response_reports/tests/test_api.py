@@ -47,17 +47,18 @@ class ListRapidResponseRunsViewTests(ModuleStoreTestCase):
         "ol_openedx_rapid_response_reports.api.get_run_data_for_course",
         return_value=[],
     )
-    def test_returns_empty_list_when_no_runs(self, _mock_runs):
+    def test_returns_empty_list_when_no_runs(self, mock_runs):
         response = self._get(self.staff)
         assert response.status_code == HTTPStatus.OK
         assert json.loads(response.content) == []
+        mock_runs.assert_called_once()
 
     @patch(
         "ol_openedx_rapid_response_reports.api.get_display_name_from_usage_key",
         return_value="My Rapid Problem",
     )
     @patch("ol_openedx_rapid_response_reports.api.get_run_data_for_course")
-    def test_serializes_runs(self, mock_runs, _mock_display_name):
+    def test_serializes_runs(self, mock_runs, mock_display_name):
         """Runs are serialized as a JSON array with the expected fields."""
         usage_key = "block-v1:org+course+run+type@problem+block@p1"
         mock_runs.return_value = [
@@ -79,3 +80,4 @@ class ListRapidResponseRunsViewTests(ModuleStoreTestCase):
         assert run["problem_usage_key"] == usage_key
         assert run["problem_display_name"] == "My Rapid Problem"
         assert run["created"].startswith("2026-01-02T03:04:05")
+        mock_display_name.assert_called_once()

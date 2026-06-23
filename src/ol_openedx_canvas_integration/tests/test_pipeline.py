@@ -65,7 +65,7 @@ def test_existing_tabs_preserved(mock_modulestore, mock_get_canvas_id):
     tab_ids = [tab["tab_id"] for tab in tabs]
     assert tab_ids == ["course_info", "enrollments", CANVAS_TAB_ID]
     # The Canvas tab's sort_order lands after the existing tabs.
-    assert tabs[-1]["sort_order"] > 20
+    assert tabs[-1]["sort_order"] > existing[-1]["sort_order"]
 
 
 @patch("ol_openedx_canvas_integration.pipeline.get_canvas_course_id")

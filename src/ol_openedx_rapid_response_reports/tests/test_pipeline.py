@@ -43,7 +43,7 @@ def test_existing_tabs_preserved():
     tab_ids = [tab["tab_id"] for tab in tabs]
     assert tab_ids == ["course_info", "enrollments", RAPID_RESPONSE_TAB_ID]
     # The tab's sort_order lands after the existing tabs.
-    assert tabs[-1]["sort_order"] > 20
+    assert tabs[-1]["sort_order"] > existing[-1]["sort_order"]
 
 
 def test_tab_not_duplicated():
