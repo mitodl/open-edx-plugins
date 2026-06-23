@@ -98,8 +98,9 @@ You can specify providers in two ways:
 .. code-block:: bash
 
     ./manage.py cms translate_course \
+        --source-course course-v1:TestOrg+Source+Run \
+        --target-course course-v1:TestOrg+Arabic+Run \
         --target-language ar \
-        --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai \
         --srt-translation-provider gemini
 
@@ -108,8 +109,9 @@ You can specify providers in two ways:
 .. code-block:: bash
 
     ./manage.py cms translate_course \
+        --source-course course-v1:TestOrg+Source+Run \
+        --target-course course-v1:TestOrg+Arabic+Run \
         --target-language ar \
-        --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai/gpt-5.2 \
         --srt-translation-provider gemini/gemini-3-pro-preview
 
@@ -117,29 +119,35 @@ You can specify providers in two ways:
 
 Translating a Course
 ====================
-1. Open the course in Studio.
-2. Go to Tools -> Export Course.
-3. Export the course as a .tar.gz file.
-4. Go to the CMS shell
-5. Run the management command to translate the course:
+
+The command reads the source course directly from the modulestore, translates its
+content, and imports the result into the target course. No manual export or TAR
+file handling is required.
+
+1. Open the CMS shell.
+2. Run the management command:
 
    .. code-block:: bash
 
         ./manage.py cms translate_course \
+            --source-course course-v1:TestOrg+Source+Run \
+            --target-course course-v1:TestOrg+Arabic+Run \
             --source-language en \
             --target-language ar \
-            --course-dir /path/to/course.tar.gz \
             --content-translation-provider openai \
             --srt-translation-provider gemini \
             --translation-validation-provider openai/gpt-5.2 \
             --content-glossary /path/to/content/glossary \
             --srt-glossary /path/to/srt/glossary
 
+   The target course is created automatically if it does not already exist.
+
 **Command Options:**
 
+- ``--source-course``: Course key of the source course to translate (required). Example: ``course-v1:Org+Course+Run``
+- ``--target-course``: Course key of the target course to import translated content into (required). The course is created automatically if it does not exist.
 - ``--source-language``: Source language code (default: en)
 - ``--target-language``: Target language code (required)
-- ``--course-dir``: Path to exported course tar.gz file (required)
 - ``--content-translation-provider``: Translation provider for content (XML/HTML and text) (required).
 
   Format:
@@ -162,22 +170,25 @@ translating each update item's ``content`` field as HTML.
 
     # Use OpenAI and Gemini with default models from settings
     ./manage.py cms translate_course \
+        --source-course course-v1:MyOrg+EnglishCourse+2024 \
+        --target-course course-v1:MyOrg+FrenchCourse+2024 \
         --target-language fr \
-        --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai \
         --srt-translation-provider gemini
 
     # Use OpenAI with specific model for content, Gemini with default for subtitles
     ./manage.py cms translate_course \
+        --source-course course-v1:MyOrg+EnglishCourse+2024 \
+        --target-course course-v1:MyOrg+FrenchCourse+2024 \
         --target-language fr \
-        --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai/gpt-5.2 \
         --srt-translation-provider gemini
 
     # Use Mistral with specific model and separate glossaries for content and SRT
     ./manage.py cms translate_course \
+        --source-course course-v1:MyOrg+EnglishCourse+2024 \
+        --target-course course-v1:MyOrg+SpanishCourse+2024 \
         --target-language es \
-        --course-dir /path/to/course.tar.gz \
         --content-translation-provider mistral/mistral-large-latest \
         --srt-translation-provider mistral/mistral-large-latest \
         --content-glossary /path/to/content/glossary \
@@ -185,8 +196,9 @@ translating each update item's ``content`` field as HTML.
 
     # Use different glossaries for content vs subtitles
     ./manage.py cms translate_course \
+        --source-course course-v1:MyOrg+EnglishCourse+2024 \
+        --target-course course-v1:MyOrg+SpanishCourse+2024 \
         --target-language es \
-        --course-dir /path/to/course.tar.gz \
         --content-translation-provider openai \
         --srt-translation-provider gemini \
         --content-glossary /path/to/technical/glossary \
