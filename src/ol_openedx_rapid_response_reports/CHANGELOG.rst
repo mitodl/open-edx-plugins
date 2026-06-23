@@ -25,6 +25,8 @@ Added
   installed, and a ``rapid_response_runs`` JSON endpoint serving the per-course run
   list rendered by the MFE page. Tab links target
   ``/apps/instructor-dashboard/<course>/<tab>``.
+* Declared ``rapid-response-xblock`` as an explicit dependency (the plugin imports
+  ``rapid_response_xblock.utils``).
 
 [0.1.0] - 2021-11-17
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -14,6 +14,7 @@ dependencies = [
   "edx-django-utils>4.0.0",
   "edx-drf-extensions>=10.0.0",
   "edx-opaque-keys",
+  "rapid-response-xblock>=0.11.0",
 ]
 
 [project.entry-points."lms.djangoapp"]

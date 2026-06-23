@@ -1,17 +1,28 @@
 """Open edX Filters pipeline steps for the Canvas integration plugin."""
 
-import logging
+from urllib.parse import urlparse
 
+from django.conf import settings
 from django.utils.translation import gettext as _
 from openedx_filters import PipelineStep
 from xmodule.modulestore.django import modulestore
 
+from ol_openedx_canvas_integration.constants import CANVAS_TAB_ID
 from ol_openedx_canvas_integration.utils import get_canvas_course_id
 
-log = logging.getLogger(__name__)
 
-CANVAS_TAB_ID = "canvas_integration"
-CANVAS_TAB_SORT_ORDER = 110
+def build_instructor_dashboard_tab_url(course_key, tab_id):
+    """
+    Build the MFE-internal URL for an instructor dashboard tab.
+
+    Derives the path from ``settings.INSTRUCTOR_MICROFRONTEND_URL`` (using only its
+    path component, the same way the LMS builds the built-in tab URLs) so our tab
+    links stay consistent with the standard instructor dashboard tabs instead of
+    hardcoding the ``/apps`` mount point.
+    """
+    base_url = getattr(settings, "INSTRUCTOR_MICROFRONTEND_URL", None) or ""
+    base_path = urlparse(base_url).path.rstrip("/")
+    return "/".join([base_path, str(course_key).strip("/"), tab_id])
 
 
 class AddCanvasInstructorTab(PipelineStep):
@@ -30,28 +41,27 @@ class AddCanvasInstructorTab(PipelineStep):
     full page reload.
     """
 
-    def run_filter(self, tabs, course_key, **kwargs):  # noqa: ARG002
-        try:
-            course = modulestore().get_course(course_key)
-            if course and get_canvas_course_id(course):
-                already_present = any(
-                    tab.get("tab_id") == CANVAS_TAB_ID for tab in tabs
+    def run_filter(self, tabs, course_key, **kwargs):
+        course = modulestore().get_course(course_key)
+        if course and get_canvas_course_id(course):
+            already_present = any(tab.get("tab_id") == CANVAS_TAB_ID for tab in tabs)
+            if not already_present:
+                # Append after every tab currently in the list so the Canvas tab
+                # always lands at the end, regardless of the built-in tabs' own
+                # sort_order values (which are not fixed and may change).
+                next_sort_order = (
+                    max((tab.get("sort_order", 0) for tab in tabs), default=0) + 10
                 )
-                if not already_present:
-                    tabs.append(
-                        {
-                            "tab_id": CANVAS_TAB_ID,
-                            "title": _("Canvas"),
-                            "url": (
-                                f"/apps/instructor-dashboard/{course_key}/{CANVAS_TAB_ID}"
-                            ),
-                            "sort_order": CANVAS_TAB_SORT_ORDER,
-                        }
-                    )
-        except Exception:
-            # Never let a Canvas lookup failure break instructor dashboard tabs.
-            log.exception(
-                "Failed to evaluate Canvas instructor tab for course %s", course_key
-            )
+                tabs.append(
+                    {
+                        "tab_id": CANVAS_TAB_ID,
+                        "title": _("Canvas"),
+                        "url": build_instructor_dashboard_tab_url(
+                            course_key, CANVAS_TAB_ID
+                        ),
+                        "sort_order": next_sort_order,
+                    }
+                )
 
-        return {"tabs": tabs}
+        # Return every argument so any subsequent pipeline step gets the full set.
+        return {"tabs": tabs, "course_key": course_key, **kwargs}
