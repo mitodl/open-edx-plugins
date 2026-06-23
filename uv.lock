@@ -2091,7 +2091,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-canvas-integration"
-version = "0.7.2"
+version = "0.8.0"
 source = { editable = "src/ol_openedx_canvas_integration" }
 dependencies = [
     { name = "celery" },
@@ -2339,7 +2339,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-logging"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "src/ol_openedx_logging" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2399,7 +2399,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-rapid-response-reports"
-version = "0.4.0"
+version = "0.5.0"
 source = { editable = "src/ol_openedx_rapid_response_reports" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2408,6 +2408,7 @@ dependencies = [
     { name = "edx-django-utils" },
     { name = "edx-drf-extensions" },
     { name = "edx-opaque-keys" },
+    { name = "rapid-response-xblock" },
 ]
 
 [package.metadata]
@@ -2417,6 +2418,7 @@ requires-dist = [
     { name = "edx-django-utils", specifier = ">4.0.0" },
     { name = "edx-drf-extensions", specifier = ">=10.0.0" },
     { name = "edx-opaque-keys" },
+    { name = "rapid-response-xblock", editable = "src/rapid_response_xblock" },
 ]
 
 [[package]]
