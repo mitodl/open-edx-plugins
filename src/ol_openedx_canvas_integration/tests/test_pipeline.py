@@ -59,13 +59,15 @@ def test_existing_tabs_preserved(mock_modulestore, mock_get_canvas_id):
         {"tab_id": "course_info", "sort_order": 10},
         {"tab_id": "enrollments", "sort_order": 20},
     ]
+    # Captured before run_filter, which appends to (and mutates) the list in place.
+    max_existing_sort_order = max(tab["sort_order"] for tab in existing)
     result = _step().run_filter(tabs=existing, course_key=COURSE_KEY)
 
     tabs = result["tabs"]
     tab_ids = [tab["tab_id"] for tab in tabs]
     assert tab_ids == ["course_info", "enrollments", CANVAS_TAB_ID]
     # The Canvas tab's sort_order lands after the existing tabs.
-    assert tabs[-1]["sort_order"] > existing[-1]["sort_order"]
+    assert tabs[-1]["sort_order"] > max_existing_sort_order
 
 
 @patch("ol_openedx_canvas_integration.pipeline.get_canvas_course_id")
