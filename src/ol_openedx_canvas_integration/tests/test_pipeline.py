@@ -24,7 +24,7 @@ def test_tab_added_when_course_linked_to_canvas(mock_modulestore, mock_get_canva
     mock_modulestore.return_value.get_course.return_value = MagicMock()
     mock_get_canvas_id.return_value = "12345"
 
-    result = _step().run_filter(tabs=[], course_key=COURSE_KEY)
+    result = _step().run_filter(tabs=[], user=None, course_key=COURSE_KEY)
 
     tabs = result["tabs"]
     assert len(tabs) == 1
@@ -43,7 +43,7 @@ def test_tab_not_added_when_course_not_linked(mock_modulestore, mock_get_canvas_
     mock_modulestore.return_value.get_course.return_value = MagicMock()
     mock_get_canvas_id.return_value = None
 
-    result = _step().run_filter(tabs=[], course_key=COURSE_KEY)
+    result = _step().run_filter(tabs=[], user=None, course_key=COURSE_KEY)
 
     assert result["tabs"] == []
 
@@ -61,7 +61,7 @@ def test_existing_tabs_preserved(mock_modulestore, mock_get_canvas_id):
     ]
     # Captured before run_filter, which appends to (and mutates) the list in place.
     max_existing_sort_order = max(tab["sort_order"] for tab in existing)
-    result = _step().run_filter(tabs=existing, course_key=COURSE_KEY)
+    result = _step().run_filter(tabs=existing, user=None, course_key=COURSE_KEY)
 
     tabs = result["tabs"]
     tab_ids = [tab["tab_id"] for tab in tabs]
@@ -78,7 +78,7 @@ def test_tab_not_duplicated(mock_modulestore, mock_get_canvas_id):
     mock_get_canvas_id.return_value = "12345"
 
     existing = [{"tab_id": CANVAS_TAB_ID, "title": "Canvas"}]
-    result = _step().run_filter(tabs=existing, course_key=COURSE_KEY)
+    result = _step().run_filter(tabs=existing, user=None, course_key=COURSE_KEY)
 
     canvas_tabs = [t for t in result["tabs"] if t["tab_id"] == CANVAS_TAB_ID]
     assert len(canvas_tabs) == 1

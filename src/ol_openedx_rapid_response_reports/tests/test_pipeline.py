@@ -17,7 +17,7 @@ def _step():
 @override_settings(INSTRUCTOR_MICROFRONTEND_URL=INSTRUCTOR_MFE_URL)
 def test_tab_added():
     """The Rapid Responses tab is appended unconditionally (gated by install)."""
-    result = _step().run_filter(tabs=[], course_key=COURSE_KEY)
+    result = _step().run_filter(tabs=[], user=None, course_key=COURSE_KEY)
 
     tabs = result["tabs"]
     assert len(tabs) == 1
@@ -39,7 +39,7 @@ def test_existing_tabs_preserved():
     ]
     # Captured before run_filter, which appends to (and mutates) the list in place.
     max_existing_sort_order = max(tab["sort_order"] for tab in existing)
-    result = _step().run_filter(tabs=existing, course_key=COURSE_KEY)
+    result = _step().run_filter(tabs=existing, user=None, course_key=COURSE_KEY)
 
     tabs = result["tabs"]
     tab_ids = [tab["tab_id"] for tab in tabs]
@@ -51,7 +51,7 @@ def test_existing_tabs_preserved():
 def test_tab_not_duplicated():
     """The tab is not added twice if it is already present."""
     existing = [{"tab_id": RAPID_RESPONSE_TAB_ID, "title": "Rapid Responses"}]
-    result = _step().run_filter(tabs=existing, course_key=COURSE_KEY)
+    result = _step().run_filter(tabs=existing, user=None, course_key=COURSE_KEY)
 
     matching = [t for t in result["tabs"] if t["tab_id"] == RAPID_RESPONSE_TAB_ID]
     assert len(matching) == 1

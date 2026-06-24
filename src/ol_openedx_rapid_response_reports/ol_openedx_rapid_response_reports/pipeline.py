@@ -39,7 +39,7 @@ class AddRapidResponseInstructorTab(PipelineStep):
     (``createInstructorDashboardCustomApp`` in the shared MFE module).
     """
 
-    def run_filter(self, tabs, course_key, **kwargs):
+    def run_filter(self, tabs, user, course_key):
         already_present = any(
             tab.get("tab_id") == RAPID_RESPONSE_TAB_ID for tab in tabs
         )
@@ -60,5 +60,6 @@ class AddRapidResponseInstructorTab(PipelineStep):
                 }
             )
 
-        # Return every argument so any subsequent pipeline step gets the full set.
-        return {"tabs": tabs, "course_key": course_key, **kwargs}
+        # Return the full filter payload (tabs, user, course_key) so the filter
+        # and any subsequent pipeline step receive every argument.
+        return {"tabs": tabs, "user": user, "course_key": course_key}
