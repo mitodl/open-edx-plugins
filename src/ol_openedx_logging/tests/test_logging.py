@@ -95,8 +95,8 @@ class TestConfigureStructlogProduction:
         django_logger = stdlib_logging.getLogger("django")
         assert django_logger.handlers, "django logger has no handlers"
 
-    def test_syslog_handler_missing_socket_falls_back_to_console(self):
-        """Tracking events propagate to root when SysLogHandler socket is absent."""
+    def test_syslog_handler_missing_socket_falls_back_to_rotating_file(self, tmp_path):
+        """RotatingFileHandler is used when SysLogHandler socket is absent."""
         import copy  # noqa: PLC0415
 
         from django.conf import settings  # noqa: PLC0415
@@ -109,13 +109,48 @@ class TestConfigureStructlogProduction:
             "address": "/nonexistent/dev/log",
             "formatter": "raw",
         }
-        with patch.object(settings, "LOGGING", syslog_config):
+        fallback_path = str(tmp_path / "tracking_logs.log")
+        with (
+            patch.object(settings, "LOGGING", syslog_config),
+            patch.dict(os.environ, {"TRACKING_LOG_FILE": fallback_path}),
+        ):
             configure_structlog(debug=False)
 
         tracking = stdlib_logging.getLogger("tracking")
-        # No handler attached — events propagate to root console handler.
-        assert tracking.propagate is True
+        # RotatingFileHandler fallback — not console propagation.
         assert not any(type(h).__name__ == "SysLogHandler" for h in tracking.handlers)
+        assert any(
+            type(h).__name__ == "RotatingFileHandler" for h in tracking.handlers
+        ), "Expected a RotatingFileHandler fallback when SysLogHandler socket is absent"
+        assert tracking.propagate is False
+
+    def test_syslog_handler_missing_socket_uses_tracking_log_file_env(self, tmp_path):
+        """TRACKING_LOG_FILE env var controls the fallback RotatingFileHandler path."""
+        import copy  # noqa: PLC0415
+
+        from django.conf import settings  # noqa: PLC0415
+
+        syslog_config = copy.deepcopy(settings.LOGGING)
+        syslog_config["handlers"]["tracking"] = {
+            "level": "DEBUG",
+            "class": "logging.handlers.SysLogHandler",
+            "facility": "local0",
+            "address": "/nonexistent/dev/log",
+            "formatter": "raw",
+        }
+        custom_path = str(tmp_path / "custom_tracking.log")
+        with (
+            patch.object(settings, "LOGGING", syslog_config),
+            patch.dict(os.environ, {"TRACKING_LOG_FILE": custom_path}),
+        ):
+            configure_structlog(debug=False)
+
+        tracking = stdlib_logging.getLogger("tracking")
+        rfile_handlers = [
+            h for h in tracking.handlers if type(h).__name__ == "RotatingFileHandler"
+        ]
+        assert rfile_handlers, "No RotatingFileHandler found"
+        assert rfile_handlers[0].baseFilename == custom_path
 
 
 class TestConfigureStructlogDebug:

@@ -76,6 +76,28 @@ def _shared_processors() -> list[Any]:
     ]
 
 
+def _make_tracking_file_handler(existing_formatters: dict) -> tuple[dict, dict]:
+    """Return (handler_config, formatters) for a RotatingFileHandler fallback.
+
+    Used when the edX SysLogHandler tracking handler is unusable in containers.
+    The path defaults to the standard container volume mount and can be
+    overridden via the TRACKING_LOG_FILE env var.
+    """
+    tracking_log_file = os.environ.get(
+        "TRACKING_LOG_FILE", "/openedx/data/logs/tracking_logs.log"
+    )
+    raw_fmt = existing_formatters.get("raw", {"format": "%(message)s"})
+    handler = {
+        "level": "DEBUG",
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": tracking_log_file,
+        "backupCount": 5,
+        "formatter": "raw",
+        "maxBytes": 10 * 1024 * 1024,
+    }
+    return handler, {"raw": raw_fmt}
+
+
 def _syslog_handler_usable(handler_config: dict) -> bool:
     """Return False when handler is a SysLogHandler targeting a missing Unix socket.
 
@@ -187,29 +209,31 @@ def configure_structlog(*, debug: bool | None = None, force: bool = False) -> No
     existing_formatters = existing_logging.get("formatters", {})
 
     tracking_handler = existing_logging.get("handlers", {}).get("tracking")
-    handler_usable = tracking_handler and _syslog_handler_usable(tracking_handler)
+    handler_usable = bool(tracking_handler and _syslog_handler_usable(tracking_handler))
     if handler_usable:
         extra_handlers["tracking"] = tracking_handler
         # Carry over the formatter referenced by this handler, if any.
         fmt_name = tracking_handler.get("formatter")
         if fmt_name and fmt_name in existing_formatters:
             extra_formatters[fmt_name] = existing_formatters[fmt_name]
+    else:
+        # SysLogHandler targets a missing Unix socket (normal in containers) or
+        # no tracking handler configured. Fall back to a RotatingFileHandler on
+        # the shared volume so the Vector sidecar can read and ship events to S3.
+        fallback, fallback_fmts = _make_tracking_file_handler(existing_formatters)
+        extra_handlers["tracking"] = fallback
+        extra_formatters.update(fallback_fmts)
 
     tracking_logger = existing_logging.get("loggers", {}).get("tracking")
     if tracking_logger:
         tracking_logger = dict(tracking_logger)
-        if handler_usable:
-            handlers = list(tracking_logger.get("handlers", []))
-            if "tracking" not in handlers:
-                handlers.append("tracking")
-            tracking_logger["handlers"] = handlers
-        else:
-            # SysLogHandler targets a missing Unix socket; strip it and let
-            # events propagate to the root console handler instead.
-            tracking_logger["handlers"] = []
-            tracking_logger["propagate"] = True
+        handlers = list(tracking_logger.get("handlers", []))
+        if "tracking" not in handlers:
+            handlers.append("tracking")
+        tracking_logger["handlers"] = handlers
+        tracking_logger.pop("propagate", None)
         extra_loggers["tracking"] = tracking_logger
-    elif handler_usable:
+    else:
         extra_loggers["tracking"] = {
             "handlers": ["tracking"],
             "level": log_level,

@@ -2117,7 +2117,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat"
-version = "0.5.8"
+version = "0.5.9"
 source = { editable = "src/ol_openedx_chat" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2339,7 +2339,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-logging"
-version = "0.3.0"
+version = "0.3.3"
 source = { editable = "src/ol_openedx_logging" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
