@@ -6,3 +6,6 @@ CANVAS_TASK_TYPES = [
     TASK_TYPE_PUSH_EDX_GRADES_TO_CANVAS,
 ]
 COURSE_KEY_ID_EMPTY = "Course Key/ID is empty."
+
+# Instructor dashboard MFE tab id (see pipeline.AddCanvasInstructorTab)
+CANVAS_TAB_ID = "canvas_integration"

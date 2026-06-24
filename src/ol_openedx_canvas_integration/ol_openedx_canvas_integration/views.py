@@ -1,5 +1,6 @@
 """Views for canvas integration"""
 
+import json
 import logging
 
 from common.djangoapps.student.models import CourseEnrollment, CourseEnrollmentAllowed
@@ -9,17 +10,27 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 from django.views.decorators.cache import cache_control
 from django.views.decorators.csrf import ensure_csrf_cookie
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.instructor import permissions
 from lms.djangoapps.instructor.views.api import require_course_permission
+from lms.djangoapps.instructor.views.instructor_task_helpers import (
+    extract_task_features,
+)
 from lms.djangoapps.instructor_task.api_helper import AlreadyRunningError
 from opaque_keys.edx.locator import CourseLocator
 
 from ol_openedx_canvas_integration import tasks
 from ol_openedx_canvas_integration.client import CanvasClient
-from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
-from ol_openedx_canvas_integration.utils import get_canvas_course_id
+from ol_openedx_canvas_integration.constants import (
+    CANVAS_TASK_TYPES,
+    COURSE_KEY_ID_EMPTY,
+)
+from ol_openedx_canvas_integration.task_helpers import get_filtered_instructor_tasks
+from ol_openedx_canvas_integration.utils import (
+    get_canvas_course_id,
+    get_task_output_formatted_message,
+)
 
 log = logging.getLogger(__name__)
 
@@ -171,3 +182,41 @@ def push_edx_grades(request, course_id):
             "Pushing edX grades to canvas. See Pending Tasks below to view the status."
         )
         return JsonResponse({"status": already_running_status})
+
+
+@require_GET
+@ensure_csrf_cookie
+@cache_control(no_cache=True, no_store=True, must_revalidate=True)
+@require_course_permission(permissions.OVERRIDE_GRADES)
+def list_canvas_tasks(request, course_id):
+    """
+    List the running/recent Canvas instructor tasks (enrollment sync, grade push)
+    for the course, so the instructor dashboard MFE can show their status.
+
+    This is self-contained in the plugin: it serializes tasks with the platform's
+    ``extract_task_features`` and formats the Canvas-specific result message with
+    the plugin's own ``get_task_output_formatted_message``.
+    """
+    if not course_id:
+        raise Exception(COURSE_KEY_ID_EMPTY)  # noqa: TRY002
+
+    course_key = CourseLocator.from_string(course_id)
+    tasks_qs = get_filtered_instructor_tasks(course_key, request.user)
+
+    task_features = []
+    for task in tasks_qs:
+        feature = extract_task_features(task)
+        # Override the message for Canvas task types with the plugin's formatter
+        # so the result reads e.g. "N grades and M assignments updated or created".
+        if task.task_type in CANVAS_TASK_TYPES and task.task_output:
+            try:
+                feature["task_message"] = get_task_output_formatted_message(
+                    json.loads(task.task_output)
+                )
+            except (ValueError, TypeError):
+                log.exception(
+                    "Could not format Canvas task output for %s", task.task_id
+                )
+        task_features.append(feature)
+
+    return JsonResponse({"tasks": task_features})
