@@ -86,6 +86,9 @@ def _make_tracking_file_handler(existing_formatters: dict) -> tuple[dict, dict]:
     tracking_log_file = os.environ.get(
         "TRACKING_LOG_FILE", "/openedx/data/logs/tracking_logs.log"
     )
+    # Create the directory if absent — build-time contexts (collectstatic,
+    # migrations) run without the shared volume mounted so the path won't exist.
+    Path(tracking_log_file).parent.mkdir(parents=True, exist_ok=True)
     raw_fmt = existing_formatters.get("raw", {"format": "%(message)s"})
     handler = {
         "level": "DEBUG",
