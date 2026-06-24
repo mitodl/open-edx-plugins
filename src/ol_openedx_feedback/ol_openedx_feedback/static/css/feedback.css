@@ -1,0 +1,73 @@
+/* =========================================================================
+   ol_openedx_feedback — minimal megaphone trigger + compact feedback panel.
+   Trigger docks left of the AskTIM button (ol_openedx_chat); with no AskTIM
+   button it right-aligns to the same spot. Frontend only.
+   ========================================================================= */
+
+.ol-feedback-container {
+  display: flex;
+  justify-content: flex-end; /* fallback position when there's no AskTIM button */
+  margin: 8px 0 4px;
+}
+
+.ol-feedback-container--relocated {
+  margin: 0;
+}
+
+/* Brand token lives on the anchor because JS relocates the anchor (with the
+   panel) into the AskTIM row — keeping it here means it always inherits. */
+.ol-feedback-anchor {
+  --ol-fb-brand: #8a1e2d;       /* MIT-ish maroon; tokenizable per deployment */
+  --ol-fb-brand-tint: #fbeef1;
+  /* Semantic reaction colors (icons + selected card) */
+  --ol-fb-pos: #1e9e5a;         /* positive  — green */
+  --ol-fb-pos-tint: #e9f7f0;
+  --ol-fb-neg: #d8443b;         /* negative  — red */
+  --ol-fb-neg-tint: #fdecea;
+  --ol-fb-idea: #d99405;        /* idea      — amber */
+  --ol-fb-idea-tint: #fbf3dd;
+  position: relative;
+  display: inline-flex;
+  align-self: center;
+}
+
+/* Spacing between the megaphone and the AskTIM button when docked beside it. */
+.ol-feedback-anchor--docked {
+  margin-right: 10px;
+}
+
+/* ---- Minimal, icon-only megaphone trigger ---- */
+.ol-feedback-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #e0a106; /* yellow/gold megaphone */
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ol-feedback-trigger:hover {
+  background: #fbf3dd;
+  color: #c98a00;
+}
+
+.ol-feedback-trigger:focus-visible {
+  outline: 2px solid var(--ol-fb-brand);
+  outline-offset: 2px;
+}
+
+.ol-feedback-trigger:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.ol-feedback-trigger .ol-fb-ic {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
