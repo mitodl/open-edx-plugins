@@ -311,6 +311,24 @@ def configure_structlog(*, debug: bool | None = None, force: bool = False) -> No
     )
 
 
+def configure_from_logging_dict(logging_dict: dict) -> None:
+    """Django ``LOGGING_CONFIG`` entry point.
+
+    Invoked by Django's ``configure_logging()`` in place of the default
+    ``logging.config.dictConfig``.  Applies the platform's ``LOGGING`` dict
+    first so that edX-specific handlers and loggers are created, then
+    immediately layers structlog on top via ``configure_structlog()``.
+
+    Running before ``apps.populate()`` means any third-party app that triggers
+    a log record during its ``ready()`` method (e.g. by importing a library
+    that emits a ``warnings.warn``) will see the clean, SysLog-free logging
+    stack rather than the raw edX config with a potentially broken ``/dev/log``
+    socket.
+    """
+    logging.config.dictConfig(logging_dict)
+    configure_structlog()
+
+
 def reset_configuration() -> None:
     """Reset configuration state for testing purposes.
 
