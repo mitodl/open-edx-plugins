@@ -98,8 +98,8 @@ You can specify providers in two ways:
 .. code-block:: bash
 
     ./manage.py cms translate_course \
-        --source-course course-v1:TestOrg+Source+Run \
-        --target-course course-v1:TestOrg+Arabic+Run \
+        --source-course-id course-v1:TestOrg+Source+Run \
+        --target-course-id course-v1:TestOrg+Arabic+Run \
         --target-language ar \
         --content-translation-provider openai \
         --srt-translation-provider gemini
@@ -109,8 +109,8 @@ You can specify providers in two ways:
 .. code-block:: bash
 
     ./manage.py cms translate_course \
-        --source-course course-v1:TestOrg+Source+Run \
-        --target-course course-v1:TestOrg+Arabic+Run \
+        --source-course-id course-v1:TestOrg+Source+Run \
+        --target-course-id course-v1:TestOrg+Arabic+Run \
         --target-language ar \
         --content-translation-provider openai/gpt-5.2 \
         --srt-translation-provider gemini/gemini-3-pro-preview
@@ -130,8 +130,8 @@ file handling is required.
    .. code-block:: bash
 
         ./manage.py cms translate_course \
-            --source-course course-v1:TestOrg+Source+Run \
-            --target-course course-v1:TestOrg+Arabic+Run \
+            --source-course-id course-v1:TestOrg+Source+Run \
+            --target-course-id course-v1:TestOrg+Arabic+Run \
             --source-language en \
             --target-language ar \
             --content-translation-provider openai \
@@ -144,8 +144,8 @@ file handling is required.
 
 **Command Options:**
 
-- ``--source-course``: Course key of the source course to translate (required). Example: ``course-v1:Org+Course+Run``
-- ``--target-course``: Course key of the target course to import translated content into (required). The course is created automatically if it does not exist.
+- ``--source-course-id``: Course key of the source course to translate (required). Example: ``course-v1:Org+Course+Run``
+- ``--target-course-id``: Course key of the target course to import translated content into (required). The course is created automatically if it does not exist.
 - ``--source-language``: Source language code (default: en)
 - ``--target-language``: Target language code (required)
 - ``--content-translation-provider``: Translation provider for content (XML/HTML and text) (required).
@@ -170,24 +170,24 @@ translating each update item's ``content`` field as HTML.
 
     # Use OpenAI and Gemini with default models from settings
     ./manage.py cms translate_course \
-        --source-course course-v1:MyOrg+EnglishCourse+2024 \
-        --target-course course-v1:MyOrg+FrenchCourse+2024 \
+        --source-course-id course-v1:MyOrg+EnglishCourse+2024 \
+        --target-course-id course-v1:MyOrg+FrenchCourse+2024 \
         --target-language fr \
         --content-translation-provider openai \
         --srt-translation-provider gemini
 
     # Use OpenAI with specific model for content, Gemini with default for subtitles
     ./manage.py cms translate_course \
-        --source-course course-v1:MyOrg+EnglishCourse+2024 \
-        --target-course course-v1:MyOrg+FrenchCourse+2024 \
+        --source-course-id course-v1:MyOrg+EnglishCourse+2024 \
+        --target-course-id course-v1:MyOrg+FrenchCourse+2024 \
         --target-language fr \
         --content-translation-provider openai/gpt-5.2 \
         --srt-translation-provider gemini
 
     # Use Mistral with specific model and separate glossaries for content and SRT
     ./manage.py cms translate_course \
-        --source-course course-v1:MyOrg+EnglishCourse+2024 \
-        --target-course course-v1:MyOrg+SpanishCourse+2024 \
+        --source-course-id course-v1:MyOrg+EnglishCourse+2024 \
+        --target-course-id course-v1:MyOrg+SpanishCourse+2024 \
         --target-language es \
         --content-translation-provider mistral/mistral-large-latest \
         --srt-translation-provider mistral/mistral-large-latest \
@@ -196,8 +196,8 @@ translating each update item's ``content`` field as HTML.
 
     # Use different glossaries for content vs subtitles
     ./manage.py cms translate_course \
-        --source-course course-v1:MyOrg+EnglishCourse+2024 \
-        --target-course course-v1:MyOrg+SpanishCourse+2024 \
+        --source-course-id course-v1:MyOrg+EnglishCourse+2024 \
+        --target-course-id course-v1:MyOrg+SpanishCourse+2024 \
         --target-language es \
         --content-translation-provider openai \
         --srt-translation-provider gemini \
