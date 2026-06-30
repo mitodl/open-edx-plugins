@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import logging.config
 import os
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -73,6 +74,46 @@ def _shared_processors() -> list[Any]:
         inject_k8s_context,
         structlog.processors.StackInfoRenderer(),
     ]
+
+
+def _make_tracking_file_handler(existing_formatters: dict) -> tuple[dict, dict]:
+    """Return (handler_config, formatters) for a RotatingFileHandler fallback.
+
+    Used when the edX SysLogHandler tracking handler is unusable in containers.
+    The path defaults to the standard container volume mount and can be
+    overridden via the TRACKING_LOG_FILE env var.
+    """
+    tracking_log_file = os.environ.get(
+        "TRACKING_LOG_FILE", "/openedx/data/logs/tracking_logs.log"
+    )
+    # Create the directory if absent — build-time contexts (collectstatic,
+    # migrations) run without the shared volume mounted so the path won't exist.
+    Path(tracking_log_file).parent.mkdir(parents=True, exist_ok=True)
+    raw_fmt = existing_formatters.get("raw", {"format": "%(message)s"})
+    handler = {
+        "level": "DEBUG",
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": tracking_log_file,
+        "backupCount": 5,
+        "formatter": "raw",
+        "maxBytes": 10 * 1024 * 1024,
+    }
+    return handler, {"raw": raw_fmt}
+
+
+def _syslog_handler_usable(handler_config: dict) -> bool:
+    """Return False when handler is a SysLogHandler targeting a missing Unix socket.
+
+    In containerised environments /dev/log (or any custom socket path) is often
+    absent.  Preserving such a handler produces a flood of ``--- Logging error
+    ---`` tracebacks on every request.  We detect this case at startup and fall
+    back to the console handler so events are not silently dropped.
+    """
+    if "SysLogHandler" not in handler_config.get("class", ""):
+        return True
+    address = handler_config.get("address")
+    # A string address is a Unix-domain socket path; check it exists.
+    return not isinstance(address, str) or Path(address).exists()
 
 
 def configure_structlog(*, debug: bool | None = None, force: bool = False) -> None:
@@ -171,23 +212,31 @@ def configure_structlog(*, debug: bool | None = None, force: bool = False) -> No
     existing_formatters = existing_logging.get("formatters", {})
 
     tracking_handler = existing_logging.get("handlers", {}).get("tracking")
-    if tracking_handler:
+    handler_usable = bool(tracking_handler and _syslog_handler_usable(tracking_handler))
+    if handler_usable:
         extra_handlers["tracking"] = tracking_handler
         # Carry over the formatter referenced by this handler, if any.
         fmt_name = tracking_handler.get("formatter")
         if fmt_name and fmt_name in existing_formatters:
             extra_formatters[fmt_name] = existing_formatters[fmt_name]
+    else:
+        # SysLogHandler targets a missing Unix socket (normal in containers) or
+        # no tracking handler configured. Fall back to a RotatingFileHandler on
+        # the shared volume so the Vector sidecar can read and ship events to S3.
+        fallback, fallback_fmts = _make_tracking_file_handler(existing_formatters)
+        extra_handlers["tracking"] = fallback
+        extra_formatters.update(fallback_fmts)
 
     tracking_logger = existing_logging.get("loggers", {}).get("tracking")
     if tracking_logger:
         tracking_logger = dict(tracking_logger)
-        if tracking_handler:
-            handlers = list(tracking_logger.get("handlers", []))
-            if "tracking" not in handlers:
-                handlers.append("tracking")
-            tracking_logger["handlers"] = handlers
+        handlers = list(tracking_logger.get("handlers", []))
+        if "tracking" not in handlers:
+            handlers.append("tracking")
+        tracking_logger["handlers"] = handlers
+        tracking_logger.pop("propagate", None)
         extra_loggers["tracking"] = tracking_logger
-    elif tracking_handler:
+    else:
         extra_loggers["tracking"] = {
             "handlers": ["tracking"],
             "level": log_level,
@@ -260,6 +309,24 @@ def configure_structlog(*, debug: bool | None = None, force: bool = False) -> No
             "root": {"handlers": ["console"], "level": log_level},
         }
     )
+
+
+def configure_from_logging_dict(logging_dict: dict) -> None:
+    """Django ``LOGGING_CONFIG`` entry point.
+
+    Invoked by Django's ``configure_logging()`` in place of the default
+    ``logging.config.dictConfig``.  Applies the platform's ``LOGGING`` dict
+    first so that edX-specific handlers and loggers are created, then
+    immediately layers structlog on top via ``configure_structlog()``.
+
+    Running before ``apps.populate()`` means any third-party app that triggers
+    a log record during its ``ready()`` method (e.g. by importing a library
+    that emits a ``warnings.warn``) will see the clean, SysLog-free logging
+    stack rather than the raw edX config with a potentially broken ``/dev/log``
+    socket.
+    """
+    logging.config.dictConfig(logging_dict)
+    configure_structlog()
 
 
 def reset_configuration() -> None:

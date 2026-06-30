@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 import structlog
 from ol_openedx_logging.logging import (
+    configure_from_logging_dict,
     configure_structlog,
     reset_configuration,
 )
@@ -95,6 +96,63 @@ class TestConfigureStructlogProduction:
         django_logger = stdlib_logging.getLogger("django")
         assert django_logger.handlers, "django logger has no handlers"
 
+    def test_syslog_handler_missing_socket_falls_back_to_rotating_file(self, tmp_path):
+        """RotatingFileHandler is used when SysLogHandler socket is absent."""
+        import copy  # noqa: PLC0415
+
+        from django.conf import settings  # noqa: PLC0415
+
+        syslog_config = copy.deepcopy(settings.LOGGING)
+        syslog_config["handlers"]["tracking"] = {
+            "level": "DEBUG",
+            "class": "logging.handlers.SysLogHandler",
+            "facility": "local0",
+            "address": "/nonexistent/dev/log",
+            "formatter": "raw",
+        }
+        fallback_path = str(tmp_path / "tracking_logs.log")
+        with (
+            patch.object(settings, "LOGGING", syslog_config),
+            patch.dict(os.environ, {"TRACKING_LOG_FILE": fallback_path}),
+        ):
+            configure_structlog(debug=False)
+
+        tracking = stdlib_logging.getLogger("tracking")
+        # RotatingFileHandler fallback — not console propagation.
+        assert not any(type(h).__name__ == "SysLogHandler" for h in tracking.handlers)
+        assert any(
+            type(h).__name__ == "RotatingFileHandler" for h in tracking.handlers
+        ), "Expected a RotatingFileHandler fallback when SysLogHandler socket is absent"
+        assert tracking.propagate is False
+
+    def test_syslog_handler_missing_socket_uses_tracking_log_file_env(self, tmp_path):
+        """TRACKING_LOG_FILE env var controls the fallback RotatingFileHandler path."""
+        import copy  # noqa: PLC0415
+
+        from django.conf import settings  # noqa: PLC0415
+
+        syslog_config = copy.deepcopy(settings.LOGGING)
+        syslog_config["handlers"]["tracking"] = {
+            "level": "DEBUG",
+            "class": "logging.handlers.SysLogHandler",
+            "facility": "local0",
+            "address": "/nonexistent/dev/log",
+            "formatter": "raw",
+        }
+        custom_path = str(tmp_path / "custom_tracking.log")
+        with (
+            patch.object(settings, "LOGGING", syslog_config),
+            patch.dict(os.environ, {"TRACKING_LOG_FILE": custom_path}),
+        ):
+            configure_structlog(debug=False)
+
+        tracking = stdlib_logging.getLogger("tracking")
+        rfile_handlers = [
+            h for h in tracking.handlers if type(h).__name__ == "RotatingFileHandler"
+        ]
+        assert rfile_handlers, "No RotatingFileHandler found"
+        assert rfile_handlers[0].baseFilename == custom_path
+
 
 class TestConfigureStructlogDebug:
     """configure_structlog in debug mode."""
@@ -109,6 +167,49 @@ class TestConfigureStructlogDebug:
         configure_structlog(debug=True)
         root = stdlib_logging.getLogger()
         assert any(isinstance(h, stdlib_logging.StreamHandler) for h in root.handlers)
+
+
+class TestConfigureFromLoggingDict:
+    """configure_from_logging_dict — Django LOGGING_CONFIG entry point."""
+
+    def test_applies_logging_dict_and_configures_structlog(self):
+        """configure_from_logging_dict applies the dict and wires up structlog."""
+        import copy  # noqa: PLC0415
+
+        import structlog  # noqa: PLC0415
+        from django.conf import settings  # noqa: PLC0415
+
+        logging_dict = copy.deepcopy(settings.LOGGING)
+        configure_from_logging_dict(logging_dict)
+
+        assert structlog.is_configured()
+        root = stdlib_logging.getLogger()
+        assert any(isinstance(h, stdlib_logging.StreamHandler) for h in root.handlers)
+
+    def test_syslog_handler_replaced_before_apps_populate(self, tmp_path):
+        """SysLogHandler targeting a missing socket is replaced via LOGGING_CONFIG."""
+        import copy  # noqa: PLC0415
+
+        from django.conf import settings  # noqa: PLC0415
+
+        syslog_config = copy.deepcopy(settings.LOGGING)
+        syslog_config["handlers"]["tracking"] = {
+            "level": "DEBUG",
+            "class": "logging.handlers.SysLogHandler",
+            "facility": "local0",
+            "address": "/nonexistent/dev/log",
+            "formatter": "raw",
+        }
+        fallback_path = str(tmp_path / "tracking_logs.log")
+        with (
+            patch.object(settings, "LOGGING", syslog_config),
+            patch.dict(os.environ, {"TRACKING_LOG_FILE": fallback_path}),
+        ):
+            configure_from_logging_dict(syslog_config)
+
+        tracking = stdlib_logging.getLogger("tracking")
+        assert not any(type(h).__name__ == "SysLogHandler" for h in tracking.handlers)
+        assert any(type(h).__name__ == "RotatingFileHandler" for h in tracking.handlers)
 
 
 class TestConfigureStructlogIdempotency:

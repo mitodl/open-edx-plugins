@@ -18,12 +18,19 @@ from typing import Any
 
 
 def plugin_settings(edx_settings: Any) -> None:
-    """Translate edX log-level tokens into the canonical ``LOG_LEVEL`` env var.
+    """Translate edX log-level tokens and wire up early structlog configuration.
 
     If the operator has set ``EDXAPP_LOG_LEVEL`` via ``ENV_TOKENS`` (or the
     environment directly) and ``LOG_LEVEL`` is not already set, we forward the
     value so that ``configure_structlog()`` honours it without any edX-specific
     knowledge.
+
+    We also set ``LOGGING_CONFIG`` so that Django calls our
+    ``configure_from_logging_dict`` entry point instead of bare
+    ``logging.config.dictConfig``.  This ensures structlog is wired up before
+    ``apps.populate()`` runs, which prevents SysLogHandler tracebacks from
+    third-party apps that emit warnings during their ``ready()`` calls (e.g.
+    ``channel_integrations`` importing ``snowflake.connector``).
     """
     env_tokens: dict[str, Any] = getattr(edx_settings, "ENV_TOKENS", {})
 
@@ -33,3 +40,7 @@ def plugin_settings(edx_settings: Any) -> None:
 
     if edxapp_log_level and not os.environ.get("LOG_LEVEL"):
         os.environ["LOG_LEVEL"] = edxapp_log_level
+
+    edx_settings.LOGGING_CONFIG = (
+        "ol_openedx_logging.logging.configure_from_logging_dict"
+    )
