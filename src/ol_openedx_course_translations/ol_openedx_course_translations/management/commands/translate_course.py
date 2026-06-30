@@ -50,6 +50,8 @@ BATCH_SIZE = 20  # Process 20 tasks at a time
 # constants
 SRT_TRANSLATION_TASK_TYPE = "srt_translation"
 FILE_TRANSLATION_TASK_TYPE = "file_translation"
+SOURCE_COURSE_ID_ARG = "--source-course-id"
+TARGET_COURSE_ID_ARG = "--target-course-id"
 
 
 class TaskStatus(StrEnum):
@@ -112,8 +114,8 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
-            "--source-course",
-            dest="source_course",
+            SOURCE_COURSE_ID_ARG,
+            dest="source_course_id",
             required=True,
             help=(
                 "Course key for the source course to export and translate. "
@@ -121,8 +123,8 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
-            "--target-course",
-            dest="target_course",
+            TARGET_COURSE_ID_ARG,
+            dest="target_course_id",
             required=True,
             help=(
                 "Course key for the destination course where the translated content "
@@ -265,11 +267,17 @@ class Command(BaseCommand):
             start_time = time.perf_counter()
 
             source_course_key = self._parse_course_key(
-                options["source_course"], "--source-course"
+                options["source_course_id"], SOURCE_COURSE_ID_ARG
             )
             target_course_key = self._parse_course_key(
-                options["target_course"], "--target-course"
+                options["target_course_id"], TARGET_COURSE_ID_ARG
             )
+
+            if not self.confirm(source_course_key, target_course_key):
+                self.stdout.write(self.style.WARNING("Operation cancelled."))
+                return
+            self.stdout.write("Proceeding...")
+
             source_language = options["source_language"]
             target_language = options["target_language"]
 
@@ -452,6 +460,30 @@ class Command(BaseCommand):
             error_msg = f"Translation failed: {e}"
             raise CommandError(error_msg) from e
 
+    def confirm(
+        self, source_course_id: CourseLocator, target_course_id: CourseLocator
+    ) -> bool:
+        while True:
+            answer = (
+                input(
+                    f"You selected the source course ID {source_course_id}, "
+                    f"and the target course ID {target_course_id}. A new target course "
+                    f"will be created if it does not exist or existing course will be "
+                    f"updated with the translated content if it already exists. "
+                    f"Please confirm: y/n."
+                )
+                .strip()
+                .lower()
+            )
+
+            if answer in ("y", "yes"):
+                return True
+
+            if answer in ("", "n", "no"):
+                return False
+
+            self.stdout.write("Please enter 'y' or 'n'.")
+
     def _parse_course_key(self, key_str: str, arg_name: str) -> CourseLocator:
         """
         Parse a course key string into a CourseLocator.
@@ -489,7 +521,7 @@ class Command(BaseCommand):
         if course is None:
             error_msg = (
                 f"Source course not found: '{source_course_key}'. "
-                "Please verify the course key and that the course exists."
+                "Please verify that the course key and course exists."
             )
             raise CommandError(error_msg)
 
@@ -500,7 +532,8 @@ class Command(BaseCommand):
         Export the source course OLX into a temporary directory under base_dir.
 
         The exported directory will contain a 'course' subdirectory with the full
-        OLX tree, matching the structure that _translate_course_content_async expects.
+        OLX tree, matching the structure that (:meth:`_translate_course_content_async`)
+        expects.
 
         Args:
             source_course_key: Course key to export
