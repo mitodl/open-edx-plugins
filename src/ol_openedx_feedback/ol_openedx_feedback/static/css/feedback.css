@@ -1,6 +1,6 @@
 .ol-feedback-container {
   display: flex;
-  justify-content: flex-end; /* fallback position when there's no AskTIM button */
+  justify-content: flex-end;
   margin: 8px 0 4px;
 }
 
@@ -8,16 +8,13 @@
   margin: 0;
 }
 
-/* Brand token lives on the anchor because JS relocates the anchor into the
-   AskTIM row — keeping it here means it always inherits. */
 .ol-feedback-anchor {
-  --ol-fb-brand: #8a1e2d; /* tokenizable per deployment */
+  --ol-fb-brand: #8a1e2d;
   position: relative;
   display: inline-flex;
   align-self: center;
 }
 
-/* Spacing between the megaphone and the AskTIM button when docked beside it. */
 .ol-feedback-anchor--docked {
   margin-right: 10px;
 }
