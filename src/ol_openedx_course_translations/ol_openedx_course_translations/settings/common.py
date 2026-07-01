@@ -27,17 +27,12 @@ def apply_common_settings(settings):
         "static",
         "tabs",
     ]
-    settings.COURSE_TRANSLATIONS_SUPPORTED_ARCHIVE_EXTENSIONS = [
-        ".tar.gz",
-        ".tgz",
-        ".tar",
-    ]
     settings.COURSE_TRANSLATIONS_TRANSLATABLE_EXTENSIONS = [
         ".html",
         ".xml",
         ".srt",
     ]
-    # Relative to extracted ``course/`` directory in exported archive.
+    # Relative to ``course/`` directory.
     settings.COURSE_TRANSLATIONS_UPDATES_ITEMS_JSON_RELATIVE_PATH = (
         "info/updates.items.json"
     )
@@ -71,8 +66,7 @@ def apply_common_settings(settings):
         "retry_countdown": 1 * 60,  # wait 1m before retry
     }
 
-    # Base directory where translate_course extracts archives and writes
-    # translated .tar.gz output. Directory is created at runtime if missing.
+    # Base directory for course translations.
     settings.COURSE_TRANSLATIONS_BASE_DIR = "/openedx/data/course_translations/"
 
     settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES = {
