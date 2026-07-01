@@ -14,4 +14,4 @@ class OLOpenedxFeedbackConfig(AppConfig):
     name = "ol_openedx_feedback"
     verbose_name = "Open edX Block Feedback"
 
-    plugin_app = {}
+    plugin_app: dict[str, dict] = {}
