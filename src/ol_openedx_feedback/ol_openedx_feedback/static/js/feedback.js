@@ -12,9 +12,13 @@
 
     $trigger.on("click", function (event) {
       event.stopPropagation();
+      // Post only to the known MFE origin; never "*" (would leak block context).
+      if (!mfeBaseUrl) {
+        return;
+      }
       window.parent.postMessage(
         { type: "ol-feedback::drawer-open", payload: payload },
-        mfeBaseUrl || "*"
+        mfeBaseUrl
       );
     });
 
