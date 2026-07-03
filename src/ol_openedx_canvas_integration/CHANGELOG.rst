@@ -12,6 +12,15 @@ Change Log
 
 Unreleased
 ~~~~~~~~~~
+
+[0.8.1] - 2026-07-03
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fixed
+-----
+* Re-register the instructor dashboard tab filter in production settings so the
+  "Canvas" tab survives the deployment's wholesale ``OPEN_EDX_FILTERS_CONFIG``
+  override in ``lms/envs/production.py`` (the filter was previously registered
+  only in common settings).
 * Corrected documentation for due date syncing direction (Canvas to Open edX).
 * Updated management command instructions for Tutor.
 * Fixed the Tutor patch example in README.rst.

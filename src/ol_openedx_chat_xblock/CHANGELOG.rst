@@ -9,3 +9,15 @@ Change Log
 
    This project adheres to Semantic Versioning (https://semver.org/).
 .. There should always be an "Unreleased" section for changes pending release.
+
+Unreleased
+~~~~~~~~~~
+
+[0.4.6] - 2026-07-03
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fixed
+-----
+* Register the chat xBlock render filter in production settings so it survives the
+  deployment's wholesale ``OPEN_EDX_FILTERS_CONFIG`` override in
+  ``lms/envs/production.py`` (previously registered only in common settings, so it
+  relied on the deployment wiring the filter up).
