@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import shutil
+import tempfile
 import time
 from enum import StrEnum
 from pathlib import Path
@@ -13,7 +14,17 @@ from pathlib import Path
 from celery import group
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from opaque_keys import InvalidKeyError
 from opaque_keys.edx.locator import CourseLocator
+from xmodule.contentstore.django import contentstore
+from xmodule.modulestore import ModuleStoreEnum
+from xmodule.modulestore.django import modulestore
+from xmodule.modulestore.xml_exporter import (
+    export_course_to_xml,
+)
+from xmodule.modulestore.xml_importer import (
+    import_course_from_xml,
+)
 
 from ol_openedx_course_translations import tasks as translation_tasks
 from ol_openedx_course_translations.models import CourseTranslationLog
@@ -22,15 +33,11 @@ from ol_openedx_course_translations.utils.constants import (
     PROVIDER_MISTRAL,
 )
 from ol_openedx_course_translations.utils.course_translations import (
-    create_translated_archive,
     create_translated_copy,
-    extract_course_archive,
-    generate_course_key_from_xml,
     get_translatable_file_paths,
     get_translation_provider,
     translate_grading_policy,
     update_course_language_attribute,
-    validate_course_inputs,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,6 +50,8 @@ BATCH_SIZE = 20  # Process 20 tasks at a time
 # constants
 SRT_TRANSLATION_TASK_TYPE = "srt_translation"
 FILE_TRANSLATION_TASK_TYPE = "file_translation"
+SOURCE_COURSE_ID_ARG = "--source-course-id"
+TARGET_COURSE_ID_ARG = "--target-course-id"
 
 
 class TaskStatus(StrEnum):
@@ -57,6 +66,8 @@ class Command(BaseCommand):
 
     help = (
         "Translate course content to the specified language.\n\n"
+        "Exports the source course from the modulestore, translates its content,\n"
+        "then imports the translated version into the target course.\n\n"
         "Configuration:\n"
         "All translation providers should be configured in TRANSLATIONS_PROVIDERS:\n"
         "{\n"
@@ -103,10 +114,23 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
-            "--course-dir",
-            dest="course_archive_path",
+            SOURCE_COURSE_ID_ARG,
+            dest="source_course_id",
             required=True,
-            help="Specify the course directory (tar archive).",
+            help=(
+                "Course key for the source course to export and translate. "
+                "Format: course-v1:ORG+COURSE+RUN"
+            ),
+        )
+        parser.add_argument(
+            TARGET_COURSE_ID_ARG,
+            dest="target_course_id",
+            required=True,
+            help=(
+                "Course key for the destination course where the translated content "
+                "will be imported. Format: course-v1:ORG+COURSE+RUN. "
+                "The course will be created automatically if it does not exist."
+            ),
         )
         parser.add_argument(
             "--content-translation-provider",
@@ -241,7 +265,19 @@ class Command(BaseCommand):
         """Handle the translate_course command."""
         try:
             start_time = time.perf_counter()
-            course_archive_path = Path(options["course_archive_path"])
+
+            source_course_key = self._parse_course_key(
+                options["source_course_id"], SOURCE_COURSE_ID_ARG
+            )
+            target_course_key = self._parse_course_key(
+                options["target_course_id"], TARGET_COURSE_ID_ARG
+            )
+
+            if not self.confirm(source_course_key, target_course_key):
+                self.stdout.write(self.style.WARNING("Operation cancelled."))
+                return
+            self.stdout.write("Proceeding...")
+
             source_language = options["source_language"]
             target_language = options["target_language"]
 
@@ -294,6 +330,8 @@ class Command(BaseCommand):
                 )
 
             # Log the resolved configuration
+            self.stdout.write(f"Source course: {source_course_key}")
+            self.stdout.write(f"Target course: {target_course_key}")
             if content_model:
                 self.stdout.write(
                     f"Content provider: {content_provider_name}/{content_model}"
@@ -317,8 +355,8 @@ class Command(BaseCommand):
                         f"Content translation validation provider: {translation_validation_provider_name}"  # noqa: E501
                     )
 
-            # Validate inputs
-            validate_course_inputs(course_archive_path)
+            # Validate that the source course exists
+            self._validate_source_course(source_course_key)
 
             # Store provider names and models
             self.content_provider_name = content_provider_name
@@ -339,22 +377,25 @@ class Command(BaseCommand):
             course_translations_base_dir = Path(base_dir_setting)
             course_translations_base_dir.mkdir(parents=True, exist_ok=True)
 
-            # Extract course archive into fixed base directory
-            extracted_course_dir = extract_course_archive(
-                course_archive_path, extract_to_dir=course_translations_base_dir
+            # Export source course OLX directly into a temp directory.
+            # Using export_course_to_xml (the same underlying function that the
+            # export_olx management command calls) to avoid a tar/extract round-trip
+            # and to control the output directory name ("course") so that the
+            # existing translation pipeline (_translate_course_content_async) can
+            # find course_dir / "course" without additional discovery logic.
+            export_dir = self._export_source_course(
+                source_course_key, course_translations_base_dir
             )
 
-            # Create translated copy (also under fixed base directory)
-            translated_course_dir = create_translated_copy(
-                extracted_course_dir, target_language
-            )
+            # Create translated copy under the same base directory
+            translated_course_dir = create_translated_copy(export_dir, target_language)
 
             # Store for cleanup on failure
             self.translated_course_dir = translated_course_dir
 
-            # Delete extracted directory after copying
-            if extracted_course_dir.exists():
-                shutil.rmtree(extracted_course_dir)
+            # Remove the export directory now that we have a translated copy
+            if export_dir.exists():
+                shutil.rmtree(export_dir)
 
             # Translate content asynchronously
             self._translate_course_content_async(
@@ -369,16 +410,12 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(total_time_taken_msg))
             command_stats.append(total_time_taken_msg)
 
-            source_course_id = generate_course_key_from_xml(
-                course_dir_path=self.translated_course_dir
-            )
-
             # Add translation log entry
             self._add_translation_log_entry(
                 source_language=source_language,
                 target_language=target_language,
                 command_stats=command_stats,
-                source_course_id=source_course_id,
+                source_course_id=source_course_key,
             )
 
             # Write translations metadata into the translated course output
@@ -388,19 +425,19 @@ class Command(BaseCommand):
                 target_language=target_language,
                 command_stats=command_stats,
                 command_options=options,
-                source_course_id=source_course_id,
+                source_course_id=source_course_key,
             )
 
-            # Create final archive in the same fixed base directory
-            translated_archive_path = create_translated_archive(
-                translated_course_dir,
-                target_language,
-                course_archive_path.stem,
-                output_dir=course_translations_base_dir,
-            )
+            # Import translated content into the target course, creating it if needed
+            self._import_translated_course(translated_course_dir, target_course_key)
+
+            # Clean up the translated working directory
+            if self.translated_course_dir and self.translated_course_dir.exists():
+                shutil.rmtree(self.translated_course_dir)
+
             success_msg = (
-                f"Translation completed successfully. Translated archive created: "
-                f"{translated_archive_path}"
+                f"Translation completed successfully. "
+                f"Imported into target course: {target_course_key}"
             )
             self.stdout.write(self.style.SUCCESS(success_msg))
 
@@ -422,6 +459,172 @@ class Command(BaseCommand):
 
             error_msg = f"Translation failed: {e}"
             raise CommandError(error_msg) from e
+
+    def confirm(
+        self, source_course_id: CourseLocator, target_course_id: CourseLocator
+    ) -> bool:
+        while True:
+            answer = (
+                input(
+                    f"\n\nYou selected the source course ID {source_course_id}, "
+                    f"and the target course ID {target_course_id}. A new target course "
+                    f"will be created if it does not exist or existing course will be "
+                    f"updated with the translated content if it already exists. "
+                    f"\n\nPlease confirm: y/n."
+                )
+                .strip()
+                .lower()
+            )
+
+            if answer in ("y", "yes"):
+                return True
+
+            if answer in ("", "n", "no"):
+                return False
+
+            self.stdout.write("Please enter 'y' or 'n'.")
+
+    def _parse_course_key(self, key_str: str, arg_name: str) -> CourseLocator:
+        """
+        Parse a course key string into a CourseLocator.
+
+        Args:
+            key_str: Course key string (e.g., course-v1:ORG+COURSE+RUN)
+            arg_name: Argument name for error messages
+
+        Returns:
+            Parsed CourseLocator
+
+        Raises:
+            CommandError: If the key string is invalid
+        """
+        try:
+            return CourseLocator.from_string(key_str)
+        except InvalidKeyError as e:
+            error_msg = (
+                f"Invalid course key for {arg_name}: '{key_str}'. "
+                "Expected format: course-v1:ORG+COURSE+RUN"
+            )
+            raise CommandError(error_msg) from e
+
+    def _validate_source_course(self, source_course_key: CourseLocator) -> None:
+        """
+        Validate that the source course exists in the modulestore.
+
+        Args:
+            source_course_key: Course key to validate
+
+        Raises:
+            CommandError: If the course does not exist
+        """
+        course = modulestore().get_course(source_course_key)
+        if course is None:
+            error_msg = (
+                f"Source course not found: '{source_course_key}'. "
+                "Please verify that the course key and course exists."
+            )
+            raise CommandError(error_msg)
+
+    def _export_source_course(
+        self, source_course_key: CourseLocator, base_dir: Path
+    ) -> Path:
+        """
+        Export the source course OLX into a temporary directory under base_dir.
+
+        The exported directory will contain a 'course' subdirectory with the full
+        OLX tree, matching the structure that (:meth:`_translate_course_content_async`)
+        expects.
+
+        Args:
+            source_course_key: Course key to export
+            base_dir: Parent directory under which to create the export temp dir
+
+        Returns:
+            Path to the export directory (contains a 'course/' subdirectory inside)
+
+        Raises:
+            CommandError: If the export fails
+        """
+        export_dir = Path(tempfile.mkdtemp(dir=base_dir))
+        try:
+            self.stdout.write(f"Exporting source course {source_course_key} ...")
+            # export_course_to_xml writes into export_dir/course/ so that
+            # the output directory name is always "course", consistent with
+            # what _translate_course_content_async expects.
+            export_course_to_xml(
+                modulestore(),
+                contentstore(),
+                source_course_key,
+                str(export_dir),
+                "course",
+            )
+
+            exported_course_dir = export_dir / "course"
+            if not exported_course_dir.is_dir():
+                error_msg = (
+                    f"Export did not create expected directory: {exported_course_dir}"
+                )
+                raise CommandError(error_msg)  # noqa: TRY301
+        except Exception as e:
+            shutil.rmtree(export_dir, ignore_errors=True)
+            error_msg = f"Failed to export source course '{source_course_key}': {e}"
+            raise CommandError(error_msg) from e
+
+        self.stdout.write(
+            self.style.SUCCESS(f"Course exported to: {export_dir / 'course'}")
+        )
+        return export_dir
+
+    def _import_translated_course(
+        self, translated_course_dir: Path, target_course_key: CourseLocator
+    ) -> None:
+        """
+        Import translated OLX into the target course, creating it if it does not exist.
+
+        Uses import_course_from_xml from xmodule directly so we can specify
+        target_id and create_if_not_present — capabilities not exposed by the
+        cms import management command.
+
+        Args:
+            translated_course_dir: Directory containing translated OLX under 'course/'
+            target_course_key: Destination course key
+
+        Raises:
+            CommandError: If the import fails
+        """
+        self.stdout.write(
+            f"Importing translated content into target course {target_course_key} ..."
+        )
+        try:
+            course_items = import_course_from_xml(
+                modulestore(),
+                ModuleStoreEnum.UserID.mgmt_command,
+                str(translated_course_dir),  # data_dir
+                ["course"],  # source_dirs — matches the "course" subdir we exported
+                load_error_blocks=False,
+                static_content_store=contentstore(),
+                target_id=target_course_key,
+                verbose=True,
+                create_if_not_present=True,
+            )
+        except Exception as e:
+            error_msg = (
+                f"Failed to import translated content into '{target_course_key}': {e}"
+            )
+            raise CommandError(error_msg) from e
+
+        if not course_items:
+            error_msg = (
+                f"Import into '{target_course_key}' returned no course items. "
+                "The import may have failed silently — check the CMS logs."
+            )
+            raise CommandError(error_msg)
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Successfully imported translated content into: {target_course_key}"
+            )
+        )
 
     def _translate_course_content_async(
         self, course_dir: Path, source_language: str, target_language: str
