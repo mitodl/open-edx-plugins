@@ -466,11 +466,11 @@ class Command(BaseCommand):
         while True:
             answer = (
                 input(
-                    f"You selected the source course ID {source_course_id}, "
+                    f"\n\nYou selected the source course ID {source_course_id}, "
                     f"and the target course ID {target_course_id}. A new target course "
                     f"will be created if it does not exist or existing course will be "
                     f"updated with the translated content if it already exists. "
-                    f"Please confirm: y/n."
+                    f"\n\nPlease confirm: y/n."
                 )
                 .strip()
                 .lower()
