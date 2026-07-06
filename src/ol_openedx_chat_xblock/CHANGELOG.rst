@@ -10,8 +10,6 @@ Change Log
    This project adheres to Semantic Versioning (https://semver.org/).
 .. There should always be an "Unreleased" section for changes pending release.
 
-Unreleased
-~~~~~~~~~~
 
 [0.4.6] - 2026-07-03
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

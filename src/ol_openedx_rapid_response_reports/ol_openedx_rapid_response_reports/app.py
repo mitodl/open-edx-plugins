@@ -26,7 +26,6 @@ class RapidResponsePluginConfig(AppConfig):
         },
         PluginSettings.CONFIG: {
             ProjectType.LMS: {
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
                 SettingsType.PRODUCTION: {
                     PluginSettings.RELATIVE_PATH: "settings.production"
                 },
