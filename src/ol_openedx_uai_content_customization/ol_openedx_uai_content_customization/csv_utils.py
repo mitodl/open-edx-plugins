@@ -56,9 +56,6 @@ def validate_csv_columns(fieldnames, required_cols, csv_label):
         raise ValueError(msg)
 
 
-
-
-
 def resolve_duration_code(duration_value):
     """
     Convert a duration cell value into a Short/Full code.
