@@ -174,7 +174,7 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
             i18n_service=i18n_service,
         )
 
-    def test_student_template_marks_static_text_for_translation(self):
+    def test_student_template_uses_blocktrans_placeholders(self):
         """Student-facing Underscore template text must remain translatable."""
         template_path = (
             Path(__file__).resolve().parents[1]
@@ -185,8 +185,17 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         template = template_path.read_text(encoding="utf-8")
 
         assert '<a class="button finalize-upload">{% trans "Submit" %}</a>' in template
-        assert '{% trans "Your score is" %} <%= graded.score %> / <%= max_score %>' in template
-        assert '{% trans "Grade for" %} <span id="student-name"></span>' in template
+        assert (
+            '{% blocktrans with score="<%= graded.score %>"|safe '
+            'max_score="<%= max_score %>"|safe %}'
+            'Your score is {{ score }} / {{ max_score }}'
+            '{% endblocktrans %}'
+        ) in template
+        assert (
+            "{% blocktrans with student_name='<span id=\"student-name\"></span>'|safe %}"
+            "Grade for {{ student_name }}"
+            "{% endblocktrans %}"
+        ) in template
 
     def test_grade_modal_falls_back_to_username_when_full_name_is_empty(self):
         """The grade modal must show an identifier even when profile.name is empty."""

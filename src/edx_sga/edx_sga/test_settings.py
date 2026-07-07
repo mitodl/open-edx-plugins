@@ -26,6 +26,7 @@ INSTALLED_APPS = (
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "statici18n",
     "edx_sga",
     "workbench",
 )

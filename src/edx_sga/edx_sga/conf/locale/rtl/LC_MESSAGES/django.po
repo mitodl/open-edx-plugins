@@ -109,8 +109,9 @@ msgid "No file has been uploaded."
 msgstr "رخ بهمث اشس زثثر عحمخشيثي."
 
 #: edx_sga/templates/staff_graded_assignment/show.html
-msgid "Your score is"
-msgstr "غخعق سذخقث هس"
+#, python-format
+msgid "Your score is %(score)s / %(max_score)s"
+msgstr "غخعق سذخقث هس %(score)s / %(max_score)s"
 
 #: edx_sga/templates/staff_graded_assignment/show.html
 msgid "Annotated file from instructor"
@@ -217,8 +218,9 @@ msgid "Enter Grade"
 msgstr "ثرفثق لقشيث"
 
 #: edx_sga/templates/staff_graded_assignment/show.html
-msgid "Grade for"
-msgstr "لقشيث بخق"
+#, python-format
+msgid "Grade for %(student_name)s"
+msgstr "لقشيث بخق %(student_name)s"
 
 #: edx_sga/templates/staff_graded_assignment/show.html
 msgid "Grade:"

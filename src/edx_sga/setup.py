@@ -52,6 +52,6 @@ setup(
         ]
     },
     package_data=package_data(
-        "edx_sga", ["static", "templates", "locale", "translations"]
+        "edx_sga", ["static", "templates", "conf", "locale", "translations"]
     ),
 )

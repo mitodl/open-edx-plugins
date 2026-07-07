@@ -24,7 +24,7 @@ extract_translations: ## extract source strings to conf/locale
 
 compile_translations: ## compile PO catalogues and the local JavaScript catalogues
 	cd $(WORKING_DIR) && i18n_tool generate -v
-	python manage.py compilejsi18n --namespace StaffGradedAssignmentI18N --output $(JS_TARGET)
+	django-admin compilejsi18n --settings=edx_sga.test_settings --namespace StaffGradedAssignmentI18N --output $(JS_TARGET)
 
 dummy_translations: ## generate fake-language translation catalogues
 	cd $(WORKING_DIR) && i18n_tool dummy
