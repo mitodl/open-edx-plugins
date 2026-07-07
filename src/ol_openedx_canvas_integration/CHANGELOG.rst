@@ -21,9 +21,6 @@ Fixed
   "Canvas" tab survives the deployment's wholesale ``OPEN_EDX_FILTERS_CONFIG``
   override in ``lms/envs/production.py`` (the filter was previously registered
   only in common settings).
-* Corrected documentation for due date syncing direction (Canvas to Open edX).
-* Updated management command instructions for Tutor.
-* Fixed the Tutor patch example in README.rst.
 
 [0.8.0] - 2026-06-22
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -41,6 +38,9 @@ Added
 Added
 -----
 * Support for optional Canvas due date syncing.
+* Corrected documentation for due date syncing direction (Canvas to Open edX).
+* Updated management command instructions for Tutor.
+* Fixed the Tutor patch example in README.rst.
 
 [0.6.0] - 2025-10-13
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
