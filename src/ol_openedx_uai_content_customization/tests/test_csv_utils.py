@@ -15,7 +15,9 @@ from ol_openedx_uai_content_customization.csv_utils import (
 
 def test_parse_csv_returns_list_of_dicts(tmp_path):
     """Each row in the CSV is returned as a dict keyed by column header."""
-    csv_text = "video_file_name,edx_video_id\nv004_h264.mp4,abc-123\nv005_h264.mp4,def-456\n"
+    csv_text = (
+        "video_file_name,edx_video_id\nv004_h264.mp4,abc-123\nv005_h264.mp4,def-456\n"
+    )
     csv_file = tmp_path / "videos.csv"
     csv_file.write_text(csv_text)
 

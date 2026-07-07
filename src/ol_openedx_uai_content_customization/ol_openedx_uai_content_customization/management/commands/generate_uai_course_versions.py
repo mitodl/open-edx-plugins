@@ -130,9 +130,7 @@ class Command(BaseCommand):
         except ValueError as exc:
             raise CommandError(str(exc)) from exc
 
-        self.stdout.write(
-            f"Loaded {len(processed_video_rows)} processed video rows."
-        )
+        self.stdout.write(f"Loaded {len(processed_video_rows)} processed video rows.")
 
         course_groups = group_videos_by_course(processed_video_rows)
         course_intro_lookup = build_course_intro_lookup(processed_video_rows)
@@ -179,7 +177,9 @@ class Command(BaseCommand):
                     vid_file = video[CSV_COL_VIDEO_FILE_NAME]
                     vid_title = video[CSV_COL_VIDEO_TITLE]
                     edx_video_id = video.get(CSV_COL_EDX_VIDEO_ID, "<NOT SET>")
-                    self.stdout.write(f"    - {vid_title} ({vid_file} -> {edx_video_id})")
+                    self.stdout.write(
+                        f"    - {vid_title} ({vid_file} -> {edx_video_id})"
+                    )
                 skipped += 1
                 continue
 
