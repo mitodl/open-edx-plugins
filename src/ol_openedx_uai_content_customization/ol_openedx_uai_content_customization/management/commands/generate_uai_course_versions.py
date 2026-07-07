@@ -1,11 +1,10 @@
 """
 Management command: generate_uai_course_versions
 
-Reads two CSV files and uses Open edX modulestore APIs to build industry- and
-length-specific variants of UAI courses by cloning a base course:
+Reads a single CSV file and uses Open edX modulestore APIs to build industry-
+and length-specific variants of UAI courses by cloning a base course.
 
   - Processed videos CSV  (produced by the video-generation workflow)
-  - Open edX videos CSV (exported from Studio / OVS)
 
 For each unique (course_key, industry, duration) combination the command:
     1. Clones the source course (identified by the ``course_key`` CSV column)
@@ -22,7 +21,6 @@ For each unique (course_key, industry, duration) combination the command:
 Usage:
     python manage.py generate_uai_course_versions \\
         --processed-videos-csv /path/to/processed_videos.csv \\
-        --edx-videos-csv /path/to/edx_videos.csv \\
         [--username studio_worker] \\
         [--dry-run]
 
@@ -48,6 +46,7 @@ from ol_openedx_uai_content_customization.constants import (
     BLOCK_TYPE_SEQUENTIAL,
     BLOCK_TYPE_VERTICAL,
     BLOCK_TYPE_VIDEO,
+    CSV_COL_EDX_VIDEO_ID,
     CSV_COL_MODULE_NAME,
     CSV_COL_VIDEO_FILE_NAME,
     CSV_COL_VIDEO_TITLE,
@@ -56,13 +55,11 @@ from ol_openedx_uai_content_customization.constants import (
     INTRO_SUBSECTION_DISPLAY_NAME,
     INTRO_UNIT_DISPLAY_NAME,
     LECTURES_SECTION_DISPLAY_NAME,
-    REQUIRED_ASSET_CSV_COLS,
     REQUIRED_CUSTOMIZED_CSV_COLS,
 )
 from ol_openedx_uai_content_customization.csv_utils import (
     build_course_intro_lookup,
     build_new_course_key,
-    build_video_id_map,
     group_videos_by_course,
     parse_csv,
     resolve_course_intro,
@@ -82,7 +79,7 @@ class Command(BaseCommand):
     """Generate industry/length-specific UAI courses using Open edX modulestore APIs."""
 
     help = (
-        "Generate industry and length-specific UAI courses by reading two CSV files "
+        "Generate industry and length-specific UAI courses by reading a CSV file "
         "and creating courses in the CMS modulestore."
     )
 
@@ -91,11 +88,6 @@ class Command(BaseCommand):
             "--processed-videos-csv",
             required=True,
             help="Path to the processed video metadata CSV file.",
-        )
-        parser.add_argument(
-            "--edx-videos-csv",
-            required=True,
-            help="Path to the Open edX videos CSV file (exported from Studio/OVS).",
         )
         parser.add_argument(
             "--username",
@@ -111,7 +103,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):  # noqa: ARG002, PLR0915
         processed_videos_csv = options["processed_videos_csv"]
-        edx_videos_csv = options["edx_videos_csv"]
         username = options["username"]
         dry_run = options["dry_run"]
 
@@ -129,7 +120,6 @@ class Command(BaseCommand):
         processed_video_rows, processed_video_fieldnames = parse_csv(
             processed_videos_csv
         )
-        edx_video_rows, edx_video_fieldnames = parse_csv(edx_videos_csv)
 
         try:
             validate_csv_columns(
@@ -137,19 +127,11 @@ class Command(BaseCommand):
                 REQUIRED_CUSTOMIZED_CSV_COLS,
                 "processed videos CSV",
             )
-            validate_csv_columns(
-                edx_video_fieldnames,
-                REQUIRED_ASSET_CSV_COLS,
-                "edX videos CSV",
-            )
         except ValueError as exc:
             raise CommandError(str(exc)) from exc
 
-        video_id_map = build_video_id_map(edx_video_rows)
-
         self.stdout.write(
-            f"Loaded {len(processed_video_rows)} processed video rows "
-            f"and {len(edx_video_rows)} edX video rows."
+            f"Loaded {len(processed_video_rows)} processed video rows."
         )
 
         course_groups = group_videos_by_course(processed_video_rows)
@@ -196,8 +178,8 @@ class Command(BaseCommand):
                 for video in videos:
                     vid_file = video[CSV_COL_VIDEO_FILE_NAME]
                     vid_title = video[CSV_COL_VIDEO_TITLE]
-                    mapped_id = video_id_map.get(vid_file, "<NOT FOUND>")
-                    self.stdout.write(f"    - {vid_title} ({vid_file} -> {mapped_id})")
+                    edx_video_id = video.get(CSV_COL_EDX_VIDEO_ID, "<NOT SET>")
+                    self.stdout.write(f"    - {vid_title} ({vid_file} -> {edx_video_id})")
                 skipped += 1
                 continue
 
@@ -208,7 +190,6 @@ class Command(BaseCommand):
                     display_name,
                     intro_by_course_key[new_course_key],
                     videos,
-                    video_id_map,
                     user,
                 )
                 created += 1
@@ -273,7 +254,6 @@ class Command(BaseCommand):
         display_name,
         course_intro,
         videos,
-        video_id_map,
         user,
     ):
         """
@@ -353,7 +333,7 @@ class Command(BaseCommand):
             for video in videos:
                 title = video[CSV_COL_VIDEO_TITLE]
                 vid_file = video[CSV_COL_VIDEO_FILE_NAME]
-                edx_video_id = video_id_map.get(vid_file)
+                edx_video_id = video.get(CSV_COL_EDX_VIDEO_ID)
 
                 if not edx_video_id:
                     log.warning(
