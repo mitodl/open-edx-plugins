@@ -16,6 +16,15 @@ Unreleased
 
 *
 
+[0.5.1] - 2026-07-03
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fixed
+-----
+* Re-register the instructor dashboard tab filter in production settings so the
+  "Rapid Responses" tab survives the deployment's wholesale
+  ``OPEN_EDX_FILTERS_CONFIG`` override in ``lms/envs/production.py`` (the filter
+  was previously registered only in common settings).
+
 [0.5.0] - 2026-06-22
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Added

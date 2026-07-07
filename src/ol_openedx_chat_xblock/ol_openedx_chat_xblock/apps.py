@@ -18,12 +18,18 @@ class OLOpenedxChatXBlockConfig(AppConfig):
         PluginSettings.CONFIG: {
             ProjectType.LMS: {
                 SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
+                SettingsType.PRODUCTION: {
+                    PluginSettings.RELATIVE_PATH: "settings.production"
+                },
                 SettingsType.DEVSTACK: {
                     PluginSettings.RELATIVE_PATH: "settings.devstack"
                 },
             },
             ProjectType.CMS: {
                 SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
+                SettingsType.PRODUCTION: {
+                    PluginSettings.RELATIVE_PATH: "settings.production"
+                },
                 SettingsType.DEVSTACK: {
                     PluginSettings.RELATIVE_PATH: "settings.devstack"
                 },

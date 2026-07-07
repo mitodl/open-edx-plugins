@@ -2,6 +2,10 @@
 
 from path import Path as path  # noqa: N813
 
+from ol_openedx_canvas_integration.settings.lms.filters import (
+    register_instructor_tab_filter,
+)
+
 PLUGIN_TEMPLATES_ROOT = path(__file__).abspath().dirname().dirname().dirname()
 
 
@@ -13,6 +17,11 @@ def plugin_settings(settings):
     settings.CANVAS_BASE_URL = settings.ENV_TOKENS.get(
         "CANVAS_BASE_URL", settings.CANVAS_BASE_URL
     )
+
+    # Re-register the instructor-dashboard tab filter. Production overwrites
+    # OPEN_EDX_FILTERS_CONFIG wholesale from the deployment YAML, dropping the
+    # entry added by common settings; this merges the pipeline step back in.
+    register_instructor_tab_filter(settings)
 
     settings.TEMPLATES = settings.ENV_TOKENS.get("TEMPLATES", settings.TEMPLATES)
 

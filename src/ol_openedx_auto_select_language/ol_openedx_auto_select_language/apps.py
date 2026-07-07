@@ -29,6 +29,9 @@ class OLOpenEdxAutoSelectLanguageConfig(AppConfig):
             },
             ProjectType.LMS: {
                 SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.lms"},
+                SettingsType.PRODUCTION: {
+                    PluginSettings.RELATIVE_PATH: "settings.production"
+                },
             },
         },
     }
