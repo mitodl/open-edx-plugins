@@ -21,6 +21,7 @@ from ol_openedx_course_sync.models import (
 from ol_openedx_course_sync.utils import (
     copy_course_content,
     copy_static_tabs,
+    get_all_source_courses,
     get_course_sync_service_user,
     get_syncable_course_mappings,
     sync_course_handouts,
@@ -39,7 +40,7 @@ from xmodule.html_block import CourseInfoBlock
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
-from xmodule.modulestore.tests.factories import BlockFactory
+from xmodule.modulestore.tests.factories import BlockFactory, CourseFactory
 from xmodule.tabs import StaticTab
 
 from tests.utils import OLOpenedXCourseSyncTestCase
@@ -415,6 +416,66 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
                 assert actual_sync_mappings is None
             else:
                 assert actual_sync_mappings.count() == expected_sync_mappings_count
+
+    @skip_unless_cms
+    def test_get_all_source_courses_no_mappings(self):
+        """
+        Test get_all_source_courses returns None when no mappings exist.
+        """
+        assert get_all_source_courses() is None
+
+    @skip_unless_cms
+    def test_get_all_source_courses_no_active_mappings(self):
+        """
+        Test get_all_source_courses returns None when no mapping is active.
+        """
+        source_key = self.source_course.usage_key.course_key
+        target_key = self.target_course.usage_key.course_key
+        CourseOverviewFactory.create(id=source_key)
+        CourseOverviewFactory.create(id=target_key)
+        CourseSyncMapping.objects.create(
+            source_course=source_key, target_course=target_key, is_active=False
+        )
+
+        assert get_all_source_courses() is None
+
+    @skip_unless_cms
+    def test_get_all_source_courses_returns_distinct_active_sources(self):
+        """
+        Test get_all_source_courses returns a distinct list of the active
+        source courses, ignoring inactive mappings and duplicate sources.
+        """
+        source_1 = self.source_course.usage_key.course_key
+        source_2 = self.target_course.usage_key.course_key
+        target_1 = CourseFactory.create(
+            default_store=ModuleStoreEnum.Type.split
+        ).usage_key.course_key
+        target_2 = CourseFactory.create(
+            default_store=ModuleStoreEnum.Type.split
+        ).usage_key.course_key
+        target_3 = CourseFactory.create(
+            default_store=ModuleStoreEnum.Type.split
+        ).usage_key.course_key
+
+        for course_key in (source_1, source_2, target_1, target_2, target_3):
+            CourseOverviewFactory.create(id=course_key)
+
+        # Two active mappings sharing the same source course.
+        CourseSyncMapping.objects.create(
+            source_course=source_1, target_course=target_1, is_active=True
+        )
+        CourseSyncMapping.objects.create(
+            source_course=source_1, target_course=target_2, is_active=True
+        )
+        # Another active mapping with a different source course.
+        CourseSyncMapping.objects.create(
+            source_course=source_2, target_course=target_3, is_active=True
+        )
+
+        result = get_all_source_courses()
+
+        assert set(result) == {source_1, source_2}
+        assert len(result) == 2  # noqa: PLR2004
 
     @data(
         # Test case: assets match completely
