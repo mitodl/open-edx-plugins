@@ -12,7 +12,10 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
-from openedx.core.djangoapps.content_libraries.api import get_library
+from openedx.core.djangoapps.content_libraries.api import (
+    ContentLibraryNotFound,
+    get_library,
+)
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import (
@@ -25,6 +28,7 @@ from ol_openedx_git_auto_export.constants import (
     REPOSITORY_NAME_MAX_LENGTH,
     ContentType,
 )
+from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 
 log = logging.getLogger(__name__)
 
@@ -43,23 +47,36 @@ def get_content_info(content_key):
             - is_v1_library: Boolean flag
             - is_v2_library: Boolean flag
             - is_library: Boolean flag (True if v1 or v2 library)
+
+    Raises:
+        ContentNotFoundError: If the course/library isn't found.
     """
     is_v1_library = isinstance(content_key, LibraryLocator)
     is_v2_library = isinstance(content_key, LibraryLocatorV2)
 
     # Get the content module based on type
     if is_v2_library:
-        # V2 libraries use content_libraries API
-        content_module = get_library(content_key)
+        # V2 libraries use content_libraries API, which raises
+        # ContentLibraryNotFound (a DoesNotExist alias) rather than
+        # returning None.
+        try:
+            content_module = get_library(content_key)
+        except ContentLibraryNotFound as exc:
+            msg = f"Library {content_key} not found via content_libraries API."
+            raise ContentNotFoundError(msg) from exc
         content_type = ContentType.LIBRARY.value
     elif is_v1_library:
-        # V1 libraries use modulestore
         content_module = modulestore().get_library(content_key)
         content_type = ContentType.LIBRARY.value
+        if content_module is None:
+            msg = f"Library {content_key} not found in modulestore."
+            raise ContentNotFoundError(msg)
     else:
-        # Courses use modulestore
         content_module = modulestore().get_course(content_key)
         content_type = ContentType.COURSE.value
+        if content_module is None:
+            msg = f"Course {content_key} not found in modulestore."
+            raise ContentNotFoundError(msg)
 
     return {
         "content_type": content_type,
