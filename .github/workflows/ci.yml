@@ -16,12 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Used only on pushes to the upstream repository to cache openedx-dev
-      # images in GHCR; never exercised during pull_request runs or fork pushes
-      # because both the login and push steps are conditioned accordingly.
-      # GitHub Actions does not support conditional job-level permissions, so
-      # this is the closest we can get to granting packages:write only when it
-      # is actually needed.
+      # Used to push openedx-dev images to GHCR for caching. Both the login
+      # and push steps are gated on github.repository_owner == GHCR_CACHE_OWNER
+      # so fork PRs never exercise this permission (they use anonymous pulls
+      # from the public cache package). GitHub Actions does not support
+      # conditional job-level permissions, so this is the closest we can get
+      # to granting packages:write only when it is actually needed.
       packages: write
     strategy:
       matrix:
@@ -104,8 +104,7 @@ jobs:
         path: |
           ~/.local/share/tutor
           ~/.local/share/tutor-main
-        key: >-
-          tutor-config-${{ steps.tutor-version.outputs.version }}-${{ matrix.edx_branch
+        key: tutor-config-${{ steps.tutor-version.outputs.version_tag }}-${{ steps.edx-sha.outputs.branch_slug
           }}
 
     - name: Generate Tutor config
@@ -133,7 +132,7 @@ jobs:
       run: pip install --no-deps -e ${{ github.workspace }}/../edx-platform
 
     - name: Log in to GitHub Container Registry
-      if: github.event_name == 'push' && github.repository_owner == env.GHCR_CACHE_OWNER
+      if: github.repository_owner == env.GHCR_CACHE_OWNER
       uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
       with:
         registry: ghcr.io
@@ -149,7 +148,7 @@ jobs:
           exit 1
         fi
         echo "openedx_dev_image=$OPENEDX_DEV_IMAGE" >> "$GITHUB_OUTPUT"
-        CACHE_IMAGE_TAG="ghcr.io/${{ env.GHCR_CACHE_OWNER }}/openedx-dev-cache:${{ steps.edx-sha.outputs.branch_slug }}-${{ steps.edx-sha.outputs.sha }}-${{ steps.tutor-version.outputs.version_tag }}"
+        CACHE_IMAGE_TAG="ghcr.io/${{ env.GHCR_CACHE_OWNER }}/openedx-dev-cache:${{ steps.edx-sha.outputs.branch_slug }}-${{ steps.tutor-version.outputs.version_tag }}"
         echo "cache_image_tag=$CACHE_IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
     - name: Pull cached Docker image
@@ -171,8 +170,8 @@ jobs:
 
     - name: Push Docker image to registry cache
       if: >-
-        steps.pull-image.outputs.cache_hit != 'true' && github.event_name ==
-        'push' && github.repository_owner == env.GHCR_CACHE_OWNER
+        steps.pull-image.outputs.cache_hit != 'true' &&
+        github.repository_owner == env.GHCR_CACHE_OWNER
       run: |
         docker tag \
           "${{ steps.docker-names.outputs.openedx_dev_image }}" \
