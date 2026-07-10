@@ -41,7 +41,7 @@ class Command(BaseCommand):
 
         # Also re-publish blocks that were already published before the migration.
         $ ./manage.py cms migrate_legacy_library_blocks_to_item_bank --all-courses \
-        --publish-if-was-published
+        --persist-publish-state
     """
 
     def add_arguments(self, parser):
@@ -62,7 +62,7 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
-            "--publish-if-was-published",
+            "--persist-publish-state",
             action="store_true",
             help=_(
                 "Re-publish migrated blocks that were already "
@@ -76,7 +76,7 @@ class Command(BaseCommand):
         """
         all_source_courses = options["all_source_courses"]
         course_ids = options["course_ids"]
-        publish_if_was_published = options["publish_if_was_published"]
+        persist_publish_state = options["persist_publish_state"]
 
         if not course_ids and not all_source_courses:
             error_msg = (
@@ -116,5 +116,5 @@ class Command(BaseCommand):
             migrate_course_legacy_library_blocks_to_item_bank.delay(
                 user.id,
                 str(course_key),
-                publish_if_was_published,
+                persist_publish_state,
             )
