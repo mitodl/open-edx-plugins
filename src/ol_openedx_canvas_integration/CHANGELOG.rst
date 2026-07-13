@@ -13,6 +13,15 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.8.2] - 2026-07-13
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Fixed
+-----
+* Due date sync no longer crashes with ``TypeError: fromisoformat: argument must
+  be str`` when a Canvas assignment override sets only an "Until" date (``lock_at``)
+  with no "Due" date. Such overrides have ``due_at: None`` and are now skipped
+  instead of being passed to ``parse_datetime``.
+
 [0.8.1] - 2026-07-03
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Fixed
