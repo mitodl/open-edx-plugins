@@ -292,6 +292,54 @@ class CanvasDueDateSyncTests(ModuleStoreTestCase):
                         reason="Synced from canvas course: 11",
                     )
 
+    def test_sync_canvas_due_date_extensions_with_only_until_date(self):
+        """
+        A Canvas override that sets only an "Until" date (lock_at) and no "Due"
+        date has `due_at: None`. Syncing such an override must not raise.
+        """
+        for uid in [1, 4]:
+            UserFactory.create(username=f"user{uid}", email=f"user{uid}@abc.xyz")
+        course, sequentials = self.create_course(
+            {
+                "canvas_id": 11,
+                "use_canvas_due_dates": True,
+            }
+        )
+
+        student_ids = [1, 4]
+
+        mock_canvas_assignments = {
+            str(sequentials[0].location): {
+                "due_at": None,
+                "overrides": [
+                    {
+                        "due_at": None,
+                        "lock_at": "2026-06-02T00:00:00Z",
+                        "student_ids": student_ids,
+                    }
+                ],
+            },
+        }
+
+        canvas_client_mock = MagicMock()
+        canvas_client_mock.get_canvas_assignments.return_value = mock_canvas_assignments
+        canvas_client_mock.get_emails_by_student_ids.side_effect = lambda ids: [
+            f"user{uid}@abc.xyz" for uid in ids
+        ]
+
+        with (
+            patch(
+                "ol_openedx_canvas_integration.cms_tasks.CanvasClient",
+                return_value=canvas_client_mock,
+            ),
+            patch(
+                "ol_openedx_canvas_integration.cms_tasks.set_due_date_extension"
+            ) as set_due_date_extension_mock,
+        ):
+            _sync_canvas_due_dates(str(course.id))
+
+        set_due_date_extension_mock.assert_not_called()
+
     def test_sync_canvas_due_dates_for_all_courses_enqueues_each_course(self):
         course_1, _ = self.create_course()
         course_2, _ = self.create_course()

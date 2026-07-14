@@ -252,6 +252,10 @@ def sync_canvas_due_date_extensions(client, course, block, overrides):
     canvas_course_id = get_canvas_course_id(course)
     for override in overrides:
         if "student_ids" in override:
+            if not override.get("due_at"):
+                # The override only sets an "Until" date (lock_at) with no
+                # "Due" date, so there is no due date extension to sync.
+                continue
             emails = client.get_emails_by_student_ids(override["student_ids"])
             students = User.objects.filter(email__in=emails)
             for student in students:
