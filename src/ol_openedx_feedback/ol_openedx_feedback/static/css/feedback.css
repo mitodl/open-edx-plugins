@@ -1,0 +1,63 @@
+.ol-feedback-container {
+  display: flex;
+  justify-content: flex-end;
+  margin: 8px 0 4px;
+}
+
+.ol-feedback-container--relocated {
+  margin: 0;
+}
+
+.ol-feedback-anchor {
+  --ol-fb-brand: #8a1e2d;
+  position: relative;
+  display: inline-flex;
+  align-self: center;
+}
+
+.ol-feedback-anchor--docked {
+  /* Docked next to AskTIM, the megaphone overlaps the capa "saved" notification
+     line. Mask it with an opaque background (as the AskTIM button does) so the
+     line breaks cleanly around the icon instead of crossing it. The spacing to
+     the button lives in padding (not margin) so the background covers it too —
+     otherwise the line shows through the gap between the icon and the button. */
+  margin-right: 0;
+  padding: 0 16px 0 6px;
+  background: #fff;
+  z-index: 1;
+}
+
+.ol-feedback-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #e0a106;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ol-feedback-trigger:hover {
+  background: #fbf3dd;
+  color: #c98a00;
+}
+
+.ol-feedback-trigger:focus-visible {
+  outline: 2px solid var(--ol-fb-brand);
+  outline-offset: 2px;
+}
+
+.ol-feedback-trigger:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.ol-feedback-trigger .ol-fb-ic {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
