@@ -2423,7 +2423,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-sentry"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "src/ol_openedx_sentry" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2433,8 +2433,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "django", specifier = ">=4.0" },
-    { name = "sentry-sdk", specifier = ">=2.0.0" },
+    { name = "django", specifier = ">=4.2" },
+    { name = "sentry-sdk", specifier = ">=2.55.0" },
 ]
 
 [[package]]
