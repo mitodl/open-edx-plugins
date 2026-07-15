@@ -67,6 +67,13 @@ class TestCompilePatterns:
     def test_none_input_returns_empty_list(self):
         assert sentry._compile_patterns(None) == []
 
+    def test_bare_string_is_treated_as_single_pattern(self):
+        # A misconfigured bare string must not be iterated character by
+        # character (which would compile one regex per char and drop events).
+        patterns = sentry._compile_patterns("Failed to pull git repository")
+        assert len(patterns) == 1
+        assert patterns[0].pattern == "Failed to pull git repository"
+
 
 def _exc_hint(exc_type, exc_value):
     """Build a Sentry hint carrying ``exc_info`` for the given exception."""
@@ -278,3 +285,18 @@ class TestPluginSettings:
         )
         sentry.plugin_settings(app_settings)
         assert init.call_args.kwargs["send_default_pii"] is True
+
+    def test_bare_string_ignored_classes_is_not_iterated_per_char(self, mocker):
+        # A misconfigured bare string must resolve as a single class spec, not
+        # one spec per character.
+        init = mocker.patch.object(sentry.sentry_sdk, "init")
+        load = mocker.spy(sentry, "_load_exception_class")
+        app_settings = types.SimpleNamespace(
+            ENV_TOKENS={
+                "SENTRY_DSN": "https://example.invalid/1",
+                "SENTRY_IGNORED_EXCEPTION_CLASSES": "ValueError",
+            }
+        )
+        sentry.plugin_settings(app_settings)
+        init.assert_called_once()
+        load.assert_called_once_with("ValueError")

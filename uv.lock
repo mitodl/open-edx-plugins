@@ -2091,7 +2091,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-canvas-integration"
-version = "0.8.1"
+version = "0.8.2"
 source = { editable = "src/ol_openedx_canvas_integration" }
 dependencies = [
     { name = "celery" },
@@ -2271,7 +2271,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-translations"
-version = "0.7.0"
+version = "0.8.0"
 source = { editable = "src/ol_openedx_course_translations" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },

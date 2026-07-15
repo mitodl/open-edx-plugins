@@ -96,6 +96,11 @@ def _compile_patterns(ignored_messages: Any) -> list[re.Pattern[str]]:
     which serialize to a YAML sequence.  Non-string fragments and invalid
     regexes are logged and skipped rather than raising.
     """
+    # A bare string is a common misconfiguration (the token expects a list):
+    # iterating it directly would compile one regex per character and drop
+    # unrelated events, so treat it as a single entry.
+    if isinstance(ignored_messages, (str, bytes)):
+        ignored_messages = [ignored_messages]
     patterns: list[re.Pattern[str]] = []
     for entry in ignored_messages or []:
         fragments = entry if isinstance(entry, (list, tuple)) else [entry]
@@ -238,12 +243,14 @@ def plugin_settings(app_settings):
     if not sentry_dsn:
         return
 
+    class_specs = env_tokens.get("SENTRY_IGNORED_EXCEPTION_CLASSES", [])
+    # Guard the same bare-string misconfiguration as _compile_patterns: a plain
+    # string would otherwise be iterated character by character.
+    if isinstance(class_specs, str):
+        class_specs = [class_specs]
     ignored_classes = tuple(
         cls
-        for cls in (
-            _load_exception_class(spec)
-            for spec in env_tokens.get("SENTRY_IGNORED_EXCEPTION_CLASSES", [])
-        )
+        for cls in (_load_exception_class(spec) for spec in class_specs)
         if cls is not None
     )
     ignored_patterns = tuple(
