@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-sentry"
-version = "0.3.0"
+version = "0.4.0"
 description = "An Open edX plugin to enable error tracking with Sentry"
 readme = "README.rst"
 authors = [
@@ -9,8 +9,8 @@ authors = [
 license = "BSD-3-Clause"
 requires-python = ">=3.11"
 dependencies = [
-  "Django>=4.0",
-  "sentry-sdk>=2.0.0",
+  "Django>=4.2",
+  "sentry-sdk>=2.55.0",
 ]
 
 [project.entry-points."lms.djangoapp"]
@@ -18,6 +18,9 @@ ol_openedx_sentry = "ol_openedx_sentry.app:EdxSentry"
 
 [project.entry-points."cms.djangoapp"]
 ol_openedx_sentry = "ol_openedx_sentry.app:EdxSentry"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "ol_openedx_sentry.settings.test"
 
 [build-system]
 requires = ["hatchling"]
