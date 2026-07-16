@@ -12,7 +12,6 @@ import logging
 from cms.djangoapps.contentstore.tasks import (
     migrate_course_legacy_library_blocks_to_item_bank,
 )
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.translation import gettext as _
 from opaque_keys import InvalidKeyError
@@ -102,10 +101,8 @@ class Command(BaseCommand):
             )
             raise CommandError(error_msg)
 
-        # Check if service worker username is configured
-        if not getattr(
-            settings, "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME", None
-        ):
+        user = get_course_sync_service_user()
+        if user:
             error_msg = (
                 "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set. "
                 "Legacy library migration will not be performed."
@@ -116,7 +113,7 @@ class Command(BaseCommand):
         if not course_keys:
             log.info("No source courses found for migration. Nothing to do.")
             return
-        user = get_course_sync_service_user()
+
         store = modulestore()
         for course_key in course_keys:
             try:
