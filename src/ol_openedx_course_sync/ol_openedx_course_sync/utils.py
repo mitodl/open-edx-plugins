@@ -386,10 +386,13 @@ def get_all_source_courses():
         list: Distinct list of active source course keys, or
         None if no active mappings exist.
     """
-    # Get active course sync mappings
-    course_sync_mappings = CourseSyncMapping.objects.filter(is_active=True)
-    if not course_sync_mappings:
+    source_courses_qs = (
+        CourseSyncMapping.objects.filter(is_active=True)
+        .values_list("source_course", flat=True)
+        .distinct()
+    )
+    if not source_courses_qs.exists():
         log.info("No active course sync mappings found.")
         return None
 
-    return list(course_sync_mappings.values_list("source_course", flat=True).distinct())
+    return list(source_courses_qs)
