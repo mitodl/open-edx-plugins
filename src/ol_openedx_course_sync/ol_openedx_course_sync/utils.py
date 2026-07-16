@@ -376,3 +376,23 @@ def get_syncable_course_mappings(course_key):
         return None
 
     return course_sync_mappings
+
+
+def get_all_source_courses():
+    """
+    Get all source courses for which sync is enabled.
+
+    Returns:
+        list: Distinct list of active source course keys, or
+        None if no active mappings exist.
+    """
+    source_courses_qs = (
+        CourseSyncMapping.objects.filter(is_active=True)
+        .values_list("source_course", flat=True)
+        .distinct()
+    )
+    if not source_courses_qs.exists():
+        log.info("No active course sync mappings found.")
+        return None
+
+    return list(source_courses_qs)

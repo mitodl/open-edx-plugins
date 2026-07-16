@@ -48,6 +48,51 @@ Course Sync (CMS)
 * Target/rerun courses can be managed in the CMS admin model `CourseSyncMapping`.
 * Now, any changes made in the source course will be synced to the target courses.
 
+Legacy Library Migration (CMS)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The plugin provides a management command to migrate legacy (v1) ``library_content``
+blocks in course(s) to reference v2 library item bank blocks.
+
+**Command:** ``migrate_legacy_library_blocks_to_item_bank``
+
+**Syntax:**
+
+.. code-block:: bash
+
+    python manage.py cms migrate_legacy_library_blocks_to_item_bank [OPTIONS]
+
+**Options:**
+
+* ``--course-ids COURSE_KEYS``: Migrate legacy library content blocks for the given comma-separated list of course keys.
+* ``--all-source-courses``: Migrate legacy library content blocks for all source courses (i.e. all courses registered in the ``CourseSyncMapping`` admin model).
+* ``--persist-publish-state``: Re-publish migrated blocks that were already published prior to the migration.
+
+  * Exactly one of ``--course-ids`` or ``--all-source-courses`` must be provided.
+  * Requires ``OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME`` to be configured; the migration task runs on behalf of this user.
+
+**Examples:**
+
+Migrate legacy library content blocks for two courses:
+
+.. code-block:: bash
+
+    python manage.py cms migrate_legacy_library_blocks_to_item_bank \
+        --course-ids "course-v1:edX+DemoX.1+2014,course-v1:edX+DemoX.2+2015"
+
+Migrate legacy library content blocks for all source courses:
+
+.. code-block:: bash
+
+    python manage.py cms migrate_legacy_library_blocks_to_item_bank --all-source-courses
+
+Migrate and also re-publish blocks that were already published before the migration:
+
+.. code-block:: bash
+
+    python manage.py cms migrate_legacy_library_blocks_to_item_bank --all-source-courses \
+        --persist-publish-state
+
 Problem Actions (LMS)
 ~~~~~~~~~~~~~~~~~~~~~
 
