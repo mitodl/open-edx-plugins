@@ -38,7 +38,8 @@ class Command(BaseCommand):
         --course-ids course-v1:edX+DemoX.1+2014,course-v1:edX+DemoX.2+2015
 
         # Migrate legacy library content blocks for all source courses.
-        $ ./manage.py cms migrate_legacy_library_blocks_to_item_bank --all-source-courses
+        $ ./manage.py cms migrate_legacy_library_blocks_to_item_bank \
+        --all-source-courses
 
         # Also re-publish blocks that were already published before the migration.
         $ ./manage.py cms migrate_legacy_library_blocks_to_item_bank \
@@ -90,12 +91,14 @@ class Command(BaseCommand):
 
         if not course_ids and not all_source_courses:
             error_msg = (
-                "Either --course-ids or --all-source-courses argument should be provided."
+                "Either --course-ids or --all-source-courses "
+                "argument should be provided."
             )
             raise CommandError(error_msg)
         if all_source_courses and course_ids:
             error_msg = (
-                "Only one of --course-ids or --all-source-courses argument should be provided."
+                "Only one of --course-ids or --all-source-courses "
+                "argument should be provided."
             )
             raise CommandError(error_msg)
 

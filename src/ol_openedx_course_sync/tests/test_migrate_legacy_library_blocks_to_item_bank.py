@@ -46,7 +46,8 @@ class TestMigrateLegacyLibraryBlocksToItemBank:
         with pytest.raises(
             CommandError,
             match=re.escape(
-                "Either --course-ids or --all-source-courses argument should be provided."
+                "Either --course-ids or --all-source-courses "
+                "argument should be provided."
             ),
         ):
             call_command(COMMAND_NAME)
@@ -59,7 +60,8 @@ class TestMigrateLegacyLibraryBlocksToItemBank:
         with pytest.raises(
             CommandError,
             match=re.escape(
-                "Only one of --course-ids or --all-source-courses argument should be provided."
+                "Only one of --course-ids or --all-source-courses "
+                "argument should be provided."
             ),
         ):
             call_command(
