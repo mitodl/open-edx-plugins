@@ -8,6 +8,14 @@ from django.template import Context, Template
 from django.utils.translation import gettext
 from web_fragments.fragment import Fragment
 from xblock.core import XBlockAside
+
+try:
+    from xmodule.modulestore.xml import (
+        XMLImportingModuleStoreRuntime as XMLImportingModuleStoreRuntime,  # noqa: PLC0414
+    )
+except ImportError:
+    from xmodule.modulestore.xml import ImportSystem as XMLImportingModuleStoreRuntime
+
 from xmodule.x_module import STUDENT_VIEW
 
 from ol_openedx_feedback.compat import get_feedback_enabled_flag
@@ -75,6 +83,11 @@ class FeedbackAside(XBlockAside):
     @classmethod
     def should_apply_to_block(cls, block):
         """Apply to leaf blocks when the course waffle flag is enabled."""
+        # During course import the block lacks a resolvable course context, so
+        # skip the waffle-flag check (which reads the course context key) and
+        # gate on block type only.
+        if isinstance(block.runtime, XMLImportingModuleStoreRuntime):
+            return is_aside_applicable_to_block(block)
         return get_feedback_enabled_flag().is_enabled(
             block.scope_ids.usage_id.context_key
         ) and is_aside_applicable_to_block(block)
