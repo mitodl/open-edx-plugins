@@ -1071,7 +1071,7 @@ def _resource(path):  # pragma: NO COVER
     return data.decode("utf8")
 
 
-def render_template(template_path, context=None, i18n_service=None):  # pragma: NO COVER
+def render_template(template_path, context=None, i18n_service=None):
     """
     Render a packaged Django template with the XBlock's i18n service.
 

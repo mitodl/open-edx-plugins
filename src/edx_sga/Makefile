@@ -10,6 +10,7 @@ EXTRACT_DIR := $(WORKING_DIR)/conf/locale/en/LC_MESSAGES
 EXTRACTED_DJANGO_PARTIAL := $(EXTRACT_DIR)/django-partial.po
 EXTRACTED_DJANGOJS_PARTIAL := $(EXTRACT_DIR)/djangojs-partial.po
 EXTRACTED_DJANGO := $(EXTRACT_DIR)/django.po
+EXTRACTED_DJANGOJS := $(EXTRACT_DIR)/djangojs.po
 
 help: ## display this help message
 	@awk 'BEGIN {FS = ":.*?## "}; /^[a-zA-Z_-]+:.*?## / {printf "\033[36m %-35s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -17,10 +18,7 @@ help: ## display this help message
 extract_translations: ## extract source strings to conf/locale
 	cd $(WORKING_DIR) && i18n_tool extract
 	if test -f $(EXTRACTED_DJANGO_PARTIAL); then mv $(EXTRACTED_DJANGO_PARTIAL) $(EXTRACTED_DJANGO); fi
-	if test -f $(EXTRACTED_DJANGOJS_PARTIAL); then \
-		msgcat $(EXTRACTED_DJANGO) $(EXTRACTED_DJANGOJS_PARTIAL) -o $(EXTRACTED_DJANGO) && \
-		rm $(EXTRACTED_DJANGOJS_PARTIAL); \
-	fi
+	if test -f $(EXTRACTED_DJANGOJS_PARTIAL); then mv $(EXTRACTED_DJANGOJS_PARTIAL) $(EXTRACTED_DJANGOJS); fi
 
 compile_translations: ## compile PO catalogues and the local JavaScript catalogues
 	cd $(WORKING_DIR) && i18n_tool generate -v
