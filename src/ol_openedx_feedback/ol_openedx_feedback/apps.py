@@ -10,8 +10,9 @@ class OLOpenedxFeedbackConfig(AppConfig):
 
     Trigger-only plugin: the feedback trigger is registered via the
     ``xblock_asides.v1`` entry point (no URLs or models — feedback is persisted
-    in mit-learn and the MFE owns the submit URL). The only Django settings are
-    the plugin defaults populated by ``settings.common``.
+    in mit-learn and the MFE owns the submit URL). LMS-only, since the trigger
+    renders in the learner (student) view; the only Django settings are the
+    plugin defaults populated by ``settings.common``.
     """
 
     name = "ol_openedx_feedback"
@@ -20,9 +21,6 @@ class OLOpenedxFeedbackConfig(AppConfig):
     plugin_app = {
         PluginSettings.CONFIG: {
             ProjectType.LMS: {
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
-            },
-            ProjectType.CMS: {
                 SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
             },
         },

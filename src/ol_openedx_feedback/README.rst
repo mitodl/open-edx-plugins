@@ -23,16 +23,17 @@ plugin does **not** persist anything in edx-platform and exposes no REST API.
 Installation
 ============
 
-Install the package into the LMS/CMS Python environment:
+Install the package into the LMS Python environment:
 
 .. code-block:: bash
 
     pip install ol-openedx-feedback
 
 The plugin registers itself automatically through its entry points — the
-``xblock_asides.v1`` aside plus the ``lms.djangoapp`` / ``cms.djangoapp`` app
-configs — so no changes to ``INSTALLED_APPS`` are required. Restart the LMS/CMS
-after installing.
+``xblock_asides.v1`` aside plus the ``lms.djangoapp`` app config — so no changes
+to ``INSTALLED_APPS`` are required. Restart the LMS after installing. (The
+trigger is learner-facing only, so the plugin is LMS-only and is not installed
+in Studio/CMS.)
 
 Enablement
 ==========
@@ -46,7 +47,7 @@ Configuration
 By default the trigger renders on every leaf block and is suppressed only on
 structural containers (``course`` / ``chapter`` / ``sequential`` / ``vertical``).
 To additionally exclude one or more block types (for example ``html``), override
-the excluded set through ``ENV_TOKENS`` (e.g. in ``lms.yml`` / ``cms.yml``):
+the excluded set through ``ENV_TOKENS`` (e.g. in ``lms.yml``):
 
 .. code-block:: yaml
 
