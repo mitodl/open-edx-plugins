@@ -31,6 +31,11 @@
     if ($chatBtn.length) {
       $anchor.closest(".ol-feedback-container").addClass("ol-feedback-container--relocated");
       $anchor.addClass("ol-feedback-anchor--docked");
+      // Problem blocks render a horizontal "saved/submit" notification line that
+      // runs behind the button row; flag them so CSS can mask it across the gap.
+      if (payload.blockType === "problem") {
+        $anchor.addClass("ol-feedback-anchor--line-masked");
+      }
       $chatBtn.before($anchor);
 
       // AskTIM lifts its button with an out-of-flow offset that varies by block

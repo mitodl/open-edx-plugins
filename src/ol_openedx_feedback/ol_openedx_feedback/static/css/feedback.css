@@ -16,30 +16,36 @@
 }
 
 .ol-feedback-anchor--docked {
-  /* Docked next to AskTIM, the megaphone overlaps the capa "saved" notification
-     line. Mask it with an opaque background (as the AskTIM button does) so the
-     line breaks cleanly around the icon instead of crossing it. The spacing to
-     the button lives in padding (not margin) so the background covers it too —
-     otherwise the line shows through the gap between the icon and the button. */
-  margin-right: 0;
-  padding: 0 16px 0 6px;
-  background: #fff;
+  /* Docked next to AskTIM: only positioning here (a gap before the AskTIM
+     button). The button appearance lives on .ol-feedback-trigger so the
+     megaphone always looks like a button, docked or standalone. */
+  margin-right: 10px;
   z-index: 1;
 }
 
+/* Problem blocks draw a horizontal "saved/submit" notification line behind the
+   button row. Project an opaque white block across the gap to the AskTIM button
+   so the line is masked there too (invisible on the white problem-block
+   background). Not applied to video/html blocks, which have no such line. */
+.ol-feedback-anchor--line-masked {
+  box-shadow: 12px 0 0 0 #fff;
+}
+
 .ol-feedback-trigger {
+  /* Always styled as a button (border + background), whether standalone or
+     docked next to the AskTIM button. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
+  border: 1px solid #b8c2cc;
+  border-radius: 6px;
+  background: #fff;
   color: #e0a106;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .ol-feedback-trigger:hover {
@@ -47,12 +53,13 @@
   color: #c98a00;
 }
 
-.ol-feedback-trigger:focus-visible {
-  outline: 2px solid var(--ol-fb-brand);
-  outline-offset: 2px;
-}
-
-.ol-feedback-trigger:focus:not(:focus-visible) {
+/* On click/focus the background fills the whole button and the border turns
+   red. */
+.ol-feedback-trigger:active,
+.ol-feedback-trigger:focus {
+  background: #e6e6e6;
+  border-color: var(--ol-fb-brand);
+  color: #c98a00;
   outline: none;
 }
 
