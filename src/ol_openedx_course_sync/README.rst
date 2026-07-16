@@ -64,11 +64,11 @@ blocks in course(s) to reference v2 library item bank blocks.
 
 **Options:**
 
-* ``--course-id COURSE_KEY``: Migrate legacy library content blocks for the given course key. Can be repeated to target multiple courses.
+* ``--course-ids COURSE_KEYS``: Migrate legacy library content blocks for the given comma-separated list of course keys.
 * ``--all-source-courses``: Migrate legacy library content blocks for all source courses (i.e. all courses registered in the ``CourseSyncMapping`` admin model).
 * ``--persist-publish-state``: Re-publish migrated blocks that were already published prior to the migration.
 
-  * Exactly one of ``--course-id`` or ``--all-source-courses`` must be provided.
+  * Exactly one of ``--course-ids`` or ``--all-source-courses`` must be provided.
   * Requires ``OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME`` to be configured; the migration task runs on behalf of this user.
 
 **Examples:**
@@ -78,8 +78,7 @@ Migrate legacy library content blocks for two courses:
 .. code-block:: bash
 
     python manage.py cms migrate_legacy_library_blocks_to_item_bank \
-        --course-id "course-v1:edX+DemoX.1+2014" \
-        --course-id "course-v1:edX+DemoX.2+2015"
+        --course-ids "course-v1:edX+DemoX.1+2014,course-v1:edX+DemoX.2+2015"
 
 Migrate legacy library content blocks for all source courses:
 
