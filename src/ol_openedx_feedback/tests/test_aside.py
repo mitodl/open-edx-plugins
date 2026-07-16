@@ -6,13 +6,6 @@ from ddt import data, ddt, unpack
 from ol_openedx_feedback.block import FeedbackAside
 from openedx.core.djangolib.testing.utils import skip_unless_lms
 
-try:
-    from xmodule.modulestore.xml import (
-        XMLImportingModuleStoreRuntime as XMLImportingModuleStoreRuntime,  # noqa: PLC0414
-    )
-except ImportError:
-    from xmodule.modulestore.xml import ImportSystem as XMLImportingModuleStoreRuntime
-
 from tests.utils import OLFeedbackTestCase
 
 
@@ -53,24 +46,20 @@ class FeedbackAsideTests(OLFeedbackTestCase):
 
     @data(
         *[
-            ["video", True, False, True],
-            ["video", False, False, False],
-            ["video", True, True, True],
-            ["video", False, True, True],
-            ["problem", True, False, True],
-            ["vertical", True, False, False],
-            ["vertical", False, False, False],
-            ["vertical", True, True, False],
+            ["video", True, True],
+            ["video", False, False],
+            ["problem", True, True],
+            ["vertical", True, False],
+            ["vertical", False, False],
         ]
     )
     @unpack
     def test_should_apply_to_block(
-        self, block_category, waffle_flag_enabled, is_import_runtime, should_apply
+        self, block_category, waffle_flag_enabled, should_apply
     ):
         """
         `should_apply_to_block` is True only for leaf blocks when the course
-        waffle flag is enabled. During course import the block lacks course
-        context, so the flag is skipped and only the block type is checked.
+        waffle flag is enabled.
         """
         block = {
             "video": self.video_block,
@@ -84,7 +73,5 @@ class FeedbackAsideTests(OLFeedbackTestCase):
             mock_get_feedback_enabled_flag.return_value = Mock(
                 is_enabled=Mock(return_value=waffle_flag_enabled)
             )
-            if is_import_runtime:
-                block.runtime = Mock(spec=XMLImportingModuleStoreRuntime)
 
             assert FeedbackAside.should_apply_to_block(block) is should_apply

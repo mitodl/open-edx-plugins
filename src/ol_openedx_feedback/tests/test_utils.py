@@ -2,6 +2,8 @@
 
 from types import SimpleNamespace
 
+import pytest
+from django.test import override_settings
 from ol_openedx_feedback.utils import is_aside_applicable_to_block
 
 
@@ -9,18 +11,34 @@ def _block(category):
     return SimpleNamespace(category=category)
 
 
-def test_leaf_blocks_are_applicable():
+@pytest.mark.parametrize(
+    ("category", "expected"),
+    [
+        ("video", True),
+        ("problem", True),
+        ("html", True),
+        ("vertical", False),
+        ("sequential", False),
+        ("chapter", False),
+        ("course", False),
+        (None, False),
+    ],
+)
+def test_is_aside_applicable_to_block(category, expected):
+    """Applies to leaf blocks; excludes structural containers and missing types."""
+    assert is_aside_applicable_to_block(_block(category)) is expected
+
+
+@override_settings(
+    OL_OPENEDX_FEEDBACK_EXCLUDED_BLOCK_TYPES={
+        "course",
+        "chapter",
+        "sequential",
+        "vertical",
+        "html",
+    }
+)
+def test_excluded_block_types_setting_override():
+    """A deployment can exclude an extra block type via the setting."""
+    assert is_aside_applicable_to_block(_block("html")) is False
     assert is_aside_applicable_to_block(_block("video")) is True
-    assert is_aside_applicable_to_block(_block("problem")) is True
-    assert is_aside_applicable_to_block(_block("html")) is True
-
-
-def test_container_blocks_are_excluded():
-    assert is_aside_applicable_to_block(_block("vertical")) is False
-    assert is_aside_applicable_to_block(_block("sequential")) is False
-    assert is_aside_applicable_to_block(_block("chapter")) is False
-    assert is_aside_applicable_to_block(_block("course")) is False
-
-
-def test_missing_category_is_not_applicable():
-    assert is_aside_applicable_to_block(_block(None)) is False

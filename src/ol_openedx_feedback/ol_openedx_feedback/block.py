@@ -8,14 +8,6 @@ from django.template import Context, Template
 from django.utils.translation import gettext
 from web_fragments.fragment import Fragment
 from xblock.core import XBlockAside
-
-try:
-    from xmodule.modulestore.xml import (
-        XMLImportingModuleStoreRuntime as XMLImportingModuleStoreRuntime,  # noqa: PLC0414
-    )
-except ImportError:
-    from xmodule.modulestore.xml import ImportSystem as XMLImportingModuleStoreRuntime
-
 from xmodule.x_module import STUDENT_VIEW
 
 from ol_openedx_feedback.compat import get_feedback_enabled_flag
@@ -43,9 +35,9 @@ class FeedbackAside(XBlockAside):
         fragment = Fragment("")
 
         # Never render in Studio author/preview or for anonymous/preview users.
-        if getattr(self.runtime, "is_author_mode", False):
-            return fragment
-        if not getattr(self.runtime, "user_id", None):
+        if getattr(self.runtime, "is_author_mode", False) or not getattr(
+            self.runtime, "user_id", None
+        ):
             return fragment
 
         block_usage_key = block.usage_key
@@ -82,9 +74,7 @@ class FeedbackAside(XBlockAside):
 
     @classmethod
     def should_apply_to_block(cls, block):
-        """Apply to all leaf blocks; gated by the course waffle flag in LMS/CMS."""
-        if isinstance(block.runtime, XMLImportingModuleStoreRuntime):
-            return is_aside_applicable_to_block(block)
+        """Apply to leaf blocks when the course waffle flag is enabled."""
         return get_feedback_enabled_flag().is_enabled(
             block.scope_ids.usage_id.context_key
         ) and is_aside_applicable_to_block(block)
