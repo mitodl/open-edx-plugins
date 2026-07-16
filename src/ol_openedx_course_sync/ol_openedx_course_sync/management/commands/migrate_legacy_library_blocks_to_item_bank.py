@@ -90,12 +90,12 @@ class Command(BaseCommand):
 
         if not course_ids and not all_source_courses:
             error_msg = (
-                "Either --course-ids or --all-courses argument should be provided."
+                "Either --course-ids or --all-source-courses argument should be provided."
             )
             raise CommandError(error_msg)
         if all_source_courses and course_ids:
             error_msg = (
-                "Only one of --course-ids or --all-courses argument should be provided."
+                "Only one of --course-ids or --all-source-courses argument should be provided."
             )
             raise CommandError(error_msg)
 
@@ -105,13 +105,16 @@ class Command(BaseCommand):
         ):
             error_msg = (
                 "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set. "
-                "Course sync will not be performed."
+                "Legacy library migration will not be performed."
             )
             raise CommandError(error_msg)
 
+        course_keys = get_all_source_courses() if all_source_courses else course_ids
+        if not course_keys:
+            log.info("No source courses found for migration. Nothing to do.")
+            return
         user = get_course_sync_service_user()
         store = modulestore()
-        course_keys = get_all_source_courses() if all_source_courses else course_ids
         for course_key in course_keys:
             try:
                 parsed_course_key = CourseKey.from_string(str(course_key))
