@@ -102,7 +102,7 @@ class Command(BaseCommand):
             raise CommandError(error_msg)
 
         user = get_course_sync_service_user()
-        if user:
+        if not user:
             error_msg = (
                 "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set. "
                 "Legacy library migration will not be performed."
