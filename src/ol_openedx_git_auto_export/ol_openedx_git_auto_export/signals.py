@@ -46,7 +46,7 @@ def listen_for_course_created(**kwargs):
     course_key = kwargs.get("course").course_key
 
     if is_auto_repo_creation_enabled():
-        async_create_github_repo.delay(str(course_key))
+        transaction.on_commit(lambda: async_create_github_repo.delay(str(course_key)))
 
 
 @receiver(post_save, sender=CourseRerunState)
@@ -59,7 +59,10 @@ def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa
         return
 
     if is_auto_repo_creation_enabled():
-        async_create_github_repo.delay(str(instance.course_key), export_content=True)
+        course_key = instance.course_key
+        transaction.on_commit(
+            lambda: async_create_github_repo.delay(str(course_key), export_content=True)
+        )
 
 
 # Library Signal Receivers
