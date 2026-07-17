@@ -211,7 +211,11 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         i18n_service = mock.Mock()
         block.runtime.service = mock.Mock(return_value=i18n_service)
 
-        assert block._get_i18n_service() is i18n_service
+        runtime_i18n_service = (
+            block._get_i18n_service()  # pylint: disable=protected-access
+        )
+
+        assert runtime_i18n_service is i18n_service
         block.runtime.service.assert_called_once_with(block, "i18n")
 
     def test_static_i18n_catalog_uses_runtime_service(self):
@@ -221,10 +225,14 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         i18n_service.get_javascript_i18n_catalog_url.return_value = "/i18n/es_419.js"
         block.runtime.service = mock.Mock(return_value=i18n_service)
 
-        assert (
-            block._get_statici18n_js_url(block._get_i18n_service())
-            == "/i18n/es_419.js"
+        runtime_i18n_service = (
+            block._get_i18n_service()  # pylint: disable=protected-access
         )
+        catalog_url = block._get_statici18n_js_url(  # pylint: disable=protected-access
+            runtime_i18n_service
+        )
+
+        assert catalog_url == "/i18n/es_419.js"
         i18n_service.get_javascript_i18n_catalog_url.assert_called_once_with(block)
 
     def test_ctor(self):
