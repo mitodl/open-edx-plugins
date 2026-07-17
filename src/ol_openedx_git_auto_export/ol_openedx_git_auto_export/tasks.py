@@ -142,15 +142,13 @@ def async_create_github_repo(self, context_key_str, export_content=False):  # no
         return False, response_msg
 
     # Determine URL path based on content type
-    url_path = f"{content_info['content_type']}/{context_key_str}"
+    url_path = f"authoring/{content_info['content_type']}/{context_key_str}"
 
     # Get display name (v2 libraries use 'title', others use 'display_name')
     if content_info["is_v2_library"]:
         display_name = content_info["content_module"].title
-        url_path = f"authoring/{url_path}"
     else:
         display_name = content_info["content_module"].display_name
-        url_path = f"authoring/{url_path}"
 
     url = f"{settings.GITHUB_ORG_API_URL}/repos"
     # https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api?apiVersion=2022-11-28
