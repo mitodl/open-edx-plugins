@@ -35,6 +35,16 @@ to ``INSTALLED_APPS`` are required. Restart the LMS after installing. (The
 trigger is learner-facing only, so the plugin is LMS-only and is not installed
 in Studio/CMS.)
 
+Enable XBlock asides in the LMS admin
+-------------------------------------
+
+XBlock asides must be turned on for any aside (including this one) to render.
+In the LMS Django admin, open **XBlock Asides Config**
+(``/admin/lms_xblock/xblockasidesconfig/``), add a new entry, and check
+**Enabled**. Make sure the block types you want the feedback trigger on are
+**not** listed in **Disabled blocks** (the space-separated field defaults to
+``about course_info static_tab``).
+
 Enablement
 ==========
 
