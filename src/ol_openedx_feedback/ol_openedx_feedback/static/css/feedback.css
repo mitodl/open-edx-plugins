@@ -68,3 +68,19 @@
   height: 18px;
   display: block;
 }
+
+/* On video blocks the AskTIM chat container (.video-block-chat-button-container)
+   paints an opaque whitesmoke background plus an upward box-shadow inside its own
+   stacking context, which rides up over the platform's preceding "Staff Debug
+   Info" link (.wrap-instructor-info) and hides it for staff. Fix it here in the
+   feedback plugin so it holds regardless of the installed chat-plugin version.
+   The staff-info row is the adjacent sibling of the block's wrapper
+   (data-block-type="video"), so scope to video only: give the row its own
+   stacking context above the paint, and match the chat container's whitesmoke
+   background so it blends into the section instead of showing a white patch.
+   Problem/HTML rows are untouched. */
+[data-block-type="video"] + .wrap-instructor-info {
+  position: relative;
+  z-index: 2;
+  background: whitesmoke;
+}
