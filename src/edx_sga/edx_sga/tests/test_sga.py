@@ -16,6 +16,7 @@ import pytz
 from ddt import data, ddt, unpack
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.utils import translation
 from django.utils.timezone import now as django_now
 from opaque_keys.edx.locations import Location
 from opaque_keys.edx.locator import CourseLocator
@@ -173,6 +174,23 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
             context=context,
             i18n_service=i18n_service,
         )
+
+    def test_show_template_renders_translatable_markup_end_to_end(self):
+        """Render show.html through ResourceLoader and the Django template engine."""
+        from edx_sga.sga import render_template  # pylint: disable=import-outside-toplevel
+
+        with translation.override("en"):
+            rendered = render_template(
+                "templates/staff_graded_assignment/show.html",
+                {"is_course_staff": True},
+                i18n_service=None,
+            )
+
+        assert "Your score is <%= graded.score %> / <%= max_score %>" in rendered
+        assert 'Grade for <span id="student-name"></span>' in rendered
+        assert '<a class="button finalize-upload">Submit</a>' in rendered
+        assert "&lt;%" not in rendered
+        assert "&lt;span" not in rendered
 
     def test_student_template_uses_blocktrans_placeholders(self):
         """Student-facing Underscore template text must remain translatable."""

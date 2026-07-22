@@ -34,7 +34,7 @@ from xblock.exceptions import JsonHandlerError
 from xblock.fields import DateTime, Float, Integer, Scope, String
 try:
     from xblock.utils.resources import ResourceLoader
-except ModuleNotFoundError:  # pragma: no cover - compatibility with older XBlock releases
+except ImportError:  # pragma: no cover - compatibility with older XBlock releases
     from xblockutils.resources import ResourceLoader
 from web_fragments.fragment import Fragment
 from xblock.utils.studio_editable import StudioEditableXBlockMixin
