@@ -9,8 +9,6 @@ from django.utils.html import escape
 from opaque_keys.edx.keys import CourseKey
 
 from ol_openedx_uai_content_customization.constants import (
-    CSV_COL_ASSET_NAME,
-    CSV_COL_ASSET_VIDEO_ID,
     CSV_COL_COURSE_INTRO,
     CSV_COL_COURSE_KEY,
     CSV_COL_DURATION,
@@ -56,21 +54,6 @@ def validate_csv_columns(fieldnames, required_cols, csv_label):
     if missing:
         msg = f"{csv_label} is missing required columns: {', '.join(missing)}"
         raise ValueError(msg)
-
-
-def build_video_id_map(video_asset_rows):
-    """
-    Build a mapping of video file name → Open edX video ID.
-
-    Args:
-        video_asset_rows: Rows from the Open edX video asset CSV.
-
-    Returns:
-        dict mapping file name (e.g. "v004_h264.mp4") to video UUID string.
-    """
-    return {
-        row[CSV_COL_ASSET_NAME]: row[CSV_COL_ASSET_VIDEO_ID] for row in video_asset_rows
-    }
 
 
 def resolve_duration_code(duration_value):

@@ -1,6 +1,16 @@
 Changelog
 =========
 
+[0.2.0] - 2026-07-07
+---------------------
+
+Changed
+~~~~~~~
+- ``generate_uai_course_versions`` now reads a **single** CSV file instead of
+  two.  The ``--edx-videos-csv`` argument has been removed.  Add an
+  ``edx_video_id`` column directly to the processed-videos CSV to provide the
+  Open edX video UUID for each row.
+
 [0.1.0] - 2026-05-15
 ---------------------
 
