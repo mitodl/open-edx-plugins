@@ -1,0 +1,88 @@
+.ol-feedback-container {
+  display: flex;
+  justify-content: flex-end;
+  margin: 8px 0 4px;
+}
+
+.ol-feedback-container--relocated {
+  margin: 0;
+}
+
+.ol-feedback-anchor {
+  --ol-fb-brand: #8a1e2d;
+  position: relative;
+  display: inline-flex;
+  align-self: center;
+}
+
+.ol-feedback-anchor--docked {
+  /* Docked next to AskTIM: only positioning here (a gap before the AskTIM
+     button). The button appearance lives on .ol-feedback-trigger so the
+     megaphone always looks like a button, docked or standalone. */
+  margin-right: 10px;
+  z-index: 1;
+}
+
+/* Problem blocks draw a horizontal "saved/submit" notification line behind the
+   button row. Project an opaque white block across the gap to the AskTIM button
+   so the line is masked there too (invisible on the white problem-block
+   background). Not applied to video/html blocks, which have no such line.
+   Offset must match the docked gap (margin-right above) so the mask fills the
+   gap but stops at the AskTIM button's edge instead of overlapping its border. */
+.ol-feedback-anchor--line-masked {
+  box-shadow: 10px 0 0 0 #fff;
+}
+
+.ol-feedback-trigger {
+  /* Always styled as a button (border + background), whether standalone or
+     docked next to the AskTIM button. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #b8c2cc;
+  border-radius: 6px;
+  background: #fff;
+  color: #e0a106;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.ol-feedback-trigger:hover {
+  background: #fbf3dd;
+  color: #c98a00;
+}
+
+/* On click/focus the background fills the whole button and the border turns
+   red. */
+.ol-feedback-trigger:active,
+.ol-feedback-trigger:focus {
+  background: #e6e6e6;
+  border-color: var(--ol-fb-brand);
+  color: #c98a00;
+  outline: none;
+}
+
+.ol-feedback-trigger .ol-fb-ic {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+/* On video blocks the AskTIM chat container (.video-block-chat-button-container)
+   paints an opaque whitesmoke background plus an upward box-shadow inside its own
+   stacking context, which rides up over the platform's preceding "Staff Debug
+   Info" link (.wrap-instructor-info) and hides it for staff. Fix it here in the
+   feedback plugin so it holds regardless of the installed chat-plugin version.
+   The staff-info row is the adjacent sibling of the block's wrapper
+   (data-block-type="video"), so scope to video only: give the row its own
+   stacking context above the paint, and match the chat container's whitesmoke
+   background so it blends into the section instead of showing a white patch.
+   Problem/HTML rows are untouched. */
+[data-block-type="video"] + .wrap-instructor-info {
+  position: relative;
+  z-index: 2;
+  background: whitesmoke;
+}
