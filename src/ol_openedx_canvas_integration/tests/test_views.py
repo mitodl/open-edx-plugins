@@ -3,23 +3,21 @@
 from __future__ import annotations
 
 import json
+import re
 from http import HTTPStatus
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
+import pytest
 from common.djangoapps.student.roles import CourseInstructorRole
 from common.djangoapps.student.tests.factories import UserFactory
 from django.test import RequestFactory, override_settings
 from lms.djangoapps.instructor_task.models import InstructorTask
+from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
 from ol_openedx_canvas_integration.views import list_canvas_tasks
 from openedx.core.djangolib.testing.utils import skip_unless_lms
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory
-import re
-from types import SimpleNamespace
-from unittest.mock import MagicMock
-
-import pytest
-from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
 
 from ol_openedx_canvas_integration import views
 

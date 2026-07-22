@@ -1,6 +1,9 @@
 """Tests for Canvas integration tasks"""
 
+from __future__ import annotations
+
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -10,12 +13,8 @@ from lms.djangoapps.grades.models import PersistentSubsectionGrade
 from ol_openedx_canvas_integration.tasks import _sync_user_grade_with_canvas
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from openedx.core.djangolib.testing.utils import skip_unless_lms
-from __future__ import annotations
-
-from types import SimpleNamespace
 
 from ol_openedx_canvas_integration import tasks
-
 
 
 @override_settings(BULK_EMAIL_DEFAULT_RETRY_DELAY=10, BULK_EMAIL_MAX_RETRIES=5)
@@ -246,6 +245,7 @@ class TestSyncUserGradeWithCanvas(TestCase):
         mock_client.update_assignment_grades.assert_called_once()
 
         mock_task_log.error.assert_called_once()
+
 
 class StubSubmitTask:
     """Callable submit_task stub that records invocation arguments."""

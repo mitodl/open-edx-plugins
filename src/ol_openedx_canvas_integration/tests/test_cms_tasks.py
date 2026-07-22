@@ -109,12 +109,12 @@ def make_assignment(assignment_id: int, due_at: str | None = None):
         ),
     ],
 )
-
 def test_diff_assignments(openedx_assignments, canvas_assignments_map, expected_output):
     """Test that diff assignments."""
     assert (
         diff_assignments(openedx_assignments, canvas_assignments_map) == expected_output
     )
+
 
 @skip_unless_cms
 @override_settings(BULK_EMAIL_DEFAULT_RETRY_DELAY=10, BULK_EMAIL_MAX_RETRIES=5)
