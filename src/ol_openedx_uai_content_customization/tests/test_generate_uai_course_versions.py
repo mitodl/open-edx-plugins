@@ -51,7 +51,7 @@ EXPECTED_BLOCK_TYPES = (
 
 
 @pytest.fixture
-def csv_files(tmp_path):
+def csv_file(tmp_path):
     """Write sample CSV to tmp_path and return its path."""
     processed_videos = tmp_path / "processed_videos.csv"
     processed_videos.write_text(PROCESSED_VIDEOS_CSV_CONTENT)
@@ -90,10 +90,10 @@ def _modulestore_mock(*, source_course_exists=True, destination_course_exists=Fa
 
 @pytest.mark.parametrize("expected_key", EXPECTED_NEW_COURSE_KEYS)
 def test_dry_run_prints_summary_without_creating_courses(
-    csv_files, mock_user, expected_key
+    csv_file, mock_user, expected_key
 ):
     _ = mock_user
-    processed_videos_csv = csv_files
+    processed_videos_csv = csv_file
     out = StringIO()
 
     with (
@@ -113,8 +113,8 @@ def test_dry_run_prints_summary_without_creating_courses(
     assert expected_key in output
 
 
-def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG001
-    processed_videos_csv = csv_files
+def test_creates_correct_number_of_courses(csv_file, mock_user):  # noqa: ARG001
+    processed_videos_csv = csv_file
 
     block_by_type = {
         BLOCK_TYPE_CHAPTER: mock.Mock(),
@@ -162,8 +162,8 @@ def test_creates_correct_number_of_courses(csv_files, mock_user):  # noqa: ARG00
 
 
 @pytest.mark.parametrize("expected_key", EXPECTED_NEW_COURSE_KEYS)
-def test_course_keys_are_correct(csv_files, mock_user, expected_key):  # noqa: ARG001
-    processed_videos_csv = csv_files
+def test_course_keys_are_correct(csv_file, mock_user, expected_key):  # noqa: ARG001
+    processed_videos_csv = csv_file
     created_keys = []
 
     def capture_clone(source_key, org, number, run, display_name, user_id):  # noqa: ARG001, PLR0913
@@ -219,9 +219,9 @@ def test_unmapped_video_is_skipped_with_warning(tmp_path, mock_user):  # noqa: A
     assert "Warning" in out.getvalue() or "MISSING_FILE" in out.getvalue()
 
 
-def test_duplicate_course_is_skipped_with_warning(csv_files, mock_user):  # noqa: ARG001
+def test_duplicate_course_is_skipped_with_warning(csv_file, mock_user):  # noqa: ARG001
     """DuplicateCourseError should be caught and the course skipped, not crash."""
-    processed_videos_csv = csv_files
+    processed_videos_csv = csv_file
     out = StringIO()
 
     with (
@@ -250,9 +250,9 @@ def test_missing_csv_raises_error(mock_user):  # noqa: ARG001
         )
 
 
-def test_invalid_user_id_raises_error(csv_files, db):  # noqa: ARG001
+def test_invalid_user_id_raises_error(csv_file, db):  # noqa: ARG001
     """Passing a non-existent username should raise CommandError before any writes."""
-    processed_videos_csv = csv_files
+    processed_videos_csv = csv_file
     with pytest.raises(CommandError, match="No user found with username"):
         call_command(
             "generate_uai_course_versions",
@@ -287,9 +287,9 @@ def test_unknown_industry_is_skipped_with_warning(tmp_path, mock_user):  # noqa:
     assert "Skipping" in out.getvalue() or "skipping" in out.getvalue().lower()
 
 
-def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  # noqa: ARG001
+def test_source_course_not_in_modulestore_raises_error(csv_file, mock_user):  # noqa: ARG001
     """CommandError is raised before any writes when a source course is absent."""
-    processed_videos_csv = csv_files
+    processed_videos_csv = csv_file
 
     store_mock = _modulestore_mock(source_course_exists=False)
 
@@ -306,9 +306,9 @@ def test_source_course_not_in_modulestore_raises_error(csv_files, mock_user):  #
     mock_clone.assert_not_called()
 
 
-def test_existing_destination_course_is_rebuilt_without_clone(csv_files, mock_user):  # noqa: ARG001
+def test_existing_destination_course_is_rebuilt_without_clone(csv_file, mock_user):  # noqa: ARG001
     """When destination exists, command should rebuild content without cloning."""
-    processed_videos_csv = csv_files
+    processed_videos_csv = csv_file
     existing_course = mock.Mock()
     existing_course.location = mock.Mock()
 
@@ -334,9 +334,9 @@ def test_existing_destination_course_is_rebuilt_without_clone(csv_files, mock_us
     assert mock_delete_sections.call_count == EXPECTED_COURSE_COUNT
 
 
-def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # noqa: ARG001
+def test_delete_sections_called_before_create_chapter(csv_file, mock_user):  # noqa: ARG001
     """delete_course_sections must run before chapter creation in each course."""
-    processed_videos_csv = csv_files
+    processed_videos_csv = csv_file
     call_order = []
 
     def record_delete(course, user_id):  # noqa: ARG001
@@ -388,9 +388,9 @@ def test_delete_sections_called_before_create_chapter(csv_files, mock_user):  # 
         )
 
 
-def test_delete_all_course_assets_called_for_new_courses(csv_files, mock_user):  # noqa: ARG001
+def test_delete_all_course_assets_called_for_new_courses(csv_file, mock_user):  # noqa: ARG001
     """delete_all_course_assets must be called once per new course created."""
-    processed_videos_csv = csv_files
+    processed_videos_csv = csv_file
     store_mock = _modulestore_mock()
 
     with (
