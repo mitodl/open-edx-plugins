@@ -142,7 +142,10 @@ def async_create_github_repo(self, context_key_str, export_content=False):  # no
         return False, response_msg
 
     # Determine URL path based on content type
-    url_path = f"authoring/{content_info['content_type']}/{context_key_str}"
+    url_path = (
+        f"{settings.GIT_AUTO_EXPORT_AUTHORING_URL_PREFIX}"
+        f"/{content_info['content_type']}/{context_key_str}"
+    )
 
     # Get display name (v2 libraries use 'title', others use 'display_name')
     if content_info["is_v2_library"]:
