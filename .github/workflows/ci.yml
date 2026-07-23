@@ -45,7 +45,7 @@ jobs:
           # Pin to a known-good commit until the upstream packaging regression is fixed.
           git clone https://github.com/overhangio/tutor.git
           cd tutor
-          git checkout 859b5bc394565de25abbee7e83f4d1dc5ae2f505
+          git checkout 67b79820e54a4b29e39e0c93cf4a484c322afe55
           cd ..
           pip install -e "./tutor"
         else
