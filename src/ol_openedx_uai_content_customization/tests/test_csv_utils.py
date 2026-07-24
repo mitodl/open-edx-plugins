@@ -154,10 +154,13 @@ def test_parse_csv_from_google_sheet_url_raises_on_http_error():
     mock_response = mock.Mock()
     mock_response.raise_for_status.side_effect = requests.HTTPError("404")
 
-    with mock.patch(
-        "ol_openedx_uai_content_customization.csv_utils.requests.get",
-        return_value=mock_response,
-    ), pytest.raises(requests.HTTPError):
+    with (
+        mock.patch(
+            "ol_openedx_uai_content_customization.csv_utils.requests.get",
+            return_value=mock_response,
+        ),
+        pytest.raises(requests.HTTPError),
+    ):
         parse_csv("https://docs.google.com/spreadsheets/d/abc123/edit")
 
 

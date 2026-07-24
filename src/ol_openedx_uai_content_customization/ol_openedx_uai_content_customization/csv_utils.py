@@ -64,8 +64,7 @@ def build_google_sheet_csv_export_url(sheet_url):
     gid = gid_match.group(1) if gid_match else "0"
 
     return (
-        f"https://docs.google.com/spreadsheets/d/{sheet_id}"
-        f"/export?format=csv&gid={gid}"
+        f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
     )
 
 
