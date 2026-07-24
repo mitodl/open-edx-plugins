@@ -25,7 +25,8 @@ Usage:
         [--dry-run]
 
     python manage.py generate_uai_course_versions \\
-        --processed-videos-csv "https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0" \\
+        --processed-videos-csv \\
+        "https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0" \\
         [--username studio_worker] \\
         [--dry-run]
 
@@ -111,7 +112,7 @@ class Command(BaseCommand):
             help="Log what would be created without writing to the modulestore.",
         )
 
-    def handle(self, *args, **options):  # noqa: ARG002, PLR0915
+    def handle(self, *args, **options):  # noqa: ARG002, PLR0915, C901
         processed_videos_csv = options["processed_videos_csv"]
         username = options["username"]
         dry_run = options["dry_run"]
@@ -132,7 +133,7 @@ class Command(BaseCommand):
                 processed_videos_csv
             )
         except (requests.RequestException, ValueError) as exc:
-            msg = f"Failed to read processed videos source {processed_videos_csv!r}: {exc}"
+            msg = f"Failed to read processed videos source {processed_videos_csv!r}: {exc}"  # noqa: E501
             raise CommandError(msg) from exc
 
         try:
