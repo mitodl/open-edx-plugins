@@ -4,6 +4,7 @@ from io import StringIO
 from unittest import mock
 
 import pytest
+import requests
 from common.djangoapps.student.tests.factories import UserFactory
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -247,6 +248,57 @@ def test_missing_csv_raises_error(mock_user):  # noqa: ARG001
         call_command(
             "generate_uai_course_versions",
             processed_videos_csv="/nonexistent/path.csv",
+        )
+
+
+def test_google_sheet_source_is_used_when_url_provided(mock_user):  # noqa: ARG001
+    """A Google Sheets URL is fetched over HTTP and parsed like a local CSV."""
+    mock_response = mock.Mock()
+    mock_response.text = PROCESSED_VIDEOS_CSV_CONTENT
+    mock_response.raise_for_status = mock.Mock()
+    out = StringIO()
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore") as mock_clone,
+        mock.patch(
+            "ol_openedx_uai_content_customization.csv_utils.requests.get",
+            return_value=mock_response,
+        ) as mock_get,
+    ):
+        call_command(
+            "generate_uai_course_versions",
+            processed_videos_csv=(
+                "https://docs.google.com/spreadsheets/d/abc123/edit#gid=0"
+            ),
+            dry_run=True,
+            stdout=out,
+        )
+        mock_clone.assert_not_called()
+
+    mock_get.assert_called_once_with(
+        "https://docs.google.com/spreadsheets/d/abc123/export?format=csv&gid=0",
+        timeout=30,
+    )
+    assert "DRY RUN" in out.getvalue()
+
+
+def test_google_sheet_fetch_failure_raises_command_error(mock_user):  # noqa: ARG001
+    """A network failure fetching the sheet surfaces as a CommandError."""
+    mock_response = mock.Mock()
+    mock_response.raise_for_status.side_effect = requests.HTTPError("404")
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", _modulestore_mock()),
+        mock.patch(
+            "ol_openedx_uai_content_customization.csv_utils.requests.get",
+            return_value=mock_response,
+        ),
+        pytest.raises(CommandError, match="Failed to read processed videos source"),
+    ):
+        call_command(
+            "generate_uai_course_versions",
+            processed_videos_csv="https://docs.google.com/spreadsheets/d/abc123/edit",
         )
 
 

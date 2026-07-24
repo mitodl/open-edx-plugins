@@ -1,10 +1,15 @@
 """Tests for ol_openedx_uai_content_customization csv_utils."""
 
+from unittest import mock
+
 import pytest
+import requests
 from ol_openedx_uai_content_customization.csv_utils import (
     build_course_intro_lookup,
+    build_google_sheet_csv_export_url,
     build_new_course_key,
     group_videos_by_course,
+    is_url,
     normalize_course_intro,
     parse_csv,
     resolve_course_intro,
@@ -77,6 +82,83 @@ def test_resolve_duration_code_unknown_raises():
     """An unrecognised duration string raises ValueError."""
     with pytest.raises(ValueError, match="Unrecognised duration value"):
         resolve_duration_code("unknown_value")
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("/path/to/file.csv", False),
+        ("file.csv", False),
+        ("https://docs.google.com/spreadsheets/d/abc123/edit", True),
+        ("http://example.com/videos.csv", True),
+    ],
+)
+def test_is_url(source, expected):
+    """Only http(s) sources are treated as URLs; everything else is a local path."""
+    assert is_url(source) is expected
+
+
+@pytest.mark.parametrize(
+    ("sheet_url", "expected"),
+    [
+        (
+            "https://docs.google.com/spreadsheets/d/abc123/edit#gid=456",
+            "https://docs.google.com/spreadsheets/d/abc123/export?format=csv&gid=456",
+        ),
+        (
+            "https://docs.google.com/spreadsheets/d/abc123/edit?usp=sharing",
+            "https://docs.google.com/spreadsheets/d/abc123/export?format=csv&gid=0",
+        ),
+        (
+            "https://docs.google.com/spreadsheets/d/abc123/export?format=csv&gid=9",
+            "https://docs.google.com/spreadsheets/d/abc123/export?format=csv&gid=9",
+        ),
+    ],
+)
+def test_build_google_sheet_csv_export_url(sheet_url, expected):
+    """Share/edit links are converted to CSV export links; export links pass through."""
+    assert build_google_sheet_csv_export_url(sheet_url) == expected
+
+
+def test_build_google_sheet_csv_export_url_invalid_raises():
+    """A URL without a recognisable spreadsheet ID raises ValueError."""
+    with pytest.raises(ValueError, match="Could not find a spreadsheet ID"):
+        build_google_sheet_csv_export_url("https://example.com/not-a-sheet")
+
+
+def test_parse_csv_from_google_sheet_url():
+    """parse_csv fetches and parses CSV content from a Google Sheets URL."""
+    csv_text = "video_file_name,edx_video_id\nv004_h264.mp4,abc-123\n"
+    mock_response = mock.Mock()
+    mock_response.text = csv_text
+    mock_response.raise_for_status = mock.Mock()
+
+    with mock.patch(
+        "ol_openedx_uai_content_customization.csv_utils.requests.get",
+        return_value=mock_response,
+    ) as mock_get:
+        rows, fieldnames = parse_csv(
+            "https://docs.google.com/spreadsheets/d/abc123/edit#gid=0"
+        )
+
+    mock_get.assert_called_once_with(
+        "https://docs.google.com/spreadsheets/d/abc123/export?format=csv&gid=0",
+        timeout=30,
+    )
+    assert fieldnames == ["video_file_name", "edx_video_id"]
+    assert rows == [{"video_file_name": "v004_h264.mp4", "edx_video_id": "abc-123"}]
+
+
+def test_parse_csv_from_google_sheet_url_raises_on_http_error():
+    """A non-2xx response while fetching the sheet propagates as a RequestException."""
+    mock_response = mock.Mock()
+    mock_response.raise_for_status.side_effect = requests.HTTPError("404")
+
+    with mock.patch(
+        "ol_openedx_uai_content_customization.csv_utils.requests.get",
+        return_value=mock_response,
+    ), pytest.raises(requests.HTTPError):
+        parse_csv("https://docs.google.com/spreadsheets/d/abc123/edit")
 
 
 @pytest.mark.parametrize(

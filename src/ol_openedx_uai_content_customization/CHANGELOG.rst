@@ -1,6 +1,16 @@
 Changelog
 =========
 
+[0.3.0] - 2026-07-24
+---------------------
+
+Added
+~~~~~
+- ``--processed-videos-csv`` now also accepts the URL of a publicly readable
+  Google Sheet (share/edit link, or a direct CSV export link) in addition to
+  a local file path, so the sheet can be read directly instead of manually
+  downloading a CSV first.
+
 [0.2.0] - 2026-07-07
 ---------------------
 

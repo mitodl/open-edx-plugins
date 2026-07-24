@@ -134,11 +134,28 @@ shell):
         [--username studio_worker] \
         [--dry-run]
 
+``--processed-videos-csv`` also accepts the URL of a publicly readable
+Google Sheet, so you can point the command directly at the sheet instead of
+downloading a CSV first:
+
+.. code-block:: bash
+
+    python manage.py generate_uai_course_versions \
+        --processed-videos-csv "https://docs.google.com/spreadsheets/d/<SHEET_ID>/edit#gid=0" \
+        [--username studio_worker] \
+        [--dry-run]
+
+The sheet must be shared as "Anyone with the link can view" (or published to
+the web). Any standard share/edit link works — the command derives the CSV
+export link automatically, using the ``gid`` from the URL to select the
+right tab.
+
 Options
 ~~~~~~~
 
 ``--processed-videos-csv``
-    Path to the processed video metadata CSV file. **Required.**
+    Path to the processed video metadata CSV file, or the URL of a publicly
+    readable Google Sheet. **Required.**
 
 ``--username``
     Username of the platform user under whose authority the courses are
