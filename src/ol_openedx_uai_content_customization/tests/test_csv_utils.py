@@ -4,7 +4,6 @@ import pytest
 from ol_openedx_uai_content_customization.csv_utils import (
     build_course_intro_lookup,
     build_new_course_key,
-    build_video_id_map,
     group_videos_by_course,
     normalize_course_intro,
     parse_csv,
@@ -16,27 +15,29 @@ from ol_openedx_uai_content_customization.csv_utils import (
 
 def test_parse_csv_returns_list_of_dicts(tmp_path):
     """Each row in the CSV is returned as a dict keyed by column header."""
-    csv_text = "name,video_id\nv004_h264.mp4,abc-123\nv005_h264.mp4,def-456\n"
-    csv_file = tmp_path / "assets.csv"
+    csv_text = (
+        "video_file_name,edx_video_id\nv004_h264.mp4,abc-123\nv005_h264.mp4,def-456\n"
+    )
+    csv_file = tmp_path / "videos.csv"
     csv_file.write_text(csv_text)
 
     rows, fieldnames = parse_csv(str(csv_file))
 
     assert len(rows) == 2  # noqa: PLR2004
-    assert rows[0]["name"] == "v004_h264.mp4"
-    assert rows[0]["video_id"] == "abc-123"
-    assert fieldnames == ["name", "video_id"]
+    assert rows[0]["video_file_name"] == "v004_h264.mp4"
+    assert rows[0]["edx_video_id"] == "abc-123"
+    assert fieldnames == ["video_file_name", "edx_video_id"]
 
 
 def test_parse_csv_empty_file(tmp_path):
     """A CSV with only a header row returns an empty row list but keeps the headers."""
     csv_file = tmp_path / "empty.csv"
-    csv_file.write_text("name,video_id\n")
+    csv_file.write_text("video_file_name,edx_video_id\n")
 
     rows, fieldnames = parse_csv(str(csv_file))
 
     assert rows == []
-    assert fieldnames == ["name", "video_id"]
+    assert fieldnames == ["video_file_name", "edx_video_id"]
 
 
 @pytest.mark.parametrize(
@@ -56,27 +57,6 @@ def test_validate_csv_columns(fieldnames, required, should_raise):
         return
 
     validate_csv_columns(fieldnames, required, "test CSV")
-
-
-@pytest.mark.parametrize(
-    ("rows", "expected"),
-    [
-        (
-            [
-                {"name": "v004_h264.mp4", "video_id": "abc-123"},
-                {"name": "v005_h264.mp4", "video_id": "def-456"},
-            ],
-            {
-                "v004_h264.mp4": "abc-123",
-                "v005_h264.mp4": "def-456",
-            },
-        ),
-        ([], {}),
-    ],
-)
-def test_build_video_id_map(rows, expected):
-    """Map video asset rows to edX video IDs."""
-    assert build_video_id_map(rows) == expected
 
 
 @pytest.mark.parametrize(
@@ -164,6 +144,7 @@ def _make_row(course_key, industry, duration, video_file="v001.mp4", title="Titl
         "video_title": title,
         "module_name": "Module 2",
         "course_intro": "",
+        "edx_video_id": "aaaaaaaa-0000-0000-0000-aaaaaaaaaaaa",
     }
 
 

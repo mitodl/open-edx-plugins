@@ -87,43 +87,39 @@ Usage
 Prerequisites
 ~~~~~~~~~~~~~
 
-You will need two CSV files:
+You will need a single CSV file:
 
-1. **Processed videos CSV** — produced by the video customization
-   workflow. Required columns:
+**Processed videos CSV** — produced by the video customization
+workflow. Required columns:
 
-   - ``course_key`` — the Open edX course key of the **source course to
-     clone** (e.g. ``course-v1:UAI_SOURCE+UAI.2+1T2026``).  This course
-     **must already exist** in the CMS modulestore before the command runs.
-     The command validates all source keys up-front and aborts with an error
-     if any are missing.
-   - ``industry`` — one of: ``Healthcare``, ``Finance``, ``Energy``,
-     ``Original``
-   - ``duration`` — ``short`` or ``long``
-   - ``video_file_name`` — file name matching the ``name`` column in the edX videos CSV
-   - ``video_title`` — display name for the subsection/unit/video
-   - ``module_name`` — used to build the course display name
-   - ``course_intro`` — optional introduction content for the generated course.
-     If this value contains HTML tags, it is used as-is. If it is plain text,
-     the command HTML-escapes it and wraps it in ``<p>...</p>``.
+- ``course_key`` — the Open edX course key of the **source course to
+  clone** (e.g. ``course-v1:UAI_SOURCE+UAI.2+1T2026``).  This course
+  **must already exist** in the CMS modulestore before the command runs.
+  The command validates all source keys up-front and aborts with an error
+  if any are missing.
+- ``industry`` — one of: ``Healthcare``, ``Finance``, ``Energy``,
+  ``Original``
+- ``duration`` — ``short`` or ``long``
+- ``video_file_name`` — file name of the video (for reference/display)
+- ``video_title`` — display name for the subsection/unit/video
+- ``module_name`` — used to build the course display name
+- ``edx_video_id`` — the Open edX UUID for the video (exported from
+  Studio / OVS after uploading the customized video)
+- ``course_intro`` — optional introduction content for the generated course.
+  If this value contains HTML tags, it is used as-is. If it is plain text,
+  the command HTML-escapes it and wraps it in ``<p>...</p>``.
 
-     Intro resolution precedence for each generated
-     ``(course_key, industry, duration)`` variant:
+  Intro resolution precedence for each generated
+  ``(course_key, industry, duration)`` variant:
 
-     1. exact match on ``(course_key, industry, duration)``
-     2. fallback to ``(course_key, industry)`` (industry-only intro, reused for
-        both short and long)
-     3. fallback to ``(course_key, Original industry)`` (reused across all
-        industries and durations for that source course)
+  1. exact match on ``(course_key, industry, duration)``
+  2. fallback to ``(course_key, industry)`` (industry-only intro, reused for
+     both short and long)
+  3. fallback to ``(course_key, Original industry)`` (reused across all
+     industries and durations for that source course)
 
-     If no intro is resolved, no Introduction section is created for that
-     variant.
-
-2. **Open edX videos CSV** — exported from Studio / OVS after uploading
-   the customized videos. Required columns:
-
-   - ``name`` — video file name (matches ``video_file_name`` above)
-   - ``video_id`` — the Open edX UUID for the video
+  If no intro is resolved, no Introduction section is created for that
+  variant.
 
 Running the Command
 ~~~~~~~~~~~~~~~~~~~
@@ -135,7 +131,6 @@ shell):
 
     python manage.py generate_uai_course_versions \
         --processed-videos-csv /path/to/processed_videos.csv \
-        --edx-videos-csv /path/to/edx_videos.csv \
         [--username studio_worker] \
         [--dry-run]
 
@@ -144,9 +139,6 @@ Options
 
 ``--processed-videos-csv``
     Path to the processed video metadata CSV file. **Required.**
-
-``--edx-videos-csv``
-    Path to the Open edX videos CSV file. **Required.**
 
 ``--username``
     Username of the platform user under whose authority the courses are
