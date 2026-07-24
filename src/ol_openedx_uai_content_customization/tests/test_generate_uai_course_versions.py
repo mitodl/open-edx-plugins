@@ -244,7 +244,7 @@ def test_duplicate_course_is_skipped_with_warning(csv_file, mock_user):  # noqa:
 
 
 def test_missing_csv_raises_error(mock_user):  # noqa: ARG001
-    with pytest.raises((CommandError, FileNotFoundError)):
+    with pytest.raises(CommandError, match="Failed to read processed videos source"):
         call_command(
             "generate_uai_course_versions",
             processed_videos_csv="/nonexistent/path.csv",

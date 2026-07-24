@@ -8,7 +8,9 @@ from ol_openedx_uai_content_customization.csv_utils import (
     build_course_intro_lookup,
     build_google_sheet_csv_export_url,
     build_new_course_key,
+    fetch_csv_text,
     group_videos_by_course,
+    is_google_sheets_url,
     is_url,
     normalize_course_intro,
     parse_csv,
@@ -124,6 +126,47 @@ def test_build_google_sheet_csv_export_url_invalid_raises():
     """A URL without a recognisable spreadsheet ID raises ValueError."""
     with pytest.raises(ValueError, match="Could not find a spreadsheet ID"):
         build_google_sheet_csv_export_url("https://example.com/not-a-sheet")
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        ("https://docs.google.com/spreadsheets/d/abc123/edit#gid=0", True),
+        ("https://docs.google.com/spreadsheets/d/abc123/export?format=csv", True),
+        # Only the docs.google.com host is trusted, regardless of path shape.
+        ("https://example.com/spreadsheets/d/abc123/export?format=csv", False),
+        ("https://example.com/foo.csv", False),
+        ("https://evil.com/export?output=csv", False),
+        ("/path/to/file.csv", False),
+    ],
+)
+def test_is_google_sheets_url(source, expected):
+    """Only docs.google.com Sheets links are recognised — no other host."""
+    assert is_google_sheets_url(source) is expected
+
+
+def test_fetch_csv_text_direct_url_is_not_rewritten():
+    """
+    A non-Google direct CSV URL is fetched as-is, without raising ValueError.
+
+    This is the case even when the URL happens to contain "/export" or
+    "output=csv", proving such URLs are never mistaken for Google Sheets
+    export links (which would let an operator target arbitrary hosts under
+    the guise of Google Sheets support).
+    """
+    mock_response = mock.Mock()
+    mock_response.text = "a,b\n1,2\n"
+    mock_response.raise_for_status = mock.Mock()
+
+    direct_url = "https://example.com/export?output=csv"
+    with mock.patch(
+        "ol_openedx_uai_content_customization.csv_utils.requests.get",
+        return_value=mock_response,
+    ) as mock_get:
+        text = fetch_csv_text(direct_url)
+
+    mock_get.assert_called_once_with(direct_url, timeout=30)
+    assert text == "a,b\n1,2\n"
 
 
 def test_parse_csv_from_google_sheet_url():

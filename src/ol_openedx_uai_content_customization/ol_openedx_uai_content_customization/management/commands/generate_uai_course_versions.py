@@ -132,7 +132,7 @@ class Command(BaseCommand):
             processed_video_rows, processed_video_fieldnames = parse_csv(
                 processed_videos_csv
             )
-        except (requests.RequestException, ValueError) as exc:
+        except (requests.RequestException, ValueError, OSError) as exc:
             msg = f"Failed to read processed videos source {processed_videos_csv!r}: {exc}"  # noqa: E501
             raise CommandError(msg) from exc
 

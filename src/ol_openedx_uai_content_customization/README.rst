@@ -146,9 +146,11 @@ downloading a CSV first:
         [--dry-run]
 
 The sheet must be shared as "Anyone with the link can view" (or published to
-the web). Any standard share/edit link works — the command derives the CSV
-export link automatically, using the ``gid`` from the URL to select the
-right tab.
+the web). Any standard ``docs.google.com`` share/edit link works — the
+command derives the CSV export link automatically, using the ``gid`` from
+the URL to select the right tab. Only ``docs.google.com`` links are rewritten
+this way; any other http(s) URL is fetched as-is and must already resolve to
+CSV content directly.
 
 Options
 ~~~~~~~

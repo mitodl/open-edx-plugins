@@ -20,6 +20,7 @@ from ol_openedx_uai_content_customization.constants import (
     INDUSTRY_CODES,
 )
 
+GOOGLE_SHEETS_HOST = "docs.google.com"
 GOOGLE_SHEET_ID_RE = re.compile(r"/spreadsheets/d/([a-zA-Z0-9-_]+)")
 GOOGLE_SHEET_GID_RE = re.compile(r"[#&?]gid=([0-9]+)")
 GOOGLE_SHEET_REQUEST_TIMEOUT = 30
@@ -28,6 +29,14 @@ GOOGLE_SHEET_REQUEST_TIMEOUT = 30
 def is_url(source):
     """Return True if *source* is an http(s) URL rather than a local path."""
     return urlparse(str(source)).scheme in ("http", "https")
+
+
+def is_google_sheets_url(source):
+    """Return True if *source* is a docs.google.com Sheets link."""
+    parsed = urlparse(str(source))
+    return (
+        parsed.netloc.lower() == GOOGLE_SHEETS_HOST and "/spreadsheets/" in parsed.path
+    )
 
 
 def build_google_sheet_csv_export_url(sheet_url):
@@ -43,7 +52,8 @@ def build_google_sheet_csv_export_url(sheet_url):
     (containing ``/export`` or ``output=csv``) are returned unchanged.
 
     Args:
-        sheet_url: A Google Sheets URL as copied from the share dialog.
+        sheet_url: A ``docs.google.com`` Sheets URL, as copied from the
+            share dialog.
 
     Returns:
         A URL that returns CSV content when fetched.
@@ -68,21 +78,29 @@ def build_google_sheet_csv_export_url(sheet_url):
     )
 
 
-def fetch_csv_text(sheet_url):
+def fetch_csv_text(source):
     """
-    Download CSV content from a public Google Sheets link.
+    Download CSV content from a URL.
+
+    ``docs.google.com`` Sheets share/edit links are converted to their CSV
+    export link first. Any other URL is treated as already pointing at CSV
+    content (e.g. a direct CSV/export link) and is fetched as-is.
 
     Args:
-        sheet_url: A Google Sheets share/edit URL, or a direct CSV/export URL.
+        source: A Google Sheets share/edit URL, or a direct CSV/export URL.
 
     Returns:
-        str: The raw CSV content of the sheet.
+        str: The raw CSV content fetched from the URL.
 
     Raises:
         requests.RequestException: on network failure or a non-2xx response.
     """
-    export_url = build_google_sheet_csv_export_url(sheet_url)
-    response = requests.get(export_url, timeout=GOOGLE_SHEET_REQUEST_TIMEOUT)
+    fetch_url = (
+        build_google_sheet_csv_export_url(source)
+        if is_google_sheets_url(source)
+        else source
+    )
+    response = requests.get(fetch_url, timeout=GOOGLE_SHEET_REQUEST_TIMEOUT)
     response.raise_for_status()
     return response.text
 
@@ -93,7 +111,8 @@ def parse_csv(source):
 
     Args:
         source: A filesystem path to a CSV file, or an http(s) URL — either
-            a Google Sheets share/edit link or a direct CSV/export link.
+            a ``docs.google.com`` Sheets share/edit link or a direct
+            CSV/export link.
 
     Returns:
         tuple: A 2-tuple ``(rows, fieldnames)`` where *rows* is a list of
