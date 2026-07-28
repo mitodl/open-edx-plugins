@@ -19,12 +19,12 @@ For each unique (course_key, industry, duration) combination the command:
                     └── <Video Title>  (video block)
 
 Usage:
-    python manage.py generate_uai_course_versions \\
+    python manage.py cms generate_uai_course_versions \\
         --processed-videos-csv /path/to/processed_videos.csv \\
         [--username studio_worker] \\
         [--dry-run]
 
-    python manage.py generate_uai_course_versions \\
+    python manage.py cms generate_uai_course_versions \\
         --processed-videos-csv \\
         "https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0" \\
         [--username studio_worker] \\
