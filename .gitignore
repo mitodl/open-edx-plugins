@@ -12,3 +12,6 @@ ol_test_requirements.txt
 **/.coverage
 **/test_root
 coverage.xml
+
+# Claude
+.claude/
