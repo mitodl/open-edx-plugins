@@ -156,7 +156,7 @@ class OLChatXBlock(XBlock, StudioEditableXBlockMixin):
         """
         return XBLOCK_TYPE_TUTOR if self.is_tutor_xblock else XBLOCK_TYPE_SYLLABUS
 
-    def send_tracker_event(  # noqa: PLR0913
+    def send_tracker_event(  # noqa: PLR0913, PLR0917
         self,
         event_name,
         value,

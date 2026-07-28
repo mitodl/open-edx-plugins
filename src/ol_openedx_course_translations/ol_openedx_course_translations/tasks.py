@@ -94,7 +94,7 @@ def _looks_like_markup(value: str) -> bool:
     },
     retry_backoff=False,  # keep retries predictable
 )
-def translate_file_task(  # noqa: PLR0913, PLR0912, C901
+def translate_file_task(  # noqa: PLR0913, PLR0917, PLR0912, C901
     _self,
     file_path_str: str,
     source_language: str,
@@ -323,7 +323,7 @@ def translate_policy_json_task(
 
 
 @shared_task(bind=True, name="translate_info_updates_task")
-def translate_info_updates_task(  # noqa: PLR0913, C901
+def translate_info_updates_task(  # noqa: PLR0913, PLR0917, C901
     _self,
     updates_file_path_str: str,
     source_language: str,

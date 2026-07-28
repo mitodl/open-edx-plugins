@@ -24,7 +24,7 @@ except ImportError:
         ("/allowed/nested", [r"^/allowed"], [r"^/allowed/nested"], True),
     ],
 )
-def test_redirect_middleware(  # noqa: PLR0913
+def test_redirect_middleware(  # noqa: PLR0913, PLR0917
     settings,
     rf,
     mocker,

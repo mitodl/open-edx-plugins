@@ -56,7 +56,7 @@ class LLMProvider(TranslationProvider):
     - For plain text inputs, it uses structured prompting with markers.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         primary_api_key: str,
         model_name: str | None = None,
@@ -985,7 +985,7 @@ class LLMProvider(TranslationProvider):
 class OpenAIProvider(LLMProvider):
     """OpenAI translation provider."""
 
-    def __init__(  # noqa: PLR0913
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         primary_api_key: str,
         model_name: str | None = None,
@@ -1136,7 +1136,7 @@ class OpenAIProvider(LLMProvider):
 class GeminiProvider(LLMProvider):
     """Gemini translation provider."""
 
-    def __init__(  # noqa: PLR0913
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         primary_api_key: str,
         model_name: str | None = None,
@@ -1228,7 +1228,7 @@ class GeminiProvider(LLMProvider):
 class MistralProvider(LLMProvider):
     """Mistral translation provider."""
 
-    def __init__(  # noqa: PLR0913
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         primary_api_key: str,
         model_name: str | None = None,

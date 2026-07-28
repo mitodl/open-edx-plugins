@@ -563,7 +563,7 @@ class GitHubAPIClient:
             raise CommandError(msg)
         # If status_code is HTTP_OK, function returns None implicitly
 
-    def create_pull_request(  # noqa: PLR0913
+    def create_pull_request(  # noqa: PLR0913, PLR0917
         self,
         owner: str,
         repo: str,
@@ -1169,7 +1169,7 @@ class Command(BaseCommand):
 
         return batch_successes, batch_errors, batch_errors_by_app
 
-    def _translate_with_llm(  # noqa: PLR0913
+    def _translate_with_llm(  # noqa: PLR0913, PLR0917
         self,
         keys_needing_llm: list[dict],
         translations: dict[str, Any],
@@ -1282,7 +1282,7 @@ class Command(BaseCommand):
 
         return llm_translations, llm_errors, errors_by_app
 
-    def _log_batch_progress(  # noqa: PLR0913
+    def _log_batch_progress(  # noqa: PLR0913, PLR0917
         self,
         batch_idx: int,
         num_batches: int,
@@ -1323,7 +1323,7 @@ class Command(BaseCommand):
                 f"{remaining_keys} remaining)"
             )
 
-    def _handle_batch_error(  # noqa: PLR0913
+    def _handle_batch_error(  # noqa: PLR0913, PLR0917
         self,
         error: Exception,
         batch_idx: int,
@@ -1722,7 +1722,7 @@ class Command(BaseCommand):
 
         return "\n".join(instructions)
 
-    def _call_llm_batch(  # noqa: PLR0913
+    def _call_llm_batch(  # noqa: PLR0913, PLR0917
         self,
         key_batch: list[dict],
         lang_code: str,
@@ -2512,9 +2512,11 @@ class Command(BaseCommand):
         lines = [
             "### Rejected brace-format translations",
             "",
-            "The following entries had invalid python-brace-format translations "
-            "(e.g. missing or mismatched `{placeholders}`) and were not applied. "
-            "They remain untranslated for manual review:",
+            (
+                "The following entries had invalid python-brace-format translations "
+                "(e.g. missing or mismatched `{placeholders}`) and were not applied. "
+                "They remain untranslated for manual review:"
+            ),
             "",
         ]
         for item in rejected_brace_format_entries[:MAX_REJECTED_BRACE_DISPLAY]:
@@ -2563,8 +2565,10 @@ class Command(BaseCommand):
         # Build changes section with conditional error line
         changes_lines = [
             f"- **Language**: {lang_code} ({iso_code})",
-            f"- **Keys synced**: {sync_stats['frontend']['added']} frontend keys, "
-            f"{sync_stats['backend']['added']} backend entries",
+            (
+                f"- **Keys synced**: {sync_stats['frontend']['added']} frontend keys, "
+                f"{sync_stats['backend']['added']} backend entries"
+            ),
             f"- **Translations applied**: {applied_count} keys translated",
             f"- **Typos fixed**: {sync_stats['frontend']['fixed']}",
         ]

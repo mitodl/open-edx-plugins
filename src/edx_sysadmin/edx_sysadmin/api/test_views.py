@@ -78,7 +78,7 @@ class GitReloadAPIViewTestCase(TestCase):
         ),
     )
     @ddt.unpack
-    def test_git_reload_apiview(  # noqa: PLR0913
+    def test_git_reload_apiview(  # noqa: PLR0913, PLR0917
         self,
         signature,
         git_ref,
@@ -138,7 +138,7 @@ class GitReloadAPIViewTestCase(TestCase):
         ),
     )
     @ddt.unpack
-    def test_git_reload_api_view_no_repo(  # noqa: PLR0913
+    def test_git_reload_api_view_no_repo(  # noqa: PLR0913, PLR0917
         self,
         signature,
         git_ref,
@@ -196,7 +196,7 @@ class GitReloadAPIViewTestCase(TestCase):
         ),
     )
     @ddt.unpack
-    def test_git_reload_api_view_no_repo_default_branch(  # noqa: PLR0913
+    def test_git_reload_api_view_no_repo_default_branch(  # noqa: PLR0913, PLR0917
         self,
         signature,
         git_ref,
@@ -249,7 +249,7 @@ class GitReloadAPIViewTestCase(TestCase):
         ),
     )
     @ddt.unpack
-    def test_git_reload_api_view_different_active_branch(  # noqa: PLR0913
+    def test_git_reload_api_view_different_active_branch(  # noqa: PLR0913, PLR0917
         self,
         signature,
         git_ref,
@@ -315,7 +315,7 @@ class GitReloadAPIViewTestCase(TestCase):
         ),
     )
     @ddt.unpack
-    def test_git_reload_api_view_matching_active_branch(  # noqa: PLR0913
+    def test_git_reload_api_view_matching_active_branch(  # noqa: PLR0913, PLR0917
         self,
         signature,
         git_ref,
@@ -378,7 +378,7 @@ class GitReloadAPIViewTestCase(TestCase):
         ),
     )
     @ddt.unpack
-    def test_git_reload_api_view_no_active_branch(  # noqa: PLR0913
+    def test_git_reload_api_view_no_active_branch(  # noqa: PLR0913, PLR0917
         self,
         signature,
         git_ref,

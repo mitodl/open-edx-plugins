@@ -370,7 +370,7 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
     )
     @unpack
     @skip_unless_cms
-    def test_get_syncable_course_mappings(  # noqa: PLR0913
+    def test_get_syncable_course_mappings(  # noqa: PLR0913, PLR0917
         self,
         course_sync_org_exists,
         course_sync_org_active,

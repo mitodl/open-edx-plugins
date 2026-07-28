@@ -247,7 +247,7 @@ class Command(BaseCommand):
             msg = f"Source course(s) not found in the modulestore:\n{missing_list}"
             raise CommandError(msg)
 
-    def _create_course(  # noqa: PLR0913
+    def _create_course(  # noqa: PLR0913, PLR0917
         self,
         source_key,
         course_key_str,
