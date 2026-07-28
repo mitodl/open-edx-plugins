@@ -24,13 +24,17 @@ from xmodule.modulestore.tests.factories import BlockFactory, CourseFactory
 
 
 class MockSubsection:
+    """Subsection stub that exposes a precomputed Canvas payload helper."""
+
     def __init__(self, location) -> None:
+        """Initialize subsection identity and display metadata."""
         self.location = location
         self.display_name = "Mock Assignment in " + str(location)
         self.fields: dict[str, str] = {}
 
     @property
     def payload(self):
+        """Return the Canvas assignment payload for this subsection."""
         return create_assignment_payload(self)
 
 
@@ -64,8 +68,8 @@ def make_assignment(assignment_id: int, due_at: str | None = None):
         (
             subsection_mocks[8:],
             {
-                "id-8": make_assignment(1008),
-                "id-9": make_assignment(1009),
+                "id-8": {"id": 1008},
+                "id-9": {"id": 1009},
             },
             {
                 "add": [],
@@ -80,8 +84,8 @@ def make_assignment(assignment_id: int, due_at: str | None = None):
         (
             [],
             {
-                "synced-1": make_assignment(1002),
-                "synced-2": make_assignment(1003),
+                "synced-1": {"id": 1002},
+                "synced-2": {"id": 1003},
             },
             {"add": [], "update": {}, "delete": [1002, 1003]},
         ),
@@ -89,10 +93,10 @@ def make_assignment(assignment_id: int, due_at: str | None = None):
         (
             subsection_mocks[4:8],
             {
-                "id-2": make_assignment(12),  # remove
-                "id-3": make_assignment(13),  # remove
-                "id-4": make_assignment(14),  # update
-                "id-5": make_assignment(15),  # update
+                "id-2": {"id": 12},  # remove
+                "id-3": {"id": 13},  # remove
+                "id-4": {"id": 14},  # update
+                "id-5": {"id": 15},  # update
             },
             {
                 "add": [s.payload for s in subsection_mocks[6:8]],
@@ -106,6 +110,7 @@ def make_assignment(assignment_id: int, due_at: str | None = None):
     ],
 )
 def test_diff_assignments(openedx_assignments, canvas_assignments_map, expected_output):
+    """Test that diff assignments."""
     assert (
         diff_assignments(openedx_assignments, canvas_assignments_map) == expected_output
     )

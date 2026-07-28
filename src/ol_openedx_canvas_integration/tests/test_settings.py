@@ -11,7 +11,7 @@ def root(*args):
     """
     Get the absolute path of the given path relative to the project root.
     """
-    return join(abspath(dirname(__file__)), *args)  # noqa: PTH100, PTH120, PTH118
+    return join(abspath(dirname(__file__)), "..", *args)  # noqa: PTH100, PTH120, PTH118
 
 
 DATABASES = {
