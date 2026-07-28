@@ -9,6 +9,7 @@ export content to them.
 import logging
 
 from common.djangoapps.course_action_state.models import CourseRerunState
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -45,7 +46,7 @@ def listen_for_course_created(**kwargs):
     course_key = kwargs.get("course").course_key
 
     if is_auto_repo_creation_enabled():
-        async_create_github_repo.delay(str(course_key))
+        transaction.on_commit(lambda: async_create_github_repo.delay(str(course_key)))
 
 
 @receiver(post_save, sender=CourseRerunState)
@@ -58,7 +59,10 @@ def listen_for_course_rerun_state_post_save(sender, instance, **kwargs):  # noqa
         return
 
     if is_auto_repo_creation_enabled():
-        async_create_github_repo.delay(str(instance.course_key), export_content=True)
+        course_key = instance.course_key
+        transaction.on_commit(
+            lambda: async_create_github_repo.delay(str(course_key), export_content=True)
+        )
 
 
 # Library Signal Receivers
@@ -96,7 +100,18 @@ def listen_for_library_v2_created(**kwargs):
         log.info("Library v2 created signal received for library: %s", library_key)
 
         if is_auto_repo_creation_enabled(is_library=True):
-            async_create_github_repo.delay(str(library_key), export_content=True)
+            # CONTENT_LIBRARY_CREATED fires synchronously inside the request's
+            # DB transaction (Studio views run with ATOMIC_REQUESTS=True). If we
+            # dispatch the Celery task immediately, a worker can query the
+            # library (via a separate DB connection) before this transaction
+            # commits, raising a spurious "library not found".
+            # Deferring the dispatch to on_commit ensures the row is visible
+            # by the time the task runs.
+            transaction.on_commit(
+                lambda: async_create_github_repo.delay(
+                    str(library_key), export_content=True
+                )
+            )
 
 
 def listen_for_library_v2_updated(**kwargs):

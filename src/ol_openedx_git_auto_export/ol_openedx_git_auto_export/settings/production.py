@@ -16,6 +16,9 @@ def plugin_settings(settings):
     )
     settings.GITHUB_ORG_API_URL = env_tokens.get("GITHUB_ORG_API_URL", "")
     settings.GITHUB_ACCESS_TOKEN = env_tokens.get("GITHUB_ACCESS_TOKEN")
+    settings.GIT_AUTO_EXPORT_AUTHORING_URL_PREFIX = env_tokens.get(
+        "GIT_AUTO_EXPORT_AUTHORING_URL_PREFIX", "authoring"
+    )
 
     # Course-specific settings
     settings.FEATURES[ENABLE_GIT_AUTO_EXPORT] = env_tokens.get("FEATURES", {}).get(

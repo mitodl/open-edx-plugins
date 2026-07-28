@@ -13,6 +13,7 @@ from django.conf import settings
 from opaque_keys.edx.keys import LearningContextKey
 from rest_framework import status
 
+from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
     clear_stale_git_lock,
@@ -32,10 +33,18 @@ def async_export_to_git(context_key_string, user=None):
         context_key_string (str): String representation of LearningContextKey
         user: Optional user for git export
     """
-    # Parse as LearningContextKey to support all learning contexts
     try:
         context_key = LearningContextKey.from_string(context_key_string)
         content_info = get_content_info(context_key)
+    except ContentNotFoundError:
+        # Expected transiently if this task races the DB transaction that
+        # created the content (e.g. dispatched from a signal handler before
+        # commit).
+        LOGGER.warning(
+            "Content %s not found yet; skipping this export attempt. ",
+            context_key_string,
+        )
+        return
     except Exception:
         LOGGER.exception("Failed to parse content key: %s", context_key_string)
         return
@@ -115,6 +124,10 @@ def async_create_github_repo(self, context_key_str, export_content=False):  # no
     try:
         context_key = LearningContextKey.from_string(context_key_str)
         content_info = get_content_info(context_key)
+    except ContentNotFoundError as exc:
+        response_msg = f"Content {context_key_str} not found: {exc}"
+        LOGGER.warning(response_msg)
+        return False, response_msg
     except Exception:
         LOGGER.exception("Failed to parse context key: %s", context_key_str)
         return False, f"Invalid context key: {context_key_str}"
@@ -129,7 +142,10 @@ def async_create_github_repo(self, context_key_str, export_content=False):  # no
         return False, response_msg
 
     # Determine URL path based on content type
-    url_path = f"{content_info['content_type']}/{context_key_str}"
+    url_path = (
+        f"{settings.GIT_AUTO_EXPORT_AUTHORING_URL_PREFIX}"
+        f"/{content_info['content_type']}/{context_key_str}"
+    )
 
     # Get display name (v2 libraries use 'title', others use 'display_name')
     if content_info["is_v2_library"]:
