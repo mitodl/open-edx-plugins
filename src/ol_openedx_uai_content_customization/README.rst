@@ -129,7 +129,7 @@ shell):
 
 .. code-block:: bash
 
-    python manage.py generate_uai_course_versions \
+    python manage.py cms generate_uai_course_versions \
         --processed-videos-csv /path/to/processed_videos.csv \
         [--username studio_worker] \
         [--dry-run]
@@ -140,7 +140,7 @@ downloading a CSV first:
 
 .. code-block:: bash
 
-    python manage.py generate_uai_course_versions \
+    python manage.py cms generate_uai_course_versions \
         --processed-videos-csv "https://docs.google.com/spreadsheets/d/<SHEET_ID>/edit#gid=0" \
         [--username studio_worker] \
         [--dry-run]
