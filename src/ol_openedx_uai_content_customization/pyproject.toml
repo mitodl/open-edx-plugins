@@ -12,7 +12,7 @@ dependencies = [
   "Django>=4.0",
   "edx-django-utils>4.0.0",
   "edx-opaque-keys",
-  "requests>=2.31.0",
+  "requests",
 ]
 
 [project.entry-points."cms.djangoapp"]
