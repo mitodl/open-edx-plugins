@@ -201,7 +201,7 @@ def sentry_event_filter(
             if any(pattern.search(message) for message in messages):
                 return None
         return _tag_otel_context(event)
-    except Exception:  # noqa: BLE001 - before_send must never raise
+    except Exception:
         logger.warning(
             "ol_openedx_sentry: sentry_event_filter raised; passing the event "
             "through unfiltered",

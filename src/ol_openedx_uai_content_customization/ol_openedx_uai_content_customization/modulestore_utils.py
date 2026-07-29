@@ -19,7 +19,7 @@ from ol_openedx_uai_content_customization.constants import (
 log = logging.getLogger(__name__)
 
 
-def clone_course_in_modulestore(  # noqa: PLR0913
+def clone_course_in_modulestore(  # noqa: PLR0913, PLR0917
     source_course_key, dest_org, dest_number, dest_run, display_name, user_id
 ):
     """

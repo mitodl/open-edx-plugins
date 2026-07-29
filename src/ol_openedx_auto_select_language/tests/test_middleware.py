@@ -25,7 +25,7 @@ MODULE = "ol_openedx_auto_select_language.middleware"
         (True, "none", False),
     ],
 )
-def test_should_process_request(  # noqa: PLR0913
+def test_should_process_request(  # noqa: PLR0913, PLR0917
     request_factory,
     settings,
     mocker,
@@ -104,7 +104,7 @@ def test_redirects_to_same_path(request_factory, path, expected_url):
         (False, True, CourseLanguageCookieResetMiddleware, "/some-cms-page/"),
     ],
 )
-def test_middleware_skips_processing(  # noqa: PLR0913
+def test_middleware_skips_processing(  # noqa: PLR0913, PLR0917
     request_factory, settings, mocker, enabled, is_authenticated, middleware_cls, path
 ):
     """Test response unchanged when processing is skipped."""
@@ -151,7 +151,7 @@ def test_middleware_skips_processing(  # noqa: PLR0913
         ),
     ],
 )
-def test_forces_english_for_special_paths(  # noqa: PLR0913
+def test_forces_english_for_special_paths(  # noqa: PLR0913, PLR0917
     request_factory,
     settings,
     mock_user,
@@ -201,7 +201,7 @@ def test_forces_english_for_special_paths(  # noqa: PLR0913
         ),
     ],
 )
-def test_no_redirect_when_language_matches(  # noqa: PLR0913
+def test_no_redirect_when_language_matches(  # noqa: PLR0913, PLR0917
     request_factory,
     settings,
     mock_user,
@@ -246,7 +246,7 @@ def test_no_redirect_when_language_matches(  # noqa: PLR0913
         ("zh_HANS", "en", "zh-Hans"),
     ],
 )
-def test_sets_course_language(  # noqa: PLR0913
+def test_sets_course_language(  # noqa: PLR0913, PLR0917
     request_factory,
     settings,
     mock_user,

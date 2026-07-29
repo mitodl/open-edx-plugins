@@ -108,7 +108,7 @@ def test_video_block_dest_lang(
         ),
     ],
 )
-def test_non_video_block_dest_lang(  # noqa: PLR0913
+def test_non_video_block_dest_lang(  # noqa: PLR0913, PLR0917
     mocker,
     block_type,
     children_types,

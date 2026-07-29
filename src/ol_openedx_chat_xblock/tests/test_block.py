@@ -355,7 +355,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     )
     @unpack
     @patch("ol_openedx_chat_xblock.block.tracker.emit")
-    def test_send_tracker_event_method(  # noqa: PLR0913
+    def test_send_tracker_event_method(  # noqa: PLR0913, PLR0917
         self,
         is_tutor_xblock,
         canvas_course_id,
@@ -417,7 +417,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     @patch("ol_openedx_chat_xblock.block.tracker.emit")
     @patch("ol_openedx_chat_xblock.block.requests.post")
     @patch.object(OLChatXBlock, "get_thread_and_block_ids_from_cookies")
-    def test_ol_chat_tracker_events_submit_and_response(  # noqa: PLR0913
+    def test_ol_chat_tracker_events_submit_and_response(  # noqa: PLR0913, PLR0917
         self,
         course_id,
         learn_readable_course_id,
@@ -774,7 +774,7 @@ class OLChatXBlockTest(ModuleStoreTestCase):
     )
     @unpack
     @patch("ol_openedx_chat_xblock.block.requests.post")
-    def test_ol_chat_rate_scenarios(  # noqa: PLR0913
+    def test_ol_chat_rate_scenarios(  # noqa: PLR0913, PLR0917
         self,
         request_json,
         suffix,
@@ -1046,8 +1046,10 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         ),
         (
             # Test with content containing multiple JSON comments (should match first)
-            b'Message\n\n<!-- {"checkpoint_pk": 111, "thread_id": "first"} -->\n\n'
-            b'<!-- {"checkpoint_pk": 222, "thread_id": "second"} -->\n\n',
+            (
+                b'Message\n\n<!-- {"checkpoint_pk": 111, "thread_id": "first"} -->\n\n'
+                b'<!-- {"checkpoint_pk": 222, "thread_id": "second"} -->\n\n'
+            ),
             None,
             ("first", "111"),
         ),

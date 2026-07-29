@@ -166,7 +166,7 @@ def test_course_keys_are_correct(csv_file, mock_user, expected_key):  # noqa: AR
     processed_videos_csv = csv_file
     created_keys = []
 
-    def capture_clone(source_key, org, number, run, display_name, user_id):  # noqa: ARG001, PLR0913
+    def capture_clone(source_key, org, number, run, display_name, user_id):  # noqa: ARG001, PLR0913, PLR0917
         created_keys.append(f"course-v1:{org}+{number}+{run}")
         return mock.Mock()
 
