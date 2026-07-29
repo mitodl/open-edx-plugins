@@ -1,0 +1,32 @@
+---
+name: Cleanup GHCR CI cache images
+on:
+  schedule:
+    # Weekly, Sunday 03:00 UTC. The CI workflow pushes an openedx-dev-cache
+    # image per (edx_branch, tutor version) combination to GHCR to speed up
+    # `tutor images build`. Without cleanup, both stale tagged versions
+    # (from tutor version bumps) and untagged versions (left behind when a
+    # tag is overwritten) accumulate indefinitely.
+  - cron: '0 3 * * 0'
+  workflow_dispatch: {}
+jobs:
+  cleanup:
+    if: github.repository_owner == 'mitodl'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+    - name: Delete untagged openedx-dev-cache versions
+      uses: actions/delete-package-versions@25ad4af5be03aef10e0b3376b248688b7a44c40b # v5
+      with:
+        package-name: openedx-dev-cache
+        package-type: container
+        min-versions-to-keep: 0
+        delete-only-untagged-versions: true
+
+    - name: Trim old tagged openedx-dev-cache versions
+      uses: actions/delete-package-versions@25ad4af5be03aef10e0b3376b248688b7a44c40b # v5
+      with:
+        package-name: openedx-dev-cache
+        package-type: container
+        min-versions-to-keep: 15
