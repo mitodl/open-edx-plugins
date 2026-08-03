@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-git-auto-export"
-version = "0.8.2"
+version = "0.8.3"
 description = "A plugin that auto saves the course OLX to git when an author publishes it"
 authors = [{ name = "MIT Office of Digital Learning" }]
 license = "BSD-3-Clause"
