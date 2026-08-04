@@ -302,6 +302,15 @@ def test_google_sheet_fetch_failure_raises_command_error(mock_user):  # noqa: AR
         )
 
 
+def test_non_google_sheets_url_raises_error(mock_user):  # noqa: ARG001
+    """A non-Google-Sheets URL is rejected instead of being fetched as CSV."""
+    with pytest.raises(CommandError, match="Failed to read processed videos source"):
+        call_command(
+            "generate_uai_course_versions",
+            processed_videos_csv="https://example.com/videos.csv",
+        )
+
+
 def test_invalid_user_id_raises_error(csv_file, db):  # noqa: ARG001
     """Passing a non-existent username should raise CommandError before any writes."""
     processed_videos_csv = csv_file

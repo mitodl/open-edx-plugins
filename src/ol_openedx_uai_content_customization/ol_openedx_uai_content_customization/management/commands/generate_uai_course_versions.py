@@ -2,7 +2,7 @@
 Management command: generate_uai_course_versions
 
 Reads processed video metadata — from a local CSV file or a publicly
-readable Google Sheets link — and uses Open edX modulestore APIs to build
+readable Google Sheets URL — and uses Open edX modulestore APIs to build
 industry- and length-specific variants of UAI courses by cloning a base
 course.
 
@@ -96,8 +96,8 @@ class Command(BaseCommand):
             required=True,
             help=(
                 "Path to the processed video metadata CSV file, or the URL of a "
-                "publicly readable Google Sheet (share/edit link, or a direct "
-                "CSV export link)."
+                "publicly readable Google Sheet (docs.google.com share/edit link, "
+                "or its CSV export link). No other URL is accepted."
             ),
         )
         parser.add_argument(

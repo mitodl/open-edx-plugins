@@ -148,16 +148,16 @@ downloading a CSV first:
 The sheet must be shared as "Anyone with the link can view" (or published to
 the web). Any standard ``docs.google.com`` share/edit link works — the
 command derives the CSV export link automatically, using the ``gid`` from
-the URL to select the right tab. Only ``docs.google.com`` links are rewritten
-this way; any other http(s) URL is fetched as-is and must already resolve to
-CSV content directly.
+the URL to select the right tab. Only ``docs.google.com`` Sheets links are
+accepted; any other http(s) URL is rejected with an error.
 
 Options
 ~~~~~~~
 
 ``--processed-videos-csv``
     Path to the processed video metadata CSV file, or the URL of a publicly
-    readable Google Sheet. **Required.**
+    readable Google Sheet (``docs.google.com`` share/edit or export link — no
+    other URL is accepted). **Required.**
 
 ``--username``
     Username of the platform user under whose authority the courses are

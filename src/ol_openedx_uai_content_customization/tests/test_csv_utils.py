@@ -145,28 +145,26 @@ def test_is_google_sheets_url(source, expected):
     assert is_google_sheets_url(source) is expected
 
 
-def test_fetch_csv_text_direct_url_is_not_rewritten():
+def test_fetch_csv_text_non_google_sheets_url_raises():
     """
-    A non-Google direct CSV URL is fetched as-is, without raising ValueError.
+    A non-Google URL is rejected, even one shaped like a CSV export link.
 
     This is the case even when the URL happens to contain "/export" or
     "output=csv", proving such URLs are never mistaken for Google Sheets
     export links (which would let an operator target arbitrary hosts under
-    the guise of Google Sheets support).
+    the guise of Google Sheets support). Only ``docs.google.com`` Sheets
+    links are accepted.
     """
-    mock_response = mock.Mock()
-    mock_response.text = "a,b\n1,2\n"
-    mock_response.raise_for_status = mock.Mock()
-
     direct_url = "https://example.com/export?output=csv"
-    with mock.patch(
-        "ol_openedx_uai_content_customization.csv_utils.requests.get",
-        return_value=mock_response,
-    ) as mock_get:
-        text = fetch_csv_text(direct_url)
+    with (
+        mock.patch(
+            "ol_openedx_uai_content_customization.csv_utils.requests.get"
+        ) as mock_get,
+        pytest.raises(ValueError, match=r"only docs\.google\.com Google Sheets"),
+    ):
+        fetch_csv_text(direct_url)
 
-    mock_get.assert_called_once_with(direct_url, timeout=30)
-    assert text == "a,b\n1,2\n"
+    mock_get.assert_not_called()
 
 
 def test_parse_csv_from_google_sheet_url():
@@ -190,6 +188,12 @@ def test_parse_csv_from_google_sheet_url():
     )
     assert fieldnames == ["video_file_name", "edx_video_id"]
     assert rows == [{"video_file_name": "v004_h264.mp4", "edx_video_id": "abc-123"}]
+
+
+def test_parse_csv_non_google_sheets_url_raises():
+    """parse_csv rejects any http(s) URL that is not a docs.google.com Sheets link."""
+    with pytest.raises(ValueError, match=r"only docs\.google\.com Google Sheets"):
+        parse_csv("https://example.com/videos.csv")
 
 
 def test_parse_csv_from_google_sheet_url_raises_on_http_error():

@@ -80,26 +80,30 @@ def build_google_sheet_csv_export_url(sheet_url):
 
 def fetch_csv_text(source):
     """
-    Download CSV content from a URL.
+    Download CSV content from a Google Sheets URL.
 
     ``docs.google.com`` Sheets share/edit links are converted to their CSV
-    export link first. Any other URL is treated as already pointing at CSV
-    content (e.g. a direct CSV/export link) and is fetched as-is.
+    export link first (a link already pointing at the export/publish
+    endpoint is used as-is). Any other http(s) URL is rejected.
 
     Args:
-        source: A Google Sheets share/edit URL, or a direct CSV/export URL.
+        source: A ``docs.google.com`` Sheets share/edit or export URL.
 
     Returns:
         str: The raw CSV content fetched from the URL.
 
     Raises:
+        ValueError: if *source* is an http(s) URL that is not a
+            ``docs.google.com`` Sheets link.
         requests.RequestException: on network failure or a non-2xx response.
     """
-    fetch_url = (
-        build_google_sheet_csv_export_url(source)
-        if is_google_sheets_url(source)
-        else source
-    )
+    if not is_google_sheets_url(source):
+        msg = (
+            f"Unsupported URL {source!r}: only docs.google.com Google Sheets "
+            "links are supported for --processed-videos-csv."
+        )
+        raise ValueError(msg)
+    fetch_url = build_google_sheet_csv_export_url(source)
     response = requests.get(fetch_url, timeout=GOOGLE_SHEET_REQUEST_TIMEOUT)
     response.raise_for_status()
     return response.text
@@ -110,15 +114,18 @@ def parse_csv(source):
     Read CSV data from a local file path or a public Google Sheets URL.
 
     Args:
-        source: A filesystem path to a CSV file, or an http(s) URL — either
-            a ``docs.google.com`` Sheets share/edit link or a direct
-            CSV/export link.
+        source: A filesystem path to a CSV file, or a ``docs.google.com``
+            Sheets share/edit or export URL.
 
     Returns:
         tuple: A 2-tuple ``(rows, fieldnames)`` where *rows* is a list of
         ``dict`` objects (one per data row) and *fieldnames* is the list of
         column header strings as they appear in the source.  Both are empty
         lists when there is no header row at all.
+
+    Raises:
+        ValueError: if *source* is an http(s) URL that is not a
+            ``docs.google.com`` Sheets link.
     """
     if is_url(source):
         reader = csv.DictReader(io.StringIO(fetch_csv_text(source)))
