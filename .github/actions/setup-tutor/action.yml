@@ -1,0 +1,80 @@
+---
+name: Set up Tutor
+description: >-
+  Install the Tutor release matching an Open edX branch and derive the
+  openedx-dev image names. Shared by ci.yml (which pulls the cached image)
+  and ci-image-cache.yml (which builds and pushes it) so the two can never
+  disagree about the cache tag.
+inputs:
+  edx_branch:
+    description: Open edX branch under test, e.g. master or release/teak
+    required: true
+  ghcr_owner:
+    description: GitHub org that owns the openedx-dev-cache package
+    required: true
+outputs:
+  branch_slug:
+    description: edx_branch with slashes replaced, safe for use in an image tag
+    value: ${{ steps.names.outputs.branch_slug }}
+  version_tag:
+    description: Installed Tutor version, sanitised for use in an image tag
+    value: ${{ steps.names.outputs.version_tag }}
+  openedx_dev_image:
+    description: Local image name Tutor expects, from DOCKER_IMAGE_OPENEDX_DEV
+    value: ${{ steps.names.outputs.openedx_dev_image }}
+  cache_image_tag:
+    description: Fully qualified GHCR tag holding the cached openedx-dev image
+    value: ${{ steps.names.outputs.cache_image_tag }}
+runs:
+  using: composite
+  steps:
+  - name: Install Tutor
+    shell: bash
+    env:
+      EDX_BRANCH: ${{ inputs.edx_branch }}
+    run: |
+      if [[ "$EDX_BRANCH" == "release/teak" ]]; then
+        pip install "tutor>=20.0.0,<21.0.0"
+      elif [[ "$EDX_BRANCH" == "master" ]]; then
+        git clone --depth=1 --branch=main https://github.com/overhangio/tutor.git
+        pip install -e "./tutor"
+      else
+        pip install "tutor>=21.0.0,<22.0.0"
+      fi
+
+  - name: Derive image names
+    id: names
+    shell: bash
+    env:
+      EDX_BRANCH: ${{ inputs.edx_branch }}
+      GHCR_OWNER: ${{ inputs.ghcr_owner }}
+    run: |
+      set -euo pipefail
+
+      # The openedx-dev image is built from Tutor's own templates and does not
+      # embed the edx-platform source (that is bind-mounted at run time), so
+      # the Tutor version is the only thing the image contents depend on.
+      version=$(tutor --version | awk '{print $NF}')
+      if [[ -d "./tutor/.git" ]]; then
+        # Installed from git main, where the reported version stands still
+        # across commits. Add the SHA so the cache invalidates on every commit.
+        version="${version}+git.$(git -C ./tutor rev-parse --short HEAD)"
+      fi
+      version_tag=${version//[^A-Za-z0-9_.-]/-}
+      branch_slug=${EDX_BRANCH//\//-}
+
+      # Renders env/, which the test step's docker compose invocation reads.
+      tutor config save
+
+      openedx_dev_image="$(tutor config printvalue DOCKER_IMAGE_OPENEDX_DEV)"
+      if [ -z "$openedx_dev_image" ]; then
+        echo "Failed to read DOCKER_IMAGE_OPENEDX_DEV from tutor config" >&2
+        exit 1
+      fi
+
+      {
+        echo "branch_slug=$branch_slug"
+        echo "version_tag=$version_tag"
+        echo "openedx_dev_image=$openedx_dev_image"
+        echo "cache_image_tag=ghcr.io/${GHCR_OWNER}/openedx-dev-cache:${branch_slug}-${version_tag}"
+      } >> "$GITHUB_OUTPUT"

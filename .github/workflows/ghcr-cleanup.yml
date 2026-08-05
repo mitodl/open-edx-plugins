@@ -2,12 +2,11 @@
 name: Cleanup GHCR CI cache images
 on:
   schedule:
-    # Weekly, Sunday 03:00 UTC. The CI workflow pushes an openedx-dev-cache
-    # image per (edx_branch, tutor version) combination to GHCR to speed up
-    # `tutor images build`. Without cleanup, both stale tagged versions
-    # (from tutor version bumps) and untagged versions (left behind when a
-    # tag is overwritten) accumulate indefinitely.
-  - cron: '0 3 * * 0'
+    # Daily at 05:00 UTC, an hour after ci-image-cache.yml refreshes the
+    # openedx-dev-cache image for each (edx_branch, tutor version) pair. Each
+    # nightly push orphans the version it replaces, so untagged leftovers
+    # accrue daily; stale tagged versions accrue whenever Tutor bumps.
+  - cron: '0 5 * * *'
   workflow_dispatch: {}
 jobs:
   cleanup:

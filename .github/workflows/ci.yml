@@ -16,17 +16,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Used to push openedx-dev images to GHCR for caching. Both the login
-      # and push steps are gated on github.repository_owner == GHCR_CACHE_OWNER
-      # so fork PRs never exercise this permission (they use anonymous pulls
-      # from the public cache package). GitHub Actions does not support
-      # conditional job-level permissions, so this is the closest we can get
-      # to granting packages:write only when it is actually needed.
-      packages: write
+      # Read-only. The openedx-dev image is built and pushed by
+      # ci-image-cache.yml, which is the only workflow holding packages:write.
+      # This job runs pull request code and third party code (edx-platform's
+      # setup.py, Tutor from git main, the image's pip installs), so it must
+      # never hold a credential that can write to the registry.
+      packages: read
     strategy:
       matrix:
         python_version:
         - 3.11
+        # Keep in sync with the edx_branch matrix in ci-image-cache.yml.
         edx_branch:
         - master
         - release/teak
@@ -46,8 +46,6 @@ jobs:
           exit 1
         fi
         echo "sha=$SHA" >> "$GITHUB_OUTPUT"
-        BRANCH_SLUG=$(echo "${{ matrix.edx_branch }}" | tr '/' '-')
-        echo "branch_slug=$BRANCH_SLUG" >> "$GITHUB_OUTPUT"
 
     - name: Set up uv
       uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
@@ -74,42 +72,12 @@ jobs:
         path: ~/.cache/pip
         key: pip-tutor-${{ matrix.edx_branch }}-${{ runner.os }}
 
-    - name: Install tutor
-      run: |
-        if [[ "${{ matrix.edx_branch }}" == "release/teak" ]]; then
-          pip install "tutor>=20.0.0,<21.0.0"
-        elif [[ "${{ matrix.edx_branch }}" == "master" ]]; then
-          git clone --depth=1 --branch=main https://github.com/overhangio/tutor.git
-          pip install -e "./tutor"
-        else
-          pip install "tutor>=21.0.0,<22.0.0"
-        fi
-
-    - name: Get Tutor version
-      id: tutor-version
-      run: |
-        version=$(tutor --version | awk '{print $NF}')
-        if [[ -d "./tutor/.git" ]]; then
-          tutor_sha=$(git -C ./tutor rev-parse --short HEAD)
-          version="${version}+git.${tutor_sha}"
-        fi
-        version_tag=${version//[^A-Za-z0-9_.-]/-}
-        echo "version=$version" >> "$GITHUB_OUTPUT"
-        echo "version_tag=$version_tag" >> "$GITHUB_OUTPUT"
-
-    - name: Cache Tutor config directory
-      id: cache-tutor-config
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    - name: Set up Tutor
+      id: tutor
+      uses: ./.github/actions/setup-tutor
       with:
-        path: |
-          ~/.local/share/tutor
-          ~/.local/share/tutor-main
-        key: tutor-config-${{ steps.tutor-version.outputs.version_tag }}-${{ steps.edx-sha.outputs.branch_slug
-          }}
-
-    - name: Generate Tutor config
-      if: steps.cache-tutor-config.outputs.cache-hit != 'true'
-      run: tutor config save
+        edx_branch: ${{ matrix.edx_branch }}
+        ghcr_owner: ${{ env.GHCR_CACHE_OWNER }}
 
     - name: Cache edx-platform
       id: cache-edx-platform
@@ -131,52 +99,37 @@ jobs:
     - name: Generate edx-platform egg-info (registers Django app entry points)
       run: pip install --no-deps -e ${{ github.workspace }}/../edx-platform
 
+    # Only needed while the openedx-dev-cache package is private. Once it is
+    # made public this step is a no-op for pulls, and fork PRs get cache hits
+    # too. Never fatal: on failure the build below runs instead.
     - name: Log in to GitHub Container Registry
-      if: github.repository_owner == env.GHCR_CACHE_OWNER
+      continue-on-error: true
       uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Compute Docker image names
-      id: docker-names
-      run: |
-        OPENEDX_DEV_IMAGE="$(tutor config printvalue DOCKER_IMAGE_OPENEDX_DEV)"
-        if [ -z "$OPENEDX_DEV_IMAGE" ]; then
-          echo "Failed to determine DOCKER_IMAGE_OPENEDX_DEV from tutor config"
-          exit 1
-        fi
-        echo "openedx_dev_image=$OPENEDX_DEV_IMAGE" >> "$GITHUB_OUTPUT"
-        CACHE_IMAGE_TAG="ghcr.io/${{ env.GHCR_CACHE_OWNER }}/openedx-dev-cache:${{ steps.edx-sha.outputs.branch_slug }}-${{ steps.tutor-version.outputs.version_tag }}"
-        echo "cache_image_tag=$CACHE_IMAGE_TAG" >> "$GITHUB_OUTPUT"
-
-    - name: Pull cached Docker image
+    - name: Pull cached openedx-dev image
       id: pull-image
+      env:
+        LOCAL_IMAGE: ${{ steps.tutor.outputs.openedx_dev_image }}
+        CACHE_IMAGE: ${{ steps.tutor.outputs.cache_image_tag }}
       run: |
-        if docker pull "${{ steps.docker-names.outputs.cache_image_tag }}"; then
-          docker tag \
-            "${{ steps.docker-names.outputs.cache_image_tag }}" \
-            "${{ steps.docker-names.outputs.openedx_dev_image }}"
+        if docker pull "$CACHE_IMAGE"; then
+          docker tag "$CACHE_IMAGE" "$LOCAL_IMAGE"
           echo "cache_hit=true" >> "$GITHUB_OUTPUT"
         else
+          echo "No cached image at $CACHE_IMAGE, falling back to a local build."
           echo "cache_hit=false" >> "$GITHUB_OUTPUT"
         fi
 
+    # Fallback only. The cache is populated by ci-image-cache.yml; this job
+    # never pushes what it builds.
     - name: Build Tutor images
       if: steps.pull-image.outputs.cache_hit != 'true'
       run: |
         tutor images build openedx-dev
-
-    - name: Push Docker image to registry cache
-      if: >-
-        steps.pull-image.outputs.cache_hit != 'true' &&
-        github.repository_owner == env.GHCR_CACHE_OWNER
-      run: |
-        docker tag \
-          "${{ steps.docker-names.outputs.openedx_dev_image }}" \
-          "${{ steps.docker-names.outputs.cache_image_tag }}"
-        docker push "${{ steps.docker-names.outputs.cache_image_tag }}"
 
     - name: Add edx-platform tutor mounts
       run: |
