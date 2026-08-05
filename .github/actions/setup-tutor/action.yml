@@ -25,6 +25,12 @@ outputs:
   cache_image_tag:
     description: Fully qualified GHCR tag holding the cached openedx-dev image
     value: ${{ steps.names.outputs.cache_image_tag }}
+  tutor_root:
+    description: TUTOR_ROOT as Tutor itself reports it, holding env/
+    value: ${{ steps.names.outputs.tutor_root }}
+  compose_project:
+    description: Docker Compose project name for the Tutor dev environment
+    value: ${{ steps.names.outputs.compose_project }}
 runs:
   using: composite
   steps:
@@ -72,9 +78,19 @@ runs:
         exit 1
       fi
 
+      # Ask Tutor where its root is rather than assuming. The directory is
+      # named after __app__, which picks up __version_suffix__ ("tutor-main"
+      # when the main branch carries a suffix, plain "tutor" when it does not
+      # — as happens on release day, when the suffix is reset). Hardcoding
+      # either spelling breaks the moment upstream flips it.
+      tutor_root="$(tutor config printroot)"
+      compose_project="$(basename "$tutor_root" | tr '-' '_')_dev"
+
       {
         echo "branch_slug=$branch_slug"
         echo "version_tag=$version_tag"
         echo "openedx_dev_image=$openedx_dev_image"
         echo "cache_image_tag=ghcr.io/${GHCR_OWNER}/openedx-dev-cache:${branch_slug}-${version_tag}"
+        echo "tutor_root=$tutor_root"
+        echo "compose_project=$compose_project"
       } >> "$GITHUB_OUTPUT"
