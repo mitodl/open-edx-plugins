@@ -23,6 +23,8 @@ jobs:
       # never hold a credential that can write to the registry.
       packages: read
     strategy:
+      # One branch breaking upstream shouldn't hide the state of the others.
+      fail-fast: false
       matrix:
         python_version:
         - 3.11
