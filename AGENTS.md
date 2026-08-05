@@ -252,6 +252,9 @@ plugin_name = "plugin_name.apps:ConfigClass"
 
 Before submitting changes:
 - [ ] Updated plugin version in `src/<plugin>/pyproject.toml` (if applicable)
+- [ ] Updated the affected plugin's `src/<plugin>/CLAUDE.md` if this change
+      affects its behavior, entry points, or settings — keep it in sync with
+      the code the same way you keep `CHANGELOG.rst` in sync
 - [ ] Code formatted: `uv run ruff format .`
 - [ ] Linting passes: `uv run ruff check .`
 - [ ] Pre-commit hooks pass: `pre-commit run --all-files`

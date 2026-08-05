@@ -23,8 +23,11 @@ certificate creation).
   to the configured webhook URLs, with `requests`-exception autoretry
   (2 retries, exponential backoff).
 - `ol_openedx_events_handler/utils.py`: `validate_enrollment_webhook` /
-  `validate_certificate_webhook` — presumably guard against dispatching when a
-  webhook isn't fully configured (URL/token missing).
+  `validate_certificate_webhook` — plain settings-truthiness checks (via
+  `getattr`) that return `False` and log a warning when the relevant
+  URL/token setting is missing. Called from `handlers/course_access_role.py`
+  and `receivers/certificate_passing_receiver.py` respectively, before task
+  dispatch — not from `tasks.py` itself.
 - `ol_openedx_events_handler/settings/common.py`: `plugin_settings` — declares
   all webhook-related settings with `None`/default-role-list defaults.
 - `ol_openedx_events_handler/apps.py`: wires up receivers per project type —
@@ -52,8 +55,10 @@ certificate creation).
 ## Notes
 - Both webhooks are no-ops until fully configured — installing the plugin
   without setting URLs/tokens means events are received but nothing is sent
-  (validated via `validate_*_webhook` before dispatch, or inline checks in
-  `tasks.py` for the certificate task).
+  (validated via `validate_*_webhook` before dispatch). `tasks.py`'s
+  `create_certificate_for_passing_grade` has its own separate inline
+  URL/token check as a second layer of defense; `notify_course_access_role_addition`
+  relies solely on the caller having validated first.
 - This is meant to be the single home for *all* MIT OL signal/event reactions
   going forward — when adding a new event reaction, prefer extending this
   plugin (new handler + task + settings) over creating a new one, per the
