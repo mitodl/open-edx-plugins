@@ -6,9 +6,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=$(jq -r '.tool_input.file_path // empty'); if [ -n \"$f\" ] && [ -f \"$f\" ]; then uv run pre-commit run --files \"$f\" 2>&1; fi; true",
-            "timeout": 120,
-            "statusMessage": "Running pre-commit on edited file..."
+            "command": "uv run pre-commit run --all-files 2>&1; true",
+            "timeout": 300,
+            "statusMessage": "Running pre-commit on all files..."
           }
         ]
       }
