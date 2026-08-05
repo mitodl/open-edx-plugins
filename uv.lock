@@ -23,6 +23,7 @@ members = [
     "ol-openedx-course-sync",
     "ol-openedx-course-translations",
     "ol-openedx-events-handler",
+    "ol-openedx-feedback",
     "ol-openedx-git-auto-export",
     "ol-openedx-logging",
     "ol-openedx-lti-utilities",
@@ -751,9 +752,9 @@ resolution-markers = [
     "python_full_version < '3.12'",
 ]
 dependencies = [
-    { name = "asgiref", marker = "python_full_version < '3.12'" },
-    { name = "sqlparse", marker = "python_full_version < '3.12'" },
-    { name = "tzdata", marker = "python_full_version < '3.12' and sys_platform == 'win32'" },
+    { name = "asgiref" },
+    { name = "sqlparse" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/bd/55/b9445fc0695b03746f355c05b2eecc54c34e05198c686f4fc4406b722b52/django-5.2.12.tar.gz", hash = "sha256:6b809af7165c73eff5ce1c87fdae75d4da6520d6667f86401ecf55b681eb1eeb", size = 10860574, upload-time = "2026-03-03T13:56:05.509Z" }
 wheels = [
@@ -769,9 +770,9 @@ resolution-markers = [
     "python_full_version == '3.12.*'",
 ]
 dependencies = [
-    { name = "asgiref", marker = "python_full_version >= '3.12'" },
-    { name = "sqlparse", marker = "python_full_version >= '3.12'" },
-    { name = "tzdata", marker = "python_full_version >= '3.12' and sys_platform == 'win32'" },
+    { name = "asgiref" },
+    { name = "sqlparse" },
+    { name = "tzdata", marker = "sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/80/e1/894115c6bd70e2c8b66b0c40a3c367d83a5a48c034a4d904d31b62f7c53a/django-6.0.3.tar.gz", hash = "sha256:90be765ee756af8a6cbd6693e56452404b5ad15294f4d5e40c0a55a0f4870fe1", size = 10872701, upload-time = "2026-03-03T13:55:15.026Z" }
 wheels = [
@@ -2249,7 +2250,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-sync"
-version = "1.0.0"
+version = "1.0.1"
 source = { editable = "src/ol_openedx_course_sync" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -2314,8 +2315,24 @@ requires-dist = [
 ]
 
 [[package]]
+name = "ol-openedx-feedback"
+version = "0.1.0"
+source = { editable = "src/ol_openedx_feedback" }
+dependencies = [
+    { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "django", version = "6.0.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "xblock" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "django", specifier = ">=4.0" },
+    { name = "xblock" },
+]
+
+[[package]]
 name = "ol-openedx-git-auto-export"
-version = "0.8.2"
+version = "0.8.3"
 source = { editable = "src/ol_openedx_git_auto_export" }
 dependencies = [
     { name = "celery" },
@@ -2439,7 +2456,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-uai-content-customization"
-version = "0.1.2"
+version = "0.2.0"
 source = { editable = "src/ol_openedx_uai_content_customization" }
 dependencies = [
     { name = "django", version = "5.2.12", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
