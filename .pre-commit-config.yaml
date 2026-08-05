@@ -39,7 +39,7 @@ repos:
     - --exclude-files '(uv.lock)'
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: 'v0.16.0'
+  rev: 'v0.16.1'
   hooks:
   - id: ruff-format
   - id: ruff
@@ -54,7 +54,7 @@ repos:
     - types-python-dateutil
     - types-setuptools
 - repo: https://github.com/rstcheck/rstcheck
-  rev: v6.2.5
+  rev: v6.3.0
   hooks:
   - id: rstcheck
     args:
