@@ -1,10 +1,10 @@
 """
 Management command: generate_uai_course_versions
 
-Reads a single CSV file and uses Open edX modulestore APIs to build industry-
-and length-specific variants of UAI courses by cloning a base course.
-
-  - Processed videos CSV  (produced by the video-generation workflow)
+Reads processed video metadata — from a local CSV file or a publicly
+readable Google Sheets URL — and uses Open edX modulestore APIs to build
+industry- and length-specific variants of UAI courses by cloning a base
+course.
 
 For each unique (course_key, industry, duration) combination the command:
     1. Clones the source course (identified by the ``course_key`` CSV column)
@@ -19,8 +19,14 @@ For each unique (course_key, industry, duration) combination the command:
                     └── <Video Title>  (video block)
 
 Usage:
-    python manage.py generate_uai_course_versions \\
+    python manage.py cms generate_uai_course_versions \\
         --processed-videos-csv /path/to/processed_videos.csv \\
+        [--username studio_worker] \\
+        [--dry-run]
+
+    python manage.py cms generate_uai_course_versions \\
+        --processed-videos-csv \\
+        "https://docs.google.com/spreadsheets/d/<ID>/edit#gid=0" \\
         [--username studio_worker] \\
         [--dry-run]
 
@@ -33,6 +39,7 @@ warning).
 
 import logging
 
+import requests
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from opaque_keys import InvalidKeyError
@@ -79,15 +86,19 @@ class Command(BaseCommand):
     """Generate industry/length-specific UAI courses using Open edX modulestore APIs."""
 
     help = (
-        "Generate industry and length-specific UAI courses by reading a CSV file "
-        "and creating courses in the CMS modulestore."
+        "Generate industry and length-specific UAI courses by reading processed "
+        "video metadata and creating courses in the CMS modulestore."
     )
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--processed-videos-csv",
             required=True,
-            help="Path to the processed video metadata CSV file.",
+            help=(
+                "Path to the processed video metadata CSV file, or the URL of a "
+                "publicly readable Google Sheet (docs.google.com share/edit link, "
+                "or its CSV export link). No other URL is accepted."
+            ),
         )
         parser.add_argument(
             "--username",
@@ -101,7 +112,7 @@ class Command(BaseCommand):
             help="Log what would be created without writing to the modulestore.",
         )
 
-    def handle(self, *args, **options):  # noqa: ARG002, PLR0915
+    def handle(self, *args, **options):  # noqa: ARG002, PLR0915, C901
         processed_videos_csv = options["processed_videos_csv"]
         username = options["username"]
         dry_run = options["dry_run"]
@@ -117,9 +128,13 @@ class Command(BaseCommand):
         except User.DoesNotExist:
             msg = f"No user found with username {username!r}."
             raise CommandError(msg)  # noqa: B904
-        processed_video_rows, processed_video_fieldnames = parse_csv(
-            processed_videos_csv
-        )
+        try:
+            processed_video_rows, processed_video_fieldnames = parse_csv(
+                processed_videos_csv
+            )
+        except (requests.RequestException, ValueError, OSError) as exc:
+            msg = f"Failed to read processed videos source {processed_videos_csv!r}: {exc}"  # noqa: E501
+            raise CommandError(msg) from exc
 
         try:
             validate_csv_columns(

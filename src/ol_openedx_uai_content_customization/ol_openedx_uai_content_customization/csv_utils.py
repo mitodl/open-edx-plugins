@@ -1,10 +1,13 @@
 """CSV parsing and video-mapping utilities for ol-openedx-uai-content-customization."""
 
 import csv
+import io
 import re
 from collections import defaultdict
 from pathlib import Path
+from urllib.parse import urlparse
 
+import requests
 from django.utils.html import escape
 from opaque_keys.edx.keys import CourseKey
 
@@ -17,21 +20,123 @@ from ol_openedx_uai_content_customization.constants import (
     INDUSTRY_CODES,
 )
 
+GOOGLE_SHEETS_HOST = "docs.google.com"
+GOOGLE_SHEET_ID_RE = re.compile(r"/spreadsheets/d/([a-zA-Z0-9-_]+)")
+GOOGLE_SHEET_GID_RE = re.compile(r"[#&?]gid=([0-9]+)")
+GOOGLE_SHEET_REQUEST_TIMEOUT = 30
 
-def parse_csv(path):
+
+def is_url(source):
+    """Return True if *source* is an http(s) URL rather than a local path."""
+    return urlparse(str(source)).scheme in ("http", "https")
+
+
+def is_google_sheets_url(source):
+    """Return True if *source* is a docs.google.com Sheets link."""
+    parsed = urlparse(str(source))
+    return (
+        parsed.netloc.lower() == GOOGLE_SHEETS_HOST and "/spreadsheets/" in parsed.path
+    )
+
+
+def build_google_sheet_csv_export_url(sheet_url):
     """
-    Read a CSV file and return a ``(rows, fieldnames)`` tuple.
+    Convert a public Google Sheets link into a CSV export link.
+
+    Accepts standard share/edit links copied from the browser, e.g.::
+
+        https://docs.google.com/spreadsheets/d/<SHEET_ID>/edit#gid=<GID>
+        https://docs.google.com/spreadsheets/d/<SHEET_ID>/edit?usp=sharing
+
+    Links that already point at a CSV export or "Publish to web" endpoint
+    (containing ``/export`` or ``output=csv``) are returned unchanged.
+
+    Args:
+        sheet_url: A ``docs.google.com`` Sheets URL, as copied from the
+            share dialog.
+
+    Returns:
+        A URL that returns CSV content when fetched.
+
+    Raises:
+        ValueError: if no spreadsheet ID can be found in the URL.
+    """
+    if "/export" in sheet_url or "output=csv" in sheet_url:
+        return sheet_url
+
+    match = GOOGLE_SHEET_ID_RE.search(sheet_url)
+    if not match:
+        msg = f"Could not find a spreadsheet ID in Google Sheets URL: {sheet_url!r}"
+        raise ValueError(msg)
+    sheet_id = match.group(1)
+
+    gid_match = GOOGLE_SHEET_GID_RE.search(sheet_url)
+    gid = gid_match.group(1) if gid_match else "0"
+
+    return (
+        f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
+    )
+
+
+def fetch_csv_text(source):
+    """
+    Download CSV content from a Google Sheets URL.
+
+    ``docs.google.com`` Sheets share/edit links are converted to their CSV
+    export link first (a link already pointing at the export/publish
+    endpoint is used as-is). Any other http(s) URL is rejected.
+
+    Args:
+        source: A ``docs.google.com`` Sheets share/edit or export URL.
+
+    Returns:
+        str: The raw CSV content fetched from the URL.
+
+    Raises:
+        ValueError: if *source* is an http(s) URL that is not a
+            ``docs.google.com`` Sheets link.
+        requests.RequestException: on network failure or a non-2xx response.
+    """
+    if not is_google_sheets_url(source):
+        msg = (
+            f"Unsupported URL {source!r}: only docs.google.com Google Sheets "
+            "links are supported for --processed-videos-csv."
+        )
+        raise ValueError(msg)
+    fetch_url = build_google_sheet_csv_export_url(source)
+    response = requests.get(fetch_url, timeout=GOOGLE_SHEET_REQUEST_TIMEOUT)
+    response.raise_for_status()
+    return response.text
+
+
+def parse_csv(source):
+    """
+    Read CSV data from a local file path or a public Google Sheets URL.
+
+    Args:
+        source: A filesystem path to a CSV file, or a ``docs.google.com``
+            Sheets share/edit or export URL.
 
     Returns:
         tuple: A 2-tuple ``(rows, fieldnames)`` where *rows* is a list of
         ``dict`` objects (one per data row) and *fieldnames* is the list of
-        column header strings as they appear in the file.  Both are empty
-        lists when the file contains no header row at all.
+        column header strings as they appear in the source.  Both are empty
+        lists when there is no header row at all.
+
+    Raises:
+        ValueError: if *source* is an http(s) URL that is not a
+            ``docs.google.com`` Sheets link.
     """
-    with Path(path).open(encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
+    if is_url(source):
+        reader = csv.DictReader(io.StringIO(fetch_csv_text(source)))
         fieldnames = list(reader.fieldnames or [])
         rows = list(reader)
+    else:
+        with Path(source).open(encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            fieldnames = list(reader.fieldnames or [])
+            rows = list(reader)
+
     fieldnames = [col.lower() for col in fieldnames]
     rows = [{col.lower(): value for col, value in row.items()} for row in rows]
     return rows, fieldnames

@@ -1,6 +1,24 @@
 Changelog
 =========
 
+[0.3.0] - 2026-07-24
+---------------------
+
+Added
+~~~~~
+- ``--processed-videos-csv`` now also accepts the URL of a publicly readable
+  Google Sheet (share/edit link, or a direct CSV export link) in addition to
+  a local file path, so the sheet can be read directly instead of manually
+  downloading a CSV first. Only ``docs.google.com`` Google Sheets links are
+  supported; any other http(s) URL is rejected with an error.
+
+Fixed
+~~~~~
+- Failures reading the processed videos source (missing/unreadable local
+  file, network error, or an unparsable Google Sheets URL) now consistently
+  raise ``CommandError`` instead of letting a raw ``OSError`` traceback
+  through.
+
 [0.2.0] - 2026-07-07
 ---------------------
 
