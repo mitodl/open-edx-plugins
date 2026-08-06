@@ -35,9 +35,6 @@ jobs:
     - name: Set up Python ${{ matrix.python_version }}
       run: uv python install ${{ matrix.python_version }}
 
-    - name: Check uv.lock is up to date
-      run: uv lock --check
-
     - name: Build all packages
       run: uv build --all-packages
 

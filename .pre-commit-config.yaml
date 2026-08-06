@@ -67,3 +67,13 @@ repos:
   - id: actionlint
     name: actionlint
     description: Runs actionlint to lint GitHub Actions workflow files
+- repo: local
+  hooks:
+  - id: uv-lock
+    name: uv lock
+    description: Updates uv.lock to match pyproject.toml files, without upgrading
+      dependency versions
+    entry: uv lock --no-upgrade
+    language: system
+    files: ^(pyproject\.toml|src/.+/pyproject\.toml|uv\.lock)$
+    pass_filenames: false
