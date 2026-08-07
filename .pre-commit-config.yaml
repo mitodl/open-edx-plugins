@@ -72,3 +72,8 @@ repos:
   hooks:
   - id: uv-lock
     args: [--no-upgrade]
+- repo: https://github.com/zizmorcore/zizmor-pre-commit
+  rev: v1.29.0
+  hooks:
+  - id: zizmor
+    args: [--no-progress, --min-severity=medium, --min-confidence=medium]
