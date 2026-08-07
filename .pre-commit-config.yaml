@@ -67,6 +67,11 @@ repos:
   - id: actionlint
     name: actionlint
     description: Runs actionlint to lint GitHub Actions workflow files
+- repo: https://github.com/astral-sh/uv-pre-commit
+  rev: '0.12.2'
+  hooks:
+  - id: uv-lock
+    args: [--no-upgrade]
 - repo: https://github.com/zizmorcore/zizmor-pre-commit
   rev: v1.29.0
   hooks:
