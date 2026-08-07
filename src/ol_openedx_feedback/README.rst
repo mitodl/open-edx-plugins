@@ -54,6 +54,9 @@ flag (default off). Enable it for the desired courses (or globally) to roll out.
 Configuration
 =============
 
+Excluded block types
+--------------------
+
 By default the trigger renders on every leaf block and is suppressed only on
 structural containers (``course`` / ``chapter`` / ``sequential`` / ``vertical``).
 To additionally exclude one or more block types (for example ``html``), override
@@ -71,3 +74,16 @@ the excluded set through ``ENV_TOKENS`` (e.g. in ``lms.yml``):
 The plugin reads this value via its ``settings.common`` ``plugin_settings`` hook
 and exposes it as the ``OL_OPENEDX_FEEDBACK_EXCLUDED_BLOCK_TYPES`` Django
 setting, defaulting to the structural set above when unset.
+
+Text label
+----------
+
+The trigger shows only the megaphone icon by default. To also render the
+"Feedback" text label beside it, enable it through ``ENV_TOKENS``:
+
+.. code-block:: yaml
+
+    OL_OPENEDX_FEEDBACK_SHOW_LABEL: true
+
+This is exposed as the ``OL_OPENEDX_FEEDBACK_SHOW_LABEL`` Django setting via the
+same ``plugin_settings`` hook, defaulting to ``false`` (icon-only) when unset.

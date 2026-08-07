@@ -2,7 +2,10 @@
 
 """Settings to provide to edX"""
 
-from ol_openedx_feedback.constants import DEFAULT_EXCLUDED_BLOCK_TYPES
+from ol_openedx_feedback.constants import (
+    DEFAULT_EXCLUDED_BLOCK_TYPES,
+    DEFAULT_SHOW_LABEL,
+)
 
 
 def plugin_settings(settings):
@@ -15,4 +18,8 @@ def plugin_settings(settings):
             "OL_OPENEDX_FEEDBACK_EXCLUDED_BLOCK_TYPES",
             DEFAULT_EXCLUDED_BLOCK_TYPES,
         )
+    )
+    settings.OL_OPENEDX_FEEDBACK_SHOW_LABEL = env_tokens.get(
+        "OL_OPENEDX_FEEDBACK_SHOW_LABEL",
+        DEFAULT_SHOW_LABEL,
     )
