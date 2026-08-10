@@ -19,6 +19,7 @@ except ImportError:
 from xmodule.x_module import STUDENT_VIEW
 
 from ol_openedx_feedback.compat import get_feedback_enabled_flag
+from ol_openedx_feedback.constants import DEFAULT_SHOW_LABEL
 from ol_openedx_feedback.utils import is_aside_applicable_to_block
 
 log = logging.getLogger(__name__)
@@ -57,7 +58,11 @@ class FeedbackAside(XBlockAside):
                 "static/html/student_view.html",
                 {
                     "block_id": block_id,
-                    "label": gettext("Send feedback"),
+                    "label": gettext("Feedback"),
+                    "aria_label": gettext("Send feedback"),
+                    "show_label": getattr(
+                        settings, "OL_OPENEDX_FEEDBACK_SHOW_LABEL", DEFAULT_SHOW_LABEL
+                    ),
                 },
             )
         )

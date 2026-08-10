@@ -44,6 +44,10 @@
       var alignToChatButton = function () {
         $anchor.css("transform", "");
         var btnRect = $chatBtn[0].getBoundingClientRect();
+        // Match the megaphone's height to the AskTIM button so the two stay
+        // equal-height peers even when AskTIM's label wraps to two lines on
+        // narrow screens (the CSS height is a standalone default).
+        $trigger.css("height", btnRect.height + "px");
         var anchorRect = $anchor[0].getBoundingClientRect();
         var delta =
           (btnRect.top + btnRect.height / 2) -
