@@ -76,8 +76,6 @@ jobs:
       # One branch breaking upstream shouldn't hide the state of the others.
       fail-fast: false
       matrix:
-        python_version:
-        - 3.11
         edx_branch: ${{ fromJson(needs.resolve-matrix.outputs.edx_branches) }}
 
     steps:
@@ -97,13 +95,27 @@ jobs:
         fi
         echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
+    # edx-platform's minimum Python version varies by branch (master moved
+    # to 3.12; the release branches are still on 3.11), so it can't be a
+    # single matrix-wide value the way it could when every branch agreed.
+    - name: Resolve Python version for edx-platform
+      id: python-version
+      env:
+        EDX_BRANCH: ${{ matrix.edx_branch }}
+      run: |
+        if [[ "$EDX_BRANCH" == "master" ]]; then
+          echo "version=3.12" >> "$GITHUB_OUTPUT"
+        else
+          echo "version=3.11" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Set up uv
       uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       with:
         enable-cache: true
 
-    - name: Set up Python ${{ matrix.python_version }}
-      run: uv python install ${{ matrix.python_version }}
+    - name: Set up Python ${{ steps.python-version.outputs.version }}
+      run: uv python install ${{ steps.python-version.outputs.version }}
 
     - name: Download built packages
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -143,7 +155,7 @@ jobs:
 
     - name: Generate edx-platform egg-info (registers Django app entry points)
       run: |
-        uv venv --python ${{ matrix.python_version }} .venv-edx-platform
+        uv venv --python ${{ steps.python-version.outputs.version }} .venv-edx-platform
         uv pip install --python .venv-edx-platform/bin/python --no-deps -e ${{ github.workspace }}/../edx-platform
 
     # Only needed while the openedx-dev-cache package is private. Once it is
