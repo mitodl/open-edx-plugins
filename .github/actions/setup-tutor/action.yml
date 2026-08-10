@@ -57,9 +57,6 @@ runs:
     run: |
       set -euo pipefail
 
-      # The openedx-dev image is built from Tutor's own templates and does not
-      # embed the edx-platform source (that is bind-mounted at run time), so
-      # the Tutor version is the only thing the image contents depend on.
       version=$(tutor --version | awk '{print $NF}')
       if [[ -d "./tutor/.git" ]]; then
         # Installed from git main, where the reported version stands still
@@ -74,8 +71,19 @@ runs:
       version_tag=${version//[^A-Za-z0-9_.-]/-}
       branch_slug=${EDX_BRANCH//\//-}
 
-      # Renders env/, which the test step's docker compose invocation reads.
-      tutor config save
+      # The openedx-dev image bakes in its own edx-platform checkout (via a
+      # Dockerfile ADD of $EDX_PLATFORM_REPOSITORY#$EDX_PLATFORM_VERSION),
+      # separate from the source this job resolves and mounts at test time.
+      # Without this override, EDX_PLATFORM_VERSION/OPENEDX_COMMON_VERSION
+      # falls back to Tutor's own default, which does not necessarily match
+      # $EDX_BRANCH - e.g. a Tutor install from git main defaults to its own
+      # upcoming release branch (release/verawood.1 as of this writing), not
+      # edx-platform's actual master, so the image's baked-in dependencies
+      # (e.g. openedx-filters) can silently drift out of sync with the
+      # mounted code. Pin it so the image always tracks the exact branch
+      # under test. Also renders env/, which the test step's docker compose
+      # invocation reads.
+      tutor config save --set OPENEDX_COMMON_VERSION="$EDX_BRANCH"
 
       openedx_dev_image="$(tutor config printvalue DOCKER_IMAGE_OPENEDX_DEV)"
       if [ -z "$openedx_dev_image" ]; then
