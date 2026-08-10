@@ -12,7 +12,57 @@ concurrency:
 env:
   GHCR_CACHE_OWNER: mitodl
 jobs:
+  resolve-matrix:
+    # Single source of truth for the edx_branch list, shared with
+    # ci-image-cache.yml via .github/edx-branches.json so the two workflows
+    # can't drift apart.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      edx_branches: ${{ steps.branches.outputs.edx_branches }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - id: branches
+      run: echo "edx_branches=$(cat .github/edx-branches.json)" >> "$GITHUB_OUTPUT"
+
+  build-packages:
+    # Built once and shared via artifact so the 3 integration-tests matrix
+    # legs, which all need the identical dist/ output, don't each rebuild it.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      with:
+        enable-cache: true
+
+    - name: Cache built packages
+      id: cache-dist
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: dist/
+        key: dist-${{ hashFiles('src/**', 'pyproject.toml', 'uv.lock') }}
+
+    - name: Build all packages
+      if: steps.cache-dist.outputs.cache-hit != 'true'
+      run: uv build --all-packages
+
+    - name: Upload built packages
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: dist
+        path: dist/
+
   integration-tests:
+    needs: [resolve-matrix, build-packages]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -28,13 +78,7 @@ jobs:
       matrix:
         python_version:
         - 3.11
-        # Keep in sync with the edx_branch matrix in ci-image-cache.yml.
-        edx_branch:
-        - master
-        - release/teak
-        - release/ulmo
-
-          # Add more branches as needed
+        edx_branch: ${{ fromJson(needs.resolve-matrix.outputs.edx_branches) }}
 
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -43,10 +87,12 @@ jobs:
 
     - name: Resolve edx-platform tip SHA
       id: edx-sha
+      env:
+        EDX_BRANCH: ${{ matrix.edx_branch }}
       run: |
-        SHA=$(git ls-remote https://github.com/openedx/edx-platform "refs/heads/${{ matrix.edx_branch }}" | cut -f1)
+        SHA=$(git ls-remote https://github.com/openedx/edx-platform "refs/heads/$EDX_BRANCH" | cut -f1)
         if [ -z "$SHA" ]; then
-          echo "Failed to resolve SHA for branch ${{ matrix.edx_branch }}. git ls-remote returned empty output."
+          echo "Failed to resolve SHA for branch $EDX_BRANCH. git ls-remote returned empty output."
           exit 1
         fi
         echo "sha=$SHA" >> "$GITHUB_OUTPUT"
@@ -59,16 +105,11 @@ jobs:
     - name: Set up Python ${{ matrix.python_version }}
       run: uv python install ${{ matrix.python_version }}
 
-    - name: Cache built packages
-      id: cache-dist
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    - name: Download built packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
+        name: dist
         path: dist/
-        key: dist-${{ hashFiles('src/**', 'pyproject.toml', 'uv.lock') }}
-
-    - name: Build all packages
-      if: steps.cache-dist.outputs.cache-hit != 'true'
-      run: uv build --all-packages
 
     - name: Cache pip packages
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -101,7 +142,8 @@ jobs:
         git -C "$EDX_DIR" checkout --detach FETCH_HEAD
 
     - name: Generate edx-platform egg-info (registers Django app entry points)
-      run: pip install --no-deps -e ${{ github.workspace }}/../edx-platform
+      run: uv pip install --python ${{ matrix.python_version }} --no-deps -e ${{ github.workspace
+        }}/../edx-platform
 
     # Only needed while the openedx-dev-cache package is private. Once it is
     # made public this step is a no-op for pulls, and fork PRs get cache hits
@@ -135,6 +177,11 @@ jobs:
       run: |
         tutor images build openedx-dev
 
+    # Tests below run each plugin's own pytest suite against Django TEST
+    # settings; pytest-django creates and migrates its own throwaway test
+    # database per run, independent of the persistent dev environment. So,
+    # unlike a real `tutor dev launch`, no `tutor dev launch -I`/`dev stop`
+    # init step is needed here before `docker compose run`.
     - name: Add edx-platform tutor mounts
       run: |
         cd "${{ github.workspace }}/../edx-platform"

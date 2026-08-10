@@ -30,10 +30,26 @@ concurrency:
 env:
   GHCR_CACHE_OWNER: mitodl
 jobs:
+  resolve-matrix:
+    # Single source of truth for the edx_branch list, shared with ci.yml via
+    # .github/edx-branches.json so the two workflows can't drift apart.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      edx_branches: ${{ steps.branches.outputs.edx_branches }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - id: branches
+      run: echo "edx_branches=$(cat .github/edx-branches.json)" >> "$GITHUB_OUTPUT"
+
   build-and-push:
     # Forks have no access to the upstream package, and pushing to their own
     # namespace would populate a cache nothing reads.
     if: github.repository_owner == 'mitodl'
+    needs: resolve-matrix
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -41,11 +57,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Keep in sync with the edx_branch matrix in ci.yml.
-        edx_branch:
-        - master
-        - release/teak
-        - release/ulmo
+        edx_branch: ${{ fromJson(needs.resolve-matrix.outputs.edx_branches) }}
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 

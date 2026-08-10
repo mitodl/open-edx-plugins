@@ -63,8 +63,13 @@ runs:
       version=$(tutor --version | awk '{print $NF}')
       if [[ -d "./tutor/.git" ]]; then
         # Installed from git main, where the reported version stands still
-        # across commits. Add the SHA so the cache invalidates on every commit.
-        version="${version}+git.$(git -C ./tutor rev-parse --short HEAD)"
+        # across commits. Tag by UTC date, not the exact commit SHA: this
+        # job and the nightly cache-build workflow each clone main
+        # independently, so an exact-SHA tag only matches if upstream
+        # main had zero commits in between - a date-based tag instead
+        # matches the once-a-day rebuild cadence this cache already relies
+        # on (see ci-image-cache.yml), so same-day runs reliably hit.
+        version="${version}+git.$(date -u +%Y-%m-%d)"
       fi
       version_tag=${version//[^A-Za-z0-9_.-]/-}
       branch_slug=${EDX_BRANCH//\//-}
