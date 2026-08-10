@@ -142,8 +142,8 @@ jobs:
         git -C "$EDX_DIR" checkout --detach FETCH_HEAD
 
     - name: Generate edx-platform egg-info (registers Django app entry points)
-      run: uv pip install --python ${{ matrix.python_version }} --no-deps -e ${{ github.workspace
-        }}/../edx-platform
+      run: uv pip install --python ${{ matrix.python_version }} --system --no-deps
+        -e ${{ github.workspace }}/../edx-platform
 
     # Only needed while the openedx-dev-cache package is private. Once it is
     # made public this step is a no-op for pulls, and fork PRs get cache hits
