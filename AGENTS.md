@@ -2,45 +2,54 @@
 
 ## Repository Overview
 
-This repository contains a collection of 17+ Open edX plugins that extend and enhance the Open edX platform functionality. The plugins are MIT Open Learning Engineering's custom extensions for features like system administration, authentication, monitoring, course management, and integrations.
+This repository contains a collection of 25 Open edX plugins that extend and enhance the Open edX platform functionality. The plugins are MIT Open Learning Engineering's custom extensions for features like system administration, authentication, monitoring, course management, and integrations.
 
 **Repository Type:** Python monorepo with multiple independent plugin packages
-**Size:** ~170 Python source files across 17 plugins
+**Size:** ~370 Python source files across 25 plugins
 **Languages/Frameworks:** Python 3.11+, Django 4.0+, Open edX platform
 **Build System:** UV (modern Python package manager), Hatchling backend
-**Target Runtime:** Open edX platform (tested against master, sumac.master, and teak releases)
+**Target Runtime:** Open edX platform (tested against master, release/teak, and release/ulmo releases)
+
+Each plugin directory also has its own `CLAUDE.md` (`src/<plugin>/CLAUDE.md`) with plugin-specific detail — purpose, key files, entry points/settings, and gotchas — that goes deeper than this shared guide. Read it first when working inside a specific plugin.
 
 ## Repository Structure
 
 ```
 edx-extensions/
-├── src/                          # Source code (workspace with 17 plugin packages)
+├── src/                          # Source code (workspace with 25 plugin packages)
 │   ├── edx_sysadmin/            # SysAdmin dashboard plugin
 │   ├── edx_username_changer/    # Username modification plugin
+│   ├── ol_openedx_ai_static_translations/  # AI-powered static UI translation management
 │   ├── ol_openedx_auto_select_language/    # Open edX plugin to auto select language based on course language
+│   ├── ol_openedx_canvas_integration/      # Canvas LMS integration (grades/enrollment sync)
 │   ├── ol_openedx_chat/         # Chat integration
 │   ├── ol_openedx_chat_xblock/  # Chat XBlock
+│   ├── ol_openedx_checkout_external/  # API for external (non-ecommerce) checkout redirects
+│   ├── ol_openedx_course_export/      # API to export courses as OLX to S3
+│   ├── ol_openedx_course_outline_api/ # Course outline API for the Learn product page
+│   ├── ol_openedx_course_structure_api/ # Read-only course block structure API
 │   ├── ol_openedx_course_sync/  # Course synchronization
 │   ├── ol_openedx_course_translations/  # Course translations
+│   ├── ol_openedx_events_handler/  # Centralized Open edX signal/event handlers
+│   ├── ol_openedx_feedback/     # Per-block learner feedback
 │   ├── ol_openedx_git_auto_export/ # Git export automation
-│   ├── ol_openedx_lti_utilities/ # LTI Utilities
 │   ├── ol_openedx_logging/      # Logging enhancements
+│   ├── ol_openedx_lti_utilities/ # LTI Utilities
 │   ├── ol_openedx_otel_monitoring/ # OpenTelemetry monitoring
+│   ├── ol_openedx_rapid_response_reports/ # Rapid response reporting (Instructor Dashboard)
 │   ├── ol_openedx_sentry/       # Sentry integration
+│   ├── ol_openedx_uai_content_customization/ # Bulk-generate industry/length-specific UAI course variants
 │   ├── ol_social_auth/          # Social authentication
 │   ├── openedx_companion_auth/  # Companion authentication
-│   ├── rapid_response_xblock/   # Rapid response XBlock
-│   └── [others...]              # Additional plugins
+│   └── rapid_response_xblock/   # Rapid response XBlock
 ├── docs/                         # Installation and testing guide (README.rst)
 ├── .github/workflows/            # CI/CD workflows
-│   ├── ci.yml                   # Integration tests with Tutor/edX
-│   └── test-and-build.yml       # Unit tests and package building
+│   └── ci.yml                   # Integration tests with Tutor/edX (only workflow in this repo)
 ├── pyproject.toml               # Root workspace configuration
 ├── uv.lock                      # Locked dependencies
 ├── setup.cfg                    # Legacy flake8/mypy config
 ├── .pre-commit-config.yaml      # Pre-commit hooks configuration
-├── run_edx_integration_tests.sh # Test runner script
-└── image_check.sh               # Docker image verification
+└── run_edx_integration_tests.sh # Test runner script
 
 Each plugin directory contains:
 - pyproject.toml          # Plugin-specific package metadata
@@ -75,7 +84,7 @@ This installs all workspace dependencies and dev tools (pytest, ruff, pre-commit
 ```bash
 uv build --all-packages
 ```
-Builds wheel and source distributions for all 17 plugins. Output goes to `dist/` directory. Takes ~30-60 seconds.
+Builds wheel and source distributions for all 25 plugins. Output goes to `dist/` directory. Takes ~30-60 seconds.
 
 **Run linter:**
 ```bash
@@ -108,9 +117,9 @@ cd open-edx-plugins
 uv build --all-packages
 
 # Install Tutor (version depends on Open edX release)
-pip install "tutor>=19.0.0,<20.0.0"  # For sumac.master
-# OR pip install "tutor>=20.0.0,<21.0.0"  # For teak release
-# OR install from main branch for master
+pip install "tutor>=20.0.0,<21.0.0"  # For release/teak
+# OR pip install "tutor>=21.0.0,<22.0.0"  # For release/ulmo
+# OR install from the Tutor main branch for master
 
 # Mount plugin directory
 tutor mounts add lms,cms:/path/to/open-edx-plugins:/openedx/open-edx-plugins
@@ -145,16 +154,18 @@ cd /openedx/open-edx-plugins
 - Copies edx-platform test_root to each plugin
 - Installs plugin from dist/ or in dev mode
 - Runs pytest with coverage using `--ds=settings.test` or `--ds=lms.envs.test`
-- Some plugins (ol_openedx_chat, ol_openedx_course_sync) run tests twice with CMS settings
+- Some plugins (ol_openedx_chat, ol_openedx_course_sync, ol_openedx_canvas_integration) run tests twice with CMS settings
 - Isolated plugins (openedx-companion-auth) are uninstalled after testing to avoid interference
 
 ## CI/CD Workflows
 
 ### GitHub Actions Workflows
 
-**1. CI Workflow (`.github/workflows/ci.yml`)**
+`.github/workflows/ci.yml` is currently the only workflow in this repo (no separate unit-test/build/publish workflow exists).
+
+**CI Workflow (`.github/workflows/ci.yml`)**
 - **Triggers:** Push to main, all PRs
-- **Matrix:** Python 3.11 × 3 Open edX branches (master, sumac.master, teak)
+- **Matrix:** Python 3.11 × 3 Open edX branches (master, release/teak, release/ulmo)
 - **Steps:**
   1. Checkout code
   2. Setup UV with caching
@@ -168,14 +179,7 @@ cd /openedx/open-edx-plugins
 - **Time:** ~30-45 minutes per matrix job
 - **Critical:** Must pass all matrix combinations for merge
 
-**2. Test and Build Workflow (`.github/workflows/test-and-build.yml`)**
-- **Triggers:** Push to main/develop, PRs to main
-- **Jobs:**
-  - `test`: Run pytest with coverage (NOTE: Will collect only 1 test and error on 14+ collection failures - this is expected as unit tests need edX environment)
-  - `build`: Build all packages, upload artifacts
-  - `publish`: Publish to PyPI (only on main branch pushes, requires PYPI_TOKEN secret)
-- **Time:** ~5-10 minutes
-- **Note:** This workflow's test job shows errors because tests require Open edX environment
+**PyPI publishing is not part of this GitHub Actions workflow.** It happens via a separate, external Concourse CI/CD pipeline (see `README.md`'s "Build and Publish" section) that builds, packages, and publishes each plugin to PyPI. New plugins must also be added to that pipeline's config (in the `ol-infrastructure` repo) to be published.
 
 ### Pre-commit Hooks
 All the following run automatically on `git commit` or via `pre-commit run --all-files`:
@@ -237,7 +241,7 @@ plugin_name = "plugin_name.apps:ConfigClass"
 3. **Version updates:**
    - **CRITICAL:** Update version in `src/<plugin>/pyproject.toml` before merging to main
    - Version follows semantic versioning
-   - Publishing to PyPI happens automatically on main branch merge
+   - Publishing to PyPI happens automatically on main branch merge, via an external Concourse pipeline (not the GitHub Actions `ci.yml` workflow — see `README.md`)
 
 4. **Common issues:**
    - **Django not configured:** Tests need Open edX environment
@@ -248,6 +252,9 @@ plugin_name = "plugin_name.apps:ConfigClass"
 
 Before submitting changes:
 - [ ] Updated plugin version in `src/<plugin>/pyproject.toml` (if applicable)
+- [ ] Updated the affected plugin's `src/<plugin>/CLAUDE.md` if this change
+      affects its behavior, entry points, or settings — keep it in sync with
+      the code the same way you keep `CHANGELOG.rst` in sync
 - [ ] Code formatted: `uv run ruff format .`
 - [ ] Linting passes: `uv run ruff check .`
 - [ ] Pre-commit hooks pass: `pre-commit run --all-files`
@@ -263,7 +270,7 @@ Before submitting changes:
 
 3. **Plugin isolation:** The `openedx-companion-auth` plugin modifies authentication flow and can break other tests. The test script automatically uninstalls it after testing.
 
-4. **Multiple test runs:** Some plugins (ol_openedx_chat, ol_openedx_course_sync) must be tested with both LMS and CMS Django settings, so tests run twice.
+4. **Multiple test runs:** Some plugins (ol_openedx_chat, ol_openedx_course_sync, ol_openedx_canvas_integration) must be tested with both LMS and CMS Django settings, so tests run twice.
 
 5. **Build artifacts:** The `dist/` directory contains built packages. The test script prefers installing from dist/ over editable installs.
 

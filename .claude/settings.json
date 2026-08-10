@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "out=$(uv run pre-commit run --all-files 2>&1); code=$?; if [ \"$code\" -ne 0 ]; then echo \"$out\" >&2; exit 2; fi; echo \"$out\"",
+            "timeout": 300,
+            "statusMessage": "Running pre-commit on all files..."
+          }
+        ]
+      }
+    ]
+  }
+}

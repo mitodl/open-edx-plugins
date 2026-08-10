@@ -10,6 +10,105 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  plugin-docs-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      with:
+        fetch-depth: 0
+
+    - name: Find plugins with source changes but no CLAUDE.md update
+      id: check
+      shell: bash
+      run: |
+        git fetch origin "${{ github.base_ref }}" --quiet
+        changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+
+        declare -A src_changed
+        declare -A doc_changed
+
+        while IFS= read -r f; do
+          [[ -z "$f" ]] && continue
+          [[ "$f" =~ ^src/([^/]+)/ ]] || continue
+          plugin="${BASH_REMATCH[1]}"
+          if [[ "$f" == "src/$plugin/CLAUDE.md" ]]; then
+            doc_changed[$plugin]=1
+          elif [[ "$f" == *"/tests/"* || "$f" == "src/$plugin/CHANGELOG.rst" ]]; then
+            continue
+          else
+            src_changed[$plugin]=1
+          fi
+        done <<< "$changed"
+
+        : > flagged_plugins.txt
+        for plugin in "${!src_changed[@]}"; do
+          [[ -z "${doc_changed[$plugin]:-}" ]] && echo "$plugin" >> flagged_plugins.txt
+        done
+        sort -o flagged_plugins.txt flagged_plugins.txt
+        cat flagged_plugins.txt
+
+    - name: Comment on PR
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      with:
+        script: |
+          const fs = require('fs');
+          const flagged = fs.existsSync('flagged_plugins.txt')
+            ? fs.readFileSync('flagged_plugins.txt', 'utf8').split('\n').filter(Boolean)
+            : [];
+          const marker = '<!-- plugin-docs-check -->';
+
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          const existing = comments.find((c) => c.body.includes(marker));
+
+          if (flagged.length === 0) {
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: `${marker}\n✅ No plugin \`CLAUDE.md\` drift detected for this PR's changes.`,
+              });
+            }
+            return;
+          }
+
+          const body = [
+            marker,
+            '### 📋 Plugin docs reminder',
+            '',
+            "This PR changes plugin source without a matching update to that plugin's `CLAUDE.md`:",
+            '',
+            ...flagged.map((p) => `- \`src/${p}/CLAUDE.md\``),
+            '',
+            "If this change affects that plugin's behavior, entry points, or settings, please " +
+              'update its `CLAUDE.md` too. If not (e.g. a pure test or formatting change), no ' +
+              'action needed — this is a reminder, not a blocking check.',
+          ].join('\n');
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existing.id,
+              body,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+          }
+
   integration-tests:
     runs-on: ubuntu-latest
     permissions:

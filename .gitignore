@@ -14,4 +14,4 @@ ol_test_requirements.txt
 coverage.xml
 
 # Claude
-.claude/
+.claude/settings.local.json
