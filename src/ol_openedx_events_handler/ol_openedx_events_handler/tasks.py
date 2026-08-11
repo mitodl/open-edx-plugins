@@ -11,7 +11,13 @@ log = logging.getLogger(__name__)
 REQUEST_TIMEOUT = 30
 
 HTTP_BAD_REQUEST = 400
+HTTP_REQUEST_TIMEOUT = 408
+HTTP_TOO_MANY_REQUESTS = 429
 HTTP_SERVER_ERROR = 500
+
+# 4xx responses that describe a transient condition rather than a bad request,
+# so they are retried like a 5xx instead of being dropped.
+RETRYABLE_CLIENT_ERRORS = frozenset({HTTP_REQUEST_TIMEOUT, HTTP_TOO_MANY_REQUESTS})
 
 
 @shared_task(
@@ -87,7 +93,9 @@ def notify_course_enrollment_created(user_email, course_key, mode):
 
     A 4xx response is logged and not retried: it means the request will never
     succeed as-is (e.g. the learner or the course run does not exist in the
-    external system, or the access token is invalid).
+    external system, or the access token is invalid). The exceptions are the
+    transient client errors in ``RETRYABLE_CLIENT_ERRORS``, which are retried
+    like a 5xx.
 
     Args:
         user_email (str): The email address of the enrolled user.
@@ -123,7 +131,8 @@ def notify_course_enrollment_created(user_email, course_key, mode):
         timeout=REQUEST_TIMEOUT,
     )
 
-    if HTTP_BAD_REQUEST <= response.status_code < HTTP_SERVER_ERROR:
+    is_client_error = HTTP_BAD_REQUEST <= response.status_code < HTTP_SERVER_ERROR
+    if is_client_error and response.status_code not in RETRYABLE_CLIENT_ERRORS:
         log.error(
             "Enrollment webhook rejected for user '%s' in course '%s'. "
             "Response status: %s, body: %s. Not retrying.",

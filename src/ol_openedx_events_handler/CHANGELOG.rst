@@ -9,7 +9,8 @@ Version 0.3.0 (2026-08-11)
   systems via the enrollment webhook.
 * Enrollments created by the webhook consumer's own service worker are skipped,
   configured through ``ENROLLMENT_WEBHOOK_SERVICE_WORKER_USERNAME``.
-* The enrollment webhook task no longer retries on ``4xx`` responses.
+* The enrollment webhook task no longer retries on ``4xx`` responses, except
+  the transient ``408`` and ``429``.
 
 Version 0.2.1 (2026-05-19)
 ---------------------------

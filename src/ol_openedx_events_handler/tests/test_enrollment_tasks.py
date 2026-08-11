@@ -55,7 +55,7 @@ def test_sends_webhook_with_correct_payload(mock_post, access_token, expect_auth
     mock_response.raise_for_status.assert_called_once()
 
 
-@pytest.mark.parametrize("status_code", [400, 401, 403, 404, 409])
+@pytest.mark.parametrize("status_code", [400, 401, 403, 404, 409, 422])
 @override_settings(
     ENROLLMENT_WEBHOOK_URL=WEBHOOK_URL,
     ENROLLMENT_WEBHOOK_ACCESS_TOKEN=TEST_TOKEN,
@@ -77,14 +77,27 @@ def test_does_not_retry_on_client_error(mock_post, status_code):
     mock_response.raise_for_status.assert_not_called()
 
 
-@pytest.mark.parametrize("status_code", [500, 502, 503])
+@pytest.mark.parametrize(
+    "status_code",
+    [
+        pytest.param(408, id="request-timeout"),
+        pytest.param(429, id="too-many-requests"),
+        pytest.param(500, id="server-error"),
+        pytest.param(502, id="bad-gateway"),
+        pytest.param(503, id="service-unavailable"),
+    ],
+)
 @override_settings(
     ENROLLMENT_WEBHOOK_URL=WEBHOOK_URL,
     ENROLLMENT_WEBHOOK_ACCESS_TOKEN=TEST_TOKEN,
 )
 @mock.patch("ol_openedx_events_handler.tasks.requests.post")
-def test_raises_on_server_error(mock_post, status_code):
-    """5xx responses should propagate so Celery retries them."""
+def test_raises_on_retryable_error(mock_post, status_code):
+    """Transient responses should propagate so Celery retries them.
+
+    408 and 429 are 4xx but describe a transient condition, so they are
+    retried rather than dropped.
+    """
     mock_response = mock.MagicMock()
     mock_response.status_code = status_code
     mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
