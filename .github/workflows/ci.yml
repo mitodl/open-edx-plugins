@@ -123,12 +123,6 @@ jobs:
         name: dist
         path: dist/
 
-    - name: Cache pip packages
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-      with:
-        path: ~/.cache/pip
-        key: pip-tutor-${{ matrix.edx_branch }}-${{ runner.os }}
-
     - name: Set up Tutor
       id: tutor
       uses: ./.github/actions/setup-tutor
@@ -153,10 +147,18 @@ jobs:
         git -C "$EDX_DIR" fetch --depth=1 origin "${{ steps.edx-sha.outputs.sha }}"
         git -C "$EDX_DIR" checkout --detach FETCH_HEAD
 
+    # Only the .egg-info written into the edx-platform source tree matters
+    # here; the venv is a throwaway target that keeps the install off the
+    # runner's system Python. It lives in RUNNER_TEMP rather than the
+    # workspace because the workspace is bind-mounted into the test container
+    # and is not covered by .gitignore.
     - name: Generate edx-platform egg-info (registers Django app entry points)
+      env:
+        EGG_INFO_VENV: ${{ runner.temp }}/venv-edx-platform
       run: |
-        uv venv --python ${{ steps.python-version.outputs.version }} .venv-edx-platform
-        uv pip install --python .venv-edx-platform/bin/python --no-deps -e ${{ github.workspace }}/../edx-platform
+        set -euo pipefail
+        uv venv --python ${{ steps.python-version.outputs.version }} "$EGG_INFO_VENV"
+        uv pip install --python "$EGG_INFO_VENV/bin/python" --no-deps -e ${{ github.workspace }}/../edx-platform
 
     # Only needed while the openedx-dev-cache package is private. Once it is
     # made public this step is a no-op for pulls, and fork PRs get cache hits

@@ -65,6 +65,14 @@ mkdir -p reports
 echo "===== Installing uv ====="
 pip install uv
 
+# Inert under GitHub Actions: the workflow reaches this script through
+# `docker compose run`, which does not forward the runner's CI variable into
+# the container, so this branch is never taken there. It is kept for anyone
+# invoking the script by hand with CI set, and it only makes sense from
+# /openedx/edx-platform, the container's working directory, where these
+# relative paths resolve. Enabling it in CI would mean passing `-e CI` in
+# ci.yml, which the openedx-dev image and the workflow's egg-info step
+# already make unnecessary.
 if [ $CI ]; then
 	pip install -r ./requirements/edx/testing.txt
 

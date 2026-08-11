@@ -19,11 +19,15 @@ on:
   workflow_dispatch: {}
   push:
     branches: [main]
-    # Refresh immediately when the Tutor install or tagging logic changes,
-    # rather than waiting for the next nightly run.
+    # Refresh immediately when the Tutor install or tagging logic changes, or
+    # when a branch joins or leaves the matrix, rather than waiting for the
+    # next nightly run. A newly added branch has no cached image at all, so
+    # without this every ci.yml run would pay for a local build until the
+    # nightly caught up.
     paths:
     - .github/workflows/ci-image-cache.yml
     - .github/actions/setup-tutor/action.yml
+    - .github/edx-branches.json
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
@@ -59,7 +63,12 @@ jobs:
       matrix:
         edx_branch: ${{ fromJson(needs.resolve-matrix.outputs.edx_branches) }}
     steps:
+    # This job only reads the checkout to run the composite action below; it
+    # performs no authenticated git operations, so the token has no reason to
+    # stay behind in .git/config where later steps could leak it.
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
 
     - name: Set up Tutor
       id: tutor
