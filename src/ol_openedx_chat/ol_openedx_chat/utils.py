@@ -139,20 +139,29 @@ def get_transcript_asset_id(block):
     try:
         transcripts_info = block.get_transcripts_info()
         transcripts = transcripts_info.get("transcripts", {})
+        transcript_languages = None
 
         def get_asset_id(lang):
+            nonlocal transcript_languages
             stored_filename = transcripts.get(lang)
-            if not (
-                stored_filename
-                or lang in get_available_transcript_languages(block.edx_video_id)
-            ):
-                return None
+            if not stored_filename:
+                # Lazily fetch and cache so a course/English fallback pair
+                # never queries edx-val for the same edx_video_id twice.
+                if transcript_languages is None:
+                    transcript_languages = get_available_transcript_languages(
+                        block.edx_video_id
+                    )
+                if lang not in transcript_languages:
+                    return None
             filename = (
                 f"{block.edx_video_id}-{lang}.srt"
                 if block.edx_video_id
                 else stored_filename
             )
             return Transcript.asset_location(block.location, filename)
+
+        if course_language == ENGLISH_LANG_CODE:
+            return get_asset_id(course_language)
 
         # Fallback to English transcript if the course language isn't available.
         return get_asset_id(course_language) or get_asset_id(ENGLISH_LANG_CODE)
