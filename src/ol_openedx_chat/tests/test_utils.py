@@ -267,6 +267,38 @@ class OLChatUtilTests(OLChatTestCase):
             # There's no edx_video_id to query edx-val with.
             mock_get_transcript_languages.assert_not_called()
 
+    def test_get_transcript_asset_id_ignores_local_transcripts_with_edx_video_id(self):
+        """
+        Test that get_transcript_asset_id ignores the block's locally stored
+        `transcripts` dict once edx_video_id is set, even if it has an entry
+        for a language edx-val doesn't know about -- edx-val, not the local
+        dict, is authoritative once there's an edx_video_id to query. A
+        regression back to also checking the local dict in this case would
+        make this test return the stale entry instead of None.
+        """
+        with (
+            patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id,
+            patch(
+                "ol_openedx_chat.utils.get_available_transcript_languages"
+            ) as mock_get_transcript_languages,
+            patch(
+                "ol_openedx_chat.utils.Transcript.asset_location"
+            ) as mock_asset_location,
+        ):
+            self.course.language = "fr"
+            mock_get_course_by_id.return_value = self.course
+
+            self.video_block.edx_video_id = "video-id"
+            # A stale/local-only entry edx-val doesn't know about for this
+            # edx_video_id.
+            self.video_block.transcripts = {"fr": "old-transcript-fr.srt"}
+            mock_get_transcript_languages.return_value = []
+
+            result = get_transcript_asset_id(self.video_block)
+
+            mock_asset_location.assert_not_called()
+            assert result is None
+
     def test_get_transcript_asset_id_exception(self):
         """
         Test that get_transcript_asset_id returns None when

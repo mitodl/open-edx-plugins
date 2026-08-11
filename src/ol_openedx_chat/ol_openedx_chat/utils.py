@@ -153,9 +153,6 @@ def get_transcript_asset_id(block):
                 return None
             return Transcript.asset_location(block.location, filename)
 
-        if course_language == ENGLISH_LANG_CODE:
-            return get_asset_id(course_language)
-
         # Fallback to English transcript if the course language isn't available.
         return get_asset_id(course_language) or get_asset_id(ENGLISH_LANG_CODE)
 
