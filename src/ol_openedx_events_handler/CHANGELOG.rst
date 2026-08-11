@@ -1,6 +1,16 @@
 Change Log
 ==========
 
+Version 0.3.0 (2026-08-11)
+---------------------------
+
+* Added LMS receiver for ``COURSE_ENROLLMENT_CREATED`` to mirror Open edX
+  enrollments (including manual instructor dashboard enrollments) in MIT
+  systems via the enrollment webhook.
+* Enrollments created by the webhook consumer's own service worker are skipped,
+  configured through ``ENROLLMENT_WEBHOOK_SERVICE_WORKER_USERNAME``.
+* The enrollment webhook task no longer retries on ``4xx`` responses.
+
 Version 0.2.1 (2026-05-19)
 ---------------------------
 

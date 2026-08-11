@@ -10,6 +10,9 @@ log = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 30
 
+HTTP_BAD_REQUEST = 400
+HTTP_SERVER_ERROR = 500
+
 
 @shared_task(
     autoretry_for=(requests.exceptions.RequestException,),
@@ -58,6 +61,79 @@ def notify_course_access_role_addition(user_email, course_key, role):
         headers=headers,
         timeout=REQUEST_TIMEOUT,
     )
+    response.raise_for_status()
+
+    log.info(
+        "Successfully sent enrollment webhook for user '%s' in course '%s'. "
+        "Response status: %s",
+        user_email,
+        course_key,
+        response.status_code,
+    )
+
+
+@shared_task(
+    autoretry_for=(requests.exceptions.RequestException,),
+    retry_kwargs={"max_retries": 2},
+    retry_backoff=True,
+    retry_backoff_max=120,
+)
+def notify_course_enrollment_created(user_email, course_key, mode):
+    """
+    Notify an external system that a user has been enrolled in a course.
+
+    Sends a POST request to the configured webhook endpoint so the external
+    system can mirror the enrollment.
+
+    A 4xx response is logged and not retried: it means the request will never
+    succeed as-is (e.g. the learner or the course run does not exist in the
+    external system, or the access token is invalid).
+
+    Args:
+        user_email (str): The email address of the enrolled user.
+        course_key (str): The string representation of the course key.
+        mode (str): The enrollment mode, e.g. 'audit' or 'verified'.
+    """
+    webhook_url = getattr(settings, "ENROLLMENT_WEBHOOK_URL", None)
+    access_token = getattr(settings, "ENROLLMENT_WEBHOOK_ACCESS_TOKEN", None)
+
+    payload = {
+        "email": user_email,
+        "course_id": course_key,
+        "mode": mode,
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+    }
+    if access_token:
+        headers["Authorization"] = f"Bearer {access_token}"
+
+    log.info(
+        "Sending enrollment webhook for user '%s' in course '%s' (mode: %s)",
+        user_email,
+        course_key,
+        mode,
+    )
+
+    response = requests.post(
+        webhook_url,
+        json=payload,
+        headers=headers,
+        timeout=REQUEST_TIMEOUT,
+    )
+
+    if HTTP_BAD_REQUEST <= response.status_code < HTTP_SERVER_ERROR:
+        log.error(
+            "Enrollment webhook rejected for user '%s' in course '%s'. "
+            "Response status: %s, body: %s. Not retrying.",
+            user_email,
+            course_key,
+            response.status_code,
+            response.text,
+        )
+        return
+
     response.raise_for_status()
 
     log.info(

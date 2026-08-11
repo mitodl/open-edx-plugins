@@ -15,6 +15,16 @@ _COURSE_ACCESS_ROLE_ADDED_RECEIVER = {
     ),
 }
 
+_COURSE_ENROLLMENT_CREATED_RECEIVER = {
+    PluginSignals.RECEIVER_FUNC_NAME: "handle_course_enrollment_created",
+    PluginSignals.SIGNAL_PATH: (
+        "openedx_events.learning.signals.COURSE_ENROLLMENT_CREATED"
+    ),
+    PluginSignals.DISPATCH_UID: (
+        "ol_openedx_events_handler.handlers.enrollment.handle_course_enrollment_created"
+    ),
+}
+
 _COURSE_GRADE_NOW_PASSED_RECEIVER = {
     PluginSignals.RECEIVER_FUNC_NAME: "listen_for_passing_grade",
     PluginSignals.SIGNAL_PATH: (
@@ -48,6 +58,7 @@ class OlOpenedxEventsHandlerConfig(AppConfig):
                 PluginSignals.RELATIVE_PATH: "handlers.lms",
                 PluginSignals.RECEIVERS: [
                     _COURSE_ACCESS_ROLE_ADDED_RECEIVER,
+                    _COURSE_ENROLLMENT_CREATED_RECEIVER,
                     _COURSE_GRADE_NOW_PASSED_RECEIVER,
                 ],
             },
