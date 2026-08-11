@@ -116,14 +116,16 @@ def get_transcript_asset_id(block):
     """
     Get the transcript asset ID for a video block.
 
-    When the block has a current `edx_video_id`, Studio names transcripts
-    after it (`{edx_video_id}-{lang}.srt`), so the filename is always rebuilt
-    from `block.edx_video_id` rather than trusted from `get_transcripts_info()`.
-    That stored filename can reference a stale `edx_video_id` when authors swap
-    the video in Studio without reuploading the transcript, which would
-    otherwise point the chat at the wrong video's transcript. Blocks with no
-    `edx_video_id` (e.g. legacy videos with manually uploaded transcripts) use
-    the stored filename as-is, since there's no `edx_video_id` to rebuild from.
+    When the block has a current `edx_video_id`, edx-val
+    (`get_available_transcript_languages`) is the sole source of truth for
+    which languages exist, and Studio names those transcripts after it
+    (`{edx_video_id}-{lang}.srt`). `get_transcripts_info()`'s locally stored
+    filename is never used, since it can reference a stale `edx_video_id`
+    when authors swap the video in Studio without reuploading the
+    transcript, which would otherwise point the chat at the wrong video's
+    transcript. Blocks with no `edx_video_id` (e.g. legacy videos with
+    manually uploaded transcripts) have nothing to look up in edx-val, so
+    they fall back to the block's stored `transcripts` filenames directly.
 
     Args:
         block (VideoBlock): The video block for which to get the transcript asset ID.
@@ -137,28 +139,25 @@ def get_transcript_asset_id(block):
 
     course_language = LanguageCode(course.language).to_bcp47()
     try:
-        transcripts_info = block.get_transcripts_info()
-        transcripts = transcripts_info.get("transcripts", {})
-        transcript_languages = None
+        if block.edx_video_id:
+            transcript_languages = get_available_transcript_languages(
+                block.edx_video_id
+            )
 
-        def get_asset_id(lang):
-            nonlocal transcript_languages
-            stored_filename = transcripts.get(lang)
-            if not stored_filename:
-                # Lazily fetch and cache so a course/English fallback pair
-                # never queries edx-val for the same edx_video_id twice.
-                if transcript_languages is None:
-                    transcript_languages = get_available_transcript_languages(
-                        block.edx_video_id
-                    )
+            def get_asset_id(lang):
                 if lang not in transcript_languages:
                     return None
-            filename = (
-                f"{block.edx_video_id}-{lang}.srt"
-                if block.edx_video_id
-                else stored_filename
-            )
-            return Transcript.asset_location(block.location, filename)
+                return Transcript.asset_location(
+                    block.location, f"{block.edx_video_id}-{lang}.srt"
+                )
+        else:
+            stored_transcripts = block.transcripts or {}
+
+            def get_asset_id(lang):
+                stored_filename = stored_transcripts.get(lang)
+                if not stored_filename:
+                    return None
+                return Transcript.asset_location(block.location, stored_filename)
 
         if course_language == ENGLISH_LANG_CODE:
             return get_asset_id(course_language)
