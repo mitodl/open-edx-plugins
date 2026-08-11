@@ -71,14 +71,13 @@ jobs:
 
     - name: Run tests on tutor
       run: |
-        if [[ "${{ matrix.edx_branch }}" == "master" ]]; then
-          DEV="tutor_main_dev"
-          DIRECTORY="tutor-main"
-        else
-          DEV="tutor_dev"
-          DIRECTORY="tutor"
-        fi
-        EDX_WORKSPACE=$PWD/.. docker compose -f /home/runner/.local/share/$DIRECTORY/env/local/docker-compose.yml -f /home/runner/.local/share/$DIRECTORY/env/dev/docker-compose.yml --project-name $DEV run -v $PWD:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh --mount-dir /openedx/open-edx-plugins
+        # Ask tutor where its root and dev project are rather than hardcoding
+        # them. Both depend on tutor's __app__, which gains a "-<suffix>" only
+        # while a branch carries a __version_suffix__ (empty on main between
+        # releases), so any hardcoded value goes stale without warning.
+        TUTOR_ROOT_DIR="$(tutor config printroot)"
+        DEV_PROJECT_NAME="$(tutor config printvalue DEV_PROJECT_NAME)"
+        EDX_WORKSPACE=$PWD/.. docker compose -f "$TUTOR_ROOT_DIR/env/local/docker-compose.yml" -f "$TUTOR_ROOT_DIR/env/dev/docker-compose.yml" --project-name "$DEV_PROJECT_NAME" run -v $PWD:/openedx/open-edx-plugins lms /openedx/open-edx-plugins/run_edx_integration_tests.sh --mount-dir /openedx/open-edx-plugins
     - name: Upload coverage to CodeCov
       uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
       with:
