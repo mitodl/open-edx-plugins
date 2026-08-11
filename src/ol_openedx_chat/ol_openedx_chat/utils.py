@@ -116,6 +116,15 @@ def get_transcript_asset_id(block):
     """
     Get the transcript asset ID for a video block.
 
+    When the block has a current `edx_video_id`, Studio names transcripts
+    after it (`{edx_video_id}-{lang}.srt`), so the filename is always rebuilt
+    from `block.edx_video_id` rather than trusted from `get_transcripts_info()`.
+    That stored filename can reference a stale `edx_video_id` when authors swap
+    the video in Studio without reuploading the transcript, which would
+    otherwise point the chat at the wrong video's transcript. Blocks with no
+    `edx_video_id` (e.g. legacy videos with manually uploaded transcripts) use
+    the stored filename as-is, since there's no `edx_video_id` to rebuild from.
+
     Args:
         block (VideoBlock): The video block for which to get the transcript asset ID.
 
@@ -130,31 +139,23 @@ def get_transcript_asset_id(block):
     try:
         transcripts_info = block.get_transcripts_info()
         transcripts = transcripts_info.get("transcripts", {})
-        if transcripts and transcripts.get(course_language):
-            return Transcript.asset_location(
-                block.location,
-                transcripts_info["transcripts"][course_language],
-            )
 
-        transcript_languages = get_available_transcript_languages(block.edx_video_id)
-        if course_language in transcript_languages:
-            return Transcript.asset_location(
-                block.location,
-                f"{block.edx_video_id}-{course_language}.srt",
+        def get_asset_id(lang):
+            stored_filename = transcripts.get(lang)
+            if not (
+                stored_filename
+                or lang in get_available_transcript_languages(block.edx_video_id)
+            ):
+                return None
+            filename = (
+                f"{block.edx_video_id}-{lang}.srt"
+                if block.edx_video_id
+                else stored_filename
             )
+            return Transcript.asset_location(block.location, filename)
 
-        # Fallback to English transcript if available.
-        if transcripts and transcripts.get(ENGLISH_LANG_CODE):
-            return Transcript.asset_location(
-                block.location,
-                transcripts_info["transcripts"][ENGLISH_LANG_CODE],
-            )
-
-        if ENGLISH_LANG_CODE in transcript_languages:
-            return Transcript.asset_location(
-                block.location,
-                f"{block.edx_video_id}-{ENGLISH_LANG_CODE}.srt",
-            )
+        # Fallback to English transcript if the course language isn't available.
+        return get_asset_id(course_language) or get_asset_id(ENGLISH_LANG_CODE)
 
     except Exception:  # noqa: BLE001
         log.info(
