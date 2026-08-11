@@ -140,24 +140,18 @@ def get_transcript_asset_id(block):
     course_language = LanguageCode(course.language).to_bcp47()
     try:
         if block.edx_video_id:
-            transcript_languages = get_available_transcript_languages(
-                block.edx_video_id
-            )
-
-            def get_asset_id(lang):
-                if lang not in transcript_languages:
-                    return None
-                return Transcript.asset_location(
-                    block.location, f"{block.edx_video_id}-{lang}.srt"
-                )
+            filenames = {
+                lang: f"{block.edx_video_id}-{lang}.srt"
+                for lang in get_available_transcript_languages(block.edx_video_id)
+            }
         else:
-            stored_transcripts = block.transcripts or {}
+            filenames = block.transcripts or {}
 
-            def get_asset_id(lang):
-                stored_filename = stored_transcripts.get(lang)
-                if not stored_filename:
-                    return None
-                return Transcript.asset_location(block.location, stored_filename)
+        def get_asset_id(lang):
+            filename = filenames.get(lang)
+            if not filename:
+                return None
+            return Transcript.asset_location(block.location, filename)
 
         if course_language == ENGLISH_LANG_CODE:
             return get_asset_id(course_language)
