@@ -62,6 +62,17 @@ pwd
 
 mkdir -p reports
 
+echo "===== Installing uv ====="
+pip install uv
+
+# Inert under GitHub Actions: the workflow reaches this script through
+# `docker compose run`, which does not forward the runner's CI variable into
+# the container, so this branch is never taken there. It is kept for anyone
+# invoking the script by hand with CI set, and it only makes sense from
+# /openedx/edx-platform, the container's working directory, where these
+# relative paths resolve. Enabling it in CI would mean passing `-e CI` in
+# ci.yml, which the openedx-dev image and the workflow's egg-info step
+# already make unnecessary.
 if [ $CI ]; then
 	pip install -r ./requirements/edx/testing.txt
 
@@ -82,13 +93,10 @@ if [ -n "$MOUNT_DIR" ]; then
 fi
 
 if [ "$SKIP_BUILD" != true ]; then
-	# Installing test dependencies using UV (this includes pytest-mock, responses, codecov, etc.)
-	echo "===== Installing uv ====="
-	curl -LsSf https://astral.sh/uv/install.sh | sh
-	source $HOME/.local/bin/env
+	# Installing test dependencies (this includes pytest-mock, responses, codecov, etc.)
 	echo "===== Installing Packages ====="
 	uv export --only-dev --no-hashes --no-annotate >ol_test_requirements.txt
-	pip install -r ol_test_requirements.txt
+	uv pip install -r ol_test_requirements.txt
 
 	# output the packages which are installed for logging
 	echo "===== Installed Python Packages ====="
@@ -136,10 +144,10 @@ run_plugin_tests() {
 
 	if [ -n "$tarball" ]; then
 		echo "Installing $plugin_name from dist/$tarball"
-		pip install "dist/$tarball"
+		uv pip install "dist/$tarball"
 	else
 		echo "No built package found for $plugin_name, installing in development mode"
-		pip install -e "$plugin_dir"
+		uv pip install -e "$plugin_dir"
 	fi
 
 	# Copying test_root only if it doesn't exist

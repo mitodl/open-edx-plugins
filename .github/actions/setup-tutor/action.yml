@@ -1,0 +1,109 @@
+---
+name: Set up Tutor
+description: >-
+  Install the Tutor release matching an Open edX branch and derive the
+  openedx-dev image names. Shared by ci.yml (which pulls the cached image)
+  and ci-image-cache.yml (which builds and pushes it) so the two can never
+  disagree about the cache tag.
+inputs:
+  edx_branch:
+    description: Open edX branch under test, e.g. master or release/teak
+    required: true
+  ghcr_owner:
+    description: GitHub org that owns the openedx-dev-cache package
+    required: true
+outputs:
+  branch_slug:
+    description: edx_branch with slashes replaced, safe for use in an image tag
+    value: ${{ steps.names.outputs.branch_slug }}
+  version_tag:
+    description: Installed Tutor version, sanitised for use in an image tag
+    value: ${{ steps.names.outputs.version_tag }}
+  openedx_dev_image:
+    description: Local image name Tutor expects, from DOCKER_IMAGE_OPENEDX_DEV
+    value: ${{ steps.names.outputs.openedx_dev_image }}
+  cache_image_tag:
+    description: Fully qualified GHCR tag holding the cached openedx-dev image
+    value: ${{ steps.names.outputs.cache_image_tag }}
+  tutor_root:
+    description: TUTOR_ROOT as Tutor itself reports it, holding env/
+    value: ${{ steps.names.outputs.tutor_root }}
+  compose_project:
+    description: Docker Compose project name for the Tutor dev environment
+    value: ${{ steps.names.outputs.compose_project }}
+runs:
+  using: composite
+  steps:
+  - name: Install Tutor
+    shell: bash
+    env:
+      EDX_BRANCH: ${{ inputs.edx_branch }}
+    run: |
+      if [[ "$EDX_BRANCH" == "release/teak" ]]; then
+        pip install "tutor>=20.0.0,<21.0.0"
+      elif [[ "$EDX_BRANCH" == "master" ]]; then
+        git clone --depth=1 --branch=main https://github.com/overhangio/tutor.git
+        pip install -e "./tutor"
+      else
+        pip install "tutor>=21.0.0,<22.0.0"
+      fi
+
+  - name: Derive image names
+    id: names
+    shell: bash
+    env:
+      EDX_BRANCH: ${{ inputs.edx_branch }}
+      GHCR_OWNER: ${{ inputs.ghcr_owner }}
+    run: |
+      set -euo pipefail
+
+      version=$(tutor --version | awk '{print $NF}')
+      if [[ -d "./tutor/.git" ]]; then
+        # Installed from git main, where the reported version stands still
+        # across commits. Tag by UTC date, not the exact commit SHA: this
+        # job and the nightly cache-build workflow each clone main
+        # independently, so an exact-SHA tag only matches if upstream
+        # main had zero commits in between - a date-based tag instead
+        # matches the once-a-day rebuild cadence this cache already relies
+        # on (see ci-image-cache.yml), so same-day runs reliably hit.
+        version="${version}+git.$(date -u +%Y-%m-%d)"
+      fi
+      version_tag=${version//[^A-Za-z0-9_.-]/-}
+      branch_slug=${EDX_BRANCH//\//-}
+
+      # The openedx-dev image bakes in its own edx-platform checkout (via a
+      # Dockerfile ADD of $EDX_PLATFORM_REPOSITORY#$EDX_PLATFORM_VERSION),
+      # separate from the source this job resolves and mounts at test time.
+      # Without this override, EDX_PLATFORM_VERSION/OPENEDX_COMMON_VERSION
+      # falls back to Tutor's own default, which does not necessarily match
+      # $EDX_BRANCH - e.g. a Tutor install from git main defaults to its own
+      # upcoming release branch (release/verawood.1 as of this writing), not
+      # edx-platform's actual master, so the image's baked-in dependencies
+      # (e.g. openedx-filters) can silently drift out of sync with the
+      # mounted code. Pin it so the image always tracks the exact branch
+      # under test. Also renders env/, which the test step's docker compose
+      # invocation reads.
+      tutor config save --set OPENEDX_COMMON_VERSION="$EDX_BRANCH"
+
+      openedx_dev_image="$(tutor config printvalue DOCKER_IMAGE_OPENEDX_DEV)"
+      if [ -z "$openedx_dev_image" ]; then
+        echo "Failed to read DOCKER_IMAGE_OPENEDX_DEV from tutor config" >&2
+        exit 1
+      fi
+
+      # Ask Tutor where its root is rather than assuming. The directory is
+      # named after __app__, which picks up __version_suffix__ ("tutor-main"
+      # when the main branch carries a suffix, plain "tutor" when it does not
+      # — as happens on release day, when the suffix is reset). Hardcoding
+      # either spelling breaks the moment upstream flips it.
+      tutor_root="$(tutor config printroot)"
+      compose_project="$(basename "$tutor_root" | tr '-' '_')_dev"
+
+      {
+        echo "branch_slug=$branch_slug"
+        echo "version_tag=$version_tag"
+        echo "openedx_dev_image=$openedx_dev_image"
+        echo "cache_image_tag=ghcr.io/${GHCR_OWNER}/openedx-dev-cache:${branch_slug}-${version_tag}"
+        echo "tutor_root=$tutor_root"
+        echo "compose_project=$compose_project"
+      } >> "$GITHUB_OUTPUT"
