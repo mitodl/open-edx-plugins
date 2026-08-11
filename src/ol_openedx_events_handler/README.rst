@@ -68,11 +68,23 @@ edx-platform configuration
 
     ENROLLMENT_WEBHOOK_SERVICE_WORKER_USERNAME: "<service-worker-username>"
 
-  This must match the external system's service worker account, for example
-  MITx Online's ``OPENEDX_SERVICE_WORKER_USERNAME``. When it is unset, or when
-  the acting user cannot be determined (an enrollment made from a Celery task or
-  a management command), the webhook is dispatched anyway. The receiving
-  endpoint is idempotent, so a redundant call is harmless, while dropping a real
-  enrollment is not.
+  This must be the username of the Django user that **owns the OAuth2 token**
+  the external system authenticates with, because that is the user Open edX
+  resolves the request to. Do not copy the external system's own
+  service-worker-username setting (for example MITx Online's
+  ``OPENEDX_SERVICE_WORKER_USERNAME``): nothing keeps the two in sync, and if
+  they disagree the filter never matches and every enrollment the external
+  system creates is sent straight back to it. Resolve the owner from the token
+  itself:
+
+  .. code-block:: python
+
+    from oauth2_provider.models import AccessToken
+    AccessToken.objects.get(token="<the external system's API token>").user.username
+
+  When the setting is unset, or when the acting user cannot be determined (an
+  enrollment made from a Celery task or a management command), the webhook is
+  dispatched anyway. The receiving endpoint is idempotent, so a redundant call
+  is harmless, while dropping a real enrollment is not.
 
 - For Tutor installations, these values can also be managed through a `custom Tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
