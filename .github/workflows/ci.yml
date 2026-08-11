@@ -130,15 +130,13 @@ jobs:
         edx_branch: ${{ matrix.edx_branch }}
         ghcr_owner: ${{ env.GHCR_CACHE_OWNER }}
 
-    - name: Cache edx-platform
-      id: cache-edx-platform
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-      with:
-        path: ${{ github.workspace }}/../edx-platform
-        key: edx-platform-${{ matrix.edx_branch }}-${{ steps.edx-sha.outputs.sha }}
-
+    # Deliberately not cached. The checkout has to be a sibling of the
+    # workspace (the test step passes EDX_WORKSPACE="$PWD/.." to docker
+    # compose), and actions/cache rejects a path containing "..", so the
+    # cache step this replaced always missed and never saved. Caching it
+    # properly would store a very large repo under a key that changes on
+    # every upstream commit, to avoid a shallow fetch that takes ~5s.
     - name: Clone edx-platform
-      if: steps.cache-edx-platform.outputs.cache-hit != 'true'
       run: |
         set -euo pipefail
         EDX_DIR="${{ github.workspace }}/../edx-platform"
