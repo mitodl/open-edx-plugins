@@ -1,6 +1,6 @@
 """Tests for the util methods"""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from ddt import data, ddt, unpack
 from ol_openedx_chat.utils import (
@@ -181,62 +181,21 @@ class OLChatUtilTests(OLChatTestCase):
             assert course is None
 
     @data(
-        # (course_language, transcripts, edx_video_id_transcripts, expected_asset_id_suffix)  # noqa: ERA001,E501
-        (
-            "en",
-            {"en": "transcript-en.srt", "es": "transcript-es.srt"},
-            [],
-            "transcript-en.srt",
-        ),  # Course language transcript
-        (
-            "es",
-            {"en": "transcript-en.srt", "es": "transcript-es.srt"},
-            [],
-            "transcript-es.srt",
-        ),  # Non-English course language
-        (
-            "es_419",
-            {
-                "en": "transcript-en.srt",
-                "es": "transcript-es.srt",
-                "es-419": "transcript-es-419.srt",
-            },
-            [],
-            "transcript-es-419.srt",
-        ),  # Non-English course language
-        (
-            "de_DE",
-            {
-                "en": "transcript-en.srt",
-                "es": "transcript-es.srt",
-                "de-DE": "transcript-de-DE.srt",
-            },
-            [],
-            "transcript-de-DE.srt",
-        ),  # Non-English course language
-        ("es", {}, ["es"], "video-id-es.srt"),  # Transcript from edx_video_id
-        (
-            "es_419",
-            {},
-            ["es-419"],
-            "video-id-es-419.srt",
-        ),  # Transcript from edx_video_id
-        ("de_DE", {}, ["de-DE"], "video-id-de-DE.srt"),  # Transcript from edx_video_id
-        (
-            "es",
-            {"en": "transcript-en.srt"},
-            [],
-            "transcript-en.srt",
-        ),  # Fallback to English transcript
-        ("es", {}, ["en"], "video-id-en.srt"),  # Fallback to English from edx_video_id
-        ("es", {}, [], None),  # No transcript available
+        # (course_language, transcript_languages, expected_id_suffix)  # noqa: ERA001
+        # edx-val's `get_available_transcript_languages` is the sole source
+        # of truth for which languages exist when edx_video_id is set.
+        ("en", ["en", "es"], "video-id-en.srt"),  # Course language transcript
+        ("es", ["en", "es"], "video-id-es.srt"),  # Non-English course language
+        ("es_419", ["en", "es", "es-419"], "video-id-es-419.srt"),
+        ("de_DE", ["en", "es", "de-DE"], "video-id-de-DE.srt"),
+        ("es", ["en"], "video-id-en.srt"),  # Fallback to English transcript
+        ("es", [], None),  # No transcript available
     )
     @unpack
     def test_get_transcript_asset_id(
         self,
         course_language,
-        transcripts,
-        edx_video_id_transcripts,
+        transcript_languages,
         expected_asset_id_suffix,
     ):
         """Test that get_transcript_asset_id returns the correct asset ID"""
@@ -244,46 +203,116 @@ class OLChatUtilTests(OLChatTestCase):
             patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id,
             patch(
                 "ol_openedx_chat.utils.get_available_transcript_languages"
-            ) as mock_get_transcripts,
+            ) as mock_get_transcript_languages,
             patch(
                 "ol_openedx_chat.utils.Transcript.asset_location"
             ) as mock_asset_location,
         ):
-            # Setup course language
             self.course.language = course_language
             mock_get_course_by_id.return_value = self.course
 
-            # Setup video block
             self.video_block.edx_video_id = "video-id"
-            mock_transcripts_info = {"transcripts": transcripts}
-            self.video_block.get_transcripts_info = MagicMock(
-                return_value=mock_transcripts_info
-            )
+            mock_get_transcript_languages.return_value = transcript_languages
 
-            # Setup edx_video_id transcripts
-            mock_get_transcripts.return_value = edx_video_id_transcripts
-
-            # Setup mock return value
-            if expected_asset_id_suffix:
-                mock_asset_location.return_value = (
-                    f"asset-id-{expected_asset_id_suffix}"
-                )
+            mock_asset_location.return_value = "mocked-asset-location"
 
             result = get_transcript_asset_id(self.video_block)
 
             if expected_asset_id_suffix:
-                assert result == f"asset-id-{expected_asset_id_suffix}"
-                mock_asset_location.assert_called_once()
+                # Assert on the filename actually passed to `asset_location`,
+                # not just that it was called, so a regression to building the
+                # asset ID from a stored/stale filename instead of
+                # `edx_video_id` would fail this test.
+                mock_asset_location.assert_called_once_with(
+                    self.video_block.location, expected_asset_id_suffix
+                )
+                assert result == "mocked-asset-location"
             else:
+                mock_asset_location.assert_not_called()
                 assert result is None
 
-    def test_get_transcript_asset_id_exception(self):
-        """Test that get_transcript_asset_id returns None when an exception occurs"""
-        with patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id:
+            # edx-val is queried exactly once per call, regardless of
+            # whether the course-language or English-fallback branch matches.
+            mock_get_transcript_languages.assert_called_once_with("video-id")
+
+    def test_get_transcript_asset_id_no_edx_video_id(self):
+        """
+        Test that get_transcript_asset_id falls back to the block's stored
+        `transcripts` field when there's no edx_video_id to query edx-val
+        with (e.g. legacy videos with manually uploaded transcripts).
+        """
+        with (
+            patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id,
+            patch(
+                "ol_openedx_chat.utils.get_available_transcript_languages"
+            ) as mock_get_transcript_languages,
+            patch(
+                "ol_openedx_chat.utils.Transcript.asset_location"
+            ) as mock_asset_location,
+        ):
+            self.course.language = "en"
             mock_get_course_by_id.return_value = self.course
-            self.video_block.get_transcripts_info = MagicMock(
-                side_effect=Exception("Transcript error")
+
+            self.video_block.edx_video_id = ""
+            self.video_block.transcripts = {"en": "legacy-transcript.srt"}
+
+            mock_asset_location.return_value = "mocked-asset-location"
+
+            result = get_transcript_asset_id(self.video_block)
+
+            mock_asset_location.assert_called_once_with(
+                self.video_block.location, "legacy-transcript.srt"
             )
+            assert result == "mocked-asset-location"
+            # There's no edx_video_id to query edx-val with.
+            mock_get_transcript_languages.assert_not_called()
+
+    def test_get_transcript_asset_id_ignores_local_transcripts_with_edx_video_id(self):
+        """
+        Test that get_transcript_asset_id ignores the block's locally stored
+        `transcripts` dict once edx_video_id is set, even if it has an entry
+        for a language edx-val doesn't know about -- edx-val, not the local
+        dict, is authoritative once there's an edx_video_id to query. A
+        regression back to also checking the local dict in this case would
+        make this test return the stale entry instead of None.
+        """
+        with (
+            patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id,
+            patch(
+                "ol_openedx_chat.utils.get_available_transcript_languages"
+            ) as mock_get_transcript_languages,
+            patch(
+                "ol_openedx_chat.utils.Transcript.asset_location"
+            ) as mock_asset_location,
+        ):
+            self.course.language = "fr"
+            mock_get_course_by_id.return_value = self.course
+
+            self.video_block.edx_video_id = "video-id"
+            # A stale/local-only entry edx-val doesn't know about for this
+            # edx_video_id.
+            self.video_block.transcripts = {"fr": "old-transcript-fr.srt"}
+            mock_get_transcript_languages.return_value = []
+
+            result = get_transcript_asset_id(self.video_block)
+
+            mock_asset_location.assert_not_called()
+            assert result is None
+
+    def test_get_transcript_asset_id_exception(self):
+        """
+        Test that get_transcript_asset_id returns None when
+        get_available_transcript_languages raises
+        """
+        with (
+            patch("ol_openedx_chat.utils.get_course_by_id") as mock_get_course_by_id,
+            patch(
+                "ol_openedx_chat.utils.get_available_transcript_languages"
+            ) as mock_get_transcript_languages,
+        ):
+            mock_get_course_by_id.return_value = self.course
+            self.video_block.edx_video_id = "video-id"
+            mock_get_transcript_languages.side_effect = Exception("Transcript error")
 
             result = get_transcript_asset_id(self.video_block)
             assert result is None
