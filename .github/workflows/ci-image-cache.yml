@@ -1,0 +1,97 @@
+---
+name: Refresh CI image cache
+# Builds the openedx-dev image for each Open edX branch under test and pushes
+# it to GHCR, where ci.yml pulls it instead of spending ~13 minutes per matrix
+# leg rebuilding it.
+#
+# This lives in its own workflow, off the critical path, for two reasons:
+#
+# 1. Least privilege. packages:write is granted only here, and this job runs
+#    no pull request code: no plugin build, no edx-platform checkout, no test
+#    run. ci.yml needs only read access to the cache.
+# 2. Freshness. The image pins the Python dependencies of whatever edx-platform
+#    release branch it was built against. A pinned Tutor range is stable for
+#    months, so a build-on-demand cache would go stale as the release branches
+#    move underneath it. Rebuilding nightly bounds that drift to a day.
+on:
+  schedule:
+  - cron: '0 4 * * *'
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    # Refresh immediately when the Tutor install or tagging logic changes, or
+    # when a branch joins or leaves the matrix, rather than waiting for the
+    # next nightly run. A newly added branch has no cached image at all, so
+    # without this every ci.yml run would pay for a local build until the
+    # nightly caught up.
+    paths:
+    - .github/workflows/ci-image-cache.yml
+    - .github/actions/setup-tutor/action.yml
+    - .github/edx-branches.json
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+env:
+  GHCR_CACHE_OWNER: mitodl
+jobs:
+  resolve-matrix:
+    # Single source of truth for the edx_branch list, shared with ci.yml via
+    # .github/edx-branches.json so the two workflows can't drift apart.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      edx_branches: ${{ steps.branches.outputs.edx_branches }}
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+    - id: branches
+      run: echo "edx_branches=$(cat .github/edx-branches.json)" >> "$GITHUB_OUTPUT"
+
+  build-and-push:
+    # Forks have no access to the upstream package, and pushing to their own
+    # namespace would populate a cache nothing reads.
+    if: github.repository_owner == 'mitodl'
+    needs: resolve-matrix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        edx_branch: ${{ fromJson(needs.resolve-matrix.outputs.edx_branches) }}
+    steps:
+    # This job only reads the checkout to run the composite action below; it
+    # performs no authenticated git operations, so the token has no reason to
+    # stay behind in .git/config where later steps could leak it.
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
+
+    - name: Set up Tutor
+      id: tutor
+      uses: ./.github/actions/setup-tutor
+      with:
+        edx_branch: ${{ matrix.edx_branch }}
+        ghcr_owner: ${{ env.GHCR_CACHE_OWNER }}
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build openedx-dev image
+      run: tutor images build openedx-dev
+
+    - name: Push image to GHCR cache
+      env:
+        LOCAL_IMAGE: ${{ steps.tutor.outputs.openedx_dev_image }}
+        CACHE_IMAGE: ${{ steps.tutor.outputs.cache_image_tag }}
+      run: |
+        set -euo pipefail
+        docker tag "$LOCAL_IMAGE" "$CACHE_IMAGE"
+        docker push "$CACHE_IMAGE"
