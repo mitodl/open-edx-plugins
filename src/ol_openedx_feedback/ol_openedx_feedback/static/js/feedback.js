@@ -1,4 +1,11 @@
 (function ($) {
+  // The megaphone that last opened the drawer. The drawer renders in the parent
+  // MFE (cross-origin), so when it closes it can't focus our button directly;
+  // it messages us back and we return focus to this trigger.
+  var lastTrigger = null;
+  // The drawer-closed listener is global, so bind it once across all blocks.
+  var closeListenerBound = false;
+
   function initFeedback(initArgs) {
     var blockId = initArgs.block_id;
     var mfeBaseUrl = initArgs.learning_mfe_base_url;
@@ -20,11 +27,39 @@
         if (!mfeBaseUrl) {
           return;
         }
+        // Remember which trigger opened the drawer so focus can return here when
+        // the drawer closes.
+        lastTrigger = $trigger[0];
         window.parent.postMessage(
           { type: "ol-feedback::drawer-open", payload: payload },
           mfeBaseUrl
         );
       });
+
+    // Bind once (not per block): when the drawer closes it posts back so we can
+    // return keyboard focus to the megaphone that opened it (WCAG 2.4.3).
+    if (!closeListenerBound && mfeBaseUrl) {
+      closeListenerBound = true;
+      var mfeOrigin;
+      try {
+        mfeOrigin = new URL(mfeBaseUrl).origin;
+      } catch (e) {
+        mfeOrigin = mfeBaseUrl;
+      }
+      window.addEventListener("message", function (event) {
+        if (event.origin !== mfeOrigin) {
+          return;
+        }
+        if (
+          event.data &&
+          event.data.type === "ol-feedback::drawer-closed" &&
+          lastTrigger
+        ) {
+          lastTrigger.focus();
+          lastTrigger = null;
+        }
+      });
+    }
 
     // Placement: left of the AskTIM trigger when present, else right-aligned.
     var $chatBtn = $("#chat-button-" + blockId);
