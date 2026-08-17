@@ -30,8 +30,17 @@
         // Remember which trigger opened the drawer so focus can return here when
         // the drawer closes.
         lastTrigger = $trigger[0];
+        // Keyboard-fired click has detail === 0 (mouse >= 1); tell the drawer so
+        // it rings the heading for keyboard opens only (it renders cross-origin,
+        // so it can't infer this via :focus-visible).
+        var nativeEvent = event.originalEvent || event;
+        var viaKeyboard = nativeEvent.detail === 0;
         window.parent.postMessage(
-          { type: "ol-feedback::drawer-open", payload: payload },
+          {
+            type: "ol-feedback::drawer-open",
+            payload: payload,
+            viaKeyboard: viaKeyboard,
+          },
           mfeBaseUrl
         );
       });
