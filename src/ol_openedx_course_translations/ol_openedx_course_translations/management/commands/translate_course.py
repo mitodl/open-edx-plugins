@@ -33,6 +33,7 @@ from ol_openedx_course_translations.utils.constants import (
     PROVIDER_MISTRAL,
 )
 from ol_openedx_course_translations.utils.course_translations import (
+    LanguageCode,
     create_translated_copy,
     get_translatable_file_paths,
     get_translation_provider,
@@ -697,8 +698,15 @@ class Command(BaseCommand):
         translatable_file_paths = get_translatable_file_paths(
             directory_path, recursive=recursive
         )
+        source_srt_suffix = f"-{LanguageCode(source_language).to_bcp47()}.srt"
 
         for file_path in translatable_file_paths:
+            if file_path.suffix == ".srt" and not file_path.name.endswith(
+                source_srt_suffix
+            ):
+                logger.info("Skipping non-source-language SRT file: %s", file_path)
+                continue
+
             # Tag SRT tasks separately so we can throttle them for Mistral.
             task_type = (
                 SRT_TRANSLATION_TASK_TYPE
