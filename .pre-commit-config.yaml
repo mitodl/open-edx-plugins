@@ -39,13 +39,13 @@ repos:
     - --exclude-files '(uv.lock)'
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: 'v0.16.2'
+  rev: 'v0.16.3'
   hooks:
   - id: ruff-format
   - id: ruff
     args: [--extend-ignore=D1, --fix]
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v2.3.0
+  rev: v2.3.1
   hooks:
   - id: mypy
     additional_dependencies:
@@ -68,7 +68,7 @@ repos:
     name: actionlint
     description: Runs actionlint to lint GitHub Actions workflow files
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: '0.12.3'
+  rev: '0.12.5'
   hooks:
   - id: uv-lock
     args: [--no-upgrade]
