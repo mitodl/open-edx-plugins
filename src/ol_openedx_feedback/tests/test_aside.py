@@ -51,6 +51,21 @@ class FeedbackAsideTests(OLFeedbackTestCase):
             assert fragment.content == ""
             assert fragment.js_init_fn is None
 
+    @skip_unless_lms
+    def test_trigger_is_not_marked_as_a_dialog_popup(self):
+        """
+        The drawer is a non-modal region (not a dialog), so the trigger must
+        not advertise `aria-haspopup="dialog"`; it exposes an aria-label instead.
+        """
+        self.runtime.user_id = 5
+        self.runtime.is_author_mode = False
+        self.video_aside_instance.runtime = self.runtime
+
+        fragment = self.video_aside_instance.student_view_aside(self.video_block)
+
+        assert "aria-haspopup" not in fragment.content
+        assert 'aria-label="' in fragment.content
+
     @data(
         *[
             ["video", True, False, True],
