@@ -642,13 +642,17 @@ class HtmlXmlTranslationHelper:
         trusted for attributes). On parse failure or structure mismatch, el is
         left unchanged.
         """
+        # Parsed strictly, never with recover=True: recovery would silently
+        # repair malformed output (an unclosed <strong> gets closed at the end
+        # of the fragment, swallowing the rest of the sentence) and the repair
+        # can still satisfy the tag check below, applying markup the model got
+        # wrong. Keeping the untranslated original is the safer failure.
         try:
             wrapper = etree.fromstring(
-                f"<wrap>{markup}</wrap>".encode(), parser=self._xml_parser(recover=True)
+                f"<wrap>{markup}</wrap>".encode(),
+                parser=self._xml_parser(recover=False),
             )
         except etree.XMLSyntaxError:
-            wrapper = None
-        if wrapper is None:
             logger.warning("Could not parse translated inline markup; keeping original")
             return
 
@@ -730,13 +734,21 @@ class HtmlXmlTranslationHelper:
         units: list[str] = []
         refs: list[_TranslationUnitRef] = []
 
-        def add_unit(text: str, ref: _TranslationUnitRef) -> None:
+        def add_unit(
+            text: str, ref: _TranslationUnitRef, visible_text: str | None = None
+        ) -> None:
             if text is None:
                 return
             _leading, core, _trailing = self._split_preserve_outer_ws(text)
             if not core.strip():
                 return
-            if self._looks_like_nontranslatable(core):
+            # An "inner" unit is markup, so the heuristic has to judge the text
+            # a reader sees; the tags themselves would otherwise decide it. A
+            # single <a href="https://..."> inside a sentence would make the
+            # whole sentence look like a bare URL and skip translating it.
+            if self._looks_like_nontranslatable(
+                core if visible_text is None else visible_text
+            ):
                 return
             # Store only core; outer whitespace is preserved on reinsertion
             units.append(core)
@@ -746,18 +758,21 @@ class HtmlXmlTranslationHelper:
         coalesced_roots: set[etree._Element] = set()
 
         for el in self._iter_elements(root):
-            # Text/tail of a coalesced ancestor's subtree is already covered
-            # by that ancestor's "inner" unit
-            if any(anc in coalesced_roots for anc in el.iterancestors()):
-                continue
+            # Text/tail inside a coalesced element is already covered by that
+            # ancestor's "inner" unit. Attribute values are not: reinsertion
+            # restores attributes from the originals, so an attribute the model
+            # translated inside the inner markup is discarded. They still need
+            # their own units, which is why only the text branch is skipped.
+            inside_coalesced = any(anc in coalesced_roots for anc in el.iterancestors())
 
             # Text node
-            if self._should_translate_text_in_element(el):
+            if not inside_coalesced and self._should_translate_text_in_element(el):
                 if self._is_coalescible(el):
                     coalesced_roots.add(el)
                     add_unit(
                         self._inner_markup(el),
                         _TranslationUnitRef("inner", tree.getpath(el)),
+                        visible_text="".join(el.itertext()),
                     )
                 elif el.text:
                     add_unit(el.text, _TranslationUnitRef("text", tree.getpath(el)))
