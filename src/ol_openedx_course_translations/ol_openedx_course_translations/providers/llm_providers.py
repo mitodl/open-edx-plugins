@@ -54,11 +54,15 @@ TRANSLATION_TEMPERATURE = 0.0
 # their default temperature of 1 and reject anything else.
 FALLBACK_TEMPERATURE = 1.0
 
-# Model name -> temperature that model actually accepts. Populated the first
-# time a model rejects TRANSLATION_TEMPERATURE so the rejection is paid once
-# per process instead of once per request. Deliberately process-wide: the
-# answer depends only on the model, not on the provider instance.
-_MODEL_TEMPERATURES: dict[str, float] = {}
+# (model name, requested temperature) -> temperature that model actually
+# accepts. Populated the first time a model rejects the requested value, so
+# the rejection is paid once per process instead of once per request.
+# Deliberately process-wide: the answer depends on the model and on what was
+# asked for, not on which provider instance asked. The requested temperature
+# is part of the key so that a provider configured with a non-default
+# temperature still gets to try its own value rather than inheriting a
+# fallback another instance negotiated.
+_MODEL_TEMPERATURES: dict[tuple[str, float], float] = {}
 
 # litellm rejects some models locally while mapping parameters
 # (UnsupportedParamsError), and lets others through to the provider, which
@@ -340,7 +344,8 @@ class LLMProvider(TranslationProvider):
         ]
         timeout = additional_kwargs.pop("timeout", self.litellm_timeout)
 
-        temperature = _MODEL_TEMPERATURES.get(self.model_name, self.temperature)
+        cache_key = (self.model_name, self.temperature)
+        temperature = _MODEL_TEMPERATURES.get(cache_key, self.temperature)
         try:
             llm_response = completion(
                 model=self.model_name,
@@ -362,7 +367,7 @@ class LLMProvider(TranslationProvider):
                 temperature,
                 FALLBACK_TEMPERATURE,
             )
-            _MODEL_TEMPERATURES[self.model_name] = FALLBACK_TEMPERATURE
+            _MODEL_TEMPERATURES[cache_key] = FALLBACK_TEMPERATURE
             llm_response = completion(
                 model=self.model_name,
                 messages=llm_messages,
