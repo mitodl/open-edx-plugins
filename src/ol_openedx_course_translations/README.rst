@@ -159,6 +159,7 @@ file handling is required.
 - ``--translation-validation-provider``: Optional provider to validate/fix XML/HTML translations after translation.
 - ``--content-glossary``: Path to glossary directory for content (XML/HTML and text) translation (optional)
 - ``--srt-glossary``: Path to glossary directory for SRT subtitle translation (optional)
+- ``--batch-size``: Number of translation tasks to run concurrently per batch (optional, default: 20). SRT tasks are still forced to a batch size of 1 when using the Mistral provider, regardless of this setting.
 
 The command also translates ``course/info/updates.items.json`` (or the path
 configured in ``COURSE_TRANSLATIONS_UPDATES_ITEMS_JSON_RELATIVE_PATH``) by

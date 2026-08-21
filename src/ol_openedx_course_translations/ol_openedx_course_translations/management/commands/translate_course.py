@@ -33,6 +33,7 @@ from ol_openedx_course_translations.utils.constants import (
     PROVIDER_MISTRAL,
 )
 from ol_openedx_course_translations.utils.course_translations import (
+    LanguageCode,
     create_translated_copy,
     get_translatable_file_paths,
     get_translation_provider,
@@ -92,6 +93,7 @@ class Command(BaseCommand):
         self.translation_validation_provider_name = None
         self.translation_validation_model = None
         self.grading_type_mapping: dict[str, str] = {}
+        self.batch_size = BATCH_SIZE
 
     def add_arguments(self, parser) -> None:
         """Entry point for subclassed commands to add custom arguments."""
@@ -181,6 +183,19 @@ class Command(BaseCommand):
             help=(
                 "Path to glossary directory for SRT subtitle translation. "
                 "Should contain language-specific glossary files."
+            ),
+        )
+        parser.add_argument(
+            "--batch-size",
+            dest="batch_size",
+            type=int,
+            required=False,
+            default=BATCH_SIZE,
+            help=(
+                "Number of translation tasks to run concurrently per batch. "
+                f"Defaults to {BATCH_SIZE}. SRT tasks are still forced to a "
+                "batch size of 1 when using the Mistral provider, regardless "
+                "of this setting."
             ),
         )
         parser.add_argument(
@@ -311,6 +326,12 @@ class Command(BaseCommand):
             self.content_glossary = options.get("content_glossary")
             self.srt_glossary = options.get("srt_glossary")
             self.keep_failure = options.get("keep_failure", False)
+
+            batch_size = options.get("batch_size", BATCH_SIZE)
+            if batch_size < 1:
+                error_msg = f"--batch-size must be at least 1, got {batch_size}."
+                raise CommandError(error_msg)  # noqa: TRY301
+            self.batch_size = batch_size
 
             # Parse and validate provider specifications (includes validation)
             content_provider_name, content_model = (
@@ -697,8 +718,15 @@ class Command(BaseCommand):
         translatable_file_paths = get_translatable_file_paths(
             directory_path, recursive=recursive
         )
+        source_srt_suffix = f"-{LanguageCode(source_language).to_bcp47()}.srt"
 
         for file_path in translatable_file_paths:
+            if file_path.suffix == ".srt" and not file_path.name.endswith(
+                source_srt_suffix
+            ):
+                logger.info("Skipping non-source-language SRT file: %s", file_path)
+                continue
+
             # Tag SRT tasks separately so we can throttle them for Mistral.
             task_type = (
                 SRT_TRANSLATION_TASK_TYPE
@@ -1047,15 +1075,17 @@ class Command(BaseCommand):
 
         non_srt_stats, non_srt_completed, non_srt_skipped, _ = self._run_task_batches(
             non_srt_tasks,
-            batch_size=BATCH_SIZE,
+            batch_size=self.batch_size,
             header="CONTENT(TEXT/XML)",
         )
         stats.extend(non_srt_stats)
 
         # Mistral has rate limits and can fail if we send too many requests in parallel,
         # so we process SRT tasks one at a time for Mistral.
-        # For other providers, we can use the normal batch size.
-        srt_batch_size = 1 if self.srt_provider_name == PROVIDER_MISTRAL else BATCH_SIZE
+        # For other providers, we can use the configured batch size.
+        srt_batch_size = (
+            1 if self.srt_provider_name == PROVIDER_MISTRAL else self.batch_size
+        )
         srt_stats, srt_completed, srt_skipped, _ = self._run_task_batches(
             srt_tasks,
             batch_size=srt_batch_size,
