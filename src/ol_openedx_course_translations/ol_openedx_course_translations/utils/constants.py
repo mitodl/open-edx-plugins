@@ -34,3 +34,22 @@ NEVER_TRANSLATE_ATTRS = {
 }
 
 XML_FORMAT_ATTR = "format"
+
+# Inline formatting tags: an element whose whole subtree is only these tags can
+# be translated as ONE unit (its inner markup), so the LLM sees the full
+# sentence and can reorder words for SOV/verb-final target languages.
+INLINE_MARKUP_TAGS = {
+    "a",
+    "abbr",
+    "b",
+    "code",
+    "em",
+    "i",
+    "mark",
+    "small",
+    "span",
+    "strong",
+    "sub",
+    "sup",
+    "u",
+}

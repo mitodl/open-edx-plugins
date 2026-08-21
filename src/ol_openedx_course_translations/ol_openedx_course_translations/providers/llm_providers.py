@@ -49,10 +49,11 @@ class LLMProvider(TranslationProvider):
     Base class for LLM-based providers.
 
     Important behavior:
-    - For HTML/XML inputs, this class must NEVER send raw markup to the LLM.
-      It uses HtmlXmlTranslationHelper to extract safe, small units (text nodes and
-      allowlisted attribute VALUES), batch-translates them, and reinserts them into
-      the existing DOM without changing structure.
+    - For HTML/XML inputs, this class must NEVER send full documents to the LLM.
+      It uses HtmlXmlTranslationHelper to extract safe, small units (text nodes,
+      allowlisted attribute VALUES, and inline-only inner markup like
+      "<strong>term</strong>: definition"), batch-translates them, and reinserts
+      them into the existing DOM without changing structure.
     - For plain text inputs, it uses structured prompting with markers.
     """
 
@@ -177,6 +178,13 @@ class LLMProvider(TranslationProvider):
             "2. Maintain the original formatting, spacing, line breaks, and indentation.\n"
             "3. Keep proper nouns, brand names, acronyms, and product names unchanged.\n"
             "4. Do NOT include explanations, notes, or commentary.\n"
+            f"5. Produce grammatically natural {target_language_display_name}; "
+            f"follow {target_language_display_name} word order — never mirror "
+            "English word order.\n"
+            "6. Use a formal academic register suitable for university course "
+            "content.\n"
+            "7. Use standard academic equivalents for technical terms; keep the "
+            "English term if no established equivalent exists.\n"
         )
 
         if glossary_directory:
@@ -428,7 +436,19 @@ class LLMProvider(TranslationProvider):
             "1. Preserve ALL :::ID::: markers exactly.\n"
             "2. Do not add extra IDs.\n"
             "3. Output only the translations (no explanations).\n"
-            "4. Preserve whitespace inside each string as much as possible.\n"
+            "4. Preserve leading and trailing whitespace of each string.\n"
+            "5. A string may contain inline HTML tags "
+            "(e.g. <strong>, <em>, <a>). Translate the text around them and "
+            "keep every tag, with its attributes, exactly as given — but move "
+            "the tags to wherever the translated words land in the target "
+            "sentence.\n"
+            f"6. Produce grammatically natural {target_language_display_name}; "
+            f"follow {target_language_display_name} word order — never mirror "
+            "English word order.\n"
+            "7. Use a formal academic register suitable for university course "
+            "content.\n"
+            "8. Use standard academic equivalents for technical terms; keep the "
+            "English term if no established equivalent exists.\n"
         )
         if glossary_directory:
             glossary_terms = load_glossary(target_language, glossary_directory)
@@ -813,11 +833,19 @@ class LLMProvider(TranslationProvider):
             "- Grammar and article agreement\n"
             "- Spelling and punctuation\n"
             "- Obvious encoding artifacts (e.g., broken characters, malformed symbols)\n"
-            "- Consistency in verb mood and tense where directly implied by the source text\n\n"
+            "- Consistency in verb mood and tense where directly implied by the source text\n"
+            f"- Word order INSIDE a text node, when the current order is "
+            f"ungrammatical or mirrors English word order instead of natural "
+            f"{target_language_display_name} word order. Reorder the existing "
+            "words only — do not substitute different words\n"
+            f"- Replacing a term that is plainly wrong in "
+            f"{target_language_display_name} with the standard academic "
+            "equivalent of the source term\n\n"
             "ABSOLUTE RULES (NON-NEGOTIABLE):\n"
             "- DO NOT change, add, remove, or reorder any XML/HTML tags\n"
             "- DO NOT change indentation, line breaks, or spacing\n"
-            "- DO NOT paraphrase, rewrite, summarize, or expand content\n"
+            "- DO NOT paraphrase, summarize, or expand content (reordering the "
+            "existing words of an ungrammatical sentence is a fix, not a rewrite)\n"
             "- DO NOT translate anything new\n"
             "- DO NOT change meaning, tone, or register\n"
             "- Only edit visible text nodes and approved user-facing attribute VALUES\n"

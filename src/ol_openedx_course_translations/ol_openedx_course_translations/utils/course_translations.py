@@ -1,8 +1,10 @@
 """Utility functions for course translations.
 
 This module includes DOM-aware helpers for translating HTML/XML safely by:
-- Extracting only text nodes and allowlisted attribute VALUES as independent units
-- Sending only those units to translation providers (never raw markup blobs)
+- Extracting text nodes and allowlisted attribute VALUES as independent units;
+  elements whose subtree is only inline formatting tags (<strong>, <a>, ...)
+  are extracted as ONE inner-markup unit so sentence word order survives
+- Sending only those units to translation providers (never full documents)
 - Reinserting translations without changing markup structure, tag names,
 or attribute names
 """
@@ -28,6 +30,7 @@ from ol_openedx_course_translations.providers.llm_providers import (
     OpenAIProvider,
 )
 from ol_openedx_course_translations.utils.constants import (
+    INLINE_MARKUP_TAGS,
     NEVER_TRANSLATE_ATTRS,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
@@ -506,6 +509,8 @@ class _TranslationUnitRef:
       - "text": element.text
       - "tail": element.tail
       - "attr": element.attrib[attr_name]
+      - "inner": element's inner markup (text + inline children), translated
+        as one unit so sentence word order survives in the target language
     """
 
     kind: str
@@ -539,15 +544,20 @@ class HtmlXmlTranslationHelper:
     def __init__(self, *, is_xml: bool):
         self.is_xml = is_xml
 
+    @staticmethod
+    def _xml_parser(*, recover: bool) -> etree.XMLParser:
+        return etree.XMLParser(
+            resolve_entities=False,
+            no_network=True,
+            recover=recover,
+            remove_blank_text=False,
+        )
+
     def parse(self, raw: str) -> etree._Element:
         if self.is_xml:
-            parser = etree.XMLParser(
-                resolve_entities=False,
-                no_network=True,
-                recover=False,
-                remove_blank_text=False,
+            return etree.fromstring(
+                raw.encode("utf-8"), parser=self._xml_parser(recover=False)
             )
-            return etree.fromstring(raw.encode("utf-8"), parser=parser)
         # HTML: keep input formatting as much as possible; do not pretty-print later
         parser = etree.HTMLParser(
             no_network=True,
@@ -601,6 +611,93 @@ class HtmlXmlTranslationHelper:
     def _should_translate_text_in_element(self, el: etree._Element) -> bool:
         return (el.tag or "").lower() not in self._SKIP_TEXT_TAGS
 
+    def _is_coalescible(self, el: etree._Element) -> bool:
+        """
+        Return True when el's entire subtree is inline formatting tags.
+
+        Such an element's inner markup is translated as ONE unit so the LLM
+        sees the whole sentence and can reorder words for verb-final target
+        languages (splitting on <strong>/<a> boundaries produces broken
+        grammar in e.g. Hindi).
+        """
+        if len(el) == 0:
+            return False
+        return all(
+            isinstance(d.tag, str) and d.tag.lower() in INLINE_MARKUP_TAGS
+            for d in el.iterdescendants()
+        )
+
+    def _inner_markup(self, el: etree._Element) -> str:
+        """Serialize el's text + children (with tails) as a markup string."""
+        parts = [el.text or ""]
+        parts += [etree.tostring(c, encoding="unicode", with_tail=True) for c in el]
+        return "".join(parts)
+
+    def _set_inner_markup(self, el: etree._Element, markup: str) -> None:
+        """
+        Replace el's text/children with parsed `markup`.
+
+        Safety: the translated fragment must keep the original tag sequence;
+        attributes are always restored from the originals (LLM output is never
+        trusted for attributes). On parse failure or structure mismatch, el is
+        left unchanged.
+        """
+        try:
+            wrapper = etree.fromstring(
+                f"<wrap>{markup}</wrap>".encode(), parser=self._xml_parser(recover=True)
+            )
+        except etree.XMLSyntaxError:
+            wrapper = None
+        if wrapper is None:
+            logger.warning("Could not parse translated inline markup; keeping original")
+            return
+
+        original_descendants = list(el.iterdescendants())
+        new_descendants = list(wrapper.iterdescendants())
+        if [d.tag for d in original_descendants] != [d.tag for d in new_descendants]:
+            logger.warning(
+                "Translated inline markup changed tag structure; keeping original"
+            )
+            return
+
+        for original_d, new_d in zip(
+            original_descendants, new_descendants, strict=True
+        ):
+            new_d.attrib.clear()
+            new_d.attrib.update(original_d.attrib)
+
+        for child in list(el):
+            el.remove(child)
+        el.text = wrapper.text
+        for child in list(wrapper):
+            el.append(child)
+
+    def _get_ref_value(
+        self, el: etree._Element, ref: _TranslationUnitRef
+    ) -> str | None:
+        """Return the value at ref's location, or None if ref no longer applies."""
+        if ref.kind == "inner":
+            return self._inner_markup(el)
+        if ref.kind == "text":
+            return el.text or ""
+        if ref.kind == "tail":
+            return el.tail or ""
+        if ref.kind == "attr" and ref.attr_name and ref.attr_name in el.attrib:
+            return el.attrib.get(ref.attr_name, "")
+        return None
+
+    def _set_ref_value(
+        self, el: etree._Element, ref: _TranslationUnitRef, value: str
+    ) -> None:
+        if ref.kind == "inner":
+            self._set_inner_markup(el, value)
+        elif ref.kind == "text":
+            el.text = value
+        elif ref.kind == "tail":
+            el.tail = value
+        elif ref.kind == "attr" and ref.attr_name:
+            el.attrib[ref.attr_name] = value
+
     @staticmethod
     def _looks_like_nontranslatable(value: str) -> bool:
         v = value.strip()
@@ -646,11 +743,23 @@ class HtmlXmlTranslationHelper:
             refs.append(ref)
 
         tree = root.getroottree()
+        coalesced_roots: set[etree._Element] = set()
 
         for el in self._iter_elements(root):
+            # Text/tail of a coalesced ancestor's subtree is already covered
+            # by that ancestor's "inner" unit
+            if any(anc in coalesced_roots for anc in el.iterancestors()):
+                continue
+
             # Text node
             if self._should_translate_text_in_element(el):
-                if el.text:
+                if self._is_coalescible(el):
+                    coalesced_roots.add(el)
+                    add_unit(
+                        self._inner_markup(el),
+                        _TranslationUnitRef("inner", tree.getpath(el)),
+                    )
+                elif el.text:
                     add_unit(el.text, _TranslationUnitRef("text", tree.getpath(el)))
                 if el.tail:
                     add_unit(el.tail, _TranslationUnitRef("tail", tree.getpath(el)))
@@ -695,21 +804,11 @@ class HtmlXmlTranslationHelper:
                 continue
             el = nodes[0]
 
-            if ref.kind == "text":
-                orig = el.text or ""
-                leading, _, trailing = self._split_preserve_outer_ws(orig)
-                el.text = f"{leading}{translated_core}{trailing}"
-            elif ref.kind == "tail":
-                orig = el.tail or ""
-                leading, _, trailing = self._split_preserve_outer_ws(orig)
-                el.tail = f"{leading}{translated_core}{trailing}"
-            elif ref.kind == "attr" and ref.attr_name:
-                if ref.attr_name in el.attrib:
-                    orig = el.attrib.get(ref.attr_name, "")
-                    leading, _, trailing = self._split_preserve_outer_ws(orig)
-                    el.attrib[ref.attr_name] = f"{leading}{translated_core}{trailing}"
-            else:
+            orig = self._get_ref_value(el, ref)
+            if orig is None:
                 continue
+            leading, _, trailing = self._split_preserve_outer_ws(orig)
+            self._set_ref_value(el, ref, f"{leading}{translated_core}{trailing}")
         return root
 
     def serialize(self, root: etree._Element) -> str:
