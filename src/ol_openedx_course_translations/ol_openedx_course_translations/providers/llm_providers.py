@@ -9,7 +9,8 @@ from typing import Any
 
 import srt
 from django.conf import settings
-from litellm import completion
+from litellm import BadRequestError, completion
+from litellm.utils import UnsupportedParamsError
 
 from .base import TranslationProvider
 
@@ -43,6 +44,29 @@ TRANSLATION_MARKER_END = ":::TRANSLATION_END:::"
 
 MAX_CHUNK_RETRIES = 3
 
+# Validation reviews a whole document in one call, so it needs a longer timeout
+VALIDATION_TIMEOUT = 90
+
+# Translation wants the most deterministic output a model will give us.
+TRANSLATION_TEMPERATURE = 0.0
+
+# Reasoning models (OpenAI o-series, some gpt-5 configurations) accept only
+# their default temperature of 1 and reject anything else.
+FALLBACK_TEMPERATURE = 1.0
+
+# Model name -> temperature that model actually accepts. Populated the first
+# time a model rejects TRANSLATION_TEMPERATURE so the rejection is paid once
+# per process instead of once per request. Deliberately process-wide: the
+# answer depends only on the model, not on the provider instance.
+_MODEL_TEMPERATURES: dict[str, float] = {}
+
+# litellm rejects some models locally while mapping parameters
+# (UnsupportedParamsError), and lets others through to the provider, which
+# returns a 400 (BadRequestError). Both are caught below so any
+# litellm-supported model gets the same fallback treatment without us
+# maintaining a list of which models have a temperature floor.
+_TEMPERATURE_REJECTION_ERRORS = (UnsupportedParamsError, BadRequestError)
+
 
 class LLMProvider(TranslationProvider):
     """
@@ -59,11 +83,11 @@ class LLMProvider(TranslationProvider):
     def __init__(  # noqa: PLR0913, PLR0917
         self,
         primary_api_key: str,
-        model_name: str | None = None,
+        model_name: str,
         litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
         srt_batch_size: int = 50,
         max_chunk_retries: int = MAX_CHUNK_RETRIES,
-        temperature: float = 0.0,
+        temperature: float = TRANSLATION_TEMPERATURE,
     ):
         """
         Initialize LLM provider with API key and model name.
@@ -314,14 +338,40 @@ class LLMProvider(TranslationProvider):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ]
-        llm_response = completion(
-            model=self.model_name,
-            messages=llm_messages,
-            api_key=self.primary_api_key,
-            timeout=self.litellm_timeout,
-            temperature=self.temperature,
-            **additional_kwargs,
-        )
+        timeout = additional_kwargs.pop("timeout", self.litellm_timeout)
+
+        temperature = _MODEL_TEMPERATURES.get(self.model_name, self.temperature)
+        try:
+            llm_response = completion(
+                model=self.model_name,
+                messages=llm_messages,
+                api_key=self.primary_api_key,
+                timeout=timeout,
+                temperature=temperature,
+                **additional_kwargs,
+            )
+        except _TEMPERATURE_REJECTION_ERRORS as error:
+            if (
+                temperature == FALLBACK_TEMPERATURE
+                or "temperature" not in str(error).lower()
+            ):
+                raise
+            logger.info(
+                "%s rejected temperature=%s; falling back to %s for this process.",
+                self.model_name,
+                temperature,
+                FALLBACK_TEMPERATURE,
+            )
+            _MODEL_TEMPERATURES[self.model_name] = FALLBACK_TEMPERATURE
+            llm_response = completion(
+                model=self.model_name,
+                messages=llm_messages,
+                api_key=self.primary_api_key,
+                timeout=timeout,
+                temperature=FALLBACK_TEMPERATURE,
+                **additional_kwargs,
+            )
+
         return llm_response.choices[0].message.content.strip()
 
     def _translate_plain_text_unit(
@@ -858,8 +908,9 @@ class LLMProvider(TranslationProvider):
             f"{translated_content}\n"
         )
 
-        self.litellm_timeout = 90  # 90s timeout for the validation
-        llm_response = self._call_llm(system_prompt, user_payload)
+        llm_response = self._call_llm(
+            system_prompt, user_payload, timeout=VALIDATION_TIMEOUT
+        )
         return self._parse_text_response(llm_response)
 
     def translate_grading_types(
@@ -992,7 +1043,7 @@ class OpenAIProvider(LLMProvider):
         srt_batch_size: int = 50,
         litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
         max_chunk_retries: int = MAX_CHUNK_RETRIES,
-        temperature: float = 0.0,
+        temperature: float = TRANSLATION_TEMPERATURE,
     ):
         """
         Initialize OpenAI provider.
@@ -1015,22 +1066,6 @@ class OpenAIProvider(LLMProvider):
             max_chunk_retries=max_chunk_retries,
             temperature=temperature,
         )
-
-    def _call_llm(
-        self, system_prompt: str, user_content: str, **additional_kwargs: Any
-    ) -> str:
-        """
-        Call OpenAI API with prompts.
-
-        Args:
-            system_prompt: System prompt defining behavior
-            user_content: User content to translate
-            **additional_kwargs: Additional arguments for the API
-
-        Returns:
-            OpenAI response content
-        """
-        return super()._call_llm(system_prompt, user_content, **additional_kwargs)
 
     def _get_subtitle_system_prompt(
         self,
@@ -1143,7 +1178,7 @@ class GeminiProvider(LLMProvider):
         srt_batch_size: int = 50,
         litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
         max_chunk_retries: int = MAX_CHUNK_RETRIES,
-        temperature: float = 1.0,
+        temperature: float = TRANSLATION_TEMPERATURE,
     ):
         """
         Initialize Gemini provider.
@@ -1235,7 +1270,7 @@ class MistralProvider(LLMProvider):
         srt_batch_size: int = 20,
         litellm_timeout: int = 600,
         max_chunk_retries: int = 2,
-        temperature: float = 0.0,
+        temperature: float = TRANSLATION_TEMPERATURE,
     ):
         """
         Initialize Mistral provider.
