@@ -15,6 +15,12 @@ def plugin_settings(settings):
     # Course access roles that should trigger the enrollment webhook.
     settings.ENROLLMENT_COURSE_ACCESS_ROLES = ["instructor", "staff"]
 
+    # Username of the service worker the webhook consumer uses to create its own
+    # enrollments through the Open edX enrollment REST API. Enrollments created
+    # by this user are not sent back to the consumer. When unset, every
+    # enrollment triggers a webhook.
+    settings.ENROLLMENT_WEBHOOK_SERVICE_WORKER_USERNAME = None
+
     # Settings for the Certificate Webhook
     # Webhook URL used to request certificate creation after course completion.
     settings.CERTIFICATE_WEBHOOK_URL = None
