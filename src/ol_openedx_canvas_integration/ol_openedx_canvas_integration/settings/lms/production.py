@@ -17,6 +17,12 @@ def plugin_settings(settings):
     settings.CANVAS_BASE_URL = settings.ENV_TOKENS.get(
         "CANVAS_BASE_URL", settings.CANVAS_BASE_URL
     )
+    settings.CANVAS_COURSE_ID_CACHE_TIMEOUT = int(
+        settings.ENV_TOKENS.get(
+            "CANVAS_COURSE_ID_CACHE_TIMEOUT", settings.CANVAS_COURSE_ID_CACHE_TIMEOUT
+        )
+        or settings.CANVAS_COURSE_ID_CACHE_TIMEOUT
+    )
 
     # Re-register the instructor-dashboard tab filter. Production overwrites
     # OPEN_EDX_FILTERS_CONFIG wholesale from the deployment YAML, dropping the

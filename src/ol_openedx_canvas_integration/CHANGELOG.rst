@@ -13,6 +13,28 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.8.3] - 2026-08-05
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Changed
+-------
+* ``sync_user_grade_with_canvas`` is now only queued for courses linked to
+  Canvas (``canvas_id`` set). The check moved from inside the Celery task to
+  the grade-save signal receiver, backed by a short cache
+  (``CANVAS_COURSE_ID_CACHE_TIMEOUT``, default 300 seconds) so it no longer
+  forces a full course lookup — or queues a task at all — for every graded
+  learner interaction on courses with no Canvas integration.
+* The cached linkage lookup now distinguishes a genuine "course not found"
+  from other lookup failures (e.g. a transient modulestore/DB error): only
+  the former is cached as "not linked," while the latter is retried on the
+  next grade save instead of being treated as an unlink.
+* The Celery task's own linkage check (``_sync_user_grade_with_canvas``) now
+  uses the same ``is None`` semantics as the signal receiver, so a
+  falsy-but-valid Canvas course id can't be queued by one and silently
+  dropped by the other.
+* ``CANVAS_COURSE_ID_CACHE_TIMEOUT`` is now coerced to an ``int`` in
+  production settings, so a ``null`` or string override from ops config
+  can't accidentally disable expiry or silently break caching.
+
 [0.8.2] - 2026-07-13
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Fixed
