@@ -7,7 +7,7 @@ description: >-
   disagree about the cache tag.
 inputs:
   edx_branch:
-    description: Open edX branch under test, e.g. master or release/teak
+    description: Open edX branch under test, e.g. master or release/verawood
     required: true
   ghcr_owner:
     description: GitHub org that owns the openedx-dev-cache package
@@ -39,8 +39,8 @@ runs:
     env:
       EDX_BRANCH: ${{ inputs.edx_branch }}
     run: |
-      if [[ "$EDX_BRANCH" == "release/teak" ]]; then
-        pip install "tutor>=20.0.0,<21.0.0"
+      if [[ "$EDX_BRANCH" == "release/verawood" ]]; then
+        pip install "tutor>=22.0.0,<23.0.0"
       elif [[ "$EDX_BRANCH" == "master" ]]; then
         git clone --depth=1 --branch=main https://github.com/overhangio/tutor.git
         pip install -e "./tutor"

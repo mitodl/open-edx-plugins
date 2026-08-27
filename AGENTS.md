@@ -8,7 +8,7 @@ This repository contains a collection of 17+ Open edX plugins that extend and en
 **Size:** ~170 Python source files across 17 plugins
 **Languages/Frameworks:** Python 3.11+, Django 4.0+, Open edX platform
 **Build System:** UV (modern Python package manager), Hatchling backend
-**Target Runtime:** Open edX platform (tested against master, sumac.master, and teak releases)
+**Target Runtime:** Open edX platform (tested against master, ulmo, and verawood releases)
 
 ## Repository Structure
 
@@ -108,8 +108,8 @@ cd open-edx-plugins
 uv build --all-packages
 
 # Install Tutor (version depends on Open edX release)
-pip install "tutor>=19.0.0,<20.0.0"  # For sumac.master
-# OR pip install "tutor>=20.0.0,<21.0.0"  # For teak release
+pip install "tutor>=21.0.0,<22.0.0"  # For ulmo release
+# OR pip install "tutor>=22.0.0,<23.0.0"  # For verawood release
 # OR install from main branch for master
 
 # Mount plugin directory
@@ -154,7 +154,7 @@ cd /openedx/open-edx-plugins
 
 **1. CI Workflow (`.github/workflows/ci.yml`)**
 - **Triggers:** Push to main, all PRs
-- **Matrix:** Python 3.11 × 3 Open edX branches (master, sumac.master, teak)
+- **Matrix:** Python 3.11 × 3 Open edX branches (master, ulmo, verawood)
 - **Steps:**
   1. Checkout code
   2. Setup UV with caching

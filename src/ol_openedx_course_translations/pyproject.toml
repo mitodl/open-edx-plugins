@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-course-translations"
-version = "0.9.1"
+version = "0.9.2"
 description = "An Open edX plugin to translate courses"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -10,8 +10,8 @@ readme = "README.rst"
 requires-python = ">=3.11"
 keywords = ["Python", "edx"]
 dependencies = [
-  "Django>=4.0",
-  "djangorestframework>=3.14.0",
+  "Django>=5.2",
+  "djangorestframework>=3.16.0",
   "litellm==1.83.0",
   "srt>=3.5.3",
   "edx-opaque-keys",
