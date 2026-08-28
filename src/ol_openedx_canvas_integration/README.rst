@@ -65,6 +65,9 @@ Use ``0.2.4`` or a above version of this plugin
 
 Use ``0.1.1`` version of this plugin
 
+For the Django 5.2 dependency floor (Ulmo/Verawood and later), see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Installation
 ------------
 

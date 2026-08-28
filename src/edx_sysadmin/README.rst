@@ -23,6 +23,9 @@ Use any version of edx-sysadmin plugin.
 
 You do not need edx-sysadmin plugin. Just enable ``ENABLE_SYSADMIN_DASHBOARD`` feature flag in environment files (e.g ``lms.yml`` or ``lms.env.json``) to access sysadmin dashboard features.
 
+For the Django 5.2 dependency floor (Ulmo/Verawood and later), see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 
 Installing The Plugin
 ---------------------

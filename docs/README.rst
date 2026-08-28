@@ -3,6 +3,50 @@ Open edX Plugins
 
 This repository contains a collection of Open edX plugins that provide various custom functionalities for the Open edX platform.
 
+Open edX Release Compatibility
+-------------------------------
+
+In August 2026 this repository raised its Django dependency floor from
+``Django>=4.0`` to ``Django>=5.2`` across every plugin, to match the
+``Ulmo`` (Django 5.2.11) and ``Verawood`` (Django 5.2.13) Open edX releases.
+Installing a plugin version below its listed minimum on Ulmo/Verawood (or
+``master``) - or above its listed maximum on Teak and earlier - can pull in
+a Django release the target edx-platform doesn't support.
+
+Individual plugins may have additional, feature-specific compatibility notes
+in their own ``README.rst`` (see each plugin's ``Version Compatibility``
+section) - the table below only tracks the Django 5.2 floor.
+
+========================================  ========================================  ===================================
+Plugin                                    Max version for Teak and earlier          Min version for Ulmo / Verawood+
+========================================  ========================================  ===================================
+edx-sysadmin                              0.4.2                                     0.5.0
+edx-username-changer                      0.5.0                                     0.6.0
+ol-openedx-ai-static-translations         0.1.1                                     0.2.0
+ol-openedx-auto-select-language           0.1.2                                     0.2.0
+ol-openedx-canvas-integration             0.8.2                                     0.9.0
+ol-openedx-chat                           0.5.10                                    0.6.0
+ol-openedx-chat-xblock                    0.4.6                                     0.5.0
+ol-openedx-checkout-external              0.2.0                                     0.3.0
+ol-openedx-course-export                  0.2.0                                     0.3.0
+ol-openedx-course-outline-api             0.1.0                                     0.2.0
+ol-openedx-course-structure-api           0.2.0                                     0.3.0
+ol-openedx-course-sync                    1.0.1                                     1.1.0
+ol-openedx-course-translations            0.8.0                                     0.9.0
+ol-openedx-events-handler                 0.2.1                                     0.4.0
+ol-openedx-feedback                       0.2.0                                     0.3.0
+ol-openedx-git-auto-export                0.8.3                                     0.9.0
+ol-openedx-logging                        0.3.5                                     0.4.0
+ol-openedx-lti-utilities                  0.1.2                                     0.2.0
+ol-openedx-otel-monitoring                0.2.0                                     0.3.0
+ol-openedx-rapid-response-reports         0.5.1                                     0.6.0
+ol-openedx-sentry                         0.4.0                                     0.5.0
+ol-openedx-uai-content-customization      0.3.0                                     0.4.0
+ol-social-auth                            0.2.2                                     0.3.0
+openedx-companion-auth                    1.2.0                                     1.3.0
+rapid-response-xblock                     0.11.0                                    0.12.0
+========================================  ========================================  ===================================
+
 Installation Guide
 ------------------
 

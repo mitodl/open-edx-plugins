@@ -4,6 +4,13 @@ Opentelemetry Django Plugin
 This Django plugin integrates Open Telemetry, offering both tracing and metric functionalities. It is built upon the `opentelemetry-instrumentation-django` package and adds the capability for manual instrumentation. Users can select different exporters for traces and metrics. Currently, it supports Console Exporter for local development and OTLP Exporter for exporting data to third-party platforms. A customizable blueprint middleware can be easily added via settings.
 
 
+Version Compatibility
+----------------------
+
+See the `Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_
+in the repository docs for the minimum plugin version required per Open edX
+release (Django 5.2 floor on Ulmo/Verawood and later).
+
 Installation
 ------------
 
