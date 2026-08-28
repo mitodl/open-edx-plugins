@@ -2294,7 +2294,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-events-handler"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "src/ol_openedx_events_handler" }
 dependencies = [
     { name = "celery" },
