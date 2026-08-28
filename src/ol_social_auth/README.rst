@@ -8,7 +8,7 @@ Version Compatibility
 
 Compatible with all edx releases
 
-For the Django 5.2 dependency floor (Ulmo/Verawood and later), see the
+For this plugin's compatibility with Open edX, see the
 `Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
 
 Installing The Plugin

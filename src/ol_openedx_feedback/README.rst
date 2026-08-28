@@ -23,9 +23,8 @@ plugin does **not** persist anything in edx-platform and exposes no REST API.
 Version Compatibility
 ======================
 
-See the `Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_
-in the repository docs for the minimum plugin version required per Open edX
-release (Django 5.2 floor on Ulmo/Verawood and later).
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
 
 Installation
 ============
