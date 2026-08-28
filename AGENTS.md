@@ -238,6 +238,12 @@ plugin_name = "plugin_name.apps:ConfigClass"
    - **CRITICAL:** Update version in `src/<plugin>/pyproject.toml` before merging to main
    - Version follows semantic versioning
    - Publishing to PyPI happens automatically on main branch merge
+   - **If this release changes which Open edX release(s) the plugin supports**
+     (e.g. a dependency-floor bump like the Django 5.2 floor raised for
+     Ulmo/Verawood), update the Open edX Release Compatibility table in
+     `docs/README.rst` with the new min/max version boundary, and update the
+     plugin's own `Version Compatibility` section in its `README.rst` if it
+     has release-specific notes beyond a link to that table.
 
 4. **Common issues:**
    - **Django not configured:** Tests need Open edX environment
@@ -248,6 +254,7 @@ plugin_name = "plugin_name.apps:ConfigClass"
 
 Before submitting changes:
 - [ ] Updated plugin version in `src/<plugin>/pyproject.toml` (if applicable)
+- [ ] Updated the Open edX Release Compatibility table in `docs/README.rst` (if this version changes which Open edX release the plugin supports)
 - [ ] Code formatted: `uv run ruff format .`
 - [ ] Linting passes: `uv run ruff check .`
 - [ ] Pre-commit hooks pass: `pre-commit run --all-files`
