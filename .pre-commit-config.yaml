@@ -39,7 +39,7 @@ repos:
     - --exclude-files '(uv.lock)'
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: 'v0.16.4'
+  rev: 'v0.16.5'
   hooks:
   - id: ruff-format
   - id: ruff
@@ -68,12 +68,12 @@ repos:
     name: actionlint
     description: Runs actionlint to lint GitHub Actions workflow files
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: '0.12.5'
+  rev: '0.12.7'
   hooks:
   - id: uv-lock
     args: [--no-upgrade]
 - repo: https://github.com/zizmorcore/zizmor-pre-commit
-  rev: v1.29.0
+  rev: v1.30.0
   hooks:
   - id: zizmor
     args: [--no-progress, --min-severity=medium, --min-confidence=medium]
