@@ -11,6 +11,12 @@ Change Log
 .. There should always be an "Unreleased" section for changes pending release.
 
 
+[0.4.8] - 2026-08-28
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Changed
+-------
+* Bump the bundled ``@mitodl/smoot-design`` AI chat build from 6.19.0 to 6.33.3.
+
 [0.4.6] - 2026-07-03
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Fixed
