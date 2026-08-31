@@ -17,17 +17,33 @@ class StubSyncUserGradeTask:
         self.delay_calls.append(args)
 
 
-def test_update_grade_in_canvas_triggers_background_task(monkeypatch):
-    """Test that update grade in canvas triggers background task."""
-    instance = SimpleNamespace(id=321)
+def test_update_grade_in_canvas_triggers_background_task_when_canvas_linked(
+    monkeypatch,
+):
+    """Test that a Canvas-linked course's grade save dispatches the sync task."""
+    instance = SimpleNamespace(id=321, course_id="course-v1:MITx+1+2026")
     stub_task = StubSyncUserGradeTask()
 
     monkeypatch.setattr(receivers, "sync_user_grade_with_canvas", stub_task)
-
-    receivers.update_grade_in_canvas(
-        sender="sender",
-        instance=instance,
-        created=False,
+    monkeypatch.setattr(
+        receivers, "get_cached_canvas_course_id", lambda _course_id: 12345
     )
 
+    receivers.update_grade_in_canvas(sender="sender", instance=instance, created=False)
+
     assert stub_task.delay_calls == [(321,)]
+
+
+def test_update_grade_in_canvas_skips_when_course_not_canvas_linked(monkeypatch):
+    """Test that a non-Canvas course's grade save does not dispatch the sync task."""
+    instance = SimpleNamespace(id=321, course_id="course-v1:MITx+1+2026")
+    stub_task = StubSyncUserGradeTask()
+
+    monkeypatch.setattr(receivers, "sync_user_grade_with_canvas", stub_task)
+    monkeypatch.setattr(
+        receivers, "get_cached_canvas_course_id", lambda _course_id: None
+    )
+
+    receivers.update_grade_in_canvas(sender="sender", instance=instance, created=False)
+
+    assert stub_task.delay_calls == []

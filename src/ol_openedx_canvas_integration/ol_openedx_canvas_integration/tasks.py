@@ -99,7 +99,7 @@ def _sync_user_grade_with_canvas(grade_id):  # noqa: PLR0911
     grade_instance = PersistentSubsectionGrade.objects.get(id=grade_id)
     course = get_course_by_id(grade_instance.course_id)
     canvas_course_id = get_canvas_course_id(course)
-    if not canvas_course_id:
+    if canvas_course_id is None:
         TASK_LOG.debug("Canvas course ID not found. Skipping grade sync.")
         return
 

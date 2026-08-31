@@ -87,6 +87,12 @@ Configuration
     CANVAS_ACCESS_TOKEN: <some access token value>
     CANVAS_BASE_URL: <the base URL where Canvas is running>
 
+- (Optional) ``CANVAS_COURSE_ID_CACHE_TIMEOUT`` controls how long, in seconds, the
+  plugin caches whether a course is linked to Canvas. This avoids a full course
+  lookup on every graded learner interaction platform-wide. Defaults to ``300``
+  (5 minutes). Only needs to be set in the LMS config, since the grade-sync check
+  only runs in the LMS.
+
 - Add the following configuration to you CMS settings (depending on you deployment method). These values defined in the LMS settings and are used in `tasks.py`. Since Celery's auto-discovery imports this automatically in the CMS worker, these values need to be defined in the CMS settings to avoid Celery worker failure.
 
   .. code-block::
@@ -147,6 +153,16 @@ Whenever the course is **Published** from the Studio, the **graded subsections**
 """"""""""""""""""""""""""""""
 
 Whenever a learner interacts with a graded question in Open edX, the latest grades are automatically posted to Canvas, if it's a part of a synced assignment. If a grade in Open edX is past the canvas due date, it will not be synced.
+
+.. NOTE::
+
+  Whether a course is linked to Canvas is cached for
+  ``CANVAS_COURSE_ID_CACHE_TIMEOUT`` seconds (300, i.e. 5 minutes, by default) to
+  avoid a full course lookup for every graded learner interaction on the
+  platform. This means grades saved in the first few minutes right after linking
+  a course to Canvas may not sync automatically. Running ``Push all MITx grades
+  to Canvas`` once after linking a course will pick up any grades saved during
+  that window.
 
 3. Automatic Syncing of Due Dates
 """""""""""""""""""""""""""""""""
