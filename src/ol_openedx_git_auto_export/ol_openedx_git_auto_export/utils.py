@@ -5,6 +5,7 @@ Utility functions for the ol_openedx_git_auto_export app.
 import logging
 import os
 import re
+import uuid
 from pathlib import Path
 
 from django.conf import settings
@@ -154,12 +155,13 @@ def _schedule_export_with_debounce(content_key, user):
     A single course save or library import can fire many publish signals over a
     span longer than any fixed window (e.g. a large course import into a v2
     library), and signals can arrive from concurrent workers. Each signal
-    atomically bumps a per-content generation counter (cache.incr, not a
-    read-modify-write) and schedules a task stamped with that generation; a
-    task only performs the export if its generation is still the latest one
-    when it runs. So however long or concurrent the burst, only the task for
-    the final signal ever exports, and there's no lost-update window between
-    reading and writing the debounce state.
+    stamps a fresh token for the content with a single write (no read-modify-
+    write, so no lost-update window between concurrent signals) and schedules
+    a task carrying that token. A task only exports if its token is still the
+    one on record when it runs EXPORT_DEBOUNCE_DELAY seconds later, so a burst
+    of any length or concurrency collapses into one export of the fully-
+    settled content. If the cache entry is gone by the time the task runs
+    (e.g. evicted), the task exports anyway rather than dropping it silently.
 
     Args:
         content_key: The course or library key to export.
@@ -168,20 +170,15 @@ def _schedule_export_with_debounce(content_key, user):
     from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
 
     debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=str(content_key))
-    # Note: no timeout, so the counter survives bursts of any length. It's one
-    # small int per course/library ever exported, so it isn't worth expiring.
-    cache.add(debounce_key, 0, timeout=None)
-    generation = cache.incr(debounce_key)
+    token = uuid.uuid4().hex
+    # No timeout: it's one small string per course/library ever published,
+    # overwritten by every signal, so it isn't worth expiring.
+    cache.set(debounce_key, token, timeout=None)
 
-    log.info(
-        "Scheduling git export for %s in %ds (generation %s)",
-        content_key,
-        EXPORT_DEBOUNCE_DELAY,
-        generation,
-    )
+    log.info("Scheduling git export for %s in %ds", content_key, EXPORT_DEBOUNCE_DELAY)
     async_export_to_git.apply_async(
         args=[str(content_key), user],
-        kwargs={"generation": generation},
+        kwargs={"token": token},
         countdown=EXPORT_DEBOUNCE_DELAY,
     )
 

@@ -28,27 +28,25 @@ LOGGER = get_task_logger(__name__)
 
 
 @shared_task
-def async_export_to_git(context_key_string, user=None, generation=None):
+def async_export_to_git(context_key_string, user=None, token=None):
     """Export a course or library to Git.
 
     Args:
         context_key_string (str): String representation of LearningContextKey
         user: Optional user for git export
-        generation: If set, this task was scheduled by the debounce logic in
-            utils._schedule_export_with_debounce. The task only proceeds if
-            this is still the latest generation recorded for the content;
-            otherwise a later signal has already superseded it and this call
-            is a no-op.
+        token: If set, this task was scheduled by the debounce logic in
+            utils._schedule_export_with_debounce. The task skips the export
+            only if a newer signal has recorded a different token in the
+            meantime. If the cache entry is missing entirely (e.g. evicted),
+            it exports anyway rather than silently dropping the export.
     """
-    if generation is not None:
+    if token is not None:
         debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=context_key_string)
-        current_generation = cache.get(debounce_key)
-        if current_generation != generation:
+        current_token = cache.get(debounce_key)
+        if current_token is not None and current_token != token:
             LOGGER.info(
-                "Skipping stale git export for %s (generation %s superseded by %s)",
+                "Skipping stale git export for %s (a newer signal superseded this one)",
                 context_key_string,
-                generation,
-                current_generation,
             )
             return
 
