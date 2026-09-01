@@ -31,12 +31,21 @@ REPOSITORY_NAME_MAX_LENGTH = 100  # Max length from GitHub for repo name
 
 # Debounce settings for the signal handler. A course save or library import
 # can fire many publish signals for the same content (up to one per block for
-# a large v2 library import). Every signal still schedules a task, but this
-# cache key holds a token overwritten by each one; a task only performs the
-# real export if its token is still current when it wakes
-# EXPORT_DEBOUNCE_DELAY seconds later. That dedupes the expensive git
-# operations even though one Celery task is still enqueued per signal. A
-# missing cache entry (e.g. evicted) exports anyway rather than silently
-# dropping the export.
-EXPORT_DEBOUNCE_DELAY = 5  # seconds of quiet before a scheduled export actually runs
+# a large v2 library import). Two cache keys collapse that burst into a single
+# export without queuing a task per signal:
+#   * the debounce key holds a token that every signal overwrites, naming the
+#     newest state that still needs exporting;
+#   * the pending key marks that a task is already queued, so the signals that
+#     follow only update the token.
+# A queued task waits EXPORT_DEBOUNCE_DELAY seconds, drops the pending marker,
+# and exports only if its token is still current. If newer signals arrived it
+# queues itself again with the newer token instead, so the export reflects the
+# end of the burst rather than a mid-import snapshot. A missing debounce entry
+# (e.g. evicted) exports anyway rather than silently dropping the export.
+EXPORT_DEBOUNCE_DELAY = 5  # seconds of quiet before a queued export actually runs
 EXPORT_DEBOUNCE_CACHE_KEY = "git_export_debounce:{content_key}"
+EXPORT_DEBOUNCE_PENDING_CACHE_KEY = "git_export_pending:{content_key}"
+# Outlives the countdown so the marker can't expire while the task is still
+# waiting in the broker, but short enough that a task lost with its worker
+# only delays the next export by a minute.
+EXPORT_DEBOUNCE_PENDING_TTL = 60  # seconds

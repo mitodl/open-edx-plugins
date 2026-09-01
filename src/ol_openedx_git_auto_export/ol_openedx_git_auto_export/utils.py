@@ -26,6 +26,8 @@ from ol_openedx_git_auto_export.constants import (
     ENABLE_GIT_AUTO_LIBRARY_EXPORT,
     EXPORT_DEBOUNCE_CACHE_KEY,
     EXPORT_DEBOUNCE_DELAY,
+    EXPORT_DEBOUNCE_PENDING_CACHE_KEY,
+    EXPORT_DEBOUNCE_PENDING_TTL,
     REPOSITORY_NAME_MAX_LENGTH,
     ContentType,
 )
@@ -153,6 +155,41 @@ def debounce_cache_key(content_key):
     return EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=str(content_key))
 
 
+def pending_cache_key(content_key):
+    """Cache key marking that an export task is already queued for this content."""
+    return EXPORT_DEBOUNCE_PENDING_CACHE_KEY.format(content_key=str(content_key))
+
+
+def queue_export_task(content_key, user, token):
+    """
+    Queue one export task for the content, unless one is already queued.
+
+    See EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
+
+    Args:
+        content_key: The course or library key to export.
+        user: Optional publisher username for the git commit.
+        token: Debounce token the task must still match in order to export.
+    """
+    from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
+
+    if not cache.add(
+        pending_cache_key(content_key), "1", timeout=EXPORT_DEBOUNCE_PENDING_TTL
+    ):
+        log.info(
+            "Git export already queued for %s, only updating the debounce token",
+            content_key,
+        )
+        return
+
+    log.info("Queuing git export for %s in %ds", content_key, EXPORT_DEBOUNCE_DELAY)
+    async_export_to_git.apply_async(
+        args=[str(content_key), user],
+        kwargs={"token": token},
+        countdown=EXPORT_DEBOUNCE_DELAY,
+    )
+
+
 def _schedule_export_with_debounce(content_key, user):
     """
     Schedule a git export task, debouncing bursts of signals for the same content.
@@ -163,20 +200,11 @@ def _schedule_export_with_debounce(content_key, user):
         content_key: The course or library key to export.
         user: Optional user for the git export.
     """
-    from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
-
-    debounce_key = debounce_cache_key(content_key)
     token = uuid.uuid4().hex
     # No timeout: it's one small string per course/library ever published,
     # overwritten by every signal, so it isn't worth expiring.
-    cache.set(debounce_key, token, timeout=None)
-
-    log.info("Scheduling git export for %s in %ds", content_key, EXPORT_DEBOUNCE_DELAY)
-    async_export_to_git.apply_async(
-        args=[str(content_key), user],
-        kwargs={"token": token},
-        countdown=EXPORT_DEBOUNCE_DELAY,
-    )
+    cache.set(debounce_cache_key(content_key), token, timeout=None)
+    queue_export_task(content_key, user, token)
 
 
 def export_course_to_git(course_key):
@@ -233,8 +261,16 @@ def export_library_to_git(library_key):
         # Get publisher username. V1 libraries don't have a published_by field.
         user = None
         if isinstance(library_key, LibraryLocatorV2):
-            library_metadata = get_library(library_key)
-            user = library_metadata.published_by or None
+            try:
+                user = get_library(library_key).published_by or None
+            except ContentLibraryNotFound:
+                # This runs inside the publish request, which can beat the
+                # library row becoming visible. Only the commit author is lost;
+                # the task re-resolves the library when it runs.
+                log.warning(
+                    "Library %s not found; exporting without a publisher",
+                    library_key,
+                )
 
         _schedule_export_with_debounce(library_key, user)
     else:

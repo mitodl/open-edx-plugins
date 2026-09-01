@@ -11,32 +11,45 @@ from ol_openedx_git_auto_export.utils import (
     debounce_cache_key,
     export_course_to_git,
     export_library_to_git,
+    pending_cache_key,
 )
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LibraryLocatorV2
+from openedx.core.djangoapps.content_libraries.api import ContentLibraryNotFound
 
 SIGNAL_COUNT = 3
 
 
 class TestExportDebounce(TestCase):
-    """Repeated publish signals for the same content must stamp each scheduled
-    task with a fresh, distinct token, and the cache must end up holding only
-    the last one -- so only the task for the last signal will match."""
+    """A burst of publish signals for the same content must queue exactly one
+    task -- carrying the first signal's token -- while every later signal only
+    overwrites the token, so the queued task can tell the burst moved on."""
 
     def setUp(self):
         cache.clear()
 
-    def _assert_distinct_tokens(self, mock_apply_async):
-        tokens = [
-            call.kwargs["kwargs"]["token"] for call in mock_apply_async.call_args_list
-        ]
+    def _assert_one_task_for_burst(self, content_key, mock_apply_async, mock_cache_set):
+        tokens = [call.args[1] for call in mock_cache_set.call_args_list]
         assert len(tokens) == SIGNAL_COUNT
         assert len(set(tokens)) == SIGNAL_COUNT, "each signal must get a fresh token"
+
+        # The point of the fix: N signals, one Celery message.
+        mock_apply_async.assert_called_once()
+        queued_token = mock_apply_async.call_args.kwargs["kwargs"]["token"]
+        assert queued_token == tokens[0]
+
+        # The queued task will find this newer token and re-queue itself.
+        assert cache.get(debounce_cache_key(content_key)) == tokens[-1]
+        assert cache.get(pending_cache_key(content_key)) is not None
+
+        # Regression guard: the debounce token must outlive the whole burst.
+        mock_cache_set.assert_called_with(
+            debounce_cache_key(content_key), tokens[-1], timeout=None
+        )
         return tokens
 
-    def test_export_library_to_git_stamps_distinct_tokens(self):
+    def test_export_library_to_git_queues_one_task_per_burst(self):
         library_key = LibraryLocatorV2.from_string("lib:org:slug")
-        user = mock.Mock(published_by="a-user")
 
         with (
             mock.patch(
@@ -48,7 +61,7 @@ class TestExportDebounce(TestCase):
             ),
             mock.patch(
                 "ol_openedx_git_auto_export.utils.get_library",
-                return_value=user,
+                return_value=mock.Mock(published_by="a-user"),
             ),
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
@@ -62,23 +75,17 @@ class TestExportDebounce(TestCase):
             for _ in range(SIGNAL_COUNT):
                 export_library_to_git(library_key)
 
-            tokens = self._assert_distinct_tokens(mock_apply_async)
+            tokens = self._assert_one_task_for_burst(
+                library_key, mock_apply_async, mock_cache_set
+            )
 
-            debounce_key = debounce_cache_key(library_key)
-            # Only the last signal's token is the one a woken task can match.
-            assert cache.get(debounce_key) == tokens[-1]
-
-            # Regression guard: the fix for a burst outliving a fixed window
-            # depends on this key never expiring mid-burst.
-            mock_cache_set.assert_called_with(debounce_key, tokens[-1], timeout=None)
-
-            mock_apply_async.assert_called_with(
+            mock_apply_async.assert_called_once_with(
                 args=[str(library_key), "a-user"],
-                kwargs={"token": tokens[-1]},
+                kwargs={"token": tokens[0]},
                 countdown=EXPORT_DEBOUNCE_DELAY,
             )
 
-    def test_export_course_to_git_stamps_distinct_tokens(self):
+    def test_export_course_to_git_queues_one_task_per_burst(self):
         course_key = CourseKey.from_string("course-v1:org+course+run")
 
         with (
@@ -97,19 +104,46 @@ class TestExportDebounce(TestCase):
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
             ) as mock_apply_async,
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.cache.set", wraps=cache.set
+            ) as mock_cache_set,
         ):
             # Simulate a few of the 10-30 COURSE_PUBLISHED signals a single
             # course save fires.
             for _ in range(SIGNAL_COUNT):
                 export_course_to_git(course_key)
 
-            tokens = self._assert_distinct_tokens(mock_apply_async)
+            tokens = self._assert_one_task_for_burst(
+                course_key, mock_apply_async, mock_cache_set
+            )
 
-            debounce_key = debounce_cache_key(course_key)
-            assert cache.get(debounce_key) == tokens[-1]
-
-            mock_apply_async.assert_called_with(
+            mock_apply_async.assert_called_once_with(
                 args=[str(course_key), None],
-                kwargs={"token": tokens[-1]},
+                kwargs={"token": tokens[0]},
                 countdown=EXPORT_DEBOUNCE_DELAY,
             )
+
+    def test_export_library_to_git_survives_missing_library(self):
+        """A library not yet visible must still be exported, just without an
+        author -- the task re-resolves it when it runs."""
+        library_key = LibraryLocatorV2.from_string("lib:org:slug")
+
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.is_auto_export_enabled",
+                return_value=True,
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_library",
+                side_effect=ContentLibraryNotFound,
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ) as mock_apply_async,
+        ):
+            export_library_to_git(library_key)
+
+            assert mock_apply_async.call_args.kwargs["args"] == [str(library_key), None]

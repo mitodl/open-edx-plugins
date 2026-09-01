@@ -22,6 +22,8 @@ from ol_openedx_git_auto_export.utils import (
     get_content_info,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
+    pending_cache_key,
+    queue_export_task,
 )
 
 LOGGER = get_task_logger(__name__)
@@ -34,15 +36,22 @@ def async_export_to_git(context_key_string, user=None, token=None):
     Args:
         context_key_string (str): String representation of LearningContextKey
         user: Optional user for git export
-        token: Debounce token from utils._schedule_export_with_debounce; see
+        token: Debounce token from utils.queue_export_task; see
             EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
     """
-    if token and cache.get(debounce_cache_key(context_key_string), token) != token:
-        LOGGER.info(
-            "Skipping stale git export for %s (a newer signal superseded this one)",
-            context_key_string,
-        )
-        return
+    if token:
+        # No longer queued, so a signal arriving from here on queues a new task.
+        cache.delete(pending_cache_key(context_key_string))
+        current_token = cache.get(debounce_cache_key(context_key_string), token)
+        if current_token != token:
+            LOGGER.info(
+                "Newer signals arrived for %s; re-queuing rather than exporting "
+                "a mid-burst snapshot",
+                context_key_string,
+            )
+            # Keeps this task's user: a burst comes from a single publisher.
+            queue_export_task(context_key_string, user, current_token)
+            return
 
     try:
         context_key = LearningContextKey.from_string(context_key_string)
