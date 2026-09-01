@@ -152,16 +152,7 @@ def _schedule_export_with_debounce(content_key, user):
     """
     Schedule a git export task, debouncing bursts of signals for the same content.
 
-    A single course save or library import can fire many publish signals over a
-    span longer than any fixed window (e.g. a large course import into a v2
-    library), and signals can arrive from concurrent workers. Each signal
-    stamps a fresh token for the content with a single write (no read-modify-
-    write, so no lost-update window between concurrent signals) and schedules
-    a task carrying that token. A task only exports if its token is still the
-    one on record when it runs EXPORT_DEBOUNCE_DELAY seconds later, so a burst
-    of any length or concurrency collapses into one export of the fully-
-    settled content. If the cache entry is gone by the time the task runs
-    (e.g. evicted), the task exports anyway rather than dropping it silently.
+    See EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
 
     Args:
         content_key: The course or library key to export.

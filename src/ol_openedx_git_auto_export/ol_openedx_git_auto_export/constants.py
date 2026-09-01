@@ -29,18 +29,12 @@ ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION = "ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREA
 COURSE_RERUN_STATE_SUCCEEDED = "succeeded"
 REPOSITORY_NAME_MAX_LENGTH = 100  # Max length from GitHub for repo name
 
-# Debounce settings for the signal handler.
-# A single course save triggers 10-30 COURSE_PUBLISHED signals in one request,
-# and importing a course into a v2 library fires one LIBRARY_BLOCK_PUBLISHED/
-# LIBRARY_CONTAINER_PUBLISHED signal per block/container imported — a burst that
-# can run far longer than any fixed window for a large import, and can involve
-# signals from concurrent workers.
-# This cache key holds a token, overwritten by every signal for the same
-# content with a single write (no read-modify-write, so no lost-update window
-# between concurrent signals). Each signal schedules a task stamped with the
-# token it wrote; a task only exports if that token is still on record when it
-# runs EXPORT_DEBOUNCE_DELAY seconds later, so a burst of any length or
-# concurrency collapses into one export. A missing cache entry (e.g. evicted)
-# is treated as "export anyway" rather than a silently dropped export.
+# Debounce settings for the signal handler. A course save or library import
+# can fire many publish signals for the same content (up to one per block for
+# a large v2 library import). This cache key holds a token overwritten by
+# every signal; a task only exports if its token is still current when it
+# wakes EXPORT_DEBOUNCE_DELAY seconds later, so the burst collapses into one
+# export. A missing cache entry (e.g. evicted) exports anyway rather than
+# silently dropping the export.
 EXPORT_DEBOUNCE_DELAY = 5  # seconds of quiet before a scheduled export actually runs
 EXPORT_DEBOUNCE_CACHE_KEY = "git_export_debounce:{content_key}"

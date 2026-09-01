@@ -11,6 +11,14 @@ from ol_openedx_git_auto_export.tasks import async_export_to_git
 
 CONTENT_KEY = "lib:org:slug"
 
+CASES = [
+    # cached_token, call_token, should_proceed, case
+    ("token-2", "token-1", False, "a newer signal recorded a different token"),
+    ("token-1", "token-1", True, "its token is still current"),
+    (None, "token-1", True, "the cache entry is missing (fail open, not dropped)"),
+    ("some-other-tasks-token", None, True, "called without a token (legacy path)"),
+]
+
 
 class TestAsyncExportToGitTokenCheck(TestCase):
     """A task scheduled by the debounce logic must skip the export only when a
@@ -20,48 +28,21 @@ class TestAsyncExportToGitTokenCheck(TestCase):
     def setUp(self):
         cache.clear()
 
-    def test_skips_export_when_a_newer_signal_recorded_a_different_token(self):
+    def test_token_staleness_check(self):
         debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=CONTENT_KEY)
-        cache.set(debounce_key, "token-2", timeout=None)
 
-        with mock.patch(
-            "ol_openedx_git_auto_export.tasks.LearningContextKey"
-        ) as mock_key_cls:
-            async_export_to_git(CONTENT_KEY, token="token-1")  # noqa: S106
+        for cached_token, call_token, should_proceed, case in CASES:
+            with self.subTest(case=case):
+                cache.clear()
+                if cached_token is not None:
+                    cache.set(debounce_key, cached_token, timeout=None)
 
-            # Superseded token: bails out before even parsing the key.
-            mock_key_cls.from_string.assert_not_called()
+                with mock.patch(
+                    "ol_openedx_git_auto_export.tasks.LearningContextKey"
+                ) as mock_key_cls:
+                    async_export_to_git(CONTENT_KEY, token=call_token)
 
-    def test_proceeds_when_its_token_is_still_current(self):
-        debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=CONTENT_KEY)
-        cache.set(debounce_key, "token-1", timeout=None)
-
-        with mock.patch(
-            "ol_openedx_git_auto_export.tasks.LearningContextKey"
-        ) as mock_key_cls:
-            async_export_to_git(CONTENT_KEY, token="token-1")  # noqa: S106
-
-            mock_key_cls.from_string.assert_called_once_with(CONTENT_KEY)
-
-    def test_proceeds_when_the_cache_entry_is_missing(self):
-        # No debounce_key ever set: e.g. evicted, or a cache flush/restart.
-        # Must fail OPEN (export anyway), never silently drop the export.
-        with mock.patch(
-            "ol_openedx_git_auto_export.tasks.LearningContextKey"
-        ) as mock_key_cls:
-            async_export_to_git(CONTENT_KEY, token="token-1")  # noqa: S106
-
-            mock_key_cls.from_string.assert_called_once_with(CONTENT_KEY)
-
-    def test_legacy_call_without_a_token_always_proceeds(self):
-        # async_create_github_repo calls async_export_to_git directly with no
-        # token; this path must be unaffected by whatever is in the cache.
-        debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=CONTENT_KEY)
-        cache.set(debounce_key, "some-other-tasks-token", timeout=None)
-
-        with mock.patch(
-            "ol_openedx_git_auto_export.tasks.LearningContextKey"
-        ) as mock_key_cls:
-            async_export_to_git(CONTENT_KEY)
-
-            mock_key_cls.from_string.assert_called_once_with(CONTENT_KEY)
+                    if should_proceed:
+                        mock_key_cls.from_string.assert_called_once_with(CONTENT_KEY)
+                    else:
+                        mock_key_cls.from_string.assert_not_called()
