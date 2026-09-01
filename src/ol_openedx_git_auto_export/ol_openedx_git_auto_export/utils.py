@@ -148,6 +148,11 @@ def github_repo_name_format(course_key_str):
     return repo_name.replace("course-v1-", "")
 
 
+def debounce_cache_key(content_key):
+    """Cache key holding the debounce token; see EXPORT_DEBOUNCE_CACHE_KEY."""
+    return EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=str(content_key))
+
+
 def _schedule_export_with_debounce(content_key, user):
     """
     Schedule a git export task, debouncing bursts of signals for the same content.
@@ -160,7 +165,7 @@ def _schedule_export_with_debounce(content_key, user):
     """
     from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
 
-    debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=str(content_key))
+    debounce_key = debounce_cache_key(content_key)
     token = uuid.uuid4().hex
     # No timeout: it's one small string per course/library ever published,
     # overwritten by every signal, so it isn't worth expiring.

@@ -14,11 +14,11 @@ from django.core.cache import cache
 from opaque_keys.edx.keys import LearningContextKey
 from rest_framework import status
 
-from ol_openedx_git_auto_export.constants import EXPORT_DEBOUNCE_CACHE_KEY
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
     clear_stale_git_lock,
+    debounce_cache_key,
     get_content_info,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
@@ -37,8 +37,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
         token: Debounce token from utils._schedule_export_with_debounce; see
             EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
     """
-    debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=context_key_string)
-    if token and cache.get(debounce_key, token) != token:
+    if token and cache.get(debounce_cache_key(context_key_string), token) != token:
         LOGGER.info(
             "Skipping stale git export for %s (a newer signal superseded this one)",
             context_key_string,

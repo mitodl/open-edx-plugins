@@ -6,11 +6,12 @@ from unittest import mock
 
 from django.core.cache import cache
 from django.test import TestCase
-from ol_openedx_git_auto_export.constants import (
-    EXPORT_DEBOUNCE_CACHE_KEY,
-    EXPORT_DEBOUNCE_DELAY,
+from ol_openedx_git_auto_export.constants import EXPORT_DEBOUNCE_DELAY
+from ol_openedx_git_auto_export.utils import (
+    debounce_cache_key,
+    export_course_to_git,
+    export_library_to_git,
 )
-from ol_openedx_git_auto_export.utils import export_course_to_git, export_library_to_git
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LibraryLocatorV2
 
@@ -24,6 +25,14 @@ class TestExportDebounce(TestCase):
 
     def setUp(self):
         cache.clear()
+
+    def _assert_distinct_tokens(self, mock_apply_async):
+        tokens = [
+            call.kwargs["kwargs"]["token"] for call in mock_apply_async.call_args_list
+        ]
+        assert len(tokens) == SIGNAL_COUNT
+        assert len(set(tokens)) == SIGNAL_COUNT, "each signal must get a fresh token"
+        return tokens
 
     def test_export_library_to_git_stamps_distinct_tokens(self):
         library_key = LibraryLocatorV2.from_string("lib:org:slug")
@@ -53,18 +62,9 @@ class TestExportDebounce(TestCase):
             for _ in range(SIGNAL_COUNT):
                 export_library_to_git(library_key)
 
-            tokens = [
-                call.kwargs["kwargs"]["token"]
-                for call in mock_apply_async.call_args_list
-            ]
-            assert len(tokens) == SIGNAL_COUNT
-            assert len(set(tokens)) == SIGNAL_COUNT, (
-                "each signal must get a fresh token"
-            )
+            tokens = self._assert_distinct_tokens(mock_apply_async)
 
-            debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(
-                content_key=str(library_key)
-            )
+            debounce_key = debounce_cache_key(library_key)
             # Only the last signal's token is the one a woken task can match.
             assert cache.get(debounce_key) == tokens[-1]
 
@@ -103,16 +103,9 @@ class TestExportDebounce(TestCase):
             for _ in range(SIGNAL_COUNT):
                 export_course_to_git(course_key)
 
-            tokens = [
-                call.kwargs["kwargs"]["token"]
-                for call in mock_apply_async.call_args_list
-            ]
-            assert len(tokens) == SIGNAL_COUNT
-            assert len(set(tokens)) == SIGNAL_COUNT, (
-                "each signal must get a fresh token"
-            )
+            tokens = self._assert_distinct_tokens(mock_apply_async)
 
-            debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=str(course_key))
+            debounce_key = debounce_cache_key(course_key)
             assert cache.get(debounce_key) == tokens[-1]
 
             mock_apply_async.assert_called_with(

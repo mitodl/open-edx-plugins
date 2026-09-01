@@ -6,9 +6,8 @@ from unittest import mock
 
 from django.core.cache import cache
 from django.test import TestCase
-from ol_openedx_git_auto_export.constants import EXPORT_DEBOUNCE_CACHE_KEY
 from ol_openedx_git_auto_export.tasks import async_export_to_git
-from ol_openedx_git_auto_export.utils import export_library_to_git
+from ol_openedx_git_auto_export.utils import debounce_cache_key, export_library_to_git
 from opaque_keys.edx.locator import LibraryLocatorV2
 
 CONTENT_KEY = "lib:org:slug"
@@ -32,7 +31,7 @@ class TestAsyncExportToGitTokenCheck(TestCase):
         cache.clear()
 
     def test_token_staleness_check(self):
-        debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=CONTENT_KEY)
+        debounce_key = debounce_cache_key(CONTENT_KEY)
 
         for cached_token, call_token, should_proceed, case in CASES:
             with self.subTest(case=case):
