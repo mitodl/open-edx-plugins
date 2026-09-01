@@ -34,21 +34,16 @@ def async_export_to_git(context_key_string, user=None, token=None):
     Args:
         context_key_string (str): String representation of LearningContextKey
         user: Optional user for git export
-        token: If set, this task was scheduled by the debounce logic in
-            utils._schedule_export_with_debounce. The task skips the export
-            only if a newer signal has recorded a different token in the
-            meantime. If the cache entry is missing entirely (e.g. evicted),
-            it exports anyway rather than silently dropping the export.
+        token: Debounce token from utils._schedule_export_with_debounce; see
+            EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
     """
-    if token is not None:
-        debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=context_key_string)
-        current_token = cache.get(debounce_key)
-        if current_token is not None and current_token != token:
-            LOGGER.info(
-                "Skipping stale git export for %s (a newer signal superseded this one)",
-                context_key_string,
-            )
-            return
+    debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=context_key_string)
+    if token and cache.get(debounce_key, token) != token:
+        LOGGER.info(
+            "Skipping stale git export for %s (a newer signal superseded this one)",
+            context_key_string,
+        )
+        return
 
     try:
         context_key = LearningContextKey.from_string(context_key_string)
