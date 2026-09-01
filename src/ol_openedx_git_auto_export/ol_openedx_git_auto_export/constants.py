@@ -33,10 +33,12 @@ REPOSITORY_NAME_MAX_LENGTH = 100  # Max length from GitHub for repo name
 # A single course save triggers 10-30 COURSE_PUBLISHED signals in one request,
 # and importing a course into a v2 library fires one LIBRARY_BLOCK_PUBLISHED/
 # LIBRARY_CONTAINER_PUBLISHED signal per block/container imported — a burst that
-# can run far longer than any fixed window for a large import.
-# This is a trailing-edge debounce: the cache key holds the id of the most
-# recently scheduled task. Each new signal revokes that pending task and
-# reschedules a fresh one, so the export only actually runs once
-# EXPORT_DEBOUNCE_DELAY seconds pass with no new signal.
+# can run far longer than any fixed window for a large import, and can involve
+# signals from concurrent workers.
+# This cache key holds a generation counter, atomically incremented (cache.incr)
+# by every signal for the same content. Each signal schedules a task stamped
+# with the generation it observed; a task only exports if its generation is
+# still the latest one recorded when it runs EXPORT_DEBOUNCE_DELAY seconds
+# later, so a burst of any length or concurrency collapses into one export.
 EXPORT_DEBOUNCE_DELAY = 5  # seconds of quiet required before the export actually runs
 EXPORT_DEBOUNCE_CACHE_KEY = "git_export_debounce:{content_key}"

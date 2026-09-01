@@ -10,9 +10,11 @@ from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
 from cms.djangoapps.contentstore.git_export_utils import GitExportError, export_to_git
 from django.conf import settings
+from django.core.cache import cache
 from opaque_keys.edx.keys import LearningContextKey
 from rest_framework import status
 
+from ol_openedx_git_auto_export.constants import EXPORT_DEBOUNCE_CACHE_KEY
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
@@ -26,13 +28,30 @@ LOGGER = get_task_logger(__name__)
 
 
 @shared_task
-def async_export_to_git(context_key_string, user=None):
+def async_export_to_git(context_key_string, user=None, generation=None):
     """Export a course or library to Git.
 
     Args:
         context_key_string (str): String representation of LearningContextKey
         user: Optional user for git export
+        generation: If set, this task was scheduled by the debounce logic in
+            utils._schedule_export_with_debounce. The task only proceeds if
+            this is still the latest generation recorded for the content;
+            otherwise a later signal has already superseded it and this call
+            is a no-op.
     """
+    if generation is not None:
+        debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=context_key_string)
+        current_generation = cache.get(debounce_key)
+        if current_generation != generation:
+            LOGGER.info(
+                "Skipping stale git export for %s (generation %s superseded by %s)",
+                context_key_string,
+                generation,
+                current_generation,
+            )
+            return
+
     try:
         context_key = LearningContextKey.from_string(context_key_string)
         content_info = get_content_info(context_key)

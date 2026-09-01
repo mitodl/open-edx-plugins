@@ -6,22 +6,23 @@ from unittest import mock
 
 from django.core.cache import cache
 from django.test import TestCase
+from ol_openedx_git_auto_export.constants import EXPORT_DEBOUNCE_CACHE_KEY
 from ol_openedx_git_auto_export.utils import export_course_to_git, export_library_to_git
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LibraryLocatorV2
 
-SIGNAL_COUNT = 2
+EXPECTED_GENERATIONS = [1, 2]
 
 
 class TestExportDebounce(TestCase):
-    """Repeated publish signals for the same content must collapse into a
-    single trailing export: each signal revokes the previously scheduled
-    task and reschedules a fresh one."""
+    """Repeated publish signals for the same content must stamp each scheduled
+    task with a strictly increasing generation, so only the task for the last
+    signal matches the recorded generation when it runs."""
 
     def setUp(self):
         cache.clear()
 
-    def test_export_library_to_git_revokes_and_reschedules(self):
+    def test_export_library_to_git_stamps_increasing_generations(self):
         library_key = LibraryLocatorV2.from_string("lib:org:slug")
 
         with (
@@ -39,25 +40,24 @@ class TestExportDebounce(TestCase):
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
             ) as mock_apply_async,
-            mock.patch(
-                "ol_openedx_git_auto_export.tasks.async_export_to_git.AsyncResult"
-            ) as mock_async_result,
         ):
-            mock_apply_async.side_effect = [
-                mock.Mock(id="task-1"),
-                mock.Mock(id="task-2"),
-            ]
-
             # Simulate two LIBRARY_BLOCK_PUBLISHED/LIBRARY_CONTAINER_PUBLISHED
             # signals for the same library, as happens during a course import.
             export_library_to_git(library_key)
             export_library_to_git(library_key)
 
-            assert mock_apply_async.call_count == SIGNAL_COUNT
-            mock_async_result.assert_called_once_with("task-1")
-            mock_async_result.return_value.revoke.assert_called_once()
+            generations = [
+                call.kwargs["kwargs"]["generation"]
+                for call in mock_apply_async.call_args_list
+            ]
+            assert generations == EXPECTED_GENERATIONS
 
-    def test_export_course_to_git_revokes_and_reschedules(self):
+            debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(
+                content_key=str(library_key)
+            )
+            assert cache.get(debounce_key) == EXPECTED_GENERATIONS[-1]
+
+    def test_export_course_to_git_stamps_increasing_generations(self):
         course_key = CourseKey.from_string("course-v1:org+course+run")
 
         with (
@@ -72,20 +72,17 @@ class TestExportDebounce(TestCase):
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
             ) as mock_apply_async,
-            mock.patch(
-                "ol_openedx_git_auto_export.tasks.async_export_to_git.AsyncResult"
-            ) as mock_async_result,
         ):
-            mock_apply_async.side_effect = [
-                mock.Mock(id="task-1"),
-                mock.Mock(id="task-2"),
-            ]
-
             # Simulate two of the 10-30 COURSE_PUBLISHED signals a single
             # course save fires.
             export_course_to_git(course_key)
             export_course_to_git(course_key)
 
-            assert mock_apply_async.call_count == SIGNAL_COUNT
-            mock_async_result.assert_called_once_with("task-1")
-            mock_async_result.return_value.revoke.assert_called_once()
+            generations = [
+                call.kwargs["kwargs"]["generation"]
+                for call in mock_apply_async.call_args_list
+            ]
+            assert generations == EXPECTED_GENERATIONS
+
+            debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=str(course_key))
+            assert cache.get(debounce_key) == EXPECTED_GENERATIONS[-1]
