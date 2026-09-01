@@ -147,6 +147,39 @@ def github_repo_name_format(course_key_str):
     return repo_name.replace("course-v1-", "")
 
 
+def _schedule_export_with_debounce(content_key, user):
+    """
+    Schedule a git export task, debouncing bursts of signals for the same content.
+
+    A single course save or library import can fire many publish signals in
+    quick succession. cache.add() ensures only the first signal in the debounce
+    window schedules a task; subsequent signals are dropped before hitting the
+    broker.
+
+    Args:
+        content_key: The course or library key to export.
+        user: Optional user for the git export.
+    """
+    from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
+
+    debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=str(content_key))
+    if cache.add(debounce_key, "1", timeout=EXPORT_DEBOUNCE_DELAY):
+        log.info(
+            "Scheduling git export for %s with %ds debounce delay",
+            content_key,
+            EXPORT_DEBOUNCE_DELAY,
+        )
+        async_export_to_git.apply_async(
+            args=[str(content_key), user],
+            countdown=EXPORT_DEBOUNCE_DELAY,
+        )
+    else:
+        log.info(
+            "Git export already scheduled for %s, skipping duplicate signal",
+            content_key,
+        )
+
+
 def export_course_to_git(course_key):
     """
     Export the course to a Git repository.
@@ -154,8 +187,6 @@ def export_course_to_git(course_key):
     Args:
         course_key (CourseKey): The course key of the course to export.
     """
-    from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
-
     if is_auto_export_enabled():
         get_or_create_git_export_repo_dir()
         course_module = modulestore().get_course(course_key)
@@ -165,23 +196,7 @@ def export_course_to_git(course_key):
         )
 
         user = get_publisher_username(course_module)
-
-        debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(course_key=str(course_key))
-        if cache.add(debounce_key, "1", timeout=EXPORT_DEBOUNCE_DELAY):
-            log.info(
-                "Scheduling git export for course %s with %ds debounce delay",
-                course_key,
-                EXPORT_DEBOUNCE_DELAY,
-            )
-            async_export_to_git.apply_async(
-                args=[str(course_key), user],
-                countdown=EXPORT_DEBOUNCE_DELAY,
-            )
-        else:
-            log.info(
-                "Git export already scheduled for course %s, skipping duplicate signal",
-                course_key,
-            )
+        _schedule_export_with_debounce(course_key, user)
 
 
 def clear_stale_git_lock(git_url):
@@ -209,8 +224,6 @@ def export_library_to_git(library_key):
     Args:
         library_key (LibraryLocator | LibraryLocatorV2): The library key to export.
     """
-    from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
-
     if is_auto_export_enabled(is_library=True):
         get_or_create_git_export_repo_dir()
         log.info(
@@ -230,7 +243,7 @@ def export_library_to_git(library_key):
             # V1 libraries don't have published_by field
             pass
 
-        async_export_to_git.delay(str(library_key), user=user)
+        _schedule_export_with_debounce(library_key, user)
     else:
         log.info(
             "Library auto-export is disabled. Skipping export for library: %s",
