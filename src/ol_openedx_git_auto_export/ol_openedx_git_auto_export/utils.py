@@ -225,17 +225,11 @@ def export_library_to_git(library_key):
             library_key,
         )
 
-        # Get publisher username
+        # Get publisher username. V1 libraries don't have a published_by field.
         user = None
         if isinstance(library_key, LibraryLocatorV2):
-            # V2 libraries have published_by in their metadata
             library_metadata = get_library(library_key)
-            user = (
-                library_metadata.published_by if library_metadata.published_by else None
-            )
-        else:
-            # V1 libraries don't have published_by field
-            pass
+            user = library_metadata.published_by or None
 
         _schedule_export_with_debounce(library_key, user)
     else:
