@@ -32,10 +32,11 @@ REPOSITORY_NAME_MAX_LENGTH = 100  # Max length from GitHub for repo name
 # Debounce settings for the signal handler.
 # A single course save triggers 10-30 COURSE_PUBLISHED signals in one request,
 # and importing a course into a v2 library fires one LIBRARY_BLOCK_PUBLISHED/
-# LIBRARY_CONTAINER_PUBLISHED signal per block/container imported.
-# cache.add() on this key ensures only the first signal schedules a task; all
-# subsequent signals within the window are silently dropped before hitting the broker.
-# The task is scheduled with countdown=EXPORT_DEBOUNCE_DELAY so it runs after
-# the burst window has closed and the course/library state is fully settled.
-EXPORT_DEBOUNCE_DELAY = 5  # seconds — must exceed the publish burst window
+# LIBRARY_CONTAINER_PUBLISHED signal per block/container imported — a burst that
+# can run far longer than any fixed window for a large import.
+# This is a trailing-edge debounce: the cache key holds the id of the most
+# recently scheduled task. Each new signal revokes that pending task and
+# reschedules a fresh one, so the export only actually runs once
+# EXPORT_DEBOUNCE_DELAY seconds pass with no new signal.
+EXPORT_DEBOUNCE_DELAY = 5  # seconds of quiet required before the export actually runs
 EXPORT_DEBOUNCE_CACHE_KEY = "git_export_debounce:{content_key}"

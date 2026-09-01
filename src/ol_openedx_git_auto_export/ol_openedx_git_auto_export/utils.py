@@ -151,10 +151,13 @@ def _schedule_export_with_debounce(content_key, user):
     """
     Schedule a git export task, debouncing bursts of signals for the same content.
 
-    A single course save or library import can fire many publish signals in
-    quick succession. cache.add() ensures only the first signal in the debounce
-    window schedules a task; subsequent signals are dropped before hitting the
-    broker.
+    A single course save or library import can fire many publish signals over a
+    span longer than any fixed window (e.g. a large course import into a v2
+    library). This is a trailing-edge debounce: each signal revokes the
+    previously scheduled task (if it hasn't run yet) and reschedules a fresh
+    one, so the export only actually runs once signals stop arriving for
+    EXPORT_DEBOUNCE_DELAY seconds — collapsing the whole burst into one export
+    of the fully-settled content, however long the burst runs.
 
     Args:
         content_key: The course or library key to export.
@@ -163,21 +166,26 @@ def _schedule_export_with_debounce(content_key, user):
     from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
 
     debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=str(content_key))
-    if cache.add(debounce_key, "1", timeout=EXPORT_DEBOUNCE_DELAY):
-        log.info(
-            "Scheduling git export for %s with %ds debounce delay",
-            content_key,
-            EXPORT_DEBOUNCE_DELAY,
-        )
-        async_export_to_git.apply_async(
-            args=[str(content_key), user],
-            countdown=EXPORT_DEBOUNCE_DELAY,
-        )
-    else:
-        log.info(
-            "Git export already scheduled for %s, skipping duplicate signal",
-            content_key,
-        )
+    pending_task_id = cache.get(debounce_key)
+    if pending_task_id:
+        async_export_to_git.AsyncResult(pending_task_id).revoke()
+
+    result = async_export_to_git.apply_async(
+        args=[str(content_key), user],
+        countdown=EXPORT_DEBOUNCE_DELAY,
+    )
+    # ponytail: each signal still hits the broker for a schedule+revoke pair
+    # rather than being dropped outright, so a very long burst trades duplicate
+    # git exports for extra broker chatter. That's the right trade here since
+    # the exports this replaces are the expensive operation; add a short local
+    # rate-limit before rescheduling if broker load ever becomes the concern.
+    cache.set(debounce_key, result.id, timeout=EXPORT_DEBOUNCE_DELAY)
+    log.info(
+        "Scheduling git export for %s in %ds (revoked previous pending task: %s)",
+        content_key,
+        EXPORT_DEBOUNCE_DELAY,
+        bool(pending_task_id),
+    )
 
 
 def export_course_to_git(course_key):
