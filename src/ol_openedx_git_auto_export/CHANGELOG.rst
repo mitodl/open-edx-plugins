@@ -12,6 +12,9 @@ Version 0.8.4 (2026-09-01)
   export reflects the end of the import rather than a mid-import snapshot. The
   same mechanism covers the course path, which previously exported whatever
   state existed 5 seconds after the first signal of a burst.
+* The debounce fails open: a cache backend that is down queues the export
+  undebounced instead of raising out of the publish request, and an export task
+  that fails to enqueue releases its marker so the next signal can retry.
 * Fixed a ``ContentLibraryNotFound`` from ``export_library_to_git`` propagating
   into the publish request when the library row is not visible yet; the export
   is now queued without a commit author instead.

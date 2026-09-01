@@ -4,6 +4,7 @@ Tests for the git export debounce logic in utils.py.
 
 from unittest import mock
 
+import pytest
 from django.core.cache import cache
 from django.test import TestCase
 from ol_openedx_git_auto_export.constants import EXPORT_DEBOUNCE_DELAY
@@ -122,6 +123,63 @@ class TestExportDebounce(TestCase):
                 kwargs={"token": tokens[0]},
                 countdown=EXPORT_DEBOUNCE_DELAY,
             )
+
+    def test_failed_enqueue_releases_the_pending_marker(self):
+        """A broker failure must not leave the marker behind: every signal for
+        the next minute would then think a task is queued and the burst would
+        never export."""
+        library_key = LibraryLocatorV2.from_string("lib:org:slug")
+
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.is_auto_export_enabled",
+                return_value=True,
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_library",
+                return_value=mock.Mock(published_by=None),
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async",
+                side_effect=RuntimeError("broker down"),
+            ),
+            pytest.raises(RuntimeError),
+        ):
+            export_library_to_git(library_key)
+
+        assert cache.get(pending_cache_key(library_key)) is None
+
+    def test_export_is_queued_when_the_cache_backend_is_down(self):
+        """A dead cache must fail open -- export undebounced rather than raise
+        out of the publish request or drop the export."""
+        library_key = LibraryLocatorV2.from_string("lib:org:slug")
+        cache_down = mock.Mock(side_effect=RuntimeError("cache down"))
+
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.is_auto_export_enabled",
+                return_value=True,
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_library",
+                return_value=mock.Mock(published_by=None),
+            ),
+            mock.patch("ol_openedx_git_auto_export.utils.cache.set", cache_down),
+            mock.patch("ol_openedx_git_auto_export.utils.cache.add", cache_down),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ) as mock_apply_async,
+        ):
+            for _ in range(SIGNAL_COUNT):
+                export_library_to_git(library_key)
+
+            assert mock_apply_async.call_count == SIGNAL_COUNT
 
     def test_export_library_to_git_survives_missing_library(self):
         """A library not yet visible must still be exported, just without an

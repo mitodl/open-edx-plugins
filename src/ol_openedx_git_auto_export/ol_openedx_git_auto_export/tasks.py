@@ -17,6 +17,7 @@ from rest_framework import status
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
+    cache_or,
     clear_stale_git_lock,
     debounce_cache_key,
     get_content_info,
@@ -41,15 +42,19 @@ def async_export_to_git(context_key_string, user=None, token=None):
     """
     if token:
         # No longer queued, so a signal arriving from here on queues a new task.
-        cache.delete(pending_cache_key(context_key_string))
-        current_token = cache.get(debounce_cache_key(context_key_string), token)
+        cache_or(None, cache.delete, pending_cache_key(context_key_string))
+        current_token = cache_or(
+            token, cache.get, debounce_cache_key(context_key_string), token
+        )
         if current_token != token:
             LOGGER.info(
                 "Newer signals arrived for %s; re-queuing rather than exporting "
                 "a mid-burst snapshot",
                 context_key_string,
             )
-            # Keeps this task's user: a burst comes from a single publisher.
+            # Carries this task's user forward: a burst extended by a second
+            # publisher would keep the first one as commit author, which is not
+            # worth caching the user to avoid.
             queue_export_task(context_key_string, user, current_token)
             return
 

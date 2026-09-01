@@ -160,6 +160,21 @@ def pending_cache_key(content_key):
     return EXPORT_DEBOUNCE_PENDING_CACHE_KEY.format(content_key=str(content_key))
 
 
+def cache_or(default, op, *args, **kwargs):
+    """
+    Run a debounce cache operation, returning default if the backend is down.
+
+    Every caller picks a default that keeps the export happening: a burst that
+    exports twice is recoverable, one that never exports is not. This also
+    keeps a cache outage from raising out of the publish request it runs in.
+    """
+    try:
+        return op(*args, **kwargs)
+    except Exception:
+        log.exception("Git export debounce cache unavailable; failing open")
+        return default
+
+
 def queue_export_task(content_key, user, token):
     """
     Queue one export task for the content, unless one is already queued.
@@ -173,8 +188,13 @@ def queue_export_task(content_key, user, token):
     """
     from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
 
-    if not cache.add(
-        pending_cache_key(content_key), "1", timeout=EXPORT_DEBOUNCE_PENDING_TTL
+    pending_key = pending_cache_key(content_key)
+    if not cache_or(
+        True,  # noqa: FBT003
+        cache.add,
+        pending_key,
+        "1",
+        timeout=EXPORT_DEBOUNCE_PENDING_TTL,
     ):
         log.info(
             "Git export already queued for %s, only updating the debounce token",
@@ -183,11 +203,18 @@ def queue_export_task(content_key, user, token):
         return
 
     log.info("Queuing git export for %s in %ds", content_key, EXPORT_DEBOUNCE_DELAY)
-    async_export_to_git.apply_async(
-        args=[str(content_key), user],
-        kwargs={"token": token},
-        countdown=EXPORT_DEBOUNCE_DELAY,
-    )
+    try:
+        async_export_to_git.apply_async(
+            args=[str(content_key), user],
+            kwargs={"token": token},
+            countdown=EXPORT_DEBOUNCE_DELAY,
+        )
+    except Exception:
+        # The marker outlives a failed enqueue, so without this every signal for
+        # the next EXPORT_DEBOUNCE_PENDING_TTL seconds would think a task is
+        # already queued and this burst would never export.
+        cache_or(None, cache.delete, pending_key)
+        raise
 
 
 def _schedule_export_with_debounce(content_key, user):
@@ -203,7 +230,7 @@ def _schedule_export_with_debounce(content_key, user):
     token = uuid.uuid4().hex
     # No timeout: it's one small string per course/library ever published,
     # overwritten by every signal, so it isn't worth expiring.
-    cache.set(debounce_cache_key(content_key), token, timeout=None)
+    cache_or(None, cache.set, debounce_cache_key(content_key), token, timeout=None)
     queue_export_task(content_key, user, token)
 
 
