@@ -61,20 +61,23 @@ def _superseded(context_key_string, user, token):
         "a mid-burst snapshot",
         context_key_string,
     )
+    # Only skip the export once a replacement is actually queued. Losing the
+    # slot to a concurrent claimant counts as not queued too: that claimant's
+    # own hand-off could itself fail, and there's no third fallback beyond
+    # this one -- exporting now reads current committed state regardless of
+    # which token wins, so it's no worse than a successful hand-off.
     if claim_export_slot(context_key_string):
         try:
             # A burst extended by another publisher keeps the first as author.
             queue_export_task(context_key_string, user, current_token)
         except Exception:
-            # The export below reads current committed state regardless of
-            # which token wins, so a failed hand-off is no worse than success
-            # -- export now rather than leave the newer signal with nothing.
             LOGGER.exception(
                 "Failed to re-queue %s; exporting current state instead",
                 context_key_string,
             )
-            return False
-    return True
+        else:
+            return True
+    return False
 
 
 @shared_task

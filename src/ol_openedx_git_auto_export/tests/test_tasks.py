@@ -91,8 +91,10 @@ class TestAsyncExportToGitTokenCheck(TestCase):
                     # The user must be carried forward, not dropped.
                     mock_queue.assert_called_once_with(CONTENT_KEY, USER, cached_token)
 
-                # Once awake, a task must free the slot for the next signal.
-                if call_token:
+                # A task that exports frees the slot for the next signal; one
+                # that hands off re-claims it for the replacement it queued;
+                # the legacy no-token path never touches it.
+                if should_export and call_token:
                     assert cache.get(pending_key) is None
                 else:
                     assert cache.get(pending_key) == "1"
@@ -141,6 +143,31 @@ class TestAsyncExportToGitTokenCheck(TestCase):
             mock_export_to_git = mock_export_collaborators(stack)
             async_export_to_git(CONTENT_KEY, user=USER, token="original-token")  # noqa: S106
 
+        mock_export_to_git.assert_called_once()
+
+    def test_exports_current_state_when_the_slot_is_lost_to_a_claimant(self):
+        """Only skip the export once a replacement is actually queued: losing
+        the slot to a concurrent claimant is not that, since that claimant's
+        own hand-off could itself fail with no further fallback."""
+        debounce_key = debounce_cache_key(CONTENT_KEY)
+        pending_key = pending_cache_key(CONTENT_KEY)
+        cache.set(pending_key, "1", timeout=None)
+        cache.set(debounce_key, "newer-token", timeout=None)
+
+        with (
+            ExitStack() as stack,
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.claim_export_slot",
+                return_value=False,
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.queue_export_task"
+            ) as mock_queue,
+        ):
+            mock_export_to_git = mock_export_collaborators(stack)
+            async_export_to_git(CONTENT_KEY, user=USER, token="original-token")  # noqa: S106
+
+        mock_queue.assert_not_called()
         mock_export_to_git.assert_called_once()
 
 
