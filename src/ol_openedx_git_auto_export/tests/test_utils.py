@@ -130,6 +130,25 @@ class TestExportDebounce(TestCase):
                 countdown=EXPORT_DEBOUNCE_DELAY,
             )
 
+    def test_schedules_via_a_robust_commit_hook(self):
+        """robust=True, or one failed callback cancels every later signal's
+        callback in the same transaction -- Django runs them in one loop and
+        stops at the first exception when robust is left False."""
+        library_key = LibraryLocatorV2.from_string("lib:org:slug")
+
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.is_auto_export_enabled",
+                return_value=True,
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.transaction.on_commit"
+            ) as mock_on_commit,
+        ):
+            export_library_to_git(library_key)
+
+        assert mock_on_commit.call_args.kwargs.get("robust") is True
+
     def test_failed_enqueue_releases_the_pending_marker(self):
         """A broker failure must not leave the marker behind, or the burst
         never exports."""

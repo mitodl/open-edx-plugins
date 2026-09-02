@@ -36,7 +36,10 @@ REPOSITORY_NAME_MAX_LENGTH = 100  # Max length from GitHub for repo name
 # itself, so the export reflects the end of the burst. A missing token exports
 # anyway rather than dropping the export.
 EXPORT_DEBOUNCE_DELAY = 5  # seconds of quiet before a queued export actually runs
-EXPORT_DEBOUNCE_CACHE_KEY = "git_export_debounce:{content_key}"
+# v2: 0.8.3 wrote a 5s-TTL "1" under the unversioned key. Storing a permanent
+# token there instead would make a rollback to 0.8.3 see that key as already
+# claimed forever, silently disabling its debounce until the cache is flushed.
+EXPORT_DEBOUNCE_CACHE_KEY = "git_export_debounce_v2:{content_key}"
 EXPORT_DEBOUNCE_PENDING_CACHE_KEY = "git_export_pending:{content_key}"
 # Must outlive the countdown, or the marker expires while the task is still
 # queued and a signal in that gap queues a duplicate.

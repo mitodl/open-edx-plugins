@@ -236,7 +236,12 @@ def _schedule_export_with_debounce(content_key, resolve_user):
     # before the content it exports is visible to the worker and give up
     # without retrying. Waiting for the commit also means an import's signals
     # are debounced against each other rather than against the commit.
-    transaction.on_commit(partial(_queue_debounced_export, content_key, resolve_user))
+    # robust=True: Django runs on_commit callbacks for one transaction in a
+    # single loop and stops at the first one that raises, so a failure here
+    # would otherwise silently cancel every later signal's callback too.
+    transaction.on_commit(
+        partial(_queue_debounced_export, content_key, resolve_user), robust=True
+    )
 
 
 def _queue_debounced_export(content_key, resolve_user):
