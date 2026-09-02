@@ -97,6 +97,31 @@ class TestAsyncExportToGitTokenCheck(TestCase):
                 else:
                     assert cache.get(pending_key) == "1"
 
+    def test_exports_unconditionally_when_the_slot_cannot_be_released(self):
+        """A newer token can't be re-queued if the slot never clears, so a
+        task that fails to release it must export now rather than strand the
+        newer token behind a marker nothing will ever reclaim in time."""
+        debounce_key = debounce_cache_key(CONTENT_KEY)
+        pending_key = pending_cache_key(CONTENT_KEY)
+        cache.set(pending_key, "1", timeout=None)
+        cache.set(debounce_key, "newer-token", timeout=None)
+
+        with (
+            ExitStack() as stack,
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.cache.delete",
+                side_effect=RuntimeError("cache down"),
+            ),
+        ):
+            mock_export_to_git = mock_export_collaborators(stack)
+            mock_queue = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.queue_export_task")
+            )
+            async_export_to_git(CONTENT_KEY, user=USER, token="original-token")  # noqa: S106
+
+        mock_export_to_git.assert_called_once()
+        mock_queue.assert_not_called()
+
 
 class TestDebounceEndToEnd(TestCase):
     """A burst must cost far fewer tasks than signals and produce one export."""

@@ -37,8 +37,19 @@ def _superseded(context_key_string, user, token):
 
     See EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
     """
-    # No longer queued, so a signal from here on may queue a new task.
-    cache_op(cache.delete, pending_cache_key(context_key_string))
+    # No longer queued, so a signal from here on may queue a new task. If the
+    # delete itself fails, any re-queue below would find its own marker still
+    # in place and claim nothing, orphaning a newer token with no task left to
+    # export it -- worse than exporting stale, so export unconditionally.
+    try:
+        cache.delete(pending_cache_key(context_key_string))
+    except Exception:
+        LOGGER.exception(
+            "Git export debounce cache unavailable; exporting %s unconditionally",
+            context_key_string,
+        )
+        return False
+
     current_token = cache_op(
         cache.get, debounce_cache_key(context_key_string), token, on_error=token
     )
