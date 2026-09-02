@@ -254,6 +254,11 @@ def _queue_debounced_export(content_key, resolve_user):
 
     try:
         get_or_create_git_export_repo_dir()
+    except Exception:
+        release_export_slot(content_key)
+        raise
+
+    try:
         user = resolve_user()
     except Exception:
         # Signals that arrived while this one held the slot found it taken and

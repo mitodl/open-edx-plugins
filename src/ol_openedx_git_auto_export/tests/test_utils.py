@@ -184,6 +184,32 @@ class TestExportDebounce(TestCase):
 
         assert mock_apply_async.call_args.kwargs["args"] == [str(library_key), None]
 
+    def test_failed_repo_dir_setup_does_not_export(self):
+        """Unlike a failed publisher lookup, a failed export-dir setup is not
+        optional: it must release the slot and skip the export, not queue one
+        into a directory that was never created."""
+        library_key = LibraryLocatorV2.from_string("lib:org:slug")
+
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.is_auto_export_enabled",
+                return_value=True,
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir",
+                side_effect=RuntimeError("bad mount"),
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ) as mock_apply_async,
+            pytest.raises(RuntimeError),
+            self.captureOnCommitCallbacks(execute=True),
+        ):
+            export_library_to_git(library_key)
+
+        mock_apply_async.assert_not_called()
+        assert cache.get(pending_cache_key(library_key)) is None
+
     def test_export_is_queued_when_the_cache_backend_is_down(self):
         """A dead cache must fail open: export undebounced rather than raise or
         drop the export."""
