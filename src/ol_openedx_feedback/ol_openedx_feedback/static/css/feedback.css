@@ -46,16 +46,18 @@
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-/* Active/mouse-focus: subtle grey. Kept before :hover so hover wins on a focused button. */
-.ol-feedback-trigger:active,
-.ol-feedback-trigger:focus {
+/* Active/mouse-focus: subtle grey. Kept before :hover so hover wins on a focused
+   button. :not(:disabled) matches the LMS button rules' specificity so ours win. */
+.ol-feedback-trigger:active:not(:disabled),
+.ol-feedback-trigger:focus:not(:disabled) {
   background: #f0f1f4;
   border-color: #b8c2cc;
   color: #5f6b7a;
 }
 
-/* Hover: #F3F4F8 fill + dark border, matching the AskTIM button's hover. */
-.ol-feedback-trigger:hover {
+/* Hover: #F3F4F8 fill + dark border, matching the AskTIM button's hover.
+   :not(:disabled) outranks the LMS button:hover:not(:disabled) fill (#E4E4E4). */
+.ol-feedback-trigger:hover:not(:disabled) {
   background: #f3f4f8;
   border-color: #212326;
   color: #5f6b7a;
