@@ -59,13 +59,17 @@
         if (event.origin !== mfeOrigin) {
           return;
         }
-        if (
-          event.data &&
-          event.data.type === "ol-feedback::drawer-closed" &&
-          lastTrigger
-        ) {
+        if (!event.data || !lastTrigger) {
+          return;
+        }
+        if (event.data.type === "ol-feedback::drawer-closed") {
+          // Drawer is gone: return focus, then forget the trigger.
           lastTrigger.focus();
           lastTrigger = null;
+        } else if (event.data.type === "ol-feedback::focus-trigger") {
+          // "Return to block" skip link: focus the trigger but keep the drawer
+          // open, so keep lastTrigger for the eventual close message.
+          lastTrigger.focus();
         }
       });
     }
