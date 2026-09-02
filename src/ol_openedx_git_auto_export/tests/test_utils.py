@@ -71,8 +71,9 @@ class TestExportDebounce(TestCase):
             ) as mock_cache_set,
         ):
             # A burst of block/container publish signals, as a course import fires.
-            for _ in range(SIGNAL_COUNT):
-                export_library_to_git(library_key)
+            with self.captureOnCommitCallbacks(execute=True):
+                for _ in range(SIGNAL_COUNT):
+                    export_library_to_git(library_key)
 
             tokens = self._assert_one_task_for_burst(
                 library_key, mock_apply_async, mock_cache_set
@@ -111,8 +112,9 @@ class TestExportDebounce(TestCase):
             ) as mock_cache_set,
         ):
             # A few of the 10-30 COURSE_PUBLISHED signals one course save fires.
-            for _ in range(SIGNAL_COUNT):
-                export_course_to_git(course_key)
+            with self.captureOnCommitCallbacks(execute=True):
+                for _ in range(SIGNAL_COUNT):
+                    export_course_to_git(course_key)
 
             tokens = self._assert_one_task_for_burst(
                 course_key, mock_apply_async, mock_cache_set
@@ -150,14 +152,15 @@ class TestExportDebounce(TestCase):
                 side_effect=RuntimeError("broker down"),
             ),
             pytest.raises(RuntimeError),
+            self.captureOnCommitCallbacks(execute=True),
         ):
             export_library_to_git(library_key)
 
         assert cache.get(pending_cache_key(library_key)) is None
 
-    def test_failed_publisher_lookup_releases_the_pending_marker(self):
-        """The publisher lookup runs while holding the slot, so a failure there
-        must release it."""
+    def test_failed_publisher_lookup_still_queues_the_export(self):
+        """Signals arriving while the slot was held queued nothing, so a failed
+        publisher lookup must still export -- unattributed."""
         library_key = LibraryLocatorV2.from_string("lib:org:slug")
 
         with (
@@ -172,11 +175,14 @@ class TestExportDebounce(TestCase):
                 "ol_openedx_git_auto_export.utils.get_library",
                 side_effect=RuntimeError("database down"),
             ),
-            pytest.raises(RuntimeError),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ) as mock_apply_async,
+            self.captureOnCommitCallbacks(execute=True),
         ):
             export_library_to_git(library_key)
 
-        assert cache.get(pending_cache_key(library_key)) is None
+        assert mock_apply_async.call_args.kwargs["args"] == [str(library_key), None]
 
     def test_export_is_queued_when_the_cache_backend_is_down(self):
         """A dead cache must fail open: export undebounced rather than raise or
@@ -201,6 +207,7 @@ class TestExportDebounce(TestCase):
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
             ) as mock_apply_async,
+            self.captureOnCommitCallbacks(execute=True),
         ):
             for _ in range(SIGNAL_COUNT):
                 export_library_to_git(library_key)
@@ -226,6 +233,7 @@ class TestExportDebounce(TestCase):
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
             ) as mock_apply_async,
+            self.captureOnCommitCallbacks(execute=True),
         ):
             export_library_to_git(library_key)
 

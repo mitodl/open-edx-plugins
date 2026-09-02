@@ -123,8 +123,9 @@ class TestDebounceEndToEnd(TestCase):
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
             ) as mock_apply_async,
         ):
-            for _ in range(BURST_SIZE):
-                export_library_to_git(library_key)
+            with self.captureOnCommitCallbacks(execute=True):
+                for _ in range(BURST_SIZE):
+                    export_library_to_git(library_key)
 
             assert mock_apply_async.call_count == 1
 

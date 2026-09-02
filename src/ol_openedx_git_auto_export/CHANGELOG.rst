@@ -12,6 +12,10 @@ Version 0.8.4 (2026-09-01)
   export reflects the end of the import rather than a mid-import snapshot. The
   same mechanism covers the course path, which previously exported whatever
   state existed 5 seconds after the first signal of a burst.
+* Export tasks are now queued from ``transaction.on_commit``, matching the
+  repository-creation path. Studio publishes under ``ATOMIC_REQUESTS``, so a
+  task queued mid-transaction could wake before the content was visible and
+  give up without retrying, leaving the publish unexported.
 * The publisher lookup now runs only for the signal that queues the task
   instead of once per signal, so a large library import no longer issues
   several ``get_library()`` queries per imported block just to discard them.

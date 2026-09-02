@@ -6,12 +6,14 @@ import logging
 import os
 import re
 import uuid
+from functools import partial
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
+from django.db import transaction
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
 from openedx.core.djangoapps.content_libraries.api import (
     ContentLibraryNotFound,
@@ -230,6 +232,15 @@ def _schedule_export_with_debounce(content_key, resolve_user):
             for the signal that queues the task, since it costs several
             queries and the rest of the burst would discard the result.
     """
+    # Studio publishes under ATOMIC_REQUESTS, so a task queued now can wake
+    # before the content it exports is visible to the worker and give up
+    # without retrying. Waiting for the commit also means an import's signals
+    # are debounced against each other rather than against the commit.
+    transaction.on_commit(partial(_queue_debounced_export, content_key, resolve_user))
+
+
+def _queue_debounced_export(content_key, resolve_user):
+    """Record this signal's token and queue a task if none is queued already."""
     token = uuid.uuid4().hex
     # Never expires: one short string per published course or library.
     cache_op(cache.set, debounce_cache_key(content_key), token, timeout=None)
@@ -245,8 +256,11 @@ def _schedule_export_with_debounce(content_key, resolve_user):
         get_or_create_git_export_repo_dir()
         user = resolve_user()
     except Exception:
-        release_export_slot(content_key)
-        raise
+        # Signals that arrived while this one held the slot found it taken and
+        # queued nothing, so giving up here would strand their changes. Export
+        # without an author instead.
+        log.exception("Exporting %s without a publisher", content_key)
+        user = None
 
     queue_export_task(content_key, user, token)
 
