@@ -63,7 +63,7 @@ class TestExportDebounce(TestCase):
             mock.patch(
                 "ol_openedx_git_auto_export.utils.get_library",
                 return_value=mock.Mock(published_by="a-user"),
-            ),
+            ) as mock_get_library,
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
             ) as mock_apply_async,
@@ -79,6 +79,10 @@ class TestExportDebounce(TestCase):
             tokens = self._assert_one_task_for_burst(
                 library_key, mock_apply_async, mock_cache_set
             )
+
+            # get_library() costs several queries, so it must run once per
+            # burst, not once per signal.
+            mock_get_library.assert_called_once_with(library_key)
 
             mock_apply_async.assert_called_once_with(
                 args=[str(library_key), "a-user"],
@@ -97,11 +101,11 @@ class TestExportDebounce(TestCase):
             mock.patch(
                 "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
             ),
-            mock.patch("ol_openedx_git_auto_export.utils.modulestore"),
+            mock.patch("ol_openedx_git_auto_export.utils.modulestore") as mock_store,
             mock.patch(
                 "ol_openedx_git_auto_export.utils.get_publisher_username",
                 return_value=None,
-            ),
+            ) as mock_publisher,
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
             ) as mock_apply_async,
@@ -117,6 +121,10 @@ class TestExportDebounce(TestCase):
             tokens = self._assert_one_task_for_burst(
                 course_key, mock_apply_async, mock_cache_set
             )
+
+            # The course fetch and publisher lookup must run once per burst.
+            mock_store.assert_called_once()
+            mock_publisher.assert_called_once()
 
             mock_apply_async.assert_called_once_with(
                 args=[str(course_key), None],

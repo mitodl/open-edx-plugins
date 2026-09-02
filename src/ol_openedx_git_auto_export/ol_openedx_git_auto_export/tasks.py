@@ -17,7 +17,8 @@ from rest_framework import status
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
-    cache_or,
+    cache_op,
+    claim_export_slot,
     clear_stale_git_lock,
     debounce_cache_key,
     get_content_info,
@@ -30,6 +31,34 @@ from ol_openedx_git_auto_export.utils import (
 LOGGER = get_task_logger(__name__)
 
 
+def _superseded(context_key_string, user, token):
+    """
+    Report whether a newer signal replaced this task, re-queuing if so.
+
+    See EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
+    """
+    # This task is no longer queued, so a signal arriving from here on is free
+    # to queue a new one.
+    cache_op(cache.delete, pending_cache_key(context_key_string))
+    current_token = cache_op(
+        cache.get, debounce_cache_key(context_key_string), token, on_error=token
+    )
+    if current_token == token:
+        return False
+
+    LOGGER.info(
+        "Newer signals arrived for %s; re-queuing rather than exporting "
+        "a mid-burst snapshot",
+        context_key_string,
+    )
+    if claim_export_slot(context_key_string):
+        # Carries this task's user forward: a burst extended by a second
+        # publisher would keep the first one as commit author, which is not
+        # worth caching the user to avoid.
+        queue_export_task(context_key_string, user, current_token)
+    return True
+
+
 @shared_task
 def async_export_to_git(context_key_string, user=None, token=None):
     """Export a course or library to Git.
@@ -40,23 +69,8 @@ def async_export_to_git(context_key_string, user=None, token=None):
         token: Debounce token from utils.queue_export_task; see
             EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
     """
-    if token:
-        # No longer queued, so a signal arriving from here on queues a new task.
-        cache_or(None, cache.delete, pending_cache_key(context_key_string))
-        current_token = cache_or(
-            token, cache.get, debounce_cache_key(context_key_string), token
-        )
-        if current_token != token:
-            LOGGER.info(
-                "Newer signals arrived for %s; re-queuing rather than exporting "
-                "a mid-burst snapshot",
-                context_key_string,
-            )
-            # Carries this task's user forward: a burst extended by a second
-            # publisher would keep the first one as commit author, which is not
-            # worth caching the user to avoid.
-            queue_export_task(context_key_string, user, current_token)
-            return
+    if token and _superseded(context_key_string, user, token):
+        return
 
     try:
         context_key = LearningContextKey.from_string(context_key_string)

@@ -45,7 +45,8 @@ REPOSITORY_NAME_MAX_LENGTH = 100  # Max length from GitHub for repo name
 EXPORT_DEBOUNCE_DELAY = 5  # seconds of quiet before a queued export actually runs
 EXPORT_DEBOUNCE_CACHE_KEY = "git_export_debounce:{content_key}"
 EXPORT_DEBOUNCE_PENDING_CACHE_KEY = "git_export_pending:{content_key}"
-# Outlives the countdown so the marker can't expire while the task is still
-# waiting in the broker, but short enough that a task lost with its worker
-# only delays the next export by a minute.
-EXPORT_DEBOUNCE_PENDING_TTL = 60  # seconds
+# Must outlive the countdown, or the marker expires while the task is still
+# waiting in the broker and a signal in that gap queues a duplicate. The rest
+# is slack for broker latency, kept small so a task lost with its worker only
+# delays the next export by about a minute.
+EXPORT_DEBOUNCE_PENDING_TTL = EXPORT_DEBOUNCE_DELAY + 55  # seconds

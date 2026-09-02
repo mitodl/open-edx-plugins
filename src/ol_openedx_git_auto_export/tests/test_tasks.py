@@ -21,11 +21,12 @@ BURST_SIZE = 3
 EXPECTED_TASK_RUNS = 2  # the burst's task, plus the one it re-queues
 
 CASES = [
-    # cached_token, call_token, should_export, should_requeue, case
-    ("token-2", "token-1", False, True, "a newer signal recorded a different token"),
-    ("token-1", "token-1", True, False, "its token is still current"),
-    (None, "token-1", True, False, "the cache entry is missing (fail open)"),
-    ("other-token", None, True, False, "called without a token (legacy path)"),
+    # A task either exports or re-queues itself, never both.
+    # cached_token, call_token, should_export, case
+    ("token-2", "token-1", False, "a newer signal recorded a different token"),
+    ("token-1", "token-1", True, "its token is still current"),
+    (None, "token-1", True, "the cache entry is missing (fail open)"),
+    ("other-token", None, True, "called without a token (legacy path)"),
 ]
 
 
@@ -67,7 +68,7 @@ class TestAsyncExportToGitTokenCheck(TestCase):
         debounce_key = debounce_cache_key(CONTENT_KEY)
         pending_key = pending_cache_key(CONTENT_KEY)
 
-        for cached_token, call_token, should_export, should_requeue, case in CASES:
+        for cached_token, call_token, should_export, case in CASES:
             with self.subTest(case=case):
                 cache.clear()
                 cache.set(pending_key, "1", timeout=None)
@@ -86,11 +87,11 @@ class TestAsyncExportToGitTokenCheck(TestCase):
                 # except, so a shallower assertion would pass even if it broke.
                 assert mock_export_to_git.called is should_export
 
-                if should_requeue:
+                if should_export:
+                    mock_queue.assert_not_called()
+                else:
                     # The user must be carried forward, not dropped.
                     mock_queue.assert_called_once_with(CONTENT_KEY, USER, cached_token)
-                else:
-                    mock_queue.assert_not_called()
 
                 # A token-carrying task is no longer queued once it wakes, so a
                 # later signal must be free to queue a new one.
@@ -134,14 +135,11 @@ class TestDebounceEndToEnd(TestCase):
             with ExitStack() as stack:
                 mock_export_to_git = mock_export_collaborators(stack)
 
-                # Run each queued task in turn, picking up any task a stale one
-                # re-queues, exactly as Celery would.
-                run = 0
-                while run < mock_apply_async.call_count:
-                    call = mock_apply_async.call_args_list[run]
+                # Run each queued task in turn, exactly as Celery would. The
+                # iteration picks up whatever a stale task re-queues.
+                for call in mock_apply_async.call_args_list:
                     async_export_to_git(*call.kwargs["args"], **call.kwargs["kwargs"])
-                    run += 1
 
-                assert run == EXPECTED_TASK_RUNS
+                assert mock_apply_async.call_count == EXPECTED_TASK_RUNS
                 mock_export_to_git.assert_called_once()
                 assert mock_export_to_git.call_args.kwargs["user"] == USER

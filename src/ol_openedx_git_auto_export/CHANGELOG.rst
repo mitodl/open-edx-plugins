@@ -12,6 +12,9 @@ Version 0.8.4 (2026-09-01)
   export reflects the end of the import rather than a mid-import snapshot. The
   same mechanism covers the course path, which previously exported whatever
   state existed 5 seconds after the first signal of a burst.
+* The publisher lookup now runs only for the signal that queues the task
+  instead of once per signal, so a large library import no longer issues
+  several ``get_library()`` queries per imported block just to discard them.
 * The debounce fails open: a cache backend that is down queues the export
   undebounced instead of raising out of the publish request, and an export task
   that fails to enqueue releases its marker so the next signal can retry.

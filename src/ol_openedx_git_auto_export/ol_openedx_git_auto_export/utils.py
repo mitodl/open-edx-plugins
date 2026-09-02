@@ -160,26 +160,39 @@ def pending_cache_key(content_key):
     return EXPORT_DEBOUNCE_PENDING_CACHE_KEY.format(content_key=str(content_key))
 
 
-def cache_or(default, op, *args, **kwargs):
+def cache_op(op, *args, on_error=None, **kwargs):
     """
-    Run a debounce cache operation, returning default if the backend is down.
+    Run a debounce cache operation, returning on_error if the backend is down.
 
-    Every caller picks a default that keeps the export happening: a burst that
-    exports twice is recoverable, one that never exports is not. This also
-    keeps a cache outage from raising out of the publish request it runs in.
+    Every caller picks an on_error value that keeps the export happening: a
+    burst that exports twice is recoverable, one that never exports is not.
+    This also keeps a cache outage from raising out of the publish request.
     """
     try:
         return op(*args, **kwargs)
     except Exception:
         log.exception("Git export debounce cache unavailable; failing open")
-        return default
+        return on_error
+
+
+def claim_export_slot(content_key):
+    """
+    Claim the right to queue the next export task, if no task holds it already.
+
+    See EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
+    """
+    return cache_op(
+        cache.add,
+        pending_cache_key(content_key),
+        "1",
+        timeout=EXPORT_DEBOUNCE_PENDING_TTL,
+        on_error=True,
+    )
 
 
 def queue_export_task(content_key, user, token):
     """
-    Queue one export task for the content, unless one is already queued.
-
-    See EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
+    Queue an export task. The caller must hold the slot from claim_export_slot.
 
     Args:
         content_key: The course or library key to export.
@@ -187,20 +200,6 @@ def queue_export_task(content_key, user, token):
         token: Debounce token the task must still match in order to export.
     """
     from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
-
-    pending_key = pending_cache_key(content_key)
-    if not cache_or(
-        True,  # noqa: FBT003
-        cache.add,
-        pending_key,
-        "1",
-        timeout=EXPORT_DEBOUNCE_PENDING_TTL,
-    ):
-        log.info(
-            "Git export already queued for %s, only updating the debounce token",
-            content_key,
-        )
-        return
 
     log.info("Queuing git export for %s in %ds", content_key, EXPORT_DEBOUNCE_DELAY)
     try:
@@ -210,14 +209,14 @@ def queue_export_task(content_key, user, token):
             countdown=EXPORT_DEBOUNCE_DELAY,
         )
     except Exception:
-        # The marker outlives a failed enqueue, so without this every signal for
+        # The slot outlives a failed enqueue, so without this every signal for
         # the next EXPORT_DEBOUNCE_PENDING_TTL seconds would think a task is
         # already queued and this burst would never export.
-        cache_or(None, cache.delete, pending_key)
+        cache_op(cache.delete, pending_cache_key(content_key))
         raise
 
 
-def _schedule_export_with_debounce(content_key, user):
+def _schedule_export_with_debounce(content_key, resolve_user):
     """
     Schedule a git export task, debouncing bursts of signals for the same content.
 
@@ -225,13 +224,24 @@ def _schedule_export_with_debounce(content_key, user):
 
     Args:
         content_key: The course or library key to export.
-        user: Optional user for the git export.
+        resolve_user: Callable returning the publisher username, invoked only
+            for the signal that actually queues the task -- resolving it costs
+            several queries and every other signal in the burst discards it.
     """
     token = uuid.uuid4().hex
     # No timeout: it's one small string per course/library ever published,
     # overwritten by every signal, so it isn't worth expiring.
-    cache_or(None, cache.set, debounce_cache_key(content_key), token, timeout=None)
-    queue_export_task(content_key, user, token)
+    cache_op(cache.set, debounce_cache_key(content_key), token, timeout=None)
+
+    if not claim_export_slot(content_key):
+        log.info(
+            "Git export already queued for %s, only updating the debounce token",
+            content_key,
+        )
+        return
+
+    get_or_create_git_export_repo_dir()
+    queue_export_task(content_key, resolve_user(), token)
 
 
 def export_course_to_git(course_key):
@@ -242,15 +252,14 @@ def export_course_to_git(course_key):
         course_key (CourseKey): The course key of the course to export.
     """
     if is_auto_export_enabled():
-        get_or_create_git_export_repo_dir()
-        course_module = modulestore().get_course(course_key)
         log.info(
             "Course published with auto-export enabled. Starting export... (course id: %s)",  # noqa: E501
             course_key,
         )
-
-        user = get_publisher_username(course_module)
-        _schedule_export_with_debounce(course_key, user)
+        _schedule_export_with_debounce(
+            course_key,
+            lambda: get_publisher_username(modulestore().get_course(course_key)),
+        )
 
 
 def clear_stale_git_lock(git_url):
@@ -271,6 +280,24 @@ def clear_stale_git_lock(git_url):
         index_lock.unlink()
 
 
+def get_library_publisher(library_key):
+    """
+    Return the username that published the library, or None.
+
+    V1 libraries don't have a published_by field.
+    """
+    if not isinstance(library_key, LibraryLocatorV2):
+        return None
+    try:
+        return get_library(library_key).published_by or None
+    except ContentLibraryNotFound:
+        # This runs inside the publish request, which can beat the library row
+        # becoming visible. Only the commit author is lost; the task re-resolves
+        # the library when it runs.
+        log.warning("Library %s not found; exporting without a publisher", library_key)
+        return None
+
+
 def export_library_to_git(library_key):
     """
     Export the library to a Git repository.
@@ -279,27 +306,13 @@ def export_library_to_git(library_key):
         library_key (LibraryLocator | LibraryLocatorV2): The library key to export.
     """
     if is_auto_export_enabled(is_library=True):
-        get_or_create_git_export_repo_dir()
         log.info(
             "Library updated with auto-export enabled. Starting export... (library id: %s)",  # noqa: E501
             library_key,
         )
-
-        # Get publisher username. V1 libraries don't have a published_by field.
-        user = None
-        if isinstance(library_key, LibraryLocatorV2):
-            try:
-                user = get_library(library_key).published_by or None
-            except ContentLibraryNotFound:
-                # This runs inside the publish request, which can beat the
-                # library row becoming visible. Only the commit author is lost;
-                # the task re-resolves the library when it runs.
-                log.warning(
-                    "Library %s not found; exporting without a publisher",
-                    library_key,
-                )
-
-        _schedule_export_with_debounce(library_key, user)
+        _schedule_export_with_debounce(
+            library_key, lambda: get_library_publisher(library_key)
+        )
     else:
         log.info(
             "Library auto-export is disabled. Skipping export for library: %s",
