@@ -122,6 +122,27 @@ class TestAsyncExportToGitTokenCheck(TestCase):
         mock_export_to_git.assert_called_once()
         mock_queue.assert_not_called()
 
+    def test_exports_current_state_when_the_requeue_fails_to_enqueue(self):
+        """The re-queue is a hand-off, not the only path to an export: if
+        queuing the replacement task fails, this task must export the current
+        state instead of leaving the newer signal with nothing."""
+        debounce_key = debounce_cache_key(CONTENT_KEY)
+        pending_key = pending_cache_key(CONTENT_KEY)
+        cache.set(pending_key, "1", timeout=None)
+        cache.set(debounce_key, "newer-token", timeout=None)
+
+        with (
+            ExitStack() as stack,
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.queue_export_task",
+                side_effect=RuntimeError("broker down"),
+            ),
+        ):
+            mock_export_to_git = mock_export_collaborators(stack)
+            async_export_to_git(CONTENT_KEY, user=USER, token="original-token")  # noqa: S106
+
+        mock_export_to_git.assert_called_once()
+
 
 class TestDebounceEndToEnd(TestCase):
     """A burst must cost far fewer tasks than signals and produce one export."""

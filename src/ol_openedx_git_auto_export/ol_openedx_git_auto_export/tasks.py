@@ -62,8 +62,18 @@ def _superseded(context_key_string, user, token):
         context_key_string,
     )
     if claim_export_slot(context_key_string):
-        # A burst extended by another publisher keeps the first as commit author.
-        queue_export_task(context_key_string, user, current_token)
+        try:
+            # A burst extended by another publisher keeps the first as author.
+            queue_export_task(context_key_string, user, current_token)
+        except Exception:
+            # The export below reads current committed state regardless of
+            # which token wins, so a failed hand-off is no worse than success
+            # -- export now rather than leave the newer signal with nothing.
+            LOGGER.exception(
+                "Failed to re-queue %s; exporting current state instead",
+                context_key_string,
+            )
+            return False
     return True
 
 

@@ -21,6 +21,11 @@ Version 0.8.4 (2026-09-01)
 * The debounce token's cache key is now versioned (``git_export_debounce_v2``)
   so a rollback to 0.8.3 doesn't see its own 5-second key as permanently
   claimed by the new permanent token and silently stop exporting.
+* If handing a superseded task's export off to a fresh task fails to enqueue,
+  the current task now exports the latest committed state itself instead of
+  leaving the newest signal with neither a queued task nor an export.
+* Raised the package's declared Django floor to 4.2, the version
+  ``transaction.on_commit(..., robust=True)`` requires.
 * The publisher lookup now runs only for the signal that queues the task
   instead of once per signal, so a large library import no longer issues
   several ``get_library()`` queries per imported block just to discard them.
