@@ -91,12 +91,6 @@
       var alignFrame = null;
       var alignToChatButton = function () {
         $anchor.css("transform", "");
-        // Clear our prior inline height first: the megaphone is docked inside
-        // AskTIM's flex row (align-items: stretch), so a stale tall height would
-        // inflate the row, stretch AskTIM to match, and then get read back below
-        // as AskTIM's "height" -- a self-locking loop that stays tall forever
-        // once a transient narrow-width wrap trips it. Resetting lets the row
-        // collapse to AskTIM's real (text-driven) height before we measure it.
         $trigger.css("height", "");
         var btnRect = $chatBtn[0].getBoundingClientRect();
         // Match the megaphone's height to the AskTIM button so the two stay
