@@ -22,9 +22,8 @@ SIGNAL_COUNT = 3
 
 
 class TestExportDebounce(TestCase):
-    """A burst of publish signals for the same content must queue exactly one
-    task -- carrying the first signal's token -- while every later signal only
-    overwrites the token, so the queued task can tell the burst moved on."""
+    """A burst must queue one task carrying the first signal's token, while
+    later signals only overwrite the token."""
 
     def setUp(self):
         cache.clear()
@@ -71,8 +70,7 @@ class TestExportDebounce(TestCase):
                 "ol_openedx_git_auto_export.utils.cache.set", wraps=cache.set
             ) as mock_cache_set,
         ):
-            # Simulate a burst of LIBRARY_BLOCK_PUBLISHED/LIBRARY_CONTAINER_PUBLISHED
-            # signals for the same library, as happens during a course import.
+            # A burst of block/container publish signals, as a course import fires.
             for _ in range(SIGNAL_COUNT):
                 export_library_to_git(library_key)
 
@@ -80,8 +78,7 @@ class TestExportDebounce(TestCase):
                 library_key, mock_apply_async, mock_cache_set
             )
 
-            # get_library() costs several queries, so it must run once per
-            # burst, not once per signal.
+            # get_library() costs several queries: once per burst, not per signal.
             mock_get_library.assert_called_once_with(library_key)
 
             mock_apply_async.assert_called_once_with(
@@ -113,8 +110,7 @@ class TestExportDebounce(TestCase):
                 "ol_openedx_git_auto_export.utils.cache.set", wraps=cache.set
             ) as mock_cache_set,
         ):
-            # Simulate a few of the 10-30 COURSE_PUBLISHED signals a single
-            # course save fires.
+            # A few of the 10-30 COURSE_PUBLISHED signals one course save fires.
             for _ in range(SIGNAL_COUNT):
                 export_course_to_git(course_key)
 
@@ -133,9 +129,8 @@ class TestExportDebounce(TestCase):
             )
 
     def test_failed_enqueue_releases_the_pending_marker(self):
-        """A broker failure must not leave the marker behind: every signal for
-        the next minute would then think a task is queued and the burst would
-        never export."""
+        """A broker failure must not leave the marker behind, or the burst
+        never exports."""
         library_key = LibraryLocatorV2.from_string("lib:org:slug")
 
         with (
@@ -161,9 +156,8 @@ class TestExportDebounce(TestCase):
         assert cache.get(pending_cache_key(library_key)) is None
 
     def test_failed_publisher_lookup_releases_the_pending_marker(self):
-        """The publisher lookup runs while holding the slot, so it must release
-        it if it blows up -- otherwise the burst is stranded for the marker's
-        whole lifetime."""
+        """The publisher lookup runs while holding the slot, so a failure there
+        must release it."""
         library_key = LibraryLocatorV2.from_string("lib:org:slug")
 
         with (
@@ -185,8 +179,8 @@ class TestExportDebounce(TestCase):
         assert cache.get(pending_cache_key(library_key)) is None
 
     def test_export_is_queued_when_the_cache_backend_is_down(self):
-        """A dead cache must fail open -- export undebounced rather than raise
-        out of the publish request or drop the export."""
+        """A dead cache must fail open: export undebounced rather than raise or
+        drop the export."""
         library_key = LibraryLocatorV2.from_string("lib:org:slug")
         cache_down = mock.Mock(side_effect=RuntimeError("cache down"))
 
@@ -214,8 +208,7 @@ class TestExportDebounce(TestCase):
             assert mock_apply_async.call_count == SIGNAL_COUNT
 
     def test_export_library_to_git_survives_missing_library(self):
-        """A library not yet visible must still be exported, just without an
-        author -- the task re-resolves it when it runs."""
+        """A library not yet visible must still export, just without an author."""
         library_key = LibraryLocatorV2.from_string("lib:org:slug")
 
         with (

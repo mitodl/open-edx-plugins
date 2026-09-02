@@ -37,8 +37,7 @@ def _superseded(context_key_string, user, token):
 
     See EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
     """
-    # This task is no longer queued, so a signal arriving from here on is free
-    # to queue a new one.
+    # No longer queued, so a signal from here on may queue a new task.
     cache_op(cache.delete, pending_cache_key(context_key_string))
     current_token = cache_op(
         cache.get, debounce_cache_key(context_key_string), token, on_error=token
@@ -52,9 +51,7 @@ def _superseded(context_key_string, user, token):
         context_key_string,
     )
     if claim_export_slot(context_key_string):
-        # Carries this task's user forward: a burst extended by a second
-        # publisher would keep the first one as commit author, which is not
-        # worth caching the user to avoid.
+        # A burst extended by another publisher keeps the first as commit author.
         queue_export_task(context_key_string, user, current_token)
     return True
 

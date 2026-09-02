@@ -164,9 +164,8 @@ def cache_op(op, *args, on_error=None, **kwargs):
     """
     Run a debounce cache operation, returning on_error if the backend is down.
 
-    Every caller picks an on_error value that keeps the export happening: a
-    burst that exports twice is recoverable, one that never exports is not.
-    This also keeps a cache outage from raising out of the publish request.
+    Callers pick an on_error that keeps the export happening: exporting twice
+    is recoverable, never exporting is not.
     """
     try:
         return op(*args, **kwargs)
@@ -176,11 +175,7 @@ def cache_op(op, *args, on_error=None, **kwargs):
 
 
 def claim_export_slot(content_key):
-    """
-    Claim the right to queue the next export task, if no task holds it already.
-
-    See EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
-    """
+    """Claim the right to queue the next export task, if nothing holds it."""
     return cache_op(
         cache.add,
         pending_cache_key(content_key),
@@ -192,11 +187,10 @@ def claim_export_slot(content_key):
 
 def release_export_slot(content_key):
     """
-    Give up the slot, so the next signal queues a task instead of assuming one.
+    Give up the slot so the next signal queues a task.
 
-    The slot outlives whatever failed while holding it, so without this every
-    signal for the next EXPORT_DEBOUNCE_PENDING_TTL seconds would think a task
-    is already queued and this burst would never export.
+    The slot outlives whatever failed while holding it, so without this the
+    burst goes unexported until the marker expires.
     """
     cache_op(cache.delete, pending_cache_key(content_key))
 
@@ -232,13 +226,12 @@ def _schedule_export_with_debounce(content_key, resolve_user):
 
     Args:
         content_key: The course or library key to export.
-        resolve_user: Callable returning the publisher username, invoked only
-            for the signal that actually queues the task -- resolving it costs
-            several queries and every other signal in the burst discards it.
+        resolve_user: Callable returning the publisher username. Called only
+            for the signal that queues the task, since it costs several
+            queries and the rest of the burst would discard the result.
     """
     token = uuid.uuid4().hex
-    # No timeout: it's one small string per course/library ever published,
-    # overwritten by every signal, so it isn't worth expiring.
+    # Never expires: one short string per published course or library.
     cache_op(cache.set, debounce_cache_key(content_key), token, timeout=None)
 
     if not claim_export_slot(content_key):
@@ -305,9 +298,8 @@ def get_library_publisher(library_key):
     try:
         return get_library(library_key).published_by or None
     except ContentLibraryNotFound:
-        # This runs inside the publish request, which can beat the library row
-        # becoming visible. Only the commit author is lost; the task re-resolves
-        # the library when it runs.
+        # The publish request can beat the library row becoming visible. Only
+        # the author is lost; the task re-resolves the library when it runs.
         log.warning("Library %s not found; exporting without a publisher", library_key)
         return None
 

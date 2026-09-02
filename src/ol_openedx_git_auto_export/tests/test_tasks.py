@@ -57,9 +57,8 @@ def mock_export_collaborators(stack):
 
 
 class TestAsyncExportToGitTokenCheck(TestCase):
-    """A task queued by the debounce logic must export only when its token is
-    still current, re-queue itself when a later signal superseded it, and never
-    drop an export just because the cache entry is gone."""
+    """A queued task must export only while its token is current, and must
+    never drop an export just because the cache entry is gone."""
 
     def setUp(self):
         cache.clear()
@@ -82,9 +81,8 @@ class TestAsyncExportToGitTokenCheck(TestCase):
                     )
                     async_export_to_git(CONTENT_KEY, user=USER, token=call_token)
 
-                # Assert the export itself ran, not merely that the task got
-                # past the token check: the export path is wrapped in a broad
-                # except, so a shallower assertion would pass even if it broke.
+                # Assert the export ran, not just that the token check passed:
+                # a broad except would hide a broken export path.
                 assert mock_export_to_git.called is should_export
 
                 if should_export:
@@ -93,8 +91,7 @@ class TestAsyncExportToGitTokenCheck(TestCase):
                     # The user must be carried forward, not dropped.
                     mock_queue.assert_called_once_with(CONTENT_KEY, USER, cached_token)
 
-                # A token-carrying task is no longer queued once it wakes, so a
-                # later signal must be free to queue a new one.
+                # Once awake, a task must free the slot for the next signal.
                 if call_token:
                     assert cache.get(pending_key) is None
                 else:
@@ -102,8 +99,7 @@ class TestAsyncExportToGitTokenCheck(TestCase):
 
 
 class TestDebounceEndToEnd(TestCase):
-    """A burst of signals, queued and then run exactly as Celery would, must
-    cost far fewer tasks than signals and produce exactly one git export."""
+    """A burst must cost far fewer tasks than signals and produce one export."""
 
     def setUp(self):
         cache.clear()
@@ -135,8 +131,8 @@ class TestDebounceEndToEnd(TestCase):
             with ExitStack() as stack:
                 mock_export_to_git = mock_export_collaborators(stack)
 
-                # Run each queued task in turn, exactly as Celery would. The
-                # iteration picks up whatever a stale task re-queues.
+                # Run each queued task as Celery would; the iteration picks up
+                # whatever a stale task re-queues.
                 for call in mock_apply_async.call_args_list:
                     async_export_to_git(*call.kwargs["args"], **call.kwargs["kwargs"])
 
