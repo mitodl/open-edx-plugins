@@ -4,7 +4,6 @@ Tests for the git export debounce logic in utils.py.
 
 from unittest import mock
 
-import pytest
 from django.core.cache import cache
 from django.test import TestCase
 from ol_openedx_git_auto_export.constants import EXPORT_DEBOUNCE_DELAY
@@ -151,7 +150,8 @@ class TestExportDebounce(TestCase):
 
     def test_failed_enqueue_releases_the_pending_marker(self):
         """A broker failure must not leave the marker behind, or the burst
-        never exports."""
+        never exports. The commit hook is robust, so the failure is logged
+        rather than raised -- only the cleanup is observable here."""
         library_key = LibraryLocatorV2.from_string("lib:org:slug")
 
         with (
@@ -170,7 +170,6 @@ class TestExportDebounce(TestCase):
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async",
                 side_effect=RuntimeError("broker down"),
             ),
-            pytest.raises(RuntimeError),
             self.captureOnCommitCallbacks(execute=True),
         ):
             export_library_to_git(library_key)
@@ -206,7 +205,8 @@ class TestExportDebounce(TestCase):
     def test_failed_repo_dir_setup_does_not_export(self):
         """Unlike a failed publisher lookup, a failed export-dir setup is not
         optional: it must release the slot and skip the export, not queue one
-        into a directory that was never created."""
+        into a directory that was never created. The commit hook is robust,
+        so the failure is logged rather than raised."""
         library_key = LibraryLocatorV2.from_string("lib:org:slug")
 
         with (
@@ -221,7 +221,6 @@ class TestExportDebounce(TestCase):
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
             ) as mock_apply_async,
-            pytest.raises(RuntimeError),
             self.captureOnCommitCallbacks(execute=True),
         ):
             export_library_to_git(library_key)
