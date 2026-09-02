@@ -190,6 +190,17 @@ def claim_export_slot(content_key):
     )
 
 
+def release_export_slot(content_key):
+    """
+    Give up the slot, so the next signal queues a task instead of assuming one.
+
+    The slot outlives whatever failed while holding it, so without this every
+    signal for the next EXPORT_DEBOUNCE_PENDING_TTL seconds would think a task
+    is already queued and this burst would never export.
+    """
+    cache_op(cache.delete, pending_cache_key(content_key))
+
+
 def queue_export_task(content_key, user, token):
     """
     Queue an export task. The caller must hold the slot from claim_export_slot.
@@ -209,10 +220,7 @@ def queue_export_task(content_key, user, token):
             countdown=EXPORT_DEBOUNCE_DELAY,
         )
     except Exception:
-        # The slot outlives a failed enqueue, so without this every signal for
-        # the next EXPORT_DEBOUNCE_PENDING_TTL seconds would think a task is
-        # already queued and this burst would never export.
-        cache_op(cache.delete, pending_cache_key(content_key))
+        release_export_slot(content_key)
         raise
 
 
@@ -240,8 +248,14 @@ def _schedule_export_with_debounce(content_key, resolve_user):
         )
         return
 
-    get_or_create_git_export_repo_dir()
-    queue_export_task(content_key, resolve_user(), token)
+    try:
+        get_or_create_git_export_repo_dir()
+        user = resolve_user()
+    except Exception:
+        release_export_slot(content_key)
+        raise
+
+    queue_export_task(content_key, user, token)
 
 
 def export_course_to_git(course_key):

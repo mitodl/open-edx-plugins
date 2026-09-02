@@ -160,6 +160,30 @@ class TestExportDebounce(TestCase):
 
         assert cache.get(pending_cache_key(library_key)) is None
 
+    def test_failed_publisher_lookup_releases_the_pending_marker(self):
+        """The publisher lookup runs while holding the slot, so it must release
+        it if it blows up -- otherwise the burst is stranded for the marker's
+        whole lifetime."""
+        library_key = LibraryLocatorV2.from_string("lib:org:slug")
+
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.is_auto_export_enabled",
+                return_value=True,
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_library",
+                side_effect=RuntimeError("database down"),
+            ),
+            pytest.raises(RuntimeError),
+        ):
+            export_library_to_git(library_key)
+
+        assert cache.get(pending_cache_key(library_key)) is None
+
     def test_export_is_queued_when_the_cache_backend_is_down(self):
         """A dead cache must fail open -- export undebounced rather than raise
         out of the publish request or drop the export."""
