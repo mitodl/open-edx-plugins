@@ -10,29 +10,89 @@ from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
 from cms.djangoapps.contentstore.git_export_utils import GitExportError, export_to_git
 from django.conf import settings
+from django.core.cache import cache
 from opaque_keys.edx.keys import LearningContextKey
 from rest_framework import status
 
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
+    cache_op,
+    claim_export_slot,
     clear_stale_git_lock,
+    debounce_cache_key,
     get_content_info,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
+    pending_cache_key,
+    queue_export_task,
 )
 
 LOGGER = get_task_logger(__name__)
 
 
+def _superseded(context_key_string, user, token):
+    """
+    Report whether a newer signal replaced this task, re-queuing if so.
+
+    See EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
+    """
+    # No longer queued, so a signal from here on may queue a new task. If the
+    # delete itself fails, any re-queue below would find its own marker still
+    # in place and claim nothing, orphaning a newer token with no task left to
+    # export it -- worse than exporting stale, so export unconditionally.
+    try:
+        cache.delete(pending_cache_key(context_key_string))
+    except Exception:
+        LOGGER.exception(
+            "Git export debounce cache unavailable; exporting %s unconditionally",
+            context_key_string,
+        )
+        return False
+
+    current_token = cache_op(
+        cache.get, debounce_cache_key(context_key_string), token, on_error=token
+    )
+    if current_token == token:
+        return False
+
+    LOGGER.info(
+        "Newer signals arrived for %s; re-queuing rather than exporting "
+        "a mid-burst snapshot",
+        context_key_string,
+    )
+    # Only skip the export once a replacement is actually queued. Losing the
+    # slot to a concurrent claimant counts as not queued too: that claimant's
+    # own hand-off could itself fail, and there's no third fallback beyond
+    # this one -- exporting now reads current committed state regardless of
+    # which token wins, so it's no worse than a successful hand-off.
+    if claim_export_slot(context_key_string):
+        try:
+            # A burst extended by another publisher keeps the first as author.
+            queue_export_task(context_key_string, user, current_token)
+        except Exception:
+            LOGGER.exception(
+                "Failed to re-queue %s; exporting current state instead",
+                context_key_string,
+            )
+        else:
+            return True
+    return False
+
+
 @shared_task
-def async_export_to_git(context_key_string, user=None):
+def async_export_to_git(context_key_string, user=None, token=None):
     """Export a course or library to Git.
 
     Args:
         context_key_string (str): String representation of LearningContextKey
         user: Optional user for git export
+        token: Debounce token from utils.queue_export_task; see
+            EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
     """
+    if token and _superseded(context_key_string, user, token):
+        return
+
     try:
         context_key = LearningContextKey.from_string(context_key_string)
         content_info = get_content_info(context_key)

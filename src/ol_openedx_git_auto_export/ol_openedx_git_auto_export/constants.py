@@ -29,11 +29,18 @@ ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION = "ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREA
 COURSE_RERUN_STATE_SUCCEEDED = "succeeded"
 REPOSITORY_NAME_MAX_LENGTH = 100  # Max length from GitHub for repo name
 
-# Debounce settings for the signal handler.
-# A single course save triggers 10-30 COURSE_PUBLISHED signals in one request.
-# cache.add() on this key ensures only the first signal schedules a task; all
-# subsequent signals within the window are silently dropped before hitting the broker.
-# The task is scheduled with countdown=EXPORT_DEBOUNCE_DELAY so it runs after
-# the burst window has closed and the course state is fully settled.
-EXPORT_DEBOUNCE_DELAY = 5  # seconds — must exceed the publish burst window
-EXPORT_DEBOUNCE_CACHE_KEY = "git_export_debounce:{course_key}"
+# A course save or library import fires many publish signals for the same
+# content, up to one per block. The pending key keeps a single export task
+# queued per burst; the debounce key holds a token every signal overwrites.
+# The task exports only if its token is still current, otherwise it re-queues
+# itself, so the export reflects the end of the burst. A missing token exports
+# anyway rather than dropping the export.
+EXPORT_DEBOUNCE_DELAY = 5  # seconds of quiet before a queued export actually runs
+# v2: 0.8.3 wrote a 5s-TTL "1" under the unversioned key. Storing a permanent
+# token there instead would make a rollback to 0.8.3 see that key as already
+# claimed forever, silently disabling its debounce until the cache is flushed.
+EXPORT_DEBOUNCE_CACHE_KEY = "git_export_debounce_v2:{content_key}"
+EXPORT_DEBOUNCE_PENDING_CACHE_KEY = "git_export_pending:{content_key}"
+# Must outlive the countdown, or the marker expires while the task is still
+# queued and a signal in that gap queues a duplicate.
+EXPORT_DEBOUNCE_PENDING_TTL = EXPORT_DEBOUNCE_DELAY + 55  # seconds
