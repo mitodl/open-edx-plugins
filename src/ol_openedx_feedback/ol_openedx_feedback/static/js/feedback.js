@@ -59,13 +59,17 @@
         if (event.origin !== mfeOrigin) {
           return;
         }
-        if (
-          event.data &&
-          event.data.type === "ol-feedback::drawer-closed" &&
-          lastTrigger
-        ) {
+        if (!event.data || !lastTrigger) {
+          return;
+        }
+        if (event.data.type === "ol-feedback::drawer-closed") {
+          // Drawer is gone: return focus, then forget the trigger.
           lastTrigger.focus();
           lastTrigger = null;
+        } else if (event.data.type === "ol-feedback::focus-trigger") {
+          // "Return to block" skip link: focus the trigger but keep the drawer
+          // open, so keep lastTrigger for the eventual close message.
+          lastTrigger.focus();
         }
       });
     }
@@ -87,6 +91,7 @@
       var alignFrame = null;
       var alignToChatButton = function () {
         $anchor.css("transform", "");
+        $trigger.css("height", "");
         var btnRect = $chatBtn[0].getBoundingClientRect();
         // Match the megaphone's height to the AskTIM button so the two stay
         // equal-height peers even when AskTIM's label wraps to two lines on

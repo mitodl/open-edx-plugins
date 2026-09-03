@@ -18,14 +18,14 @@
 /* Docked next to AskTIM: positioning only; the button styling stays on
    .ol-feedback-trigger so the megaphone looks the same docked or standalone. */
 .ol-feedback-anchor--docked {
-  margin-right: 10px;
+  margin-right: 16px;
   z-index: 1;
 }
 
 /* Problem blocks draw a notification line behind the button row; mask it across
    the docked gap to the AskTIM button (offset matches margin-right above). */
 .ol-feedback-anchor--line-masked {
-  box-shadow: 10px 0 0 0 #fff;
+  box-shadow: 16px 0 0 0 #fff;
 }
 
 /* Matches the AskTIM button's resting treatment and 50px height; box-sizing is
@@ -46,12 +46,18 @@
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-/* Hover, active, and mouse-focus share one look; keyboard focus is handled below. */
-.ol-feedback-trigger:hover,
-.ol-feedback-trigger:active,
-.ol-feedback-trigger:focus {
+/* Active/mouse-focus: subtle grey. Kept before :hover so hover wins on a focused
+   button. :not(:disabled) matches the LMS button rules' specificity so ours win. */
+.ol-feedback-trigger:active:not(:disabled),
+.ol-feedback-trigger:focus:not(:disabled) {
   background: #f0f1f4;
   border-color: #b8c2cc;
+  color: #5f6b7a;
+}
+
+.ol-feedback-trigger:hover:not(:disabled) {
+  background: #f3f4f8;
+  border-color: #212326;
   color: #5f6b7a;
 }
 
@@ -62,8 +68,8 @@
 }
 
 .ol-feedback-trigger .ol-fb-ic {
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   display: block;
 }
 
