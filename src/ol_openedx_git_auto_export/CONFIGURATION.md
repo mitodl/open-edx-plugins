@@ -15,7 +15,7 @@ This document describes the available feature flags for controlling git auto-exp
 
 **Example**:
 ```python
-FEATURES['ENABLE_GIT_AUTO_EXPORT'] = True
+FEATURES["ENABLE_GIT_AUTO_EXPORT"] = True
 ```
 
 #### `ENABLE_AUTO_GITHUB_REPO_CREATION`
@@ -27,7 +27,7 @@ FEATURES['ENABLE_GIT_AUTO_EXPORT'] = True
 
 **Example**:
 ```python
-FEATURES['ENABLE_AUTO_GITHUB_REPO_CREATION'] = True
+FEATURES["ENABLE_AUTO_GITHUB_REPO_CREATION"] = True
 ```
 
 ### Library-Specific Flags
@@ -42,11 +42,11 @@ FEATURES['ENABLE_AUTO_GITHUB_REPO_CREATION'] = True
 **Example**:
 ```python
 # Enable library export separately from courses
-FEATURES['ENABLE_GIT_AUTO_LIBRARY_EXPORT'] = True
+FEATURES["ENABLE_GIT_AUTO_LIBRARY_EXPORT"] = True
 
 # Or disable library export while keeping course export enabled
-FEATURES['ENABLE_GIT_AUTO_EXPORT'] = True
-FEATURES['ENABLE_GIT_AUTO_LIBRARY_EXPORT'] = False
+FEATURES["ENABLE_GIT_AUTO_EXPORT"] = True
+FEATURES["ENABLE_GIT_AUTO_LIBRARY_EXPORT"] = False
 ```
 
 #### `ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION`
@@ -59,11 +59,11 @@ FEATURES['ENABLE_GIT_AUTO_LIBRARY_EXPORT'] = False
 **Example**:
 ```python
 # Enable library repo creation separately from courses
-FEATURES['ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION'] = True
+FEATURES["ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION"] = True
 
 # Or disable library repo creation while keeping course repo creation enabled
-FEATURES['ENABLE_AUTO_GITHUB_REPO_CREATION'] = True
-FEATURES['ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION'] = False
+FEATURES["ENABLE_AUTO_GITHUB_REPO_CREATION"] = True
+FEATURES["ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION"] = False
 ```
 
 ### Required Settings (for both courses and libraries)
