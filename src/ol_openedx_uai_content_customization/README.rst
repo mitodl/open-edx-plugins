@@ -9,6 +9,9 @@ Version Compatibility
 
 Supports Open edX releases from **Sumac** and onwards.
 
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Installing The Plugin
 ---------------------
 

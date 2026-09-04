@@ -23,6 +23,9 @@ Use any version of edx-sysadmin plugin.
 
 You do not need edx-sysadmin plugin. Just enable ``ENABLE_SYSADMIN_DASHBOARD`` feature flag in environment files (e.g ``lms.yml`` or ``lms.env.json``) to access sysadmin dashboard features.
 
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 
 Installing The Plugin
 ---------------------

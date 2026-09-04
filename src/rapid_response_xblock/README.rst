@@ -3,6 +3,12 @@ Rapid Response xBlock
 
 A django app plugin for edx-platform
 
+Version Compatibility
+----------------------
+
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Setup
 -----
 

@@ -8,6 +8,12 @@ Purpose
 
 Auto select the Open edX platform language based on the course language. When enabled, users will see the static site content in the course's configured language.
 
+Version Compatibility
+======================
+
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Setup
 =====
 

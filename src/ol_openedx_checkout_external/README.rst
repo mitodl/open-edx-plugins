@@ -5,6 +5,12 @@ A django app plugin to add a new API to Open edX for external checkouts.
 The plugin redirects the user the desired external ecommerce service upon clicking the **Upgrade** button in LMS dashboard or Learning MFE.
 
 
+Version Compatibility
+----------------------
+
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Installation
 ------------
 

@@ -8,6 +8,12 @@ Purpose
 
 Translate course content into multiple languages to enhance accessibility for a global audience.
 
+Version Compatibility
+======================
+
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Setup
 =====
 

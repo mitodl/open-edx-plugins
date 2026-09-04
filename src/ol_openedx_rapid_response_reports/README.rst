@@ -1,6 +1,12 @@
 Rapid Response Reports Plugin
 =============================
 
+Version Compatibility
+----------------------
+
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Overview
 --------
 
@@ -9,7 +15,7 @@ A django app plugin for edx-platform to enable "Rapid Response Reports" function
 
 **NOTE:**
 
-If you are using `Nutmeg <https://github.com/openedx/edx-platform/tree/open-release/nutmeg.master>`_ or a more recent release of open edX, You can skip the cherry-picking step mentioned below and just use ``0.2.0`` or above version of the plugin. For any releases prior to ``Nutmeg`` please keep reading below.
+If you are using `Nutmeg <https://github.com/openedx/edx-platform/tree/open-release/nutmeg.master>`_ through Teak, you can skip the cherry-picking step mentioned below and just use a version between ``0.2.0`` and ``0.5.1`` of the plugin (see the `Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_ above for Ulmo/Verawood+). For any releases prior to ``Nutmeg`` please keep reading below.
 
 (For Open edX releases prior to `Nutmeg`) We had to make some changes to edx-platform itself in order to add the ``Rapid Responses`` tab to the instructor dashboard, so the ``edx-platform`` branch/tag you're using must include this commit for the plugin to work properly:
 
