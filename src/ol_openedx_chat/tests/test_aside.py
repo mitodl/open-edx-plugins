@@ -89,6 +89,9 @@ class OLChatAsideTests(OLChatTestCase):
             if not should_render_aside:
                 return
 
+            # The decorative chat icon must be hidden from screen readers (alt="").
+            assert 'class="chat-icon" alt=""' in fragment.content
+
             expected_json_init_args_keys = [
                 "block_id",
                 "learning_mfe_base_url",
