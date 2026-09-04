@@ -76,6 +76,7 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             )
             split_modulestore_mock.copy.assert_called_once()
 
+    @skip_unless_cms
     def test_copy_static_tabs(self):
         """
         Test the copy_static_tabs function.
