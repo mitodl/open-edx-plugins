@@ -171,6 +171,14 @@ run_plugin_tests() {
 	if [[ "$plugin_dir" == *"ol_openedx_uai_content_customization"* ]]; then
 		echo "Using CMS settings only for $plugin_dir (skipping LMS run)."
 		pytest_command="pytest . --cov . --ds=cms.envs.test"
+	elif [[ "$plugin_dir" == *"ol_openedx_git_auto_export"* ]]; then
+		# CMS-only plugin (cms.djangoapp entry point, no lms.djangoapp). Under
+		# LMS settings its app isn't installed at all, so its models/tasks fail
+		# to import. --nomigrations matches edx-platform's own test convention,
+		# which isn't inherited when pytest runs from inside a plugin directory
+		# with its own pyproject.toml as the rootdir config.
+		echo "Using CMS settings only for $plugin_dir (skipping LMS run)."
+		pytest_command="pytest . --cov . --ds=cms.envs.test --nomigrations"
 	# Check for the existence of settings/test.py
 	elif [ -f "settings/test.py" ]; then
 		pytest_command="pytest . --cov . --ds=settings.test"
