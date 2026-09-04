@@ -32,9 +32,9 @@ ol-openedx-course-export                  0.2.0                                 
 ol-openedx-course-outline-api             0.1.0                                     0.2.0
 ol-openedx-course-structure-api           0.2.0                                     0.3.0
 ol-openedx-course-sync                    1.0.1                                     1.1.0
-ol-openedx-course-translations            0.8.0                                     0.9.0
-ol-openedx-events-handler                 0.2.1                                     0.4.0
-ol-openedx-feedback                       0.2.0                                     0.3.0
+ol-openedx-course-translations            0.9.1                                     0.10.0
+ol-openedx-events-handler                 0.3.0                                     0.4.0
+ol-openedx-feedback                       0.2.2                                     0.3.0
 ol-openedx-git-auto-export                0.8.3                                     0.9.0
 ol-openedx-logging                        0.3.5                                     0.4.0
 ol-openedx-lti-utilities                  0.1.2                                     0.2.0

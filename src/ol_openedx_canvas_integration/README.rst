@@ -49,9 +49,10 @@ https://github.com/mitodl/edx-platform/commit/7a2edd5d29ead6845cb33d2001746207cf
 Version Compatibility
 ---------------------
 
-**For "Sumac" or more recent release of edX platform**
+**For "Sumac" through "Teak" release of edX platform**
 
-Use ``0.4.0`` or a above version of this plugin
+Use a version between ``0.4.0`` and ``0.8.2`` of this plugin. For Ulmo/Verawood+, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_ below.
 
 **For "Quince" to "Redwood" release of edX platform**
 

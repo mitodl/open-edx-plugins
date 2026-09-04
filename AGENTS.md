@@ -6,7 +6,7 @@ This repository contains a collection of 17+ Open edX plugins that extend and en
 
 **Repository Type:** Python monorepo with multiple independent plugin packages
 **Size:** ~170 Python source files across 17 plugins
-**Languages/Frameworks:** Python 3.11+, Django 4.0+, Open edX platform
+**Languages/Frameworks:** Python 3.11+, Django 5.2+, Open edX platform
 **Build System:** UV (modern Python package manager), Hatchling backend
 **Target Runtime:** Open edX platform (tested against master, ulmo, and verawood releases)
 
@@ -154,7 +154,7 @@ cd /openedx/open-edx-plugins
 
 **1. CI Workflow (`.github/workflows/ci.yml`)**
 - **Triggers:** Push to main, all PRs
-- **Matrix:** Python 3.11 × 3 Open edX branches (master, ulmo, verawood)
+- **Matrix:** 3 Open edX branches (master, ulmo, verawood) — Python 3.12 for master and verawood, 3.11 for ulmo
 - **Steps:**
   1. Checkout code
   2. Setup UV with caching

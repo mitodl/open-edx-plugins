@@ -44,8 +44,11 @@ runs:
       elif [[ "$EDX_BRANCH" == "master" ]]; then
         git clone --depth=1 --branch=main https://github.com/overhangio/tutor.git
         pip install -e "./tutor"
-      else
+      elif [[ "$EDX_BRANCH" == "release/ulmo" ]]; then
         pip install "tutor>=21.0.0,<22.0.0"
+      else
+        echo "No Tutor version mapping for edx_branch '$EDX_BRANCH'" >&2
+        exit 1
       fi
 
   - name: Derive image names
