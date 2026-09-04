@@ -5,10 +5,6 @@ Tests for ol-openedx-course-sync utils.
 from unittest import mock
 
 import pytest
-from cms.djangoapps.contentstore.course_info_model import (
-    get_course_updates,
-    save_course_update_items,
-)
 from common.djangoapps.student.tests.factories import UserFactory
 from ddt import data, ddt, unpack
 from django.core.exceptions import ImproperlyConfigured
@@ -131,10 +127,18 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
                 continue
             assert tab.is_hidden is True
 
+    @skip_unless_cms
     def test_sync_course_updates(self):
         """
         Test the sync_course_updates function.
         """
+        # CMS-only: importing this at module level breaks collection under
+        # LMS settings, where cms.djangoapps.contentstore isn't installed.
+        from cms.djangoapps.contentstore.course_info_model import (  # noqa: PLC0415
+            get_course_updates,
+            save_course_update_items,
+        )
+
         source_course_key = self.source_course.usage_key.course_key
         target_course_key = self.target_course.usage_key.course_key
         source_location = source_course_key.make_usage_key("course_info", "updates")
