@@ -196,11 +196,20 @@ run_plugin_tests() {
 
 	# Run the pytest command
 	local PYTEST_SUCCESS=0
-	if $pytest_command --collect-only; then
+	$pytest_command --collect-only
+	local COLLECT_STATUS=$?
+	if [[ $COLLECT_STATUS -eq 0 ]]; then
 		$pytest_command
 		PYTEST_SUCCESS=$?
-	else
+	elif [[ $COLLECT_STATUS -eq 5 ]]; then
+		# Exit code 5 is pytest's own "no tests collected" -- benign for a
+		# plugin with no tests matching this settings module. Any other
+		# nonzero status is a real collection error (bad import, missing
+		# setting, etc.) and must fail the build, not be treated the same way.
 		echo "No tests found, skipping pytest."
+	else
+		echo "pytest collection failed with status $COLLECT_STATUS"
+		exit $COLLECT_STATUS
 	fi
 
 	if [[ $PYTEST_SUCCESS -ne 0 ]]; then
