@@ -70,12 +70,22 @@
         box-shadow: none !important;
     }
 
-    &:focus,
-    &:focus-visible {
+    /* Mouse focus: red border, no ring (matches :active). */
+    &:focus:not(:focus-visible) {
         border: 2px solid #c00 !important;
         background: #FFF !important;
         box-shadow: none !important;
         outline: none;
+    }
+
+    /* Keyboard focus: keep the red border but add a visible ring (WCAG 2.4.7);
+       an outline also survives forced-colors mode. */
+    &:focus-visible {
+        border: 2px solid #c00 !important;
+        background: #FFF !important;
+        box-shadow: none !important;
+        outline: 2px solid #005a9c;
+        outline-offset: 2px;
     }
 }
 
