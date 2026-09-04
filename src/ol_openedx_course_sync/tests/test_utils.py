@@ -5,10 +5,6 @@ Tests for ol-openedx-course-sync utils.
 from unittest import mock
 
 import pytest
-from cms.djangoapps.contentstore.course_info_model import (
-    get_course_updates,
-    save_course_update_items,
-)
 from common.djangoapps.student.tests.factories import UserFactory
 from ddt import data, ddt, unpack
 from django.core.exceptions import ImproperlyConfigured
@@ -47,12 +43,15 @@ from tests.utils import OLOpenedXCourseSyncTestCase
 
 
 @ddt
+@skip_unless_cms
 class TestUtils(OLOpenedXCourseSyncTestCase):
     """
     Test the ol_openedx_course_sync utils.
+
+    course_sync's utilities are Studio/authoring features, so this whole
+    class only runs during the plugin's CMS test pass.
     """
 
-    @skip_unless_cms
     @data(ModuleStoreEnum.BranchName.draft, ModuleStoreEnum.BranchName.published)
     def test_copy_course_content(self, branch):
         """
@@ -135,6 +134,13 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
         """
         Test the sync_course_updates function.
         """
+        # CMS-only: importing this at module level breaks collection under
+        # LMS settings, where cms.djangoapps.contentstore isn't installed.
+        from cms.djangoapps.contentstore.course_info_model import (  # noqa: PLC0415
+            get_course_updates,
+            save_course_update_items,
+        )
+
         source_course_key = self.source_course.usage_key.course_key
         target_course_key = self.target_course.usage_key.course_key
         source_location = source_course_key.make_usage_key("course_info", "updates")
@@ -289,7 +295,6 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
         ],
     )
     @unpack
-    @skip_unless_cms
     @override_settings(OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker")
     def test_sync_discussions_configuration(
         self, source_fields, target_fields, expected_fields
@@ -369,7 +374,6 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
         ],
     )
     @unpack
-    @skip_unless_cms
     def test_get_syncable_course_mappings(  # noqa: PLR0913, PLR0917
         self,
         course_sync_org_exists,
@@ -417,14 +421,12 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
             else:
                 assert actual_sync_mappings.count() == expected_sync_mappings_count
 
-    @skip_unless_cms
     def test_get_all_source_courses_no_mappings(self):
         """
         Test get_all_source_courses returns None when no mappings exist.
         """
         assert get_all_source_courses() is None
 
-    @skip_unless_cms
     def test_get_all_source_courses_no_active_mappings(self):
         """
         Test get_all_source_courses returns None when no mapping is active.
@@ -439,7 +441,6 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
 
         assert get_all_source_courses() is None
 
-    @skip_unless_cms
     def test_get_all_source_courses_returns_distinct_active_sources(self):
         """
         Test get_all_source_courses returns a distinct list of the active
@@ -580,7 +581,6 @@ class TestUtils(OLOpenedXCourseSyncTestCase):
         },
     )
     @unpack
-    @skip_unless_cms
     def test_verify_static_assets(
         self,
         source_assets,
