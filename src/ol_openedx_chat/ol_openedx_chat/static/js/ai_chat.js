@@ -57,6 +57,12 @@
             // Drawer is gone: return focus, then forget the trigger.
             lastTrigger.focus();
             lastTrigger = null;
+          } else if (
+            event.data.type === "smoot-design::tutor-drawer-focus-trigger"
+          ) {
+            // "Return to block" skip link: focus the trigger but keep the drawer
+            // open, so keep lastTrigger for the eventual close message.
+            lastTrigger.focus();
           }
         });
       }
