@@ -1,6 +1,4 @@
 (function ($) {
-  // The button that last opened the drawer. The drawer lives in the parent MFE
-  // (cross-origin), so on close it messages us back to refocus this trigger.
   var lastTrigger = null;
   // The message listener is global; bind it once across all blocks.
   var closeListenerBound = false;
