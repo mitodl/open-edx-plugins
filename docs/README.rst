@@ -24,7 +24,7 @@ edx-sysadmin                              0.4.2                                 
 edx-username-changer                      0.5.0                                     0.6.0
 ol-openedx-ai-static-translations         0.1.1                                     0.2.0
 ol-openedx-auto-select-language           0.1.2                                     0.2.0
-ol-openedx-canvas-integration             0.8.2                                     0.9.0
+ol-openedx-canvas-integration             0.8.3                                     0.9.0
 ol-openedx-chat                           0.5.10                                    0.6.0
 ol-openedx-chat-xblock                    0.4.6                                     0.5.0
 ol-openedx-checkout-external              0.2.0                                     0.3.0

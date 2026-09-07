@@ -51,7 +51,7 @@ Version Compatibility
 
 **For "Sumac" through "Teak" release of edX platform**
 
-Use a version between ``0.4.0`` and ``0.8.2`` of this plugin. For Ulmo/Verawood+, see the
+Use a version between ``0.4.0`` and ``0.8.3`` of this plugin. For Ulmo/Verawood+, see the
 `Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_ below.
 
 **For "Quince" to "Redwood" release of edX platform**
