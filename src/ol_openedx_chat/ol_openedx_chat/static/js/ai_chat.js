@@ -1,9 +1,8 @@
 (function ($) {
-  // The AskTIM button that last opened the drawer. The drawer renders in the
-  // parent MFE (cross-origin), so when it closes it can't focus our button
-  // directly; it messages us back and we return focus to this trigger.
+  // The button that last opened the drawer. The drawer lives in the parent MFE
+  // (cross-origin), so on close it messages us back to refocus this trigger.
   var lastTrigger = null;
-  // The drawer-closed listener is global, so bind it once across all blocks.
+  // The message listener is global; bind it once across all blocks.
   var closeListenerBound = false;
 
   function AiChatAsideView(runtime, element, block_element, init_args) {
@@ -16,12 +15,9 @@
           payload: init_args.drawer_payload,
         },
         function (event) {
-          // Remember which button opened the drawer so focus can return here
-          // when the drawer closes.
           lastTrigger = this;
-          // Keyboard-fired click has detail === 0 (mouse >= 1); tell the drawer
-          // so it rings the heading for keyboard opens only (it renders
-          // cross-origin, so it can't infer this via :focus-visible).
+          // A keyboard-fired click has detail === 0 (mouse is >= 1); pass it so
+          // the drawer rings the heading for keyboard opens only.
           var nativeEvent = event.originalEvent || event;
           var viaKeyboard = nativeEvent.detail === 0;
 
@@ -36,8 +32,7 @@
         },
       );
 
-      // Bind once (not per block): when the drawer closes it posts back so we
-      // can return keyboard focus to the button that opened it (WCAG 2.4.3).
+      // Return keyboard focus to the trigger on the drawer's post-backs (WCAG 2.4.3).
       if (!closeListenerBound && mfeBaseUrl) {
         closeListenerBound = true;
         var mfeOrigin;
@@ -54,14 +49,14 @@
             return;
           }
           if (event.data.type === "smoot-design::tutor-drawer-closed") {
-            // Drawer is gone: return focus, then forget the trigger.
+            // Drawer closed: return focus, then forget the trigger.
             lastTrigger.focus();
             lastTrigger = null;
           } else if (
             event.data.type === "smoot-design::tutor-drawer-focus-trigger"
           ) {
-            // "Return to block" skip link: focus the trigger but keep the drawer
-            // open, so keep lastTrigger for the eventual close message.
+            // "Return to block" skip link: refocus the trigger but keep the
+            // drawer open (so keep lastTrigger for the later close).
             lastTrigger.focus();
           }
         });
