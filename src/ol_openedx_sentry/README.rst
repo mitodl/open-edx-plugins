@@ -68,9 +68,14 @@ never initialized.
      - Release identifier, passed to ``sentry_sdk.init(release=...)`` for
        associating events with a build.
    * - ``SENTRY_SEND_HTTP_REQUEST_BODIES``
-     - ``"small"``
+     - ``"never"``
      - Maps to the SDK's ``max_request_body_size`` (``"never"``, ``"small"``,
-       ``"medium"``, ``"always"``).
+       ``"medium"``, ``"always"``). Request bodies are *not* gated on
+       ``SENTRY_SEND_DEFAULT_PII`` -- the SDK sets ``request.data``
+       unconditionally and this is the only control -- so it defaults to
+       ``"never"``. ``"small"`` still admits 1,000-byte bodies, which is
+       enough for a graded xblock submission; operators opt in per
+       deployment.
    * - ``SENTRY_SEND_DEFAULT_PII``
      - ``False``
      - When ``True``, attaches identifying data (user id, username, client IP)
@@ -121,8 +126,11 @@ Behavior notes / design decisions
 **``before_send`` is fail-open.** The event filter drops events whose raised
 exception is a subclass of an ignored class, or whose message matches an ignored
 regex. If the filter itself raises for any reason, the error is logged and the
-original event is returned unfiltered. A bug in filtering can never silently
-blackhole error reporting. Relatedly, ignored classes and message regexes are
+event is returned rather than dropped. A bug in filtering can never silently
+blackhole error reporting. The one thing that is *not* skipped on that path is
+the Postgres ``DETAIL`` scrub: it runs as the filter's first statement, before
+anything else can raise, so a fail-open return is still a scrubbed event. A
+privacy control that fails open is not one. Relatedly, ignored classes and message regexes are
 resolved and compiled once at init time (not per event), so a bad import path or
 invalid regex is reported once and skipped rather than raising inside
 ``before_send``.

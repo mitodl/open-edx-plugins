@@ -257,6 +257,9 @@ PG_INTEGRITY_ERROR = (
     "learner@example.invalid, learner@example.invalid, null, f, t, "
     "12d7dfc5-6f84-46db-9383-2d7079434173, 1863408, learner@example.invalid, f)."
 )
+EXPECTED_RETRIES = 3
+EXPECTED_TIMESTAMP = 1757345533.179
+
 PG_PRIMARY_MESSAGE = (
     'null value in column "name" of relation "users_user" violates not-null constraint'
 )
@@ -308,6 +311,71 @@ class TestScrubPgDetail:
         result = sentry.sentry_event_filter(event, {})
         assert result is event
         assert "learner@example.invalid" not in repr(result)
+
+    def test_scrubs_breadcrumb_messages(self):
+        """LoggingIntegration records the log message as a breadcrumb."""
+        event = {
+            "breadcrumbs": {
+                "values": [
+                    {
+                        "type": "log",
+                        "category": "django_scim.views",
+                        "message": PG_INTEGRITY_ERROR,
+                    }
+                ]
+            }
+        }
+        sentry._scrub_pg_details(event)
+        assert "learner@example.invalid" not in repr(event)
+
+    def test_scrubs_logentry_params(self):
+        """logger.error("...: %s", exc) puts the exception in logentry.params."""
+        event = {
+            "logentry": {
+                "message": "Unable to complete SCIM call: %s",
+                "formatted": "Unable to complete SCIM call: " + PG_INTEGRITY_ERROR,
+                "params": [PG_INTEGRITY_ERROR],
+            }
+        }
+        sentry._scrub_pg_details(event)
+        assert "learner@example.invalid" not in repr(event)
+
+    def test_scrubs_captured_frame_locals(self):
+        """include_local_variables defaults to True, so frame vars carry it too."""
+        event = {
+            "exception": {
+                "values": [
+                    {
+                        "value": "boom",
+                        "stacktrace": {
+                            "frames": [
+                                {
+                                    "function": "save",
+                                    "vars": {"exc": PG_INTEGRITY_ERROR, "retries": 3},
+                                }
+                            ]
+                        },
+                    }
+                ]
+            }
+        }
+        sentry._scrub_pg_details(event)
+        assert "learner@example.invalid" not in repr(event)
+        frame = event["exception"]["values"][0]["stacktrace"]["frames"][0]
+        assert frame["vars"]["retries"] == EXPECTED_RETRIES
+
+    def test_walk_preserves_non_string_leaves(self):
+        """The walk must not coerce timestamps, ints or None into strings."""
+        event = {
+            "timestamp": EXPECTED_TIMESTAMP,
+            "level": "error",
+            "extra": {"count": 42, "missing": None, "flag": True},
+            "message": PG_INTEGRITY_ERROR,
+        }
+        sentry._scrub_pg_details(event)
+        assert event["timestamp"] == EXPECTED_TIMESTAMP
+        assert event["extra"] == {"count": 42, "missing": None, "flag": True}
+        assert "learner@example.invalid" not in event["message"]
 
 
 class TestPluginSettings:
