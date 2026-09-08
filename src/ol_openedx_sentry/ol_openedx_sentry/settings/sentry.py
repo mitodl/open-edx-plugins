@@ -16,6 +16,9 @@ Design notes
   ``event_level=None`` so that stdlib/structlog log records become breadcrumbs
   only, never standalone Sentry issues.  Uncaught exceptions are still captured
   by the Django integration.
+* Postgres ``DETAIL:`` lines are truncated out of exception values and log
+  messages before send.  They echo the offending row verbatim -- learner name,
+  email, external UUID -- and no SDK privacy option covers exception text.
 * OpenTelemetry ``trace_id``/``span_id`` are stamped onto every event as tags
   using the same formatting as ``ol_openedx_logging`` so Sentry issues and the
   structured logs in Loki correlate on identical values.  ``opentelemetry`` is
@@ -143,6 +146,56 @@ def _event_messages(event: dict[str, Any], exception_value: object) -> list[str]
     return candidates
 
 
+# Postgres appends a DETAIL line to constraint violations that echoes the whole
+# offending row verbatim -- on a users table that is the learner's name, email
+# and external UUID.  psycopg surfaces it as part of str(exc), so it reaches
+# Sentry inside the exception value and the log message, where no SDK privacy
+# setting applies: send_default_pii governs user/cookie/header capture and
+# max_request_body_size governs request bodies, neither of which touches the
+# exception text.  Measured on mitxonline MITXONLINE-6PK, where a SCIM PATCH
+# IntegrityError reproduced a learner email address three times per event across
+# 46,764 occurrences.
+_PG_DETAIL_MARKER = "\nDETAIL:"
+_PG_DETAIL_REPLACEMENT = "\nDETAIL:  [scrubbed by ol_openedx_sentry]"
+
+
+def _scrub_pg_detail(text: str) -> str:
+    """Truncate a Postgres error string at its ``DETAIL:`` line.
+
+    Keeps the primary message, which is what identifies the failure, and drops
+    the row echo that follows it.  Also removes any HINT/CONTEXT that Postgres
+    appends after DETAIL -- those are diagnostic only and can quote row data
+    too.
+    """
+    index = text.find(_PG_DETAIL_MARKER)
+    if index == -1:
+        return text
+    return text[:index] + _PG_DETAIL_REPLACEMENT
+
+
+def _scrub_pg_details(event: dict[str, Any]) -> dict[str, Any]:
+    """Apply :func:`_scrub_pg_detail` everywhere an error string lands.
+
+    Covers exception values, the ``logentry`` message/formatted pair, and the
+    legacy top-level ``message``, so the scrub holds whether the event arrived
+    as an uncaught exception or via ``logger.exception``.
+    """
+    for entry in (event.get("exception") or {}).get("values") or []:
+        value = entry.get("value")
+        if isinstance(value, str):
+            entry["value"] = _scrub_pg_detail(value)
+    logentry = event.get("logentry")
+    if isinstance(logentry, dict):
+        for key in ("formatted", "message"):
+            value = logentry.get(key)
+            if isinstance(value, str):
+                logentry[key] = _scrub_pg_detail(value)
+    top_message = event.get("message")
+    if isinstance(top_message, str):
+        event["message"] = _scrub_pg_detail(top_message)
+    return event
+
+
 def _tag_otel_context(event: dict[str, Any]) -> dict[str, Any]:
     """Stamp the active OTel ``trace_id``/``span_id`` onto the event as tags.
 
@@ -173,10 +226,12 @@ def sentry_event_filter(
 
     Drops the event (returns ``None``) when the raised exception is a subclass
     of an ignored type, or when any candidate message matches an ignored regex.
-    Otherwise stamps OTel trace context and returns the event.
+    Otherwise scrubs Postgres ``DETAIL`` row echoes, stamps OTel trace context,
+    and returns the event.
 
     Fail-open: any unexpected error is logged and the event is returned, so a
-    bug here can never silently drop error reporting.
+    bug here can never silently drop error reporting.  The scrub runs first so
+    that the fail-open path still returns a scrubbed event.
 
     :param event: Sentry event payload.
     :param hint: Sentry event hint (may contain ``exc_info``).
@@ -186,6 +241,9 @@ def sentry_event_filter(
     :returns: The (possibly tagged) event, or ``None`` to drop it.
     """
     try:
+        # Scrub before anything else can raise: the fail-open handler below
+        # returns this same dict, and a privacy control must not fail open.
+        _scrub_pg_details(event)
         exception_info = hint.get("exc_info")
         exception_value: object = ""
         if exception_info:
@@ -266,8 +324,15 @@ def plugin_settings(app_settings):
         # PII (user id/username/IP) is opt-in — FERPA-sensitive by default.
         send_default_pii=env_tokens.get("SENTRY_SEND_DEFAULT_PII", False),
         release=env_tokens.get("SENTRY_RELEASE_SPECIFIER"),
+        # HTTP request bodies are NOT gated on send_default_pii -- the SDK sets
+        # request.data unconditionally and max_request_body_size is the only
+        # control (sentry_sdk/integrations/_wsgi_common.py:61,123).  On Open edX
+        # the write endpoints that actually error are xblock handler POSTs, i.e.
+        # graded problem submissions, and those are routinely under the 1,000
+        # bytes that "small" still admits.  Default to "never" here; operators
+        # can widen it per deployment.
         max_request_body_size=env_tokens.get(
-            "SENTRY_SEND_HTTP_REQUEST_BODIES", "small"
+            "SENTRY_SEND_HTTP_REQUEST_BODIES", "never"
         ),
         # Explicit LoggingIntegration: log records are breadcrumbs only
         # (event_level=None) so structlog/stdlib logs don't become duplicate,

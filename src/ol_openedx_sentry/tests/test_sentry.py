@@ -249,6 +249,67 @@ class TestCoerceLogEventLevel:
         assert sentry._coerce_log_event_level("bogus") is None
 
 
+# A real MITXONLINE-6PK exception value, with the learner identifiers replaced.
+PG_INTEGRITY_ERROR = (
+    'null value in column "name" of relation "users_user" violates not-null '
+    "constraint\n"
+    "DETAIL:  Failing row contains (1863408, , 2026-08-07 18:38:14.503726+00, f, "
+    "learner@example.invalid, learner@example.invalid, null, f, t, "
+    "12d7dfc5-6f84-46db-9383-2d7079434173, 1863408, learner@example.invalid, f)."
+)
+PG_PRIMARY_MESSAGE = (
+    'null value in column "name" of relation "users_user" violates not-null constraint'
+)
+
+
+class TestScrubPgDetail:
+    """Tests for the Postgres ``DETAIL:`` row-echo scrub."""
+
+    def test_detail_line_is_truncated(self):
+        scrubbed = sentry._scrub_pg_detail(PG_INTEGRITY_ERROR)
+        assert scrubbed.startswith(PG_PRIMARY_MESSAGE)
+        assert "learner@example.invalid" not in scrubbed
+        assert "12d7dfc5-6f84-46db-9383-2d7079434173" not in scrubbed
+        assert "[scrubbed by ol_openedx_sentry]" in scrubbed
+
+    def test_message_without_detail_is_unchanged(self):
+        message = "connection to server failed"
+        assert sentry._scrub_pg_detail(message) == message
+
+    def test_hint_and_context_after_detail_are_dropped(self):
+        text = "boom\nDETAIL:  row data\nHINT:  try again\nCONTEXT:  SQL statement"
+        scrubbed = sentry._scrub_pg_detail(text)
+        assert "row data" not in scrubbed
+        assert "try again" not in scrubbed
+        assert "SQL statement" not in scrubbed
+
+    def test_scrubs_exception_values_logentry_and_message(self):
+        event = {
+            "exception": {"values": [{"value": PG_INTEGRITY_ERROR}]},
+            "logentry": {
+                "message": PG_INTEGRITY_ERROR,
+                "formatted": PG_INTEGRITY_ERROR,
+            },
+            "message": PG_INTEGRITY_ERROR,
+        }
+        sentry._scrub_pg_details(event)
+        assert "learner@example.invalid" not in repr(event)
+
+    def test_filter_scrubs_on_the_normal_path(self):
+        event = {"exception": {"values": [{"value": PG_INTEGRITY_ERROR}]}}
+        result = sentry.sentry_event_filter(event, {})
+        assert "learner@example.invalid" not in repr(result)
+
+    def test_filter_scrubs_even_when_it_fails_open(self, mocker):
+        # The fail-open handler returns the same event dict, so the scrub must
+        # already have been applied before anything else can raise.
+        mocker.patch.object(sentry, "_event_messages", side_effect=RuntimeError("boom"))
+        event = {"exception": {"values": [{"value": PG_INTEGRITY_ERROR}]}}
+        result = sentry.sentry_event_filter(event, {})
+        assert result is event
+        assert "learner@example.invalid" not in repr(result)
+
+
 class TestPluginSettings:
     """Tests for ``plugin_settings`` SDK initialization."""
 
@@ -267,6 +328,7 @@ class TestPluginSettings:
         init.assert_called_once()
         kwargs = init.call_args.kwargs
         assert kwargs["send_default_pii"] is False
+        assert kwargs["max_request_body_size"] == "never"
         assert kwargs["before_send"] is not None
         integrations = kwargs["integrations"]
         logging_integrations = [
@@ -285,6 +347,17 @@ class TestPluginSettings:
         )
         sentry.plugin_settings(app_settings)
         assert init.call_args.kwargs["send_default_pii"] is True
+
+    def test_request_bodies_opt_in(self, mocker):
+        init = mocker.patch.object(sentry.sentry_sdk, "init")
+        app_settings = types.SimpleNamespace(
+            ENV_TOKENS={
+                "SENTRY_DSN": "https://example.invalid/1",
+                "SENTRY_SEND_HTTP_REQUEST_BODIES": "small",
+            }
+        )
+        sentry.plugin_settings(app_settings)
+        assert init.call_args.kwargs["max_request_body_size"] == "small"
 
     def test_bare_string_ignored_classes_is_not_iterated_per_char(self, mocker):
         # A misconfigured bare string must resolve as a single class spec, not
