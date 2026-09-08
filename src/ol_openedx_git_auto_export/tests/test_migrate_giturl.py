@@ -67,9 +67,11 @@ class TestProcessRepositoriesInParallel(TestCase):
         task_callable = cast("Callable[..., object]", async_create_github_repo.run)
         task_signature = inspect.signature(task_callable)
         for signature in captured:
-            # ``self`` is bound by Celery, so stand it in here. Raises TypeError
-            # if the command passes a keyword the task does not accept.
-            task_signature.bind(None, *signature.args, **signature.kwargs)
+            # async_create_github_repo.run is a bound method on the task
+            # instance, so its signature already excludes self. Raises
+            # TypeError if the command passes a keyword the task doesn't
+            # accept.
+            task_signature.bind(*signature.args, **signature.kwargs)
             assert signature.kwargs == {"export_content": True}
 
     def test_dispatches_one_signature_per_repo(self):

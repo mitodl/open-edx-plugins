@@ -14,12 +14,15 @@ from tests.utils import OLOpenedXCourseSyncTestCase
 
 
 @override_settings(OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker")
+@skip_unless_cms
 class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
     """
     Test the ol_openedx_course_sync tasks.
+
+    These tasks orchestrate course_sync's Studio-only utilities, so this
+    whole class only runs during the plugin's CMS test pass.
     """
 
-    @skip_unless_cms
     def test_async_course_sync(self):
         """
         Test the async_course_sync task works as expected.
@@ -121,7 +124,6 @@ class TestReSyncTasks(OLOpenedXCourseSyncTestCase):
                 self.target_course.usage_key.course_key,
             )
 
-    @skip_unless_cms
     def test_async_discussions_configuration_sync(self):
         """
         Test the async_discussions_configuration_sync task works as expected.

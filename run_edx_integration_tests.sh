@@ -171,6 +171,14 @@ run_plugin_tests() {
 	if [[ "$plugin_dir" == *"ol_openedx_uai_content_customization"* ]]; then
 		echo "Using CMS settings only for $plugin_dir (skipping LMS run)."
 		pytest_command="pytest . --cov . --ds=cms.envs.test"
+	elif [[ "$plugin_dir" == *"ol_openedx_git_auto_export"* ]]; then
+		# CMS-only plugin (cms.djangoapp entry point, no lms.djangoapp). Under
+		# LMS settings its app isn't installed at all, so its models/tasks fail
+		# to import. --nomigrations matches edx-platform's own test convention,
+		# which isn't inherited when pytest runs from inside a plugin directory
+		# with its own pyproject.toml as the rootdir config.
+		echo "Using CMS settings only for $plugin_dir (skipping LMS run)."
+		pytest_command="pytest . --cov . --ds=cms.envs.test --nomigrations"
 	# Check for the existence of settings/test.py
 	elif [ -f "settings/test.py" ]; then
 		pytest_command="pytest . --cov . --ds=settings.test"
@@ -188,11 +196,20 @@ run_plugin_tests() {
 
 	# Run the pytest command
 	local PYTEST_SUCCESS=0
-	if $pytest_command --collect-only; then
+	$pytest_command --collect-only
+	local COLLECT_STATUS=$?
+	if [[ $COLLECT_STATUS -eq 0 ]]; then
 		$pytest_command
 		PYTEST_SUCCESS=$?
-	else
+	elif [[ $COLLECT_STATUS -eq 5 ]]; then
+		# Exit code 5 is pytest's own "no tests collected" -- benign for a
+		# plugin with no tests matching this settings module. Any other
+		# nonzero status is a real collection error (bad import, missing
+		# setting, etc.) and must fail the build, not be treated the same way.
 		echo "No tests found, skipping pytest."
+	else
+		echo "pytest collection failed with status $COLLECT_STATUS"
+		exit $COLLECT_STATUS
 	fi
 
 	if [[ $PYTEST_SUCCESS -ne 0 ]]; then
