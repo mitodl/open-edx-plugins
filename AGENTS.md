@@ -6,9 +6,9 @@ This repository contains a collection of 17+ Open edX plugins that extend and en
 
 **Repository Type:** Python monorepo with multiple independent plugin packages
 **Size:** ~170 Python source files across 17 plugins
-**Languages/Frameworks:** Python 3.11+, Django 4.0+, Open edX platform
+**Languages/Frameworks:** Python 3.11+, Django 5.2+, Open edX platform
 **Build System:** UV (modern Python package manager), Hatchling backend
-**Target Runtime:** Open edX platform (tested against master, sumac.master, and teak releases)
+**Target Runtime:** Open edX platform (tested against master, ulmo, and verawood releases)
 
 ## Repository Structure
 
@@ -108,8 +108,8 @@ cd open-edx-plugins
 uv build --all-packages
 
 # Install Tutor (version depends on Open edX release)
-pip install "tutor>=19.0.0,<20.0.0"  # For sumac.master
-# OR pip install "tutor>=20.0.0,<21.0.0"  # For teak release
+pip install "tutor>=21.0.0,<22.0.0"  # For ulmo release
+# OR pip install "tutor>=22.0.0,<23.0.0"  # For verawood release
 # OR install from main branch for master
 
 # Mount plugin directory
@@ -154,7 +154,7 @@ cd /openedx/open-edx-plugins
 
 **1. CI Workflow (`.github/workflows/ci.yml`)**
 - **Triggers:** Push to main, all PRs
-- **Matrix:** Python 3.11 × 3 Open edX branches (master, sumac.master, teak)
+- **Matrix:** 3 Open edX branches (master, ulmo, verawood) — Python 3.12 for master and verawood, 3.11 for ulmo
 - **Steps:**
   1. Checkout code
   2. Setup UV with caching
@@ -238,6 +238,12 @@ plugin_name = "plugin_name.apps:ConfigClass"
    - **CRITICAL:** Update version in `src/<plugin>/pyproject.toml` before merging to main
    - Version follows semantic versioning
    - Publishing to PyPI happens automatically on main branch merge
+   - **If this release changes which Open edX release(s) the plugin supports**
+     (e.g. a dependency-floor bump like the Django 5.2 floor raised for
+     Ulmo/Verawood), update the Open edX Release Compatibility table in
+     `docs/README.rst` with the new min/max version boundary, and update the
+     plugin's own `Version Compatibility` section in its `README.rst` if it
+     has release-specific notes beyond a link to that table.
 
 4. **Common issues:**
    - **Django not configured:** Tests need Open edX environment
@@ -248,6 +254,7 @@ plugin_name = "plugin_name.apps:ConfigClass"
 
 Before submitting changes:
 - [ ] Updated plugin version in `src/<plugin>/pyproject.toml` (if applicable)
+- [ ] Updated the Open edX Release Compatibility table in `docs/README.rst` (if this version changes which Open edX release the plugin supports)
 - [ ] Code formatted: `uv run ruff format .`
 - [ ] Linting passes: `uv run ruff check .`
 - [ ] Pre-commit hooks pass: `pre-commit run --all-files`

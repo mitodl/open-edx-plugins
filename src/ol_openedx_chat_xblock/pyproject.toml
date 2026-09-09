@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-chat-xblock"
-version = "0.4.6"
+version = "0.5.0"
 description = "An Open edX xBlock to add Open Learning AI chat"
 readme = "README.rst"
 license = {text = "BSD-3-Clause"}
@@ -11,11 +11,11 @@ keywords = ["Python", "edx"]
 requires-python = ">=3.11"
 
 dependencies = [
-  "django>=3.2",
-  "edx-django-utils>=1.3.0",
-  "djangorestframework>=3.14.0",
-  "xblock>=1.9.0",
-  "xblock-utils>=1.2.0",
+  "Django>=5.2",
+  "edx-django-utils>=8.0.0",
+  "djangorestframework>=3.16.0",
+  "xblock>=5.2.0",
+  "xblock-utils>=4.0.0",
 ]
 
 [project.urls]

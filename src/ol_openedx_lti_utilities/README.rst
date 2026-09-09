@@ -4,6 +4,12 @@ LTI Utilities Plugin
 A django app plugin to add LTI related utilities in Open edX platform.
 
 
+Version Compatibility
+----------------------
+
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Installation
 ------------
 

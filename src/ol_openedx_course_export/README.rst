@@ -4,6 +4,12 @@ Course Export S3 Plugin
 A django app plugin to add a new API to Open edX to export courses to S3 buckets.
 
 
+Version Compatibility
+----------------------
+
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Installation
 ------------
 

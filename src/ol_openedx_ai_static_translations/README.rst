@@ -8,6 +8,12 @@ Purpose
 
 This plugin provides the ``sync_and_translate_language`` management command for syncing and translating Open edX static strings (frontend JSON and backend PO files) using LLM providers (OpenAI, Gemini, Mistral) with optional glossary support.
 
+Version Compatibility
+======================
+
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Setup
 =====
 

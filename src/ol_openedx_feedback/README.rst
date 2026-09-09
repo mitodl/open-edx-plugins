@@ -20,6 +20,12 @@ The Learning MFE receives the message and opens the feedback drawer, which
 submits the learner's feedback directly to the **mit-learn** service.  This
 plugin does **not** persist anything in edx-platform and exposes no REST API.
 
+Version Compatibility
+======================
+
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Installation
 ============
 

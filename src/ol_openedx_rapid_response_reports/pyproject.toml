@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-rapid-response-reports"
-version = "0.5.1"
+version = "0.6.0"
 description = "An Open edX plugin to add rapid response reports support"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -9,12 +9,12 @@ license = "BSD-3-Clause"
 readme = "README.rst"
 requires-python = ">=3.11"
 dependencies = [
-  "Django>=4.0",
-  "djangorestframework>=3.14.0",
-  "edx-django-utils>4.0.0",
-  "edx-drf-extensions>=10.0.0",
+  "Django>=5.2",
+  "djangorestframework>=3.16.0",
+  "edx-django-utils>=8.0.0",
+  "edx-drf-extensions>=10.6.0",
   "edx-opaque-keys",
-  "rapid-response-xblock>=0.11.0",
+  "rapid-response-xblock>=0.12.0",
 ]
 
 [project.entry-points."lms.djangoapp"]

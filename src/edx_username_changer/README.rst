@@ -8,6 +8,9 @@ Version Compatibility
 
 It only supports koa and latest releases of Open edX.
 
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Forum Backend Support
 ~~~~~~~~~~~~~~~~~~~~~
 

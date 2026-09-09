@@ -95,18 +95,18 @@ jobs:
         fi
         echo "sha=$SHA" >> "$GITHUB_OUTPUT"
 
-    # edx-platform's minimum Python version varies by branch (master moved
-    # to 3.12; the release branches are still on 3.11), so it can't be a
+    # edx-platform's minimum Python version varies by branch (master and
+    # verawood moved to 3.12; ulmo is still on 3.11), so it can't be a
     # single matrix-wide value the way it could when every branch agreed.
     - name: Resolve Python version for edx-platform
       id: python-version
       env:
         EDX_BRANCH: ${{ matrix.edx_branch }}
       run: |
-        if [[ "$EDX_BRANCH" == "master" ]]; then
-          echo "version=3.12" >> "$GITHUB_OUTPUT"
-        else
+        if [[ "$EDX_BRANCH" == "release/ulmo" ]]; then
           echo "version=3.11" >> "$GITHUB_OUTPUT"
+        else
+          echo "version=3.12" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Set up uv

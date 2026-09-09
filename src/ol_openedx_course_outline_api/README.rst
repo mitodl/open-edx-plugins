@@ -4,6 +4,12 @@ Course Outline API Plugin
 A django app plugin to add a new API to Open edX that returns a course outline summary (one entry
 per chapter) for a given course.
 
+Version Compatibility
+----------------------
+
+For this plugin's compatibility with Open edX, see the
+`Open edX Release Compatibility table <../../docs#open-edx-release-compatibility>`_.
+
 Installation
 ------------
 
