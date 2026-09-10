@@ -17,36 +17,78 @@ from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
     clear_stale_git_lock,
+    current_export_token,
     get_content_info,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
+    queue_export_task,
+    release_export_slot,
+    schedule_export_with_debounce,
 )
 
 LOGGER = get_task_logger(__name__)
 
 
+def _superseded(context_key_string, user, token):
+    """
+    Report whether a newer signal replaced this task, re-queuing if so.
+    """
+    current_token = current_export_token(context_key_string, token)
+    if current_token == token:
+        # Release before exporting, so signals landing during the export
+        # queue a fresh task instead of being dropped.
+        release_export_slot(context_key_string)
+        return False
+
+    LOGGER.info(
+        "Newer signals arrived for %s; re-queuing rather than exporting "
+        "a mid-burst snapshot",
+        context_key_string,
+    )
+    try:
+        # Still holding the slot, so no signal can slip a second task in. A
+        # burst extended by another publisher keeps the first as author.
+        queue_export_task(context_key_string, user, current_token)
+    except Exception:
+        # queue_export_task released the slot on its way out.
+        LOGGER.exception(
+            "Failed to re-queue %s; exporting current state instead",
+            context_key_string,
+        )
+        return False
+
+    return True
+
+
 @shared_task
-def async_export_to_git(context_key_string, user=None):
+def async_export_to_git(context_key_string, user=None, token=None):
     """Export a course or library to Git.
 
     Args:
         context_key_string (str): String representation of LearningContextKey
         user: Optional user for git export
+        token: Debounce token from utils.queue_export_task; see
+            EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
+            None skips the staleness check and the debounce state, and
+            exists only for messages queued by releases predating the token.
     """
+    if token and _superseded(context_key_string, user, token):
+        return
+
     try:
         context_key = LearningContextKey.from_string(context_key_string)
         content_info = get_content_info(context_key)
     except ContentNotFoundError:
-        # Expected transiently if this task races the DB transaction that
-        # created the content (e.g. dispatched from a signal handler before
-        # commit).
+        # Queued from on_commit, so not the old pre-commit race: the content
+        # was most likely deleted during the countdown. Nothing re-queues.
         LOGGER.warning(
-            "Content %s not found yet; skipping this export attempt. ",
+            "Content %s not found; abandoning this export (no retry)",
             context_key_string,
         )
         return
     except Exception:
-        LOGGER.exception("Failed to parse content key: %s", context_key_string)
+        # Also covers get_content_info's lookups, so not necessarily a bad key.
+        LOGGER.exception("Failed to resolve content %s", context_key_string)
         return
 
     try:
@@ -82,14 +124,22 @@ def async_export_to_git(context_key_string, user=None):
             else context_key,
         )
     except ContentGitRepository.DoesNotExist:
-        LOGGER.exception(
-            "Git repository does not exist for %s %s. "
-            "Creating repository and exporting content.",
+        LOGGER.info(
+            "No git repository registered for %s %s; "
+            "creating one if auto-creation is enabled.",
             content_info["content_type"],
             context_key_string,
         )
-        if is_auto_repo_creation_enabled(is_library=content_info["is_library"]):
-            async_create_github_repo.delay(str(context_key), export_content=True)
+        try:
+            if is_auto_repo_creation_enabled(is_library=content_info["is_library"]):
+                async_create_github_repo.delay(str(context_key), export_content=True)
+        except Exception:
+            # Sibling except clauses don't catch this one.
+            LOGGER.exception(
+                "Failed to check/trigger repo creation for %s %s",
+                content_info["content_type"],
+                context_key_string,
+            )
     except Exception:
         LOGGER.exception(
             "Unknown error occurred during async %s content export to git (%s id: %s)",
@@ -213,6 +263,8 @@ def async_create_github_repo(self, context_key_str, export_content=False):  # no
         LOGGER.error(response_msg)
 
     if ssh_url and export_content:
-        async_export_to_git(context_key_str)
+        # Debounced like every other export, so it coalesces with an import
+        # burst instead of racing it on the same clone directory. No author.
+        schedule_export_with_debounce(context_key, lambda: None)
 
     return True, response_msg or ssh_url
