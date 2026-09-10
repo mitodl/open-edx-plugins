@@ -200,6 +200,20 @@ jobs:
         cd "${{ github.workspace }}/../edx-platform"
         tutor mounts add .
 
+    # pyOpenSSL is an unpinned transitive dependency (pulled in via
+    # pymongo[ocsp]) that edx-platform never pins, so each openedx-dev image
+    # build can resolve to a different point release. 26.1.0 still has the
+    # deprecated OpenSSL.crypto.X509Extension class, which references
+    # cryptography's _lib.GEN_EMAIL -- removed from cryptography 46.0.5's
+    # bindings, so importing it raises AttributeError. 26.2.0+ deleted that
+    # class entirely, sidestepping the bug rather than fixing the underlying
+    # mismatch (pyOpenSSL's own metadata claims cryptography>=49 from 26.3.0
+    # on, but 26.4.0 runs fine against the 46.0.5 pinned here in practice,
+    # since nothing in this test suite exercises the incompatible surface).
+    # --no-deps avoids pulling that unneeded cryptography bump in; pinned to
+    # the exact version already proven in production on this same image
+    # rather than an open-ended floor that could land on a future release
+    # with its own bug.
     - name: Run tests on tutor
       env:
         TUTOR_ROOT_DIR: ${{ steps.tutor.outputs.tutor_root }}
@@ -211,8 +225,10 @@ jobs:
           -f "$TUTOR_ROOT_DIR/env/dev/docker-compose.yml" \
           --project-name "$COMPOSE_PROJECT" \
           run -v "$PWD:/openedx/open-edx-plugins" \
-          lms /openedx/open-edx-plugins/run_edx_integration_tests.sh \
-          --mount-dir /openedx/open-edx-plugins
+          lms bash -c '
+            pip install --no-deps "pyOpenSSL==26.4.0" &&
+            /openedx/open-edx-plugins/run_edx_integration_tests.sh --mount-dir /openedx/open-edx-plugins
+          '
 
     - name: Upload coverage to CodeCov
       uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
