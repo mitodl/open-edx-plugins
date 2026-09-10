@@ -2334,7 +2334,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-git-auto-export"
-version = "0.9.0"
+version = "0.9.1"
 source = { editable = "src/ol_openedx_git_auto_export" }
 dependencies = [
     { name = "celery" },
