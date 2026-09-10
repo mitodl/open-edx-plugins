@@ -210,10 +210,10 @@ jobs:
     # mismatch (pyOpenSSL's own metadata claims cryptography>=49 from 26.3.0
     # on, but 26.4.0 runs fine against the 46.0.5 pinned here in practice,
     # since nothing in this test suite exercises the incompatible surface).
-    # --no-deps avoids pulling that unneeded cryptography bump in; pinned to
-    # the exact version already proven in production on this same image
-    # rather than an open-ended floor that could land on a future release
-    # with its own bug.
+    # --no-deps avoids pulling that unneeded cryptography bump in. Floor, not
+    # exact pin: accepting the (small, known) risk that some future pyOpenSSL
+    # release reintroduces a different incompatibility -- revisit this if CI
+    # breaks again.
     - name: Run tests on tutor
       env:
         TUTOR_ROOT_DIR: ${{ steps.tutor.outputs.tutor_root }}
@@ -226,7 +226,7 @@ jobs:
           --project-name "$COMPOSE_PROJECT" \
           run -v "$PWD:/openedx/open-edx-plugins" \
           lms bash -c '
-            pip install --no-deps "pyOpenSSL==26.4.0" &&
+            pip install --no-deps "pyOpenSSL>=26.4.0" &&
             /openedx/open-edx-plugins/run_edx_integration_tests.sh --mount-dir /openedx/open-edx-plugins
           '
 
