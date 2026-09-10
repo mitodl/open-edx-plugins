@@ -130,10 +130,10 @@ event is returned rather than dropped. A bug in filtering can never silently
 blackhole error reporting. The one thing that is *not* skipped on that path is
 the Postgres ``DETAIL`` scrub: it runs as the filter's first statement, before
 anything else can raise, so a fail-open return is still a scrubbed event. A
-privacy control that fails open is not one. Relatedly, ignored classes and message regexes are
-resolved and compiled once at init time (not per event), so a bad import path or
-invalid regex is reported once and skipped rather than raising inside
-``before_send``.
+privacy control that fails open is not one. Relatedly, ignored classes and
+message regexes are resolved and compiled once at init time (not per event), so
+a bad import path or invalid regex is reported once and skipped rather than
+raising inside ``before_send``.
 
 **LoggingIntegration is configured explicitly with ``event_level=None``.** By
 default the Sentry SDK promotes ``ERROR``-and-above log records into standalone

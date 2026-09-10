@@ -18,9 +18,9 @@ Design notes
   ``event_level=None`` so that stdlib/structlog log records become breadcrumbs
   only, never standalone Sentry issues.  Uncaught exceptions are still captured
   by the Django integration.
-* Postgres ``DETAIL:`` lines are truncated out of exception values and log
-  messages before send.  They echo the offending row verbatim -- learner name,
-  email, external UUID -- and no SDK privacy option covers exception text.
+* Postgres ``DETAIL:`` lines are truncated out of every string in the event
+  before send.  They echo the offending row verbatim -- learner name, email,
+  external UUID -- and no SDK privacy option covers exception text.
 * OpenTelemetry ``trace_id``/``span_id`` are stamped onto every event as tags
   using the same formatting as ``ol_openedx_logging`` so Sentry issues and the
   structured logs in Loki correlate on identical values.  ``opentelemetry`` is
@@ -157,8 +157,11 @@ def _event_messages(event: dict[str, Any], exception_value: object) -> list[str]
 # exception text.  Measured on mitxonline MITXONLINE-6PK, where a SCIM PATCH
 # IntegrityError reproduced a learner email address three times per event across
 # 46,764 occurrences.
-_PG_DETAIL_MARKER = "\nDETAIL:"
-_PG_DETAIL_REPLACEMENT = "\nDETAIL:  [scrubbed by ol_openedx_sentry]"
+#
+# The newline is matched both raw and as a literal backslash-n: the SDK repr()s
+# frame locals and non-string logging params during serialization, so there the
+# DETAIL line arrives as "...constraint\\nDETAIL: ..." inside a repr string.
+_PG_DETAIL_RE = re.compile(r"(\n|\\n)DETAIL:.*", re.DOTALL)
 
 
 def _scrub_pg_detail(text: str) -> str:
@@ -169,10 +172,11 @@ def _scrub_pg_detail(text: str) -> str:
     appends after DETAIL -- those are diagnostic only and can quote row data
     too.
     """
-    index = text.find(_PG_DETAIL_MARKER)
-    if index == -1:
-        return text
-    return text[:index] + _PG_DETAIL_REPLACEMENT
+    return _PG_DETAIL_RE.sub(
+        lambda match: match.group(1) + "DETAIL:  [scrubbed by ol_openedx_sentry]",
+        text,
+        count=1,
+    )
 
 
 def _scrub_pg_details(event: dict[str, Any]) -> dict[str, Any]:
@@ -180,17 +184,17 @@ def _scrub_pg_details(event: dict[str, Any]) -> dict[str, Any]:
 
     The row echo reaches Sentry through more fields than the exception value:
     ``LoggingIntegration`` puts the log message in a breadcrumb
-    (``integrations/logging.py:311``), ``logger.error("...: %s", exc)`` puts it
-    in ``logentry.params`` (``:274``), and captured stack-frame locals carry it
-    in frame ``vars`` because ``include_local_variables`` defaults to ``True``
-    (``consts.py:1028``, ``utils.py:616``).  Walking the whole event covers
-    those without enumerating them, and does not go stale when the SDK grows
-    another such field.
+    (``BreadcrumbHandler._breadcrumb_from_record``),
+    ``logger.error("...: %s", exc)`` puts it in ``logentry.params``
+    (``EventHandler._emit``), and captured stack-frame locals carry it in frame
+    ``vars`` because ``include_local_variables`` defaults to ``True``
+    (``serialize_frame``).  Walking the whole event covers those without
+    enumerating them, and does not go stale when the SDK grows another such
+    field.
 
-    Safe to walk naively because ``client._prepare_event`` serializes the event
-    before calling ``before_send`` (``client.py:650`` vs ``:658``), so every
-    leaf here is already a JSON primitive -- there are no live exception
-    objects left to coerce.
+    Safe to walk naively because ``Client._prepare_event`` serializes the event
+    before calling ``before_send``, so every leaf here is already a JSON
+    primitive -- there are no live exception objects left to coerce.
     """
     return _scrub_node(event)
 
@@ -206,8 +210,6 @@ def _scrub_node(node: Any) -> Any:
     if isinstance(node, list):
         node[:] = [_scrub_node(item) for item in node]
         return node
-    if isinstance(node, tuple):
-        return tuple(_scrub_node(item) for item in node)
     return node
 
 
@@ -340,12 +342,12 @@ def plugin_settings(app_settings):
         send_default_pii=env_tokens.get("SENTRY_SEND_DEFAULT_PII", False),
         release=env_tokens.get("SENTRY_RELEASE_SPECIFIER"),
         # HTTP request bodies are NOT gated on send_default_pii -- the SDK sets
-        # request.data unconditionally and max_request_body_size is the only
-        # control (sentry_sdk/integrations/_wsgi_common.py:61,123).  On Open edX
-        # the write endpoints that actually error are xblock handler POSTs, i.e.
-        # graded problem submissions, and those are routinely under the 1,000
-        # bytes that "small" still admits.  Default to "never" here; operators
-        # can widen it per deployment.
+        # request.data unconditionally (RequestExtractor.extract_into_event) and
+        # max_request_body_size is the only control (request_body_within_bounds).
+        # On Open edX the write endpoints that actually error are xblock handler
+        # POSTs, i.e. graded problem submissions, and those are routinely under
+        # the 1,000 bytes that "small" still admits.  Default to "never" here;
+        # operators can widen it per deployment.
         max_request_body_size=env_tokens.get(
             "SENTRY_SEND_HTTP_REQUEST_BODIES", "never"
         ),
