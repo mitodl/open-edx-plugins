@@ -205,15 +205,13 @@ jobs:
     # build can resolve to a different point release. 26.1.0 still has the
     # deprecated OpenSSL.crypto.X509Extension class, which references
     # cryptography's _lib.GEN_EMAIL -- removed from cryptography 46.0.5's
-    # bindings, so importing it raises AttributeError. 26.2.0+ deleted that
-    # class entirely, sidestepping the bug rather than fixing the underlying
-    # mismatch (pyOpenSSL's own metadata claims cryptography>=49 from 26.3.0
-    # on, but 26.4.0 runs fine against the 46.0.5 pinned here in practice,
-    # since nothing in this test suite exercises the incompatible surface).
-    # --no-deps avoids pulling that unneeded cryptography bump in. Floor, not
-    # exact pin: accepting the (small, known) risk that some future pyOpenSSL
-    # release reintroduces a different incompatibility -- revisit this if CI
-    # breaks again.
+    # bindings, so importing it raises AttributeError. 26.2.0 deleted that
+    # class entirely and is the first release whose own declared requirement
+    # (cryptography<49,>=46.0.0) actually matches the 46.0.5 pinned here;
+    # 26.3.0+ raises that floor to >=49, which this image doesn't have, so
+    # capped below it rather than forcing an unsupported pair with --no-deps.
+    # Floor, not exact pin, so a future 26.2.x regression fix needs no manual
+    # bump; revisit the cap if CI needs something past 26.2.x.
     - name: Run tests on tutor
       env:
         TUTOR_ROOT_DIR: ${{ steps.tutor.outputs.tutor_root }}
@@ -226,7 +224,7 @@ jobs:
           --project-name "$COMPOSE_PROJECT" \
           run -v "$PWD:/openedx/open-edx-plugins" \
           lms bash -c '
-            pip install --no-deps "pyOpenSSL>=26.4.0" &&
+            pip install "pyOpenSSL>=26.2.0,<26.3.0" &&
             /openedx/open-edx-plugins/run_edx_integration_tests.sh --mount-dir /openedx/open-edx-plugins
           '
 
