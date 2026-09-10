@@ -3,14 +3,15 @@ Utility functions for the ol_openedx_git_auto_export app.
 """
 
 import logging
-import os
 import re
+import uuid
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
+from django.db import transaction
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
 from openedx.core.djangoapps.content_libraries.api import (
     ContentLibraryNotFound,
@@ -25,6 +26,9 @@ from ol_openedx_git_auto_export.constants import (
     ENABLE_GIT_AUTO_LIBRARY_EXPORT,
     EXPORT_DEBOUNCE_CACHE_KEY,
     EXPORT_DEBOUNCE_DELAY,
+    EXPORT_DEBOUNCE_PENDING_CACHE_KEY,
+    EXPORT_DEBOUNCE_PENDING_TTL,
+    EXPORT_DEBOUNCE_TOKEN_TTL,
     REPOSITORY_NAME_MAX_LENGTH,
     ContentType,
 )
@@ -107,17 +111,17 @@ def get_or_create_git_export_repo_dir():
     """
     Ensure the git export directory exists and return its path.
     """
-    git_repo_export_dir = getattr(
-        settings, "GIT_REPO_EXPORT_DIR", "/openedx/export_course_repos"
+    git_repo_export_dir = Path(
+        getattr(settings, "GIT_REPO_EXPORT_DIR", "/openedx/export_course_repos")
     )
-    if not os.path.exists(git_repo_export_dir):  # noqa: PTH110
-        # for development/docker/vagrant if GIT_REPO_EXPORT_DIR folder does not exist then create it  # noqa: E501
+    if not git_repo_export_dir.exists():
         log.error(
-            "GIT_REPO_EXPORT_DIR is not available in settings, please create it first"
+            "GIT_REPO_EXPORT_DIR %s does not exist; creating it", git_repo_export_dir
         )
-        os.makedirs(git_repo_export_dir, 0o755)  # noqa: PTH103
+        # exist_ok: on a shared volume two processes both pass the check above.
+        git_repo_export_dir.mkdir(mode=0o755, parents=True, exist_ok=True)
 
-    return git_repo_export_dir
+    return str(git_repo_export_dir)
 
 
 def github_repo_name_format(course_key_str):
@@ -147,6 +151,146 @@ def github_repo_name_format(course_key_str):
     return repo_name.replace("course-v1-", "")
 
 
+def debounce_cache_key(content_key):
+    return EXPORT_DEBOUNCE_CACHE_KEY.format(content_key=str(content_key))
+
+
+def pending_cache_key(content_key):
+    return EXPORT_DEBOUNCE_PENDING_CACHE_KEY.format(content_key=str(content_key))
+
+
+def cache_op(op, *args, on_error, **kwargs):
+    """
+    Run a debounce cache operation, returning on_error if the backend is down.
+
+    on_error is required because the safe value is the one you would forget:
+    exporting twice is recoverable, never exporting is not.
+    """
+    try:
+        return op(*args, **kwargs)
+    except Exception:
+        log.exception(
+            "Git export debounce cache unavailable (%s %s); failing open",
+            # getattr: op is a bound cache method in production but a Mock
+            # in tests, and Mock.__name__ raises.
+            getattr(op, "__name__", op),
+            args[0],
+        )
+        return on_error
+
+
+def claim_export_slot(content_key):
+    """Claim the right to queue the next export task, if nothing holds it."""
+    return cache_op(
+        cache.add,
+        pending_cache_key(content_key),
+        "1",
+        timeout=EXPORT_DEBOUNCE_PENDING_TTL,
+        on_error=True,
+    )
+
+
+def release_export_slot(content_key):
+    """Give up the queue slot; the marker outlives whatever failed holding it."""
+    cache_op(cache.delete, pending_cache_key(content_key), on_error=None)
+
+
+def current_export_token(content_key, default):
+    """
+    Return the newest token recorded for this content, else default.
+
+    Callers pass their own token, so a missing entry reads as current.
+    """
+    return cache_op(
+        cache.get, debounce_cache_key(content_key), default, on_error=default
+    )
+
+
+def queue_export_task(content_key, user, token):
+    """
+    Queue an export task; the caller must hold the slot from claim_export_slot.
+    """
+    from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
+
+    # Renew the slot for the task about to be queued. The hand-off in
+    # _superseded keeps holding the slot rather than re-claiming it, so without
+    # this the marker expires EXPORT_DEBOUNCE_PENDING_TTL after the first claim
+    # -- and an import that keeps publishing past that lets a second chain
+    # start, putting two exports on one clone directory.
+    cache_op(
+        cache.set,
+        pending_cache_key(content_key),
+        "1",
+        timeout=EXPORT_DEBOUNCE_PENDING_TTL,
+        on_error=None,
+    )
+    log.info("Queuing git export for %s in %ds", content_key, EXPORT_DEBOUNCE_DELAY)
+    try:
+        async_export_to_git.apply_async(
+            args=[str(content_key), user],
+            kwargs={"token": token},
+            countdown=EXPORT_DEBOUNCE_DELAY,
+        )
+    except Exception:
+        log.exception("Failed to queue git export for %s", content_key)
+        release_export_slot(content_key)
+        raise
+
+
+def schedule_export_with_debounce(content_key, resolve_user):
+    """
+    Schedule a git export task, debouncing bursts of signals for the same content.
+
+    See EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
+
+    resolve_user is a callable so it runs once per burst, not once per signal.
+    """
+    # on_commit: Studio publishes under ATOMIC_REQUESTS, so a task queued
+    # pre-commit can wake before the content is visible. robust=True: Django
+    # stops its hook loop at the first raiser, cancelling later signals' hooks.
+    # Lambda not partial -- Django's robust error handler logs __qualname__.
+    transaction.on_commit(
+        lambda: _queue_debounced_export(content_key, resolve_user), robust=True
+    )
+
+
+def _queue_debounced_export(content_key, resolve_user):
+    """Record this signal's token and queue a task if none is queued already."""
+    # An unrecorded token costs the queued task one extra hop, not an export.
+    token = uuid.uuid4().hex
+    cache_op(
+        cache.set,
+        debounce_cache_key(content_key),
+        token,
+        timeout=EXPORT_DEBOUNCE_TOKEN_TTL,
+        on_error=None,
+    )
+
+    if not claim_export_slot(content_key):
+        log.debug(
+            "Git export already queued for %s, only updating the debounce token",
+            content_key,
+        )
+        return
+
+    try:
+        get_or_create_git_export_repo_dir()
+    except Exception:
+        log.exception("Failed to prepare git export directory for %s", content_key)
+        release_export_slot(content_key)
+        return
+
+    try:
+        user = resolve_user()
+    except Exception:
+        # Signals that lost the slot queued nothing, so giving up here would
+        # strand their changes. Export unattributed instead.
+        log.exception("Exporting %s without a publisher", content_key)
+        user = None
+
+    queue_export_task(content_key, user, token)
+
+
 def export_course_to_git(course_key):
     """
     Export the course to a Git repository.
@@ -154,34 +298,15 @@ def export_course_to_git(course_key):
     Args:
         course_key (CourseKey): The course key of the course to export.
     """
-    from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
-
     if is_auto_export_enabled():
-        get_or_create_git_export_repo_dir()
-        course_module = modulestore().get_course(course_key)
         log.info(
             "Course published with auto-export enabled. Starting export... (course id: %s)",  # noqa: E501
             course_key,
         )
-
-        user = get_publisher_username(course_module)
-
-        debounce_key = EXPORT_DEBOUNCE_CACHE_KEY.format(course_key=str(course_key))
-        if cache.add(debounce_key, "1", timeout=EXPORT_DEBOUNCE_DELAY):
-            log.info(
-                "Scheduling git export for course %s with %ds debounce delay",
-                course_key,
-                EXPORT_DEBOUNCE_DELAY,
-            )
-            async_export_to_git.apply_async(
-                args=[str(course_key), user],
-                countdown=EXPORT_DEBOUNCE_DELAY,
-            )
-        else:
-            log.info(
-                "Git export already scheduled for course %s, skipping duplicate signal",
-                course_key,
-            )
+        schedule_export_with_debounce(
+            course_key,
+            lambda: get_publisher_username(modulestore().get_course(course_key)),
+        )
 
 
 def clear_stale_git_lock(git_url):
@@ -202,6 +327,21 @@ def clear_stale_git_lock(git_url):
         index_lock.unlink()
 
 
+def _get_library_publisher(library_key):
+    """
+    Return the username that published the library, or None for v1 libraries.
+    """
+    if not isinstance(library_key, LibraryLocatorV2):
+        return None
+    try:
+        return get_library(library_key).published_by or None
+    except ContentLibraryNotFound:
+        # Only the author is lost: the burst still exports, with user=None.
+        # Later signals lose the slot, so they never re-resolve it either.
+        log.warning("Library %s not found; exporting without a publisher", library_key)
+        return None
+
+
 def export_library_to_git(library_key):
     """
     Export the library to a Git repository.
@@ -209,28 +349,14 @@ def export_library_to_git(library_key):
     Args:
         library_key (LibraryLocator | LibraryLocatorV2): The library key to export.
     """
-    from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
-
     if is_auto_export_enabled(is_library=True):
-        get_or_create_git_export_repo_dir()
         log.info(
             "Library updated with auto-export enabled. Starting export... (library id: %s)",  # noqa: E501
             library_key,
         )
-
-        # Get publisher username
-        user = None
-        if isinstance(library_key, LibraryLocatorV2):
-            # V2 libraries have published_by in their metadata
-            library_metadata = get_library(library_key)
-            user = (
-                library_metadata.published_by if library_metadata.published_by else None
-            )
-        else:
-            # V1 libraries don't have published_by field
-            pass
-
-        async_export_to_git.delay(str(library_key), user=user)
+        schedule_export_with_debounce(
+            library_key, lambda: _get_library_publisher(library_key)
+        )
     else:
         log.info(
             "Library auto-export is disabled. Skipping export for library: %s",

@@ -92,6 +92,15 @@ FEATURES["ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION"] = False
 - **Default**: `/openedx/export_course_repos`
 - **Location**: `settings.GIT_REPO_EXPORT_DIR`
 
+#### Cache backend
+
+The export debounce collapses a publish burst into one export by sharing two
+cache keys between the CMS web processes and the Celery workers, so
+`CACHES["default"]` must be a backend they all share (memcached, Redis).
+Under a per-process backend such as `LocMemCache`, or under `DummyCache`,
+every signal queues its own export task -- correct, but with none of the
+debouncing.
+
 ## Security Considerations
 
 - **Never commit `GITHUB_ACCESS_TOKEN` to version control**
