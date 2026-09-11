@@ -2,12 +2,16 @@
 # ruff: noqa: SLF001 - this suite intentionally exercises private helpers.
 
 import decimal
+import json
 import logging
 import re
 import types
 
+import pytest
+import sentry_sdk
 from ol_openedx_sentry.settings import sentry
 from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.transport import Transport
 
 
 class TestLoadExceptionClass:
@@ -249,6 +253,194 @@ class TestCoerceLogEventLevel:
         assert sentry._coerce_log_event_level("bogus") is None
 
 
+# A real MITXONLINE-6PK exception value, with the learner identifiers replaced.
+PG_INTEGRITY_ERROR = (
+    'null value in column "name" of relation "users_user" violates not-null '
+    "constraint\n"
+    "DETAIL:  Failing row contains (1863408, , 2026-08-07 18:38:14.503726+00, f, "
+    "learner@example.invalid, learner@example.invalid, null, f, t, "
+    "12d7dfc5-6f84-46db-9383-2d7079434173, 1863408, learner@example.invalid, f)."
+)
+EXPECTED_RETRIES = 3
+EXPECTED_TIMESTAMP = 1757345533.179
+
+PG_PRIMARY_MESSAGE = (
+    'null value in column "name" of relation "users_user" violates not-null constraint'
+)
+
+
+class FakeTransport(Transport):
+    """Collect outgoing events instead of sending them."""
+
+    def __init__(self):
+        super().__init__()
+        self.events = []
+
+    def capture_envelope(self, envelope):
+        self.events.extend(
+            item.payload.json for item in envelope.items if item.type == "event"
+        )
+
+
+@pytest.fixture
+def sentry_transport():
+    """Initialize the real SDK with the event filter, and detach it afterwards."""
+    transport = FakeTransport()
+    sentry_sdk.init(
+        dsn="https://k@o0.ingest.sentry.io/0",
+        transport=transport,
+        before_send=sentry.sentry_event_filter,
+        default_integrations=False,
+        integrations=[
+            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)
+        ],
+    )
+    yield transport
+    sentry_sdk.get_global_scope().set_client(None)
+
+
+class TestScrubPgDetail:
+    """Tests for the Postgres ``DETAIL:`` row-echo scrub."""
+
+    def test_detail_line_is_truncated(self):
+        scrubbed = sentry._scrub_pg_detail(PG_INTEGRITY_ERROR)
+        assert scrubbed.startswith(PG_PRIMARY_MESSAGE)
+        assert "learner@example.invalid" not in scrubbed
+        assert "12d7dfc5-6f84-46db-9383-2d7079434173" not in scrubbed
+        assert "[scrubbed by ol_openedx_sentry]" in scrubbed
+
+    def test_escaped_detail_line_is_truncated(self):
+        """repr() turns the newline into a literal backslash-n; that form goes too."""
+        scrubbed = sentry._scrub_pg_detail(repr(Exception(PG_INTEGRITY_ERROR)))
+        assert PG_PRIMARY_MESSAGE in scrubbed
+        assert "learner@example.invalid" not in scrubbed
+
+    def test_message_without_detail_is_unchanged(self):
+        message = "connection to server failed"
+        assert sentry._scrub_pg_detail(message) == message
+
+    def test_hint_and_context_after_detail_are_dropped(self):
+        text = "boom\nDETAIL:  row data\nHINT:  try again\nCONTEXT:  SQL statement"
+        scrubbed = sentry._scrub_pg_detail(text)
+        assert "row data" not in scrubbed
+        assert "try again" not in scrubbed
+        assert "SQL statement" not in scrubbed
+
+    def test_scrubs_exception_values_logentry_and_message(self):
+        event = {
+            "exception": {"values": [{"value": PG_INTEGRITY_ERROR}]},
+            "logentry": {
+                "message": PG_INTEGRITY_ERROR,
+                "formatted": PG_INTEGRITY_ERROR,
+            },
+            "message": PG_INTEGRITY_ERROR,
+        }
+        sentry._scrub_pg_details(event)
+        assert "learner@example.invalid" not in repr(event)
+
+    def test_filter_scrubs_on_the_normal_path(self):
+        event = {"exception": {"values": [{"value": PG_INTEGRITY_ERROR}]}}
+        result = sentry.sentry_event_filter(event, {})
+        assert "learner@example.invalid" not in repr(result)
+
+    def test_filter_scrubs_even_when_it_fails_open(self, mocker):
+        # The fail-open handler returns the same event dict, so the scrub must
+        # already have been applied before anything else can raise.
+        mocker.patch.object(sentry, "_event_messages", side_effect=RuntimeError("boom"))
+        event = {"exception": {"values": [{"value": PG_INTEGRITY_ERROR}]}}
+        result = sentry.sentry_event_filter(event, {})
+        assert result is event
+        assert "learner@example.invalid" not in repr(result)
+
+    def test_scrubs_breadcrumb_messages(self):
+        """LoggingIntegration records the log message as a breadcrumb."""
+        event = {
+            "breadcrumbs": {
+                "values": [
+                    {
+                        "type": "log",
+                        "category": "django_scim.views",
+                        "message": PG_INTEGRITY_ERROR,
+                    }
+                ]
+            }
+        }
+        sentry._scrub_pg_details(event)
+        assert "learner@example.invalid" not in repr(event)
+
+    def test_scrubs_logentry_params(self):
+        """logger.error("...: %s", exc) puts the repr'd exception in logentry.params."""
+        event = {
+            "logentry": {
+                "message": "Unable to complete SCIM call: %s",
+                "formatted": "Unable to complete SCIM call: " + PG_INTEGRITY_ERROR,
+                "params": [repr(Exception(PG_INTEGRITY_ERROR))],
+            }
+        }
+        sentry._scrub_pg_details(event)
+        assert "learner@example.invalid" not in repr(event)
+
+    def test_scrubs_captured_frame_locals(self):
+        """include_local_variables defaults to True, so repr'd frame vars carry it."""
+        event = {
+            "exception": {
+                "values": [
+                    {
+                        "value": "boom",
+                        "stacktrace": {
+                            "frames": [
+                                {
+                                    "function": "save",
+                                    "vars": {
+                                        "exc": repr(Exception(PG_INTEGRITY_ERROR)),
+                                        "retries": 3,
+                                    },
+                                }
+                            ]
+                        },
+                    }
+                ]
+            }
+        }
+        sentry._scrub_pg_details(event)
+        assert "learner@example.invalid" not in repr(event)
+        frame = event["exception"]["values"][0]["stacktrace"]["frames"][0]
+        assert frame["vars"]["retries"] == EXPECTED_RETRIES
+
+    def test_walk_preserves_non_string_leaves(self):
+        """The walk must not coerce timestamps, ints or None into strings."""
+        event = {
+            "timestamp": EXPECTED_TIMESTAMP,
+            "level": "error",
+            "extra": {"count": 42, "missing": None, "flag": True},
+            "message": PG_INTEGRITY_ERROR,
+        }
+        sentry._scrub_pg_details(event)
+        assert event["timestamp"] == EXPECTED_TIMESTAMP
+        assert event["extra"] == {"count": 42, "missing": None, "flag": True}
+        assert "learner@example.invalid" not in event["message"]
+
+    def test_real_sdk_scrubs_params_and_local_variables(self, sentry_transport):
+        """Go through the real SDK, which repr()s params and locals before
+        before_send."""
+
+        def save():
+            exc = Exception(PG_INTEGRITY_ERROR)
+            raise exc
+
+        try:
+            save()
+        except Exception as e:  # noqa: BLE001
+            logging.getLogger("x").error("Unable to save: %s", e)  # noqa: TRY400
+            sentry_sdk.capture_exception(e)
+        sentry_sdk.flush()
+
+        expected_events = 2
+        assert len(sentry_transport.events) == expected_events
+        for event in sentry_transport.events:
+            assert "learner@example.invalid" not in json.dumps(event)
+
+
 class TestPluginSettings:
     """Tests for ``plugin_settings`` SDK initialization."""
 
@@ -267,6 +459,7 @@ class TestPluginSettings:
         init.assert_called_once()
         kwargs = init.call_args.kwargs
         assert kwargs["send_default_pii"] is False
+        assert kwargs["max_request_body_size"] == "never"
         assert kwargs["before_send"] is not None
         integrations = kwargs["integrations"]
         logging_integrations = [
@@ -285,6 +478,17 @@ class TestPluginSettings:
         )
         sentry.plugin_settings(app_settings)
         assert init.call_args.kwargs["send_default_pii"] is True
+
+    def test_request_bodies_opt_in(self, mocker):
+        init = mocker.patch.object(sentry.sentry_sdk, "init")
+        app_settings = types.SimpleNamespace(
+            ENV_TOKENS={
+                "SENTRY_DSN": "https://example.invalid/1",
+                "SENTRY_SEND_HTTP_REQUEST_BODIES": "small",
+            }
+        )
+        sentry.plugin_settings(app_settings)
+        assert init.call_args.kwargs["max_request_body_size"] == "small"
 
     def test_bare_string_ignored_classes_is_not_iterated_per_char(self, mocker):
         # A misconfigured bare string must resolve as a single class spec, not
