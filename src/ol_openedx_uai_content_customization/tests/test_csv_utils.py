@@ -278,6 +278,14 @@ def test_build_new_course_key_unknown_industry_raises(industries):  # noqa: ARG0
         )
 
 
+def test_build_new_course_key_industry_lookup_is_case_insensitive(industries):  # noqa: ARG001
+    """The industry lookup matches regardless of casing, per its own contract."""
+    assert (
+        build_new_course_key("course-v1:UAI_SOURCE+UAI.2+1T2026", "healthcare", "short")
+        == "course-v1:UAI_SOURCE+UAI.2.S.HC+1T2026"
+    )
+
+
 def _make_row(course_key, industry, duration, video_file="v001.mp4", title="Title"):
     return {
         "course_key": course_key,

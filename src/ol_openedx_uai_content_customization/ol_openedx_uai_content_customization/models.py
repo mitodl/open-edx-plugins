@@ -3,12 +3,14 @@
 from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
+from opaque_keys.edx.locator import Locator
 
-# Matches opaque_keys.edx.locator.Locator.ALLOWED_ID_CHARS: short_code is
-# spliced directly into a course key's "course" (number) segment, so it must
-# only contain characters CourseKey.from_string() will accept there.
+# short_code is spliced directly into a course key's "course" (number)
+# segment, so it must only contain characters CourseKey.from_string() will
+# accept there — reuse the library's own allowed-character set rather than
+# hand-copying it, so this stays in sync if opaque_keys ever changes it.
 short_code_validator = RegexValidator(
-    regex=r"^[\w\-~.:]*$",
+    regex=rf"^{Locator.ALLOWED_ID_CHARS}*$",
     message=(
         "short_code may contain only letters, numbers, and the characters "
         "_ - ~ . : (it is embedded directly into the generated course key)."
@@ -47,3 +49,17 @@ class Industry(models.Model):
     def __str__(self):
         """Return a string representation of the industry."""
         return self.name
+
+    def save(self, *args, **kwargs):
+        """
+        Validate before saving.
+
+        Field validators and the case-insensitive uniqueness constraints
+        are otherwise only enforced by Django admin's ModelForm, so any
+        other write path (``.objects.create()``, a data migration) could
+        persist a short_code that later breaks course-key generation, or a
+        case-insensitive duplicate name. Note this doesn't cover
+        ``bulk_create()``, which bypasses ``save()`` entirely.
+        """
+        self.full_clean()
+        super().save(*args, **kwargs)

@@ -260,6 +260,11 @@ def group_videos_by_course(customized_rows):
     """
     Group video rows by (original_course_key, industry, duration).
 
+    Groups on the industry value as-is with no case folding of its own —
+    call canonicalize_industry_names() on ``customized_rows`` first so
+    differently-cased spellings of the same industry merge into one group
+    instead of colliding on the same generated course key.
+
     Returns:
         dict mapping (course_key, industry, duration) → list of row dicts.
     """
@@ -280,6 +285,11 @@ def build_course_intro_lookup(customized_rows):
 
     Uses first-row-wins behavior when multiple rows provide conflicting
     ``course_intro`` values for the same lookup key.
+
+    Like group_videos_by_course(), keys "industry" and "exact" by the
+    industry value as-is — call canonicalize_industry_names() on
+    ``customized_rows`` first so lookups agree with a caller that also
+    canonicalized before grouping.
 
     Returns:
         dict with keys:
