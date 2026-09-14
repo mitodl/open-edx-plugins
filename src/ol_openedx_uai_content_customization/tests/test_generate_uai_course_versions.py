@@ -15,6 +15,7 @@ from ol_openedx_uai_content_customization.constants import (
     BLOCK_TYPE_VERTICAL,
     BLOCK_TYPE_VIDEO,
 )
+from ol_openedx_uai_content_customization.models import Industry
 from xmodule.modulestore.exceptions import DuplicateCourseError
 
 PROCESSED_VIDEOS_CSV_CONTENT = (
@@ -63,6 +64,15 @@ def csv_file(tmp_path):
 def mock_user(db):  # noqa: ARG001
     """Create and return a studio_worker user so the user-existence check passes."""
     return UserFactory.create(username="studio_worker")
+
+
+@pytest.fixture(autouse=True)
+def _seed_industries(db):  # noqa: ARG001
+    """Seed the Industry rows the command's industry lookup depends on."""
+    Industry.objects.create(name="Healthcare", short_code="HC")
+    Industry.objects.create(name="Finance", short_code="F")
+    Industry.objects.create(name="Energy", short_code="E")
+    Industry.objects.create(name="Original", short_code="")
 
 
 def _modulestore_mock(*, source_course_exists=True, destination_course_exists=False):

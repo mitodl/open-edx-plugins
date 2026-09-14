@@ -17,8 +17,8 @@ from ol_openedx_uai_content_customization.constants import (
     CSV_COL_DURATION,
     CSV_COL_INDUSTRY,
     DURATION_CODES,
-    INDUSTRY_CODES,
 )
+from ol_openedx_uai_content_customization.models import Industry
 
 GOOGLE_SHEETS_HOST = "docs.google.com"
 GOOGLE_SHEET_ID_RE = re.compile(r"/spreadsheets/d/([a-zA-Z0-9-_]+)")
@@ -213,11 +213,12 @@ def build_new_course_key(original_key, industry, duration_value):
 
     dur_code = resolve_duration_code(duration_value)
 
-    if industry not in INDUSTRY_CODES:
-        known = ", ".join(INDUSTRY_CODES)
+    industry_row = Industry.objects.filter(name__iexact=industry).first()
+    if industry_row is None:
+        known = ", ".join(Industry.objects.values_list("name", flat=True))
         msg = f"Unrecognised industry {industry!r}. Must be one of: {known}"
         raise ValueError(msg)
-    ind_code = INDUSTRY_CODES[industry]
+    ind_code = industry_row.short_code
 
     if ind_code:
         new_number = f"{number}.{dur_code}.{ind_code}"
@@ -262,6 +263,13 @@ def build_course_intro_lookup(customized_rows):
     industry = {}
     original = {}
 
+    original_industry_names = {
+        name.lower()
+        for name in Industry.objects.filter(short_code="").values_list(
+            "name", flat=True
+        )
+    }
+
     for row in customized_rows:
         intro_text = normalize_course_intro(row.get(CSV_COL_COURSE_INTRO, ""))
         if not intro_text:
@@ -277,7 +285,7 @@ def build_course_intro_lookup(customized_rows):
         # Short code for "Original" industry is empty string.
         # We use this to identify which rows are intended
         # to provide original-industry fallback intros.
-        if INDUSTRY_CODES.get(industry_name) == "":
+        if industry_name.lower() in original_industry_names:
             original.setdefault(course_key, intro_text)
 
     return {
