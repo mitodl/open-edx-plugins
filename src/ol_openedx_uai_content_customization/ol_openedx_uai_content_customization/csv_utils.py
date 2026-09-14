@@ -228,51 +228,24 @@ def build_new_course_key(original_key, industry, duration_value):
     return f"course-v1:{org}+{new_number}+{run}"
 
 
-def canonicalize_industry_names(customized_rows):
-    """
-    Rewrite each row's industry value to its canonical DB name, case-insensitively.
-
-    Without this, differently-cased spellings of the same industry (e.g.
-    "Healthcare" and "healthcare") would group into separate course variants
-    that both resolve to the same generated course key, causing one group's
-    content to silently overwrite the other's. Rows whose industry has no
-    matching Industry row are left unchanged, so validation later reports
-    the original, unrecognised value.
-
-    Returns:
-        A new list of row dicts with the industry column canonicalized.
-    """
-    canonical_by_lower = {
-        name.lower(): name for name in Industry.objects.values_list("name", flat=True)
-    }
-    return [
-        {
-            **row,
-            CSV_COL_INDUSTRY: canonical_by_lower.get(
-                row[CSV_COL_INDUSTRY].lower(), row[CSV_COL_INDUSTRY]
-            ),
-        }
-        for row in customized_rows
-    ]
-
-
 def group_videos_by_course(customized_rows):
     """
     Group video rows by (original_course_key, industry, duration).
 
-    Groups on the industry value as-is with no case folding of its own —
-    call canonicalize_industry_names() on ``customized_rows`` first so
-    differently-cased spellings of the same industry merge into one group
-    instead of colliding on the same generated course key.
+    Groups on the industry value lowercased, so differently-cased spellings
+    of the same industry (e.g. "Healthcare" and "healthcare") merge into one
+    group instead of colliding on the same generated course key while
+    silently overwriting each other's content.
 
     Returns:
-        dict mapping (course_key, industry, duration) → list of row dicts.
+        dict mapping (course_key, lowercased industry, duration) → list of
+        row dicts.
     """
     groups = defaultdict(list)
     for row in customized_rows:
         key = (
             row[CSV_COL_COURSE_KEY],
-            row[CSV_COL_INDUSTRY],
+            row[CSV_COL_INDUSTRY].lower(),
             row[CSV_COL_DURATION],
         )
         groups[key].append(row)
@@ -287,9 +260,7 @@ def build_course_intro_lookup(customized_rows):
     ``course_intro`` values for the same lookup key.
 
     Like group_videos_by_course(), keys "industry" and "exact" by the
-    industry value as-is — call canonicalize_industry_names() on
-    ``customized_rows`` first so lookups agree with a caller that also
-    canonicalized before grouping.
+    industry value lowercased, so lookups agree regardless of casing.
 
     Returns:
         dict with keys:
@@ -314,7 +285,7 @@ def build_course_intro_lookup(customized_rows):
             continue
 
         course_key = row[CSV_COL_COURSE_KEY]
-        industry_name = row[CSV_COL_INDUSTRY]
+        industry_name = row[CSV_COL_INDUSTRY].lower()
         duration = row[CSV_COL_DURATION]
 
         exact.setdefault((course_key, industry_name, duration), intro_text)
@@ -323,7 +294,7 @@ def build_course_intro_lookup(customized_rows):
         # Short code for "Original" industry is empty string.
         # We use this to identify which rows are intended
         # to provide original-industry fallback intros.
-        if industry_name.lower() in original_industry_names:
+        if industry_name in original_industry_names:
             original.setdefault(course_key, intro_text)
 
     return {
@@ -361,6 +332,9 @@ def resolve_course_intro(course_intro_lookup, course_key, industry, duration):
     """
     Resolve intro text for a generated course variant.
 
+    ``industry`` is matched case-insensitively, since build_course_intro_lookup()
+    keys its "exact"/"industry" maps by lowercased industry name.
+
     Precedence:
         1. exact match: (course_key, industry, duration)
         2. industry-level: (course_key, industry)
@@ -370,10 +344,11 @@ def resolve_course_intro(course_intro_lookup, course_key, industry, duration):
     exact = course_intro_lookup["exact"]
     by_industry = course_intro_lookup["industry"]
     original = course_intro_lookup["original"]
+    industry_key = industry.lower()
 
     return (
-        exact.get((course_key, industry, duration))
-        or by_industry.get((course_key, industry))
+        exact.get((course_key, industry_key, duration))
+        or by_industry.get((course_key, industry_key))
         or original.get(course_key)
         or ""
     )

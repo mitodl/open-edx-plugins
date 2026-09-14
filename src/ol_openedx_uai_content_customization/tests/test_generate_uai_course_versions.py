@@ -178,10 +178,10 @@ def test_mixed_case_industry_rows_do_not_drop_videos(tmp_path, mock_user):  # no
     other's videos.
 
     "Healthcare" and "healthcare" resolve to the same generated course key
-    via the case-insensitive Industry lookup. Before industry names were
-    canonicalized ahead of grouping, these formed two separate groups, and
-    building the second group deleted and rebuilt the first group's content,
-    silently dropping its video.
+    via the case-insensitive Industry lookup. Before grouping folded
+    industry casing, these formed two separate groups, and building the
+    second group deleted and rebuilt the first group's content, silently
+    dropping its video.
     """
     processed_videos = tmp_path / "processed_videos.csv"
     processed_videos.write_text(
