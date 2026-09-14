@@ -36,32 +36,10 @@ Supported industries are managed in Django admin (**Industry** model, under
 *OL Open edX UAI Content Customization*), not hardcoded — add a row there to
 support a new industry without a code change. Each row has a ``name`` (as
 used in the ``industry`` CSV column) and a ``short_code`` used as the
-course-key suffix. Length is always one of ``short``/``long`` (code
-``S``/``F``). A typical set of rows:
-
-+--------------+------------+-------------+--------+
-| Industry     | Short code | Length code | Length |
-+==============+============+=============+========+
-| Healthcare   | HC         | S           | Short  |
-+--------------+------------+-------------+--------+
-| Healthcare   | HC         | F           | Full   |
-+--------------+------------+-------------+--------+
-| Finance      | F          | S           | Short  |
-+--------------+------------+-------------+--------+
-| Finance      | F          | F           | Full   |
-+--------------+------------+-------------+--------+
-| Energy       | E          | S           | Short  |
-+--------------+------------+-------------+--------+
-| Energy       | E          | F           | Full   |
-+--------------+------------+-------------+--------+
-| Original     | (blank)    | S           | Short  |
-+--------------+------------+-------------+--------+
-| Original     | (blank)    | F           | Full   |
-+--------------+------------+-------------+--------+
-
-The **Original** industry — meaning no industry-specific variant, only the
-duration suffix — is identified by a blank ``short_code``; exactly one
-Industry row may have one.
+course-key suffix. The **Original** industry — meaning no industry-specific
+variant, only the duration suffix — is identified by a blank ``short_code``;
+exactly one Industry row may have one. Length is always one of
+``short``/``long`` (code ``S``/``F``).
 
 Course Key Format
 ~~~~~~~~~~~~~~~~~
