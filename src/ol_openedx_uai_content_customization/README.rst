@@ -32,27 +32,36 @@ This produces multiple industry- and length-specific variants per source
 course while preserving all course settings (grading policy, certificates,
 pacing, advanced settings) from the original.
 
-Supported industry/length combinations:
+Supported industries are managed in Django admin (**Industry** model, under
+*OL Open edX UAI Content Customization*), not hardcoded — add a row there to
+support a new industry without a code change. Each row has a ``name`` (as
+used in the ``industry`` CSV column) and a ``short_code`` used as the
+course-key suffix. Length is always one of ``short``/``long`` (code
+``S``/``F``). A typical set of rows:
 
-+--------------+------+-------------+--------+
-| Industry     | Code | Length code | Length |
-+==============+======+=============+========+
-| Healthcare   | HC   | S           | Short  |
-+--------------+------+-------------+--------+
-| Healthcare   | HC   | F           | Full   |
-+--------------+------+-------------+--------+
-| Finance      | F    | S           | Short  |
-+--------------+------+-------------+--------+
-| Finance      | F    | F           | Full   |
-+--------------+------+-------------+--------+
-| Energy       | E    | S           | Short  |
-+--------------+------+-------------+--------+
-| Energy       | E    | F           | Full   |
-+--------------+------+-------------+--------+
-| Original     | —    | S           | Short  |
-+--------------+------+-------------+--------+
-| Original     | —    | F           | Full   |
-+--------------+------+-------------+--------+
++--------------+------------+-------------+--------+
+| Industry     | Short code | Length code | Length |
++==============+============+=============+========+
+| Healthcare   | HC         | S           | Short  |
++--------------+------------+-------------+--------+
+| Healthcare   | HC         | F           | Full   |
++--------------+------------+-------------+--------+
+| Finance      | F          | S           | Short  |
++--------------+------------+-------------+--------+
+| Finance      | F          | F           | Full   |
++--------------+------------+-------------+--------+
+| Energy       | E          | S           | Short  |
++--------------+------------+-------------+--------+
+| Energy       | E          | F           | Full   |
++--------------+------------+-------------+--------+
+| Original     | (blank)    | S           | Short  |
++--------------+------------+-------------+--------+
+| Original     | (blank)    | F           | Full   |
++--------------+------------+-------------+--------+
+
+The **Original** industry — meaning no industry-specific variant, only the
+duration suffix — is identified by a blank ``short_code``; exactly one
+Industry row may have one.
 
 Course Key Format
 ~~~~~~~~~~~~~~~~~
@@ -100,8 +109,9 @@ workflow. Required columns:
   **must already exist** in the CMS modulestore before the command runs.
   The command validates all source keys up-front and aborts with an error
   if any are missing.
-- ``industry`` — one of: ``Healthcare``, ``Finance``, ``Energy``,
-  ``Original``
+- ``industry`` — must match the ``name`` of an Industry row configured in
+  Django admin (case-insensitive), e.g. ``Healthcare``, ``Finance``,
+  ``Energy``, ``Original``
 - ``duration`` — ``short`` or ``long``
 - ``video_file_name`` — file name of the video (for reference/display)
 - ``video_title`` — display name for the subsection/unit/video
