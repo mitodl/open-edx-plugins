@@ -61,15 +61,3 @@ def test_second_blank_short_code_rejected(db):  # noqa: ARG001
 
     with pytest.raises(ValidationError):
         Industry(name="Another Original", short_code="").full_clean()
-
-
-def test_save_runs_full_clean(db):  # noqa: ARG001
-    """
-    save() enforces validation for any write path, not just Django admin.
-
-    Field validators and the uniqueness constraints are otherwise only
-    enforced through the admin's ModelForm; a plain .objects.create() call
-    (as used by other tests' fixtures) must still be rejected.
-    """
-    with pytest.raises(ValidationError, match="short_code"):
-        Industry.objects.create(name="Healthcare", short_code="HC 2")

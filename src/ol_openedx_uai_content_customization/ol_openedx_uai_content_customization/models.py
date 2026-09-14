@@ -49,17 +49,3 @@ class Industry(models.Model):
     def __str__(self):
         """Return a string representation of the industry."""
         return self.name
-
-    def save(self, *args, **kwargs):
-        """
-        Validate before saving.
-
-        Field validators and the case-insensitive uniqueness constraints
-        are otherwise only enforced by Django admin's ModelForm, so any
-        other write path (``.objects.create()``, a data migration) could
-        persist a short_code that later breaks course-key generation, or a
-        case-insensitive duplicate name. Note this doesn't cover
-        ``bulk_create()``, which bypasses ``save()`` entirely.
-        """
-        self.full_clean()
-        super().save(*args, **kwargs)
