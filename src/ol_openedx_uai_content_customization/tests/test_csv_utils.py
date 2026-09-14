@@ -8,6 +8,7 @@ from ol_openedx_uai_content_customization.csv_utils import (
     build_course_intro_lookup,
     build_google_sheet_csv_export_url,
     build_new_course_key,
+    canonicalize_industry_names,
     fetch_csv_text,
     group_videos_by_course,
     is_google_sheets_url,
@@ -340,6 +341,52 @@ def test_group_videos_by_course(rows, expected_group_count, expected_group_sizes
     assert len(groups) == expected_group_count
     for key, size in expected_group_sizes.items():
         assert len(groups[key]) == size
+
+
+def test_canonicalize_industry_names_normalizes_case(industries):  # noqa: ARG001
+    """Differently-cased spellings of a known industry map to its DB name."""
+    rows = [
+        _make_row("course-v1:ORG+NUM+RUN", "healthcare", "short", "v001.mp4"),
+        _make_row("course-v1:ORG+NUM+RUN", "HEALTHCARE", "short", "v002.mp4"),
+    ]
+
+    canonical_rows = canonicalize_industry_names(rows)
+
+    assert all(row["industry"] == "Healthcare" for row in canonical_rows)
+
+
+def test_canonicalize_industry_names_leaves_unknown_industry_unchanged(
+    industries,  # noqa: ARG001
+):
+    """An unrecognised industry is left as-is so validation reports the original."""
+    rows = [_make_row("course-v1:ORG+NUM+RUN", "Unknown Sector", "short")]
+
+    canonical_rows = canonicalize_industry_names(rows)
+
+    assert canonical_rows[0]["industry"] == "Unknown Sector"
+
+
+def test_mixed_case_industry_rows_group_together_after_canonicalization(
+    industries,  # noqa: ARG001
+):
+    """
+    Regression test: mixed-case industry rows must not create separate groups.
+
+    Prior to canonicalizing industry names, "Healthcare" and "healthcare"
+    rows for the same course/duration produced two distinct groups that both
+    resolved to the same generated course key, so building the second group
+    silently discarded the first group's videos.
+    """
+    rows = [
+        _make_row("course-v1:ORG+NUM+RUN", "Healthcare", "short", "v001.mp4"),
+        _make_row("course-v1:ORG+NUM+RUN", "healthcare", "short", "v002.mp4"),
+    ]
+
+    groups = group_videos_by_course(canonicalize_industry_names(rows))
+
+    assert len(groups) == 1
+    (videos,) = groups.values()
+    assert len(videos) == 2  # noqa: PLR2004
 
 
 def test_resolve_course_intro_precedence_exact_overrides_industry_and_original(

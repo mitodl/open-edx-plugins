@@ -228,6 +228,34 @@ def build_new_course_key(original_key, industry, duration_value):
     return f"course-v1:{org}+{new_number}+{run}"
 
 
+def canonicalize_industry_names(customized_rows):
+    """
+    Rewrite each row's industry value to its canonical DB name, case-insensitively.
+
+    Without this, differently-cased spellings of the same industry (e.g.
+    "Healthcare" and "healthcare") would group into separate course variants
+    that both resolve to the same generated course key, causing one group's
+    content to silently overwrite the other's. Rows whose industry has no
+    matching Industry row are left unchanged, so validation later reports
+    the original, unrecognised value.
+
+    Returns:
+        A new list of row dicts with the industry column canonicalized.
+    """
+    canonical_by_lower = {
+        name.lower(): name for name in Industry.objects.values_list("name", flat=True)
+    }
+    return [
+        {
+            **row,
+            CSV_COL_INDUSTRY: canonical_by_lower.get(
+                row[CSV_COL_INDUSTRY].lower(), row[CSV_COL_INDUSTRY]
+            ),
+        }
+        for row in customized_rows
+    ]
+
+
 def group_videos_by_course(customized_rows):
     """
     Group video rows by (original_course_key, industry, duration).

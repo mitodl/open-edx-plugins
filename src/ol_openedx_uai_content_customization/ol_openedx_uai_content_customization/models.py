@@ -1,7 +1,19 @@
 """Models for ol-openedx-uai-content-customization plugin."""
 
+from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
+
+# Matches opaque_keys.edx.locator.Locator.ALLOWED_ID_CHARS: short_code is
+# spliced directly into a course key's "course" (number) segment, so it must
+# only contain characters CourseKey.from_string() will accept there.
+short_code_validator = RegexValidator(
+    regex=r"^[\w\-~.:]*$",
+    message=(
+        "short_code may contain only letters, numbers, and the characters "
+        "_ - ~ . : (it is embedded directly into the generated course key)."
+    ),
+)
 
 
 class Industry(models.Model):
@@ -16,7 +28,9 @@ class Industry(models.Model):
     """
 
     name = models.CharField(max_length=255)
-    short_code = models.CharField(max_length=10, blank=True)
+    short_code = models.CharField(
+        max_length=10, blank=True, validators=[short_code_validator]
+    )
 
     class Meta:
         """Meta options for Industry."""

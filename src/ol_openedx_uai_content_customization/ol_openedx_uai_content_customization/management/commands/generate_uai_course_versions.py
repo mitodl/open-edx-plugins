@@ -67,6 +67,7 @@ from ol_openedx_uai_content_customization.constants import (
 from ol_openedx_uai_content_customization.csv_utils import (
     build_course_intro_lookup,
     build_new_course_key,
+    canonicalize_industry_names,
     group_videos_by_course,
     parse_csv,
     resolve_course_intro,
@@ -147,6 +148,7 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Loaded {len(processed_video_rows)} processed video rows.")
 
+        processed_video_rows = canonicalize_industry_names(processed_video_rows)
         course_groups = group_videos_by_course(processed_video_rows)
         course_intro_lookup = build_course_intro_lookup(processed_video_rows)
         intro_by_course_key = {}
