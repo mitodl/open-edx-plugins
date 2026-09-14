@@ -37,7 +37,7 @@ class Migration(migrations.Migration):
                                     "(it is embedded directly into the "
                                     "generated course key)."
                                 ),
-                                regex="^[\\w\\-~.:]*$",
+                                regex="\\A[\\w\\-~.:]*\\Z",
                             )
                         ],
                     ),

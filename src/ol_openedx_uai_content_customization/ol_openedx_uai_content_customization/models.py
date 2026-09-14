@@ -10,7 +10,9 @@ from opaque_keys.edx.locator import Locator
 # accept there — reuse the library's own allowed-character set rather than
 # hand-copying it, so this stays in sync if opaque_keys ever changes it.
 short_code_validator = RegexValidator(
-    regex=rf"^{Locator.ALLOWED_ID_CHARS}*$",
+    # \A/\Z (not ^/$) so a trailing newline can't sneak past the anchors —
+    # `$` matches just before a trailing "\n" even without re.MULTILINE.
+    regex=rf"\A{Locator.ALLOWED_ID_CHARS}*\Z",
     message=(
         "short_code may contain only letters, numbers, and the characters "
         "_ - ~ . : (it is embedded directly into the generated course key)."

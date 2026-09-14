@@ -17,16 +17,18 @@ def test_valid_short_codes_pass_full_clean(db, short_code):  # noqa: ARG001
 
 @pytest.mark.parametrize(
     "short_code",
-    ["HC 2", "HC+2", "HC/2", "HC@2", "HC#2"],
+    ["HC 2", "HC+2", "HC/2", "HC@2", "HC#2", "HC\n"],
 )
 def test_invalid_short_codes_raise_on_full_clean(db, short_code):  # noqa: ARG001
     """
     Characters CourseKey.from_string() would reject are rejected up front.
 
     short_code is spliced directly into the generated course key's number
-    segment, so a value with a space, "+", or other disallowed character
-    would otherwise save successfully in admin and only fail later, deep
-    into course generation.
+    segment, so a value with a space, "+", a trailing newline, or other
+    disallowed character would otherwise save successfully in admin and
+    only fail later, deep into course generation. The validator anchors
+    with \\A/\\Z rather than ^/$, since ``$`` matches just before a
+    trailing "\\n" even without re.MULTILINE.
     """
     industry = Industry(name="Healthcare", short_code=short_code)
     with pytest.raises(ValidationError, match="short_code"):
