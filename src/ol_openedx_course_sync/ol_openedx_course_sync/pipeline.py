@@ -1,14 +1,18 @@
 """Open edX Filters pipeline steps for the course sync plugin."""
 
+import logging
 from urllib.parse import urlparse
 
 from common.djangoapps.student.roles import GlobalStaff
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext as _
 from openedx_filters import PipelineStep
 
 from ol_openedx_course_sync.constants import COURSE_SYNC_TAB_ID
 from ol_openedx_course_sync.utils import get_syncable_course_mappings
+
+log = logging.getLogger(__name__)
 
 
 def build_instructor_dashboard_tab_url(course_key, tab_id):
@@ -37,10 +41,30 @@ class AddCourseSyncInstructorTab(PipelineStep):
     (``org.openedx.learning.instructor.dashboard.tabs.requested.v1``).
     """
 
+    def _is_sync_source(self, course_key):
+        """
+        Whether the course is an active sync source.
+
+        A missing service worker username makes ``get_syncable_course_mappings``
+        raise, and this runs while building every instructor dashboard. Whether
+        that surfaces as a 500 depends on the ``fail_silently`` of whatever
+        ``OPEN_EDX_FILTERS_CONFIG`` the deployment ends up with, so an
+        unconfigured plugin drops the tab here rather than relying on that.
+        """
+        try:
+            return bool(get_syncable_course_mappings(course_key))
+        except ImproperlyConfigured:
+            log.warning(
+                "Course sync is not fully configured; omitting the %s tab for %s.",
+                COURSE_SYNC_TAB_ID,
+                course_key,
+            )
+            return False
+
     def run_filter(self, tabs, user, course_key):
         """Append the Course Sync tab to the instructor dashboard tab list."""
         # GlobalStaff().has_user() is `user.is_staff`, but tolerates user being None.
-        if GlobalStaff().has_user(user) and get_syncable_course_mappings(course_key):
+        if GlobalStaff().has_user(user) and self._is_sync_source(course_key):
             already_present = any(
                 tab.get("tab_id") == COURSE_SYNC_TAB_ID for tab in tabs
             )

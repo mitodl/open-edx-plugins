@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 from ol_openedx_course_sync.constants import COURSE_SYNC_TAB_ID
 from ol_openedx_course_sync.pipeline import AddCourseSyncInstructorTab
@@ -52,6 +53,18 @@ def test_tab_not_added_for_non_staff(mock_get_mappings):
 def test_tab_not_added_when_course_is_not_a_sync_source(mock_get_mappings):
     """Courses with no active mapping (including sync targets) do not get the tab."""
     mock_get_mappings.return_value = None
+
+    result = _step().run_filter(tabs=[], user=STAFF_USER, course_key=COURSE_KEY)
+
+    assert result["tabs"] == []
+
+
+@patch("ol_openedx_course_sync.pipeline.get_syncable_course_mappings")
+def test_unconfigured_plugin_omits_tab_instead_of_raising(mock_get_mappings):
+    """An unconfigured service worker drops the tab rather than breaking the page."""
+    mock_get_mappings.side_effect = ImproperlyConfigured(
+        "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set."
+    )
 
     result = _step().run_filter(tabs=[], user=STAFF_USER, course_key=COURSE_KEY)
 
