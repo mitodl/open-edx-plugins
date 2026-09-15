@@ -51,22 +51,29 @@ class TestSyncProblemActionsCommand(TestCase):
         return out.getvalue(), mock_submit
 
     def test_invalid_course_key_fails_before_submitting(self):
-        with mock.patch(SUBMIT_PATH) as mock_submit, pytest.raises(
-            CommandError, match="Invalid source course key"
+        with (
+            mock.patch(SUBMIT_PATH) as mock_submit,
+            pytest.raises(CommandError, match="Invalid source course key"),
         ):
-            call_command("sync_problem_actions", ACTION_RESET_ATTEMPTS, "nope", PROBLEM_KEY)
+            call_command(
+                "sync_problem_actions", ACTION_RESET_ATTEMPTS, "nope", PROBLEM_KEY
+            )
         mock_submit.assert_not_called()
 
     def test_invalid_problem_key_fails_before_submitting(self):
-        with mock.patch(SUBMIT_PATH) as mock_submit, pytest.raises(
-            CommandError, match="Invalid problem usage key"
+        with (
+            mock.patch(SUBMIT_PATH) as mock_submit,
+            pytest.raises(CommandError, match="Invalid problem usage key"),
         ):
-            call_command("sync_problem_actions", ACTION_RESET_ATTEMPTS, COURSE_KEY, "nope")
+            call_command(
+                "sync_problem_actions", ACTION_RESET_ATTEMPTS, COURSE_KEY, "nope"
+            )
         mock_submit.assert_not_called()
 
     def test_missing_user_fails_before_submitting(self):
-        with mock.patch(SUBMIT_PATH) as mock_submit, pytest.raises(
-            CommandError, match="User not found"
+        with (
+            mock.patch(SUBMIT_PATH) as mock_submit,
+            pytest.raises(CommandError, match="User not found"),
         ):
             call_command(
                 "sync_problem_actions",
