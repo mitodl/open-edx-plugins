@@ -3,7 +3,8 @@ App configuration for ol-openedx-course-sync plugin
 """
 
 from django.apps import AppConfig
-from edx_django_utils.plugins import PluginSettings, PluginSignals
+from edx_django_utils.plugins import PluginSettings, PluginSignals, PluginURLs
+from openedx.core.constants import COURSE_ID_PATTERN
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 
 
@@ -16,6 +17,13 @@ class OLOpenEdxCourseSyncConfig(AppConfig):
     verbose_name = "Open edX Course Sync"
 
     plugin_app = {
+        PluginURLs.CONFIG: {
+            ProjectType.LMS: {
+                PluginURLs.NAMESPACE: "",
+                PluginURLs.REGEX: f"courses/{COURSE_ID_PATTERN}/course_sync/api/",
+                PluginURLs.RELATIVE_PATH: "urls",
+            }
+        },
         PluginSignals.CONFIG: {
             ProjectType.CMS: {
                 PluginSignals.RECEIVERS: [
