@@ -36,23 +36,19 @@ import argparse
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.test.client import RequestFactory
-from lms.djangoapps.instructor_task import api as task_api
-from lms.djangoapps.instructor_task.api_helper import AlreadyRunningError
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
-from xmodule.modulestore.exceptions import ItemNotFoundError
 
-from ol_openedx_course_sync.utils import get_syncable_course_mappings
+from ol_openedx_course_sync.constants import (
+    ACTION_RESCORE,
+    STATUS_ALREADY_RUNNING,
+    STATUS_FAILED,
+    STATUS_SUBMITTED,
+    VALID_ACTIONS,
+)
+from ol_openedx_course_sync.utils import submit_problem_action_for_synced_courses
 
 User = get_user_model()
-
-ACTION_RESET_ATTEMPTS = "reset_attempts"
-ACTION_RESCORE = "rescore"
-VALID_ACTIONS = [ACTION_RESET_ATTEMPTS, ACTION_RESCORE]
-
-STATUS_SUBMITTED = "submitted"
-STATUS_ALREADY_RUNNING = "already_running"
-STATUS_FAILED = "failed"
 
 
 class Command(BaseCommand):
@@ -119,43 +115,22 @@ class Command(BaseCommand):
             error_msg = f"Invalid problem usage key: {problem_id_str}"
             raise CommandError(error_msg) from exc
 
-        courses = self._get_synced_courses(source_course_key)
         try:
             request_obj = self._make_shell_request(username)
         except User.DoesNotExist as exc:
             error_msg = f"User not found: {username}"
             raise CommandError(error_msg) from exc
 
-        if action == ACTION_RESET_ATTEMPTS:
-            results = self._submit_for_courses(
-                request_obj, courses, problem_usage_key, ACTION_RESET_ATTEMPTS
-            )
-        elif action == ACTION_RESCORE:
-            results = self._submit_for_courses(
-                request_obj,
-                courses,
-                problem_usage_key,
-                ACTION_RESCORE,
-                only_if_higher=only_if_higher,
-            )
+        results = submit_problem_action_for_synced_courses(
+            request_obj,
+            source_course_key,
+            problem_usage_key,
+            action,
+            only_if_higher=only_if_higher,
+        )
 
+        self._print_results(results)
         self._print_summary(results, action)
-
-    def _get_synced_courses(self, source_course_key):
-        """
-        Get all courses for a sync mapping (source + all targets).
-
-        Args:
-            source_course_key: CourseKey of the source course
-
-        Returns:
-            List of course key strings
-        """
-        courses = [str(source_course_key)]
-        mappings = get_syncable_course_mappings(source_course_key)
-        if mappings:
-            courses.extend(str(mapping.target_course) for mapping in mappings)
-        return courses
 
     def _make_shell_request(self, username):
         """
@@ -180,107 +155,30 @@ class Command(BaseCommand):
         req.user = user
         return req
 
-    def _submit_for_courses(
-        self,
-        request,
-        course_keys,
-        problem_usage_key,
-        action,
-        *,
-        only_if_higher=False,
-    ):
-        """
-        Submit reset/rescore tasks for courses.
+    def _print_results(self, results):
+        """Print one line per course."""
+        for row in results:
+            action = row["action"]
+            course_id = row["course_id"]
 
-        Args:
-            request: Request object with user context
-            course_keys: List of course keys
-            problem_usage_key: UsageKey of the problem
-            action: Action to perform (reset_attempts or rescore)
-            only_if_higher: Only rescore if new score is higher (rescore only)
-
-        Returns:
-            List of result dictionaries
-        """
-        results = []
-
-        for course_id_str in course_keys:
-            try:
-                course_key = CourseKey.from_string(course_id_str)
-                mapped_problem_key = problem_usage_key.map_into_course(course_key)
-
-                if action == ACTION_RESET_ATTEMPTS:
-                    task = task_api.submit_reset_problem_attempts_for_all_students(
-                        request, mapped_problem_key
-                    )
-                elif action == ACTION_RESCORE:
-                    task = task_api.submit_rescore_problem_for_all_students(
-                        request, mapped_problem_key, only_if_higher=only_if_higher
-                    )
-
-                row = {
-                    "course_id": course_id_str,
-                    "action": action,
-                    "mapped_problem_id": str(mapped_problem_key),
-                    "task_id": task.task_id,
-                    "status": STATUS_SUBMITTED,
-                }
+            if row["status"] == STATUS_SUBMITTED:
+                message = (
+                    f"OK | {action.upper()} | {course_id} | {row['mapped_problem_id']}"
+                )
                 if action == ACTION_RESCORE:
-                    row["only_if_higher"] = only_if_higher
-
-                results.append(row)
-                if action == ACTION_RESET_ATTEMPTS:
-                    self.stdout.write(
-                        "OK | "
-                        f"{action.upper()} | {course_id_str} | {mapped_problem_key} "
-                        f"| task={task.task_id}"
-                    )
-                elif action == ACTION_RESCORE:
-                    self.stdout.write(
-                        "OK | "
-                        f"{action.upper()} | {course_id_str} | {mapped_problem_key} "
-                        f"| only_if_higher={only_if_higher} | task={task.task_id}"
-                    )
-
-            except AlreadyRunningError as exc:
-                row = {
-                    "course_id": course_id_str,
-                    "action": action,
-                    "status": STATUS_ALREADY_RUNNING,
-                    "error": str(exc),
-                }
-                results.append(row)
+                    message += f" | only_if_higher={row['only_if_higher']}"
+                self.stdout.write(f"{message} | task={row['task_id']}")
+            elif row["status"] == STATUS_ALREADY_RUNNING:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"SKIP(already running) | {action} | {course_id_str} | {exc}"
+                        f"SKIP(already running) | {action} | {course_id} "
+                        f"| {row['error']}"
                     )
                 )
-
-            except (InvalidKeyError, ItemNotFoundError, ValueError) as exc:
-                row = {
-                    "course_id": course_id_str,
-                    "action": action,
-                    "status": STATUS_FAILED,
-                    "error": str(exc),
-                }
-                results.append(row)
+            else:
                 self.stdout.write(
-                    self.style.ERROR(f"FAIL | {action} | {course_id_str} | {exc}")
+                    self.style.ERROR(f"FAIL | {action} | {course_id} | {row['error']}")
                 )
-
-            except Exception as exc:  # pylint: disable=broad-except  # noqa: BLE001
-                row = {
-                    "course_id": course_id_str,
-                    "action": action,
-                    "status": STATUS_FAILED,
-                    "error": str(exc),
-                }
-                results.append(row)
-                self.stdout.write(
-                    self.style.ERROR(f"FAIL | {action} | {course_id_str} | {exc}")
-                )
-
-        return results
 
     def _print_summary(self, results, action):
         """Print summary of operation."""

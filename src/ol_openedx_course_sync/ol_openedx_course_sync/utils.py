@@ -9,6 +9,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ImproperlyConfigured
 from edx_django_utils.cache import TieredCache, get_cache_key
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import AssetLocator
 from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
 from openedx.core.djangoapps.django_comment_common.models import (
@@ -18,7 +20,14 @@ from xmodule.modulestore.django import modulestore
 from xmodule.modulestore.exceptions import ItemNotFoundError
 from xmodule.tabs import CourseTabList, StaticTab
 
-from ol_openedx_course_sync.constants import STATIC_TAB_TYPE
+from ol_openedx_course_sync.constants import (
+    ACTION_RESCORE,
+    ACTION_RESET_ATTEMPTS,
+    STATIC_TAB_TYPE,
+    STATUS_ALREADY_RUNNING,
+    STATUS_FAILED,
+    STATUS_SUBMITTED,
+)
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
 
 User = get_user_model()
@@ -396,3 +405,112 @@ def get_all_source_courses():
         return None
 
     return list(source_courses_qs)
+
+
+def get_synced_course_keys(source_course_key):
+    """
+    Get all courses for a sync mapping (source + all targets).
+
+    Args:
+        source_course_key: CourseKey of the source course
+
+    Returns:
+        List of course key strings
+    """
+    courses = [str(source_course_key)]
+    mappings = get_syncable_course_mappings(source_course_key)
+    if mappings:
+        courses.extend(str(mapping.target_course) for mapping in mappings)
+    return courses
+
+
+def submit_problem_action_for_synced_courses(
+    request,
+    source_course_key,
+    problem_usage_key,
+    action,
+    *,
+    only_if_higher=False,
+):
+    """
+    Submit reset/rescore tasks for a problem across a course and its synced reruns.
+
+    Args:
+        request: Request object with user context
+        source_course_key: CourseKey of the source course
+        problem_usage_key: UsageKey of the problem in the source course
+        action: Action to perform (reset_attempts or rescore)
+        only_if_higher: Only rescore if new score is higher (rescore only)
+
+    Returns:
+        List of result dictionaries, one per course
+    """
+    # These imports are LMS-only, so they are intentionally delayed to avoid an
+    # ImportError when this plugin is installed in the CMS: instructor_task reads
+    # bulk_email settings at import time that Studio does not define. This
+    # function is only called in the LMS.
+    from lms.djangoapps.instructor_task import api as task_api  # noqa: PLC0415
+    from lms.djangoapps.instructor_task.api_helper import (  # noqa: PLC0415
+        AlreadyRunningError,
+    )
+
+    results = []
+
+    for course_id_str in get_synced_course_keys(source_course_key):
+        try:
+            course_key = CourseKey.from_string(course_id_str)
+            mapped_problem_key = problem_usage_key.map_into_course(course_key)
+
+            if action == ACTION_RESET_ATTEMPTS:
+                task = task_api.submit_reset_problem_attempts_for_all_students(
+                    request, mapped_problem_key
+                )
+            elif action == ACTION_RESCORE:
+                task = task_api.submit_rescore_problem_for_all_students(
+                    request, mapped_problem_key, only_if_higher=only_if_higher
+                )
+
+            row = {
+                "course_id": course_id_str,
+                "action": action,
+                "mapped_problem_id": str(mapped_problem_key),
+                "task_id": task.task_id,
+                "status": STATUS_SUBMITTED,
+            }
+            if action == ACTION_RESCORE:
+                row["only_if_higher"] = only_if_higher
+
+            results.append(row)
+
+        except AlreadyRunningError as exc:
+            results.append(
+                {
+                    "course_id": course_id_str,
+                    "action": action,
+                    "status": STATUS_ALREADY_RUNNING,
+                    "error": str(exc),
+                }
+            )
+
+        except (InvalidKeyError, ItemNotFoundError, ValueError) as exc:
+            results.append(
+                {
+                    "course_id": course_id_str,
+                    "action": action,
+                    "status": STATUS_FAILED,
+                    "error": str(exc),
+                }
+            )
+
+        except Exception as exc:
+            log.exception("Failed to submit %s for course %s", action, course_id_str)
+            results.append(
+                {
+                    "course_id": course_id_str,
+                    "action": action,
+                    "status": STATUS_FAILED,
+                    "error": str(exc),
+                }
+            )
+
+    return results

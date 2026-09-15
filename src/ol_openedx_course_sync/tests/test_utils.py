@@ -6,10 +6,17 @@ from unittest import mock
 
 import pytest
 from common.djangoapps.student.tests.factories import UserFactory
-from ddt import data, ddt, unpack
+from ddt import data, ddt, named_data, unpack
 from django.core.exceptions import ImproperlyConfigured
-from django.test import override_settings
-from ol_openedx_course_sync.constants import STATIC_TAB_TYPE
+from django.test import RequestFactory, override_settings
+from ol_openedx_course_sync.constants import (
+    ACTION_RESCORE,
+    ACTION_RESET_ATTEMPTS,
+    STATIC_TAB_TYPE,
+    STATUS_ALREADY_RUNNING,
+    STATUS_FAILED,
+    STATUS_SUBMITTED,
+)
 from ol_openedx_course_sync.models import (
     CourseSyncMapping,
     CourseSyncOrganization,
@@ -20,6 +27,8 @@ from ol_openedx_course_sync.utils import (
     get_all_source_courses,
     get_course_sync_service_user,
     get_syncable_course_mappings,
+    get_synced_course_keys,
+    submit_problem_action_for_synced_courses,
     sync_course_handouts,
     sync_course_updates,
     sync_discussions_configuration,
@@ -31,7 +40,7 @@ from openedx.core.djangoapps.content.course_overviews.tests.factories import (
     CourseOverviewFactory,
 )
 from openedx.core.djangoapps.discussions.models import DiscussionsConfiguration
-from openedx.core.djangolib.testing.utils import skip_unless_cms
+from openedx.core.djangolib.testing.utils import skip_unless_cms, skip_unless_lms
 from xmodule.html_block import CourseInfoBlock
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.django import modulestore
@@ -659,3 +668,145 @@ def test_get_course_sync_service_user_cache(settings, cache_hit):
         else:
             mock_set_all_tiers.assert_called_once_with("cache_key", mock_user)
             assert user == mock_user
+
+
+# Patched at the source module: submit_problem_action_for_synced_courses imports
+# the task API lazily (inside the function), so there is no module attribute on
+# ol_openedx_course_sync.utils to patch instead.
+RESET_TASK_PATH = (
+    "lms.djangoapps.instructor_task.api.submit_reset_problem_attempts_for_all_students"
+)
+RESCORE_TASK_PATH = (
+    "lms.djangoapps.instructor_task.api.submit_rescore_problem_for_all_students"
+)
+
+
+@ddt
+@skip_unless_lms
+@override_settings(OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker")
+class TestProblemActionUtils(OLOpenedXCourseSyncTestCase):
+    """
+    Test the reset_attempts / rescore fan-out across synced courses.
+
+    The instructor task submission is mocked throughout: these tests cover which
+    courses get a task submitted and how per-course outcomes are reported, not
+    the platform's own instructor-task machinery. LMS-only, since the task API
+    these utilities call is not importable under Studio settings.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.source_key = self.source_course.usage_key.course_key
+        self.target_key = self.target_course.usage_key.course_key
+        CourseOverviewFactory.create(id=self.source_key)
+        CourseOverviewFactory.create(id=self.target_key)
+        UserFactory.create(username="service_worker")
+
+        self.problem_key = self.source_key.make_usage_key("problem", "test_problem")
+        self.request = RequestFactory().post("/shell/instructor-task")
+        self.request.user = UserFactory.create()
+
+    def _activate_sync(self, *, mapping_active=True):
+        """Make source_course an active sync source for target_course."""
+        CourseSyncOrganization.objects.create(
+            organization=self.source_key.org, is_active=True
+        )
+        CourseSyncMapping.objects.create(
+            source_course=self.source_key,
+            target_course=self.target_key,
+            is_active=mapping_active,
+        )
+
+    def _submit(self, action=ACTION_RESET_ATTEMPTS, **kwargs):
+        """Run the fan-out for the source course's test problem."""
+        return submit_problem_action_for_synced_courses(
+            self.request, self.source_key, self.problem_key, action, **kwargs
+        )
+
+    @named_data(
+        ["no_mapping", None, False],
+        ["active_mapping", True, True],
+        ["inactive_mapping", False, False],
+    )
+    @unpack
+    def test_get_synced_course_keys(self, mapping_active, includes_target):
+        """
+        Test only an active mapping adds its target course to the fan-out.
+
+        mapping_active None means no mapping row exists at all.
+        """
+        if mapping_active is not None:
+            self._activate_sync(mapping_active=mapping_active)
+
+        expected = [str(self.source_key)]
+        if includes_target:
+            expected.append(str(self.target_key))
+
+        assert get_synced_course_keys(self.source_key) == expected
+
+    def test_reset_attempts_submitted_for_source_and_targets(self):
+        """
+        Test a reset is submitted per course, against that course's own problem.
+        """
+        self._activate_sync()
+
+        with mock.patch(RESET_TASK_PATH) as mock_reset:
+            mock_reset.return_value = mock.Mock(task_id="task-1")
+            results = self._submit()
+
+        submitted_keys = [call.args[1] for call in mock_reset.call_args_list]
+        assert submitted_keys == [
+            self.problem_key.map_into_course(self.source_key),
+            self.problem_key.map_into_course(self.target_key),
+        ]
+        assert [row["course_id"] for row in results] == [
+            str(self.source_key),
+            str(self.target_key),
+        ]
+        assert {row["status"] for row in results} == {STATUS_SUBMITTED}
+        assert {row["task_id"] for row in results} == {"task-1"}
+
+    def test_rescore_passes_only_if_higher(self):
+        """
+        Test only_if_higher is forwarded to the rescore task and recorded.
+        """
+        with mock.patch(RESCORE_TASK_PATH) as mock_rescore:
+            mock_rescore.return_value = mock.Mock(task_id="task-1")
+            results = self._submit(action=ACTION_RESCORE, only_if_higher=True)
+
+        _, kwargs = mock_rescore.call_args
+        assert kwargs["only_if_higher"] is True
+        assert results[0]["only_if_higher"] is True
+        assert results[0]["status"] == STATUS_SUBMITTED
+
+    def test_already_running_is_reported_not_raised(self):
+        """
+        Test an in-flight task for the same problem is reported per course.
+        """
+        from lms.djangoapps.instructor_task.api_helper import (  # noqa: PLC0415
+            AlreadyRunningError,
+        )
+
+        with mock.patch(RESET_TASK_PATH) as mock_reset:
+            mock_reset.side_effect = AlreadyRunningError("already running")
+            results = self._submit()
+
+        assert results[0]["status"] == STATUS_ALREADY_RUNNING
+        assert results[0]["error"] == "already running"
+
+    def test_one_failing_course_does_not_stop_the_others(self):
+        """
+        Test a failure is recorded per course while the rest still get tasks.
+        """
+        self._activate_sync()
+
+        with mock.patch(RESET_TASK_PATH) as mock_reset:
+            mock_reset.side_effect = [
+                ValueError("boom"),
+                mock.Mock(task_id="task-2"),
+            ]
+            results = self._submit()
+
+        assert results[0]["status"] == STATUS_FAILED
+        assert results[0]["error"] == "boom"
+        assert results[1]["status"] == STATUS_SUBMITTED
