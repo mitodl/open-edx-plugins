@@ -7,6 +7,7 @@ from http import HTTPStatus
 from unittest import mock
 
 from common.djangoapps.student.tests.factories import UserFactory
+from ddt import ddt, named_data, unpack
 from django.test import RequestFactory
 from ol_openedx_course_sync.constants import ACTION_RESET_ATTEMPTS, STATUS_SUBMITTED
 from ol_openedx_course_sync.views import sync_problem_actions
@@ -14,7 +15,10 @@ from openedx.core.djangolib.testing.utils import skip_unless_lms
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory
 
+SUBMIT_PATH = "ol_openedx_course_sync.views.submit_problem_action_for_synced_courses"
 
+
+@ddt
 @skip_unless_lms
 class SyncProblemActionsViewTests(ModuleStoreTestCase):
     """Tests for the sync_problem_actions endpoint.
@@ -49,20 +53,18 @@ class SyncProblemActionsViewTests(ModuleStoreTestCase):
 
         assert response.status_code == HTTPStatus.FORBIDDEN
 
-    def test_rejects_unknown_action(self):
-        response = self._post(self.staff_user, action="delete_everything")
+    @named_data(
+        ["unknown_action", {"action": "delete_everything"}],
+        ["invalid_course_key", {"course_id": "not-a-course-key"}],
+        ["invalid_problem_key", {"problem_id": "not-a-problem-key"}],
+    )
+    def test_rejects_bad_input(self, overrides):
+        """Unknown actions and unparseable keys are rejected before submitting."""
+        with mock.patch(SUBMIT_PATH) as mock_submit:
+            response = self._post(self.staff_user, **overrides)
 
         assert response.status_code == HTTPStatus.BAD_REQUEST
-
-    def test_rejects_invalid_course_key(self):
-        response = self._post(self.staff_user, course_id="not-a-course-key")
-
-        assert response.status_code == HTTPStatus.BAD_REQUEST
-
-    def test_rejects_invalid_problem_key(self):
-        response = self._post(self.staff_user, problem_id="not-a-problem-key")
-
-        assert response.status_code == HTTPStatus.BAD_REQUEST
+        mock_submit.assert_not_called()
 
     def test_submits_action_and_returns_per_course_results(self):
         """A valid request returns the per-course result rows from the fan-out."""
@@ -74,24 +76,21 @@ class SyncProblemActionsViewTests(ModuleStoreTestCase):
                 "task_id": "task-1",
             }
         ]
-        with mock.patch(
-            "ol_openedx_course_sync.views.submit_problem_action_for_synced_courses",
-            return_value=results,
-        ) as mock_submit:
+        with mock.patch(SUBMIT_PATH, return_value=results):
             response = self._post(self.staff_user)
 
         assert response.status_code == HTTPStatus.OK
         assert json.loads(response.content) == {"results": results}
-        _args, kwargs = mock_submit.call_args
-        assert kwargs["only_if_higher"] is True
 
-    def test_only_if_higher_can_be_disabled(self):
-        """An explicit only_if_higher=false is honoured."""
-        with mock.patch(
-            "ol_openedx_course_sync.views.submit_problem_action_for_synced_courses",
-            return_value=[],
-        ) as mock_submit:
-            self._post(self.staff_user, only_if_higher="false")
+    @named_data(
+        ["omitted", {}, True],
+        ["explicit_true", {"only_if_higher": "true"}, True],
+        ["explicit_false", {"only_if_higher": "false"}, False],
+    )
+    @unpack
+    def test_only_if_higher_defaults_on(self, overrides, expected):
+        """Absent or true keeps the safe default; only an explicit false disables it."""
+        with mock.patch(SUBMIT_PATH, return_value=[]) as mock_submit:
+            self._post(self.staff_user, **overrides)
 
-        _args, kwargs = mock_submit.call_args
-        assert kwargs["only_if_higher"] is False
+        assert mock_submit.call_args.kwargs["only_if_higher"] is expected

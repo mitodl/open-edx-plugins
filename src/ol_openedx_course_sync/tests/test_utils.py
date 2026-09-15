@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 from common.djangoapps.student.tests.factories import UserFactory
-from ddt import data, ddt, unpack
+from ddt import data, ddt, named_data, unpack
 from django.core.exceptions import ImproperlyConfigured
 from django.test import RequestFactory, override_settings
 from ol_openedx_course_sync.constants import (
@@ -681,6 +681,7 @@ RESCORE_TASK_PATH = (
 )
 
 
+@ddt
 @skip_unless_lms
 @override_settings(OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME="service_worker")
 class TestProblemActionUtils(OLOpenedXCourseSyncTestCase):
@@ -722,22 +723,26 @@ class TestProblemActionUtils(OLOpenedXCourseSyncTestCase):
             self.request, self.source_key, self.problem_key, action, **kwargs
         )
 
-    def test_get_synced_course_keys_includes_source_and_targets(self):
+    @named_data(
+        ["no_mapping", None, False],
+        ["active_mapping", True, True],
+        ["inactive_mapping", False, False],
+    )
+    @unpack
+    def test_get_synced_course_keys(self, mapping_active, includes_target):
         """
-        Test get_synced_course_keys returns the source course and its targets.
-        """
-        self._activate_sync()
+        Test only an active mapping adds its target course to the fan-out.
 
-        assert get_synced_course_keys(self.source_key) == [
-            str(self.source_key),
-            str(self.target_key),
-        ]
+        mapping_active None means no mapping row exists at all.
+        """
+        if mapping_active is not None:
+            self._activate_sync(mapping_active=mapping_active)
 
-    def test_get_synced_course_keys_source_only_without_mappings(self):
-        """
-        Test get_synced_course_keys returns only the source course when unmapped.
-        """
-        assert get_synced_course_keys(self.source_key) == [str(self.source_key)]
+        expected = [str(self.source_key)]
+        if includes_target:
+            expected.append(str(self.target_key))
+
+        assert get_synced_course_keys(self.source_key) == expected
 
     def test_reset_attempts_submitted_for_source_and_targets(self):
         """
@@ -760,18 +765,6 @@ class TestProblemActionUtils(OLOpenedXCourseSyncTestCase):
         ]
         assert {row["status"] for row in results} == {STATUS_SUBMITTED}
         assert {row["task_id"] for row in results} == {"task-1"}
-
-    def test_inactive_mapping_is_skipped(self):
-        """
-        Test an inactive mapping's target course does not get a task.
-        """
-        self._activate_sync(mapping_active=False)
-
-        with mock.patch(RESET_TASK_PATH) as mock_reset:
-            mock_reset.return_value = mock.Mock(task_id="task-1")
-            results = self._submit()
-
-        assert [row["course_id"] for row in results] == [str(self.source_key)]
 
     def test_rescore_passes_only_if_higher(self):
         """

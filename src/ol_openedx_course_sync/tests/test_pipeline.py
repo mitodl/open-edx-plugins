@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 from ol_openedx_course_sync.constants import COURSE_SYNC_TAB_ID
@@ -15,6 +16,7 @@ INSTRUCTOR_MFE_URL = "http://localhost/apps/instructor-dashboard"
 
 STAFF_USER = SimpleNamespace(is_staff=True)
 NON_STAFF_USER = SimpleNamespace(is_staff=False)
+ACTIVE_MAPPINGS = ["a-mapping"]
 
 
 def _step():
@@ -25,7 +27,7 @@ def _step():
 @patch("ol_openedx_course_sync.pipeline.get_syncable_course_mappings")
 def test_tab_added_for_staff_on_sync_source(mock_get_mappings):
     """The tab is appended for a staff user on an active sync source course."""
-    mock_get_mappings.return_value = ["a-mapping"]
+    mock_get_mappings.return_value = ACTIVE_MAPPINGS
 
     result = _step().run_filter(tabs=[], user=STAFF_USER, course_key=COURSE_KEY)
 
@@ -39,44 +41,36 @@ def test_tab_added_for_staff_on_sync_source(mock_get_mappings):
     assert "sort_order" in tab
 
 
+@pytest.mark.parametrize(
+    ("user", "mappings"),
+    [
+        pytest.param(NON_STAFF_USER, ACTIVE_MAPPINGS, id="non_staff_user"),
+        pytest.param(None, ACTIVE_MAPPINGS, id="anonymous_user"),
+        pytest.param(STAFF_USER, None, id="course_is_not_a_sync_source"),
+        pytest.param(
+            STAFF_USER,
+            ImproperlyConfigured(
+                "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set."
+            ),
+            id="plugin_not_configured",
+        ),
+    ],
+)
 @patch("ol_openedx_course_sync.pipeline.get_syncable_course_mappings")
-def test_tab_not_added_for_non_staff(mock_get_mappings):
-    """A non-staff user does not get the tab, even on a sync source course."""
-    mock_get_mappings.return_value = ["a-mapping"]
+def test_tab_not_added(mock_get_mappings, user, mappings):
+    """
+    The tab needs a staff user and an active sync source; anything else omits it.
 
-    result = _step().run_filter(tabs=[], user=NON_STAFF_USER, course_key=COURSE_KEY)
+    A sync target course reaches this as mappings=None, since it is never a
+    source. The unconfigured case is the one that has to stay non-raising: this
+    runs while building every instructor dashboard.
+    """
+    if isinstance(mappings, Exception):
+        mock_get_mappings.side_effect = mappings
+    else:
+        mock_get_mappings.return_value = mappings
 
-    assert result["tabs"] == []
-
-
-@patch("ol_openedx_course_sync.pipeline.get_syncable_course_mappings")
-def test_tab_not_added_when_course_is_not_a_sync_source(mock_get_mappings):
-    """Courses with no active mapping (including sync targets) do not get the tab."""
-    mock_get_mappings.return_value = None
-
-    result = _step().run_filter(tabs=[], user=STAFF_USER, course_key=COURSE_KEY)
-
-    assert result["tabs"] == []
-
-
-@patch("ol_openedx_course_sync.pipeline.get_syncable_course_mappings")
-def test_unconfigured_plugin_omits_tab_instead_of_raising(mock_get_mappings):
-    """An unconfigured service worker drops the tab rather than breaking the page."""
-    mock_get_mappings.side_effect = ImproperlyConfigured(
-        "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME is not set."
-    )
-
-    result = _step().run_filter(tabs=[], user=STAFF_USER, course_key=COURSE_KEY)
-
-    assert result["tabs"] == []
-
-
-@patch("ol_openedx_course_sync.pipeline.get_syncable_course_mappings")
-def test_anonymous_user_does_not_raise(mock_get_mappings):
-    """A None user is tolerated (no tab, no AttributeError)."""
-    mock_get_mappings.return_value = ["a-mapping"]
-
-    result = _step().run_filter(tabs=[], user=None, course_key=COURSE_KEY)
+    result = _step().run_filter(tabs=[], user=user, course_key=COURSE_KEY)
 
     assert result["tabs"] == []
 
@@ -85,7 +79,7 @@ def test_anonymous_user_does_not_raise(mock_get_mappings):
 @patch("ol_openedx_course_sync.pipeline.get_syncable_course_mappings")
 def test_existing_tabs_preserved(mock_get_mappings):
     """Existing platform tabs are preserved and our tab is appended last."""
-    mock_get_mappings.return_value = ["a-mapping"]
+    mock_get_mappings.return_value = ACTIVE_MAPPINGS
 
     existing = [
         {"tab_id": "course_info", "sort_order": 10},
@@ -108,7 +102,7 @@ def test_existing_tabs_preserved(mock_get_mappings):
 @patch("ol_openedx_course_sync.pipeline.get_syncable_course_mappings")
 def test_tab_not_duplicated(mock_get_mappings):
     """The tab is not added twice if it is already present."""
-    mock_get_mappings.return_value = ["a-mapping"]
+    mock_get_mappings.return_value = ACTIVE_MAPPINGS
 
     existing = [{"tab_id": COURSE_SYNC_TAB_ID, "title": "Course Sync"}]
     result = _step().run_filter(tabs=existing, user=STAFF_USER, course_key=COURSE_KEY)

@@ -7,6 +7,7 @@ from unittest import mock
 
 import pytest
 from common.djangoapps.student.tests.factories import UserFactory
+from ddt import ddt, named_data, unpack
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase
@@ -27,6 +28,7 @@ SUBMIT_PATH = (
 )
 
 
+@ddt
 @skip_unless_lms
 class TestSyncProblemActionsCommand(TestCase):
     """
@@ -50,38 +52,25 @@ class TestSyncProblemActionsCommand(TestCase):
             )
         return out.getvalue(), mock_submit
 
-    def test_invalid_course_key_fails_before_submitting(self):
+    @named_data(
+        ["invalid_course_key", ("nope", PROBLEM_KEY), {}, "Invalid source course key"],
+        ["invalid_problem_key", (COURSE_KEY, "nope"), {}, "Invalid problem usage key"],
+        [
+            "unknown_username",
+            (COURSE_KEY, PROBLEM_KEY),
+            {"username": "no_such_user"},
+            "User not found",
+        ],
+    )
+    @unpack
+    def test_bad_input_fails_before_submitting(self, args, kwargs, expected_error):
+        """Every argument is validated before a single task is submitted."""
         with (
             mock.patch(SUBMIT_PATH) as mock_submit,
-            pytest.raises(CommandError, match="Invalid source course key"),
+            pytest.raises(CommandError, match=expected_error),
         ):
-            call_command(
-                "sync_problem_actions", ACTION_RESET_ATTEMPTS, "nope", PROBLEM_KEY
-            )
-        mock_submit.assert_not_called()
+            call_command("sync_problem_actions", ACTION_RESET_ATTEMPTS, *args, **kwargs)
 
-    def test_invalid_problem_key_fails_before_submitting(self):
-        with (
-            mock.patch(SUBMIT_PATH) as mock_submit,
-            pytest.raises(CommandError, match="Invalid problem usage key"),
-        ):
-            call_command(
-                "sync_problem_actions", ACTION_RESET_ATTEMPTS, COURSE_KEY, "nope"
-            )
-        mock_submit.assert_not_called()
-
-    def test_missing_user_fails_before_submitting(self):
-        with (
-            mock.patch(SUBMIT_PATH) as mock_submit,
-            pytest.raises(CommandError, match="User not found"),
-        ):
-            call_command(
-                "sync_problem_actions",
-                ACTION_RESET_ATTEMPTS,
-                COURSE_KEY,
-                PROBLEM_KEY,
-                username="no_such_user",
-            )
         mock_submit.assert_not_called()
 
     def test_reports_every_status(self):
