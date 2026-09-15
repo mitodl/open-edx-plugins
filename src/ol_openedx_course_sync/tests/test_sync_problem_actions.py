@@ -142,7 +142,7 @@ class TestSyncProblemActionsCommand(TestCase):
         assert mock_submit.call_args.kwargs["only_if_higher"] is True
 
     def test_summary_omits_empty_status_lines(self):
-        """A clean run reports submitted only, with no already-running or failed rows."""
+        """A clean run reports submitted only, with no other status lines."""
         output, _ = self._run(
             [
                 {
