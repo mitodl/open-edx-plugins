@@ -1,12 +1,5 @@
 """Constants for ol-openedx-uai-content-customization plugin."""
 
-INDUSTRY_CODES = {
-    "Healthcare": "HC",
-    "Finance": "F",
-    "Energy": "E",
-    "Original": "",
-}
-
 DURATION_CODE_SHORT = "S"
 DURATION_CODE_FULL = "F"
 

@@ -1,6 +1,18 @@
 Changelog
 =========
 
+[0.5.0] - 2026-09-14
+---------------------
+
+Changed
+~~~~~~~
+- Industries are now stored in a new ``Industry`` Django model (``name``,
+  ``short_code``, both unique case-insensitively) managed via Django admin,
+  instead of the hardcoded ``INDUSTRY_CODES`` dict. Adding a new industry no
+  longer requires a code change. **Upgrade note:** since this release ships
+  no data migration, re-enter the existing rows (Healthcare/HC, Finance/F,
+  Energy/E, Original/blank) in Django admin after deploying.
+
 [0.3.0] - 2026-07-24
 ---------------------
 

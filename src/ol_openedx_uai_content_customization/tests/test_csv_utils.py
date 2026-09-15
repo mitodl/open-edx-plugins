@@ -18,6 +18,16 @@ from ol_openedx_uai_content_customization.csv_utils import (
     resolve_duration_code,
     validate_csv_columns,
 )
+from ol_openedx_uai_content_customization.models import Industry
+
+
+@pytest.fixture
+def industries(db):  # noqa: ARG001
+    """Seed the Industry rows that csv_utils looks up during these tests."""
+    Industry.objects.create(name="Healthcare", short_code="HC")
+    Industry.objects.create(name="Finance", short_code="F")
+    Industry.objects.create(name="Energy", short_code="E")
+    Industry.objects.create(name="Original", short_code="")
 
 
 def test_parse_csv_returns_list_of_dicts(tmp_path):
@@ -252,12 +262,12 @@ def test_parse_csv_from_google_sheet_url_raises_on_http_error():
         ),
     ],
 )
-def test_build_new_course_key(orig_key, industry, duration, expected):
+def test_build_new_course_key(orig_key, industry, duration, expected, industries):  # noqa: ARG001
     """Parametrised check that course keys are generated with correct org/number/run."""
     assert build_new_course_key(orig_key, industry, duration) == expected
 
 
-def test_build_new_course_key_unknown_industry_raises():
+def test_build_new_course_key_unknown_industry_raises(industries):  # noqa: ARG001
     """An unrecognised industry name raises ValueError instead of silently
     continuing.
     """
@@ -265,6 +275,14 @@ def test_build_new_course_key_unknown_industry_raises():
         build_new_course_key(
             "course-v1:UAI_SOURCE+UAI.2+1T2026", "Unknown Industry", "short"
         )
+
+
+def test_build_new_course_key_industry_lookup_is_case_insensitive(industries):  # noqa: ARG001
+    """The industry lookup matches regardless of casing, per its own contract."""
+    assert (
+        build_new_course_key("course-v1:UAI_SOURCE+UAI.2+1T2026", "healthcare", "short")
+        == "course-v1:UAI_SOURCE+UAI.2.S.HC+1T2026"
+    )
 
 
 def _make_row(course_key, industry, duration, video_file="v001.mp4", title="Title"):
@@ -301,7 +319,7 @@ def _make_row(course_key, industry, duration, video_file="v001.mp4", title="Titl
                 ),
             ],
             1,
-            {("course-v1:ORG+NUM+RUN", "Healthcare", "short"): 2},
+            {("course-v1:ORG+NUM+RUN", "healthcare", "short"): 2},
         ),
         (
             [
@@ -332,7 +350,30 @@ def test_group_videos_by_course(rows, expected_group_count, expected_group_sizes
         assert len(groups[key]) == size
 
 
-def test_resolve_course_intro_precedence_exact_overrides_industry_and_original():
+def test_mixed_case_industry_rows_group_together():
+    """
+    Regression test: mixed-case industry rows must not create separate groups.
+
+    Before grouping folded industry casing, "Healthcare" and "healthcare"
+    rows for the same course/duration produced two distinct groups that both
+    resolved to the same generated course key, so building the second group
+    silently discarded the first group's videos.
+    """
+    rows = [
+        _make_row("course-v1:ORG+NUM+RUN", "Healthcare", "short", "v001.mp4"),
+        _make_row("course-v1:ORG+NUM+RUN", "healthcare", "short", "v002.mp4"),
+    ]
+
+    groups = group_videos_by_course(rows)
+
+    assert len(groups) == 1
+    (videos,) = groups.values()
+    assert len(videos) == 2  # noqa: PLR2004
+
+
+def test_resolve_course_intro_precedence_exact_overrides_industry_and_original(
+    industries,  # noqa: ARG001
+):
     """Exact (course, industry, duration) intro should have highest precedence."""
     rows = [
         {
@@ -357,7 +398,9 @@ def test_resolve_course_intro_precedence_exact_overrides_industry_and_original()
     )
 
 
-def test_resolve_course_intro_industry_fallback_applies_across_durations():
+def test_resolve_course_intro_industry_fallback_applies_across_durations(
+    industries,  # noqa: ARG001
+):
     """Industry intro should apply when no duration-specific intro exists."""
     rows = [
         {
@@ -378,7 +421,9 @@ def test_resolve_course_intro_industry_fallback_applies_across_durations():
     )
 
 
-def test_resolve_course_intro_original_industry_fallback_across_industries():
+def test_resolve_course_intro_original_industry_fallback_across_industries(
+    industries,  # noqa: ARG001
+):
     """Original industry intro should be fallback for other industries."""
     rows = [
         {
@@ -395,7 +440,9 @@ def test_resolve_course_intro_original_industry_fallback_across_industries():
     )
 
 
-def test_build_course_intro_lookup_first_row_wins_for_conflicts():
+def test_build_course_intro_lookup_first_row_wins_for_conflicts(
+    industries,  # noqa: ARG001
+):
     """When same lookup key appears more than once, first row should win."""
     rows = [
         {

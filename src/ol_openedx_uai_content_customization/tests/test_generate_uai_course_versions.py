@@ -15,6 +15,7 @@ from ol_openedx_uai_content_customization.constants import (
     BLOCK_TYPE_VERTICAL,
     BLOCK_TYPE_VIDEO,
 )
+from ol_openedx_uai_content_customization.models import Industry
 from xmodule.modulestore.exceptions import DuplicateCourseError
 
 PROCESSED_VIDEOS_CSV_CONTENT = (
@@ -63,6 +64,15 @@ def csv_file(tmp_path):
 def mock_user(db):  # noqa: ARG001
     """Create and return a studio_worker user so the user-existence check passes."""
     return UserFactory.create(username="studio_worker")
+
+
+@pytest.fixture(autouse=True)
+def _seed_industries(db):  # noqa: ARG001
+    """Seed the Industry rows the command's industry lookup depends on."""
+    Industry.objects.create(name="Healthcare", short_code="HC")
+    Industry.objects.create(name="Finance", short_code="F")
+    Industry.objects.create(name="Energy", short_code="E")
+    Industry.objects.create(name="Original", short_code="")
 
 
 def _modulestore_mock(*, source_course_exists=True, destination_course_exists=False):
@@ -160,6 +170,55 @@ def test_creates_correct_number_of_courses(csv_file, mock_user):  # noqa: ARG001
     assert counts_by_type[BLOCK_TYPE_VERTICAL] == EXPECTED_COURSE_COUNT * 2
     assert counts_by_type[BLOCK_TYPE_VIDEO] == EXPECTED_COURSE_COUNT
     assert counts_by_type[BLOCK_TYPE_HTML] == EXPECTED_COURSE_COUNT
+
+
+def test_mixed_case_industry_rows_do_not_drop_videos(tmp_path, mock_user):  # noqa: ARG001
+    """
+    Regression test: mixed-case industry spellings must not overwrite each
+    other's videos.
+
+    "Healthcare" and "healthcare" resolve to the same generated course key
+    via the case-insensitive Industry lookup. Before grouping folded
+    industry casing, these formed two separate groups, and building the
+    second group deleted and rebuilt the first group's content, silently
+    dropping its video.
+    """
+    processed_videos = tmp_path / "processed_videos.csv"
+    processed_videos.write_text(
+        "course_key,industry,duration,video_file_name,"
+        "video_title,module_name,course_intro,edx_video_id\n"
+        "course-v1:UAI_SOURCE+UAI.2+1T2026,Healthcare,short,"
+        "v004_h264.mp4,First Video,Module 2,,aaaaaaaa-1111-1111-1111-aaaaaaaaaaaa\n"
+        "course-v1:UAI_SOURCE+UAI.2+1T2026,healthcare,short,"
+        "v005_h264.mp4,Second Video,Module 2,,bbbbbbbb-2222-2222-2222-bbbbbbbbbbbb\n"
+    )
+    store_mock = _modulestore_mock(
+        source_course_exists=True, destination_course_exists=False
+    )
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", store_mock),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
+        mock.patch(f"{_CMD}.delete_course_sections") as mock_delete_sections,
+        mock.patch(
+            f"{_CMD}.create_content_block", return_value=mock.Mock()
+        ) as mock_create_content_block,
+        mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
+    ):
+        call_command(
+            "generate_uai_course_versions",
+            processed_videos_csv=str(processed_videos),
+        )
+
+    # A single merged course, built (and cloned) exactly once.
+    assert mock_delete_sections.call_count == 1
+
+    video_calls = [
+        call
+        for call in mock_create_content_block.call_args_list
+        if call.args[1] == BLOCK_TYPE_VIDEO
+    ]
+    assert len(video_calls) == 2  # noqa: PLR2004
 
 
 @pytest.mark.parametrize("expected_key", EXPECTED_NEW_COURSE_KEYS)
