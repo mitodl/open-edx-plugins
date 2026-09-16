@@ -14,7 +14,6 @@ def plugin_settings(settings):
         "OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME", ""
     )
 
-    # Register the instructor-dashboard tab filter. Production overwrites
-    # OPEN_EDX_FILTERS_CONFIG wholesale from the deployment YAML, so the entry has
-    # to be merged back in here. Only consulted by the LMS; a no-op in the CMS.
+    # Production overwrites OPEN_EDX_FILTERS_CONFIG wholesale from the deployment
+    # YAML, so the entry has to be merged back in here. LMS only; no-op in CMS.
     register_instructor_tab_filter(settings)

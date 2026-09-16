@@ -47,8 +47,7 @@ def sync_problem_actions(request, course_id):
             {"error": f"Invalid problem usage key: {problem_id}"}, status=400
         )
 
-    # Defaults to True, matching the management command: rescoring without it can
-    # lower a learner's existing score.
+    # Defaults to True: rescoring without it can lower an existing score.
     only_if_higher = request.POST.get("only_if_higher", "true").lower() == "true"
 
     log.info(

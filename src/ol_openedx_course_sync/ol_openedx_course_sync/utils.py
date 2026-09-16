@@ -408,15 +408,7 @@ def get_all_source_courses():
 
 
 def get_synced_course_keys(source_course_key):
-    """
-    Get all courses for a sync mapping (source + all targets).
-
-    Args:
-        source_course_key: CourseKey of the source course
-
-    Returns:
-        List of course key strings
-    """
+    """Get all course keys in a sync mapping (source + all targets)."""
     courses = [str(source_course_key)]
     mappings = get_syncable_course_mappings(source_course_key)
     if mappings:
@@ -433,22 +425,12 @@ def submit_problem_action_for_synced_courses(
     only_if_higher=False,
 ):
     """
-    Submit reset/rescore tasks for a problem across a course and its synced reruns.
-
-    Args:
-        request: Request object with user context
-        source_course_key: CourseKey of the source course
-        problem_usage_key: UsageKey of the problem in the source course
-        action: Action to perform (reset_attempts or rescore)
-        only_if_higher: Only rescore if new score is higher (rescore only)
-
-    Returns:
-        List of result dictionaries, one per course
+    Submits reset/rescore for the source course and every synced target, one
+    task per course. Returns a status dict per course instead of raising, so
+    one course's failure or in-progress task doesn't stop the rest.
     """
-    # These imports are LMS-only, so they are intentionally delayed to avoid an
-    # ImportError when this plugin is installed in the CMS: instructor_task reads
-    # bulk_email settings at import time that Studio does not define. This
-    # function is only called in the LMS.
+    # Delayed: instructor_task reads bulk_email settings at import time that
+    # Studio doesn't define, so importing it eagerly breaks the CMS.
     from lms.djangoapps.instructor_task import api as task_api  # noqa: PLC0415
     from lms.djangoapps.instructor_task.api_helper import (  # noqa: PLC0415
         AlreadyRunningError,

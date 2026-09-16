@@ -62,16 +62,14 @@ class AddCourseSyncInstructorTab(PipelineStep):
             return False
 
     def run_filter(self, tabs, user, course_key):
-        """Append the Course Sync tab to the instructor dashboard tab list."""
+        """Run the pipeline step."""
         # GlobalStaff().has_user() is `user.is_staff`, but tolerates user being None.
         if GlobalStaff().has_user(user) and self._is_sync_source(course_key):
             already_present = any(
                 tab.get("tab_id") == COURSE_SYNC_TAB_ID for tab in tabs
             )
             if not already_present:
-                # Append after every tab currently in the list so our tab always
-                # lands at the end, regardless of the built-in tabs' own
-                # sort_order values (which are not fixed and may change).
+                # Land after every existing tab; built-in sort_order values aren't fixed.
                 next_sort_order = (
                     max((tab.get("sort_order", 0) for tab in tabs), default=0) + 10
                 )
@@ -86,6 +84,5 @@ class AddCourseSyncInstructorTab(PipelineStep):
                     }
                 )
 
-        # Return the full filter payload (tabs, user, course_key) so the filter
-        # and any subsequent pipeline step receive every argument.
+        # Return all filter args so later pipeline steps still receive them.
         return {"tabs": tabs, "user": user, "course_key": course_key}
