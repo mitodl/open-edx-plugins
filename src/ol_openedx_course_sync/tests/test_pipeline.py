@@ -35,7 +35,7 @@ def test_tab_added_for_staff_on_sync_source(mock_get_mappings):
     assert len(tabs) == 1
     tab = tabs[0]
     assert tab["tab_id"] == COURSE_SYNC_TAB_ID
-    assert tab["title"] == "Course Sync"
+    assert tab["title"] == "Course Sync Actions"
     # URL path is derived from INSTRUCTOR_MICROFRONTEND_URL's path component.
     assert tab["url"] == f"/apps/instructor-dashboard/{COURSE_KEY}/{COURSE_SYNC_TAB_ID}"
     assert "sort_order" in tab
@@ -104,7 +104,7 @@ def test_tab_not_duplicated(mock_get_mappings):
     """The tab is not added twice if it is already present."""
     mock_get_mappings.return_value = ACTIVE_MAPPINGS
 
-    existing = [{"tab_id": COURSE_SYNC_TAB_ID, "title": "Course Sync"}]
+    existing = [{"tab_id": COURSE_SYNC_TAB_ID, "title": "Course Sync Actions"}]
     result = _step().run_filter(tabs=existing, user=STAFF_USER, course_key=COURSE_KEY)
 
     course_sync_tabs = [

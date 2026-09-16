@@ -31,7 +31,7 @@ def build_instructor_dashboard_tab_url(course_key, tab_id):
 
 class AddCourseSyncInstructorTab(PipelineStep):
     """
-    Add a "Course Sync" tab to the instructor dashboard MFE for staff users on
+    Add a "Course Sync Actions" tab to the instructor dashboard MFE for staff users on
     courses that are an active sync source.
 
     Target (rerun) courses do not get the tab: problem actions are always keyed off
