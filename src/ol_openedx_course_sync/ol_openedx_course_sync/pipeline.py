@@ -69,7 +69,7 @@ class AddCourseSyncInstructorTab(PipelineStep):
                 tab.get("tab_id") == COURSE_SYNC_TAB_ID for tab in tabs
             )
             if not already_present:
-                # Land after every existing tab; built-in sort_order values aren't fixed.
+                # Land after every existing tab; built-in sort_order isn't fixed.
                 next_sort_order = (
                     max((tab.get("sort_order", 0) for tab in tabs), default=0) + 10
                 )

@@ -425,7 +425,7 @@ def submit_problem_action_for_synced_courses(
     only_if_higher=False,
 ):
     """
-    Submits reset/rescore for the source course and every synced target, one
+    Submit reset/rescore for the source course and every synced target, one
     task per course. Returns a status dict per course instead of raising, so
     one course's failure or in-progress task doesn't stop the rest.
     """
