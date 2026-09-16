@@ -40,10 +40,22 @@ CMS Configuration
 LMS Configuration
 -----------------
 
-No additional settings are required. The plugin registers its instructor dashboard tab
-in the ``org.openedx.learning.instructor.dashboard.tabs.requested.v1`` filter pipeline
-automatically, and builds the tab link from the platform's existing
-``INSTRUCTOR_MICROFRONTEND_URL``.
+* ``OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME`` must also be set on the LMS,
+  not only the CMS: the Course Sync instructor dashboard tab is gated on it, and
+  without it the tab is silently omitted rather than shown broken.
+
+  * For Tutor, you can run:
+
+    .. code-block:: bash
+
+       tutor config save --set OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME={USERNAME}
+
+  * If you have a ``private.py`` for the LMS settings, you can add it to ``lms/envs/private.py``.
+
+* No other settings are required. The plugin registers its instructor dashboard tab
+  in the ``org.openedx.learning.instructor.dashboard.tabs.requested.v1`` filter pipeline
+  automatically, and builds the tab link from the platform's existing
+  ``INSTRUCTOR_MICROFRONTEND_URL``.
 
 Usage
 -----
