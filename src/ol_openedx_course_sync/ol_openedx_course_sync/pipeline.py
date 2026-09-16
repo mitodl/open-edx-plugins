@@ -78,7 +78,7 @@ class AddCourseSyncInstructorTab(PipelineStep):
                 tabs.append(
                     {
                         "tab_id": COURSE_SYNC_TAB_ID,
-                        "title": _("Course Sync"),
+                        "title": _("Course Sync Actions"),
                         "url": build_instructor_dashboard_tab_url(
                             course_key, COURSE_SYNC_TAB_ID
                         ),
