@@ -7,8 +7,10 @@ operator-configured exception types or message regexes.
 Design notes
 ------------
 * ``before_send`` is *fail-open*: any unexpected error is logged and the event
-  is returned unfiltered, so a bug in the filter can never silently blackhole
-  error reporting.
+  is returned rather than dropped, so a bug in the filter can never silently
+  blackhole error reporting.  The DETAIL scrub below is the exception to
+  "unfiltered" -- it runs as the filter's first statement, before anything
+  else can raise, so even a fail-open return is scrubbed.
 * Ignored exception classes and message regexes are resolved/compiled once at
   init time (not per event), so a bad import path or invalid regex is reported
   once and skipped rather than raising inside ``before_send``.
@@ -16,6 +18,9 @@ Design notes
   ``event_level=None`` so that stdlib/structlog log records become breadcrumbs
   only, never standalone Sentry issues.  Uncaught exceptions are still captured
   by the Django integration.
+* Postgres ``DETAIL:`` lines are truncated out of every string in the event
+  before send.  They echo the offending row verbatim -- learner name, email,
+  external UUID -- and no SDK privacy option covers exception text.
 * OpenTelemetry ``trace_id``/``span_id`` are stamped onto every event as tags
   using the same formatting as ``ol_openedx_logging`` so Sentry issues and the
   structured logs in Loki correlate on identical values.  ``opentelemetry`` is
@@ -143,6 +148,71 @@ def _event_messages(event: dict[str, Any], exception_value: object) -> list[str]
     return candidates
 
 
+# Postgres appends a DETAIL line to constraint violations that echoes the whole
+# offending row verbatim -- on a users table that is the learner's name, email
+# and external UUID.  psycopg surfaces it as part of str(exc), so it reaches
+# Sentry inside the exception value and the log message, where no SDK privacy
+# setting applies: send_default_pii governs user/cookie/header capture and
+# max_request_body_size governs request bodies, neither of which touches the
+# exception text.  Measured on mitxonline MITXONLINE-6PK, where a SCIM PATCH
+# IntegrityError reproduced a learner email address three times per event across
+# 46,764 occurrences.
+#
+# The newline is matched both raw and as a literal backslash-n: the SDK repr()s
+# frame locals and non-string logging params during serialization, so there the
+# DETAIL line arrives as "...constraint\\nDETAIL: ..." inside a repr string.
+_PG_DETAIL_RE = re.compile(r"(\n|\\n)DETAIL:.*", re.DOTALL)
+
+
+def _scrub_pg_detail(text: str) -> str:
+    """Truncate a Postgres error string at its ``DETAIL:`` line.
+
+    Keeps the primary message, which is what identifies the failure, and drops
+    the row echo that follows it.  Also removes any HINT/CONTEXT that Postgres
+    appends after DETAIL -- those are diagnostic only and can quote row data
+    too.
+    """
+    return _PG_DETAIL_RE.sub(
+        lambda match: match.group(1) + "DETAIL:  [scrubbed by ol_openedx_sentry]",
+        text,
+        count=1,
+    )
+
+
+def _scrub_pg_details(event: dict[str, Any]) -> dict[str, Any]:
+    """Truncate Postgres ``DETAIL`` lines everywhere in a Sentry event.
+
+    The row echo reaches Sentry through more fields than the exception value:
+    ``LoggingIntegration`` puts the log message in a breadcrumb
+    (``BreadcrumbHandler._breadcrumb_from_record``),
+    ``logger.error("...: %s", exc)`` puts it in ``logentry.params``
+    (``EventHandler._emit``), and captured stack-frame locals carry it in frame
+    ``vars`` because ``include_local_variables`` defaults to ``True``
+    (``serialize_frame``).  Walking the whole event covers those without
+    enumerating them, and does not go stale when the SDK grows another such
+    field.
+
+    Safe to walk naively because ``Client._prepare_event`` serializes the event
+    before calling ``before_send``, so every leaf here is already a JSON
+    primitive -- there are no live exception objects left to coerce.
+    """
+    return _scrub_node(event)
+
+
+def _scrub_node(node: Any) -> Any:
+    """Recurse through the serialized event, rewriting strings in place."""
+    if isinstance(node, str):
+        return _scrub_pg_detail(node)
+    if isinstance(node, dict):
+        for key, value in node.items():
+            node[key] = _scrub_node(value)
+        return node
+    if isinstance(node, list):
+        node[:] = [_scrub_node(item) for item in node]
+        return node
+    return node
+
+
 def _tag_otel_context(event: dict[str, Any]) -> dict[str, Any]:
     """Stamp the active OTel ``trace_id``/``span_id`` onto the event as tags.
 
@@ -173,10 +243,12 @@ def sentry_event_filter(
 
     Drops the event (returns ``None``) when the raised exception is a subclass
     of an ignored type, or when any candidate message matches an ignored regex.
-    Otherwise stamps OTel trace context and returns the event.
+    Otherwise scrubs Postgres ``DETAIL`` row echoes, stamps OTel trace context,
+    and returns the event.
 
     Fail-open: any unexpected error is logged and the event is returned, so a
-    bug here can never silently drop error reporting.
+    bug here can never silently drop error reporting.  The scrub runs first so
+    that the fail-open path still returns a scrubbed event.
 
     :param event: Sentry event payload.
     :param hint: Sentry event hint (may contain ``exc_info``).
@@ -186,6 +258,9 @@ def sentry_event_filter(
     :returns: The (possibly tagged) event, or ``None`` to drop it.
     """
     try:
+        # Scrub before anything else can raise: the fail-open handler below
+        # returns this same dict, and a privacy control must not fail open.
+        _scrub_pg_details(event)
         exception_info = hint.get("exc_info")
         exception_value: object = ""
         if exception_info:
@@ -266,8 +341,15 @@ def plugin_settings(app_settings):
         # PII (user id/username/IP) is opt-in — FERPA-sensitive by default.
         send_default_pii=env_tokens.get("SENTRY_SEND_DEFAULT_PII", False),
         release=env_tokens.get("SENTRY_RELEASE_SPECIFIER"),
+        # HTTP request bodies are NOT gated on send_default_pii -- the SDK sets
+        # request.data unconditionally (RequestExtractor.extract_into_event) and
+        # max_request_body_size is the only control (request_body_within_bounds).
+        # On Open edX the write endpoints that actually error are xblock handler
+        # POSTs, i.e. graded problem submissions, and those are routinely under
+        # the 1,000 bytes that "small" still admits.  Default to "never" here;
+        # operators can widen it per deployment.
         max_request_body_size=env_tokens.get(
-            "SENTRY_SEND_HTTP_REQUEST_BODIES", "small"
+            "SENTRY_SEND_HTTP_REQUEST_BODIES", "never"
         ),
         # Explicit LoggingIntegration: log records are breadcrumbs only
         # (event_level=None) so structlog/stdlib logs don't become duplicate,
