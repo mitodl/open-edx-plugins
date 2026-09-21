@@ -6,8 +6,8 @@ from unittest.mock import patch
 import pytest
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
-from ol_openedx_course_sync.constants import COURSE_SYNC_TAB_ID
-from ol_openedx_course_sync.pipeline import AddCourseSyncInstructorTab
+from ol_openedx_course_sync.constants import COURSE_SYNC_ACTIONS_TAB_ID
+from ol_openedx_course_sync.pipeline import AddCourseSyncActionsInstructorTab
 from opaque_keys.edx.keys import CourseKey
 
 FILTER_TYPE = "org.openedx.learning.instructor.dashboard.tabs.requested.v1"
@@ -20,7 +20,9 @@ ACTIVE_MAPPINGS = ["a-mapping"]
 
 
 def _step():
-    return AddCourseSyncInstructorTab(filter_type=FILTER_TYPE, running_pipeline=[])
+    return AddCourseSyncActionsInstructorTab(
+        filter_type=FILTER_TYPE, running_pipeline=[]
+    )
 
 
 @override_settings(INSTRUCTOR_MICROFRONTEND_URL=INSTRUCTOR_MFE_URL)
@@ -34,10 +36,13 @@ def test_tab_added_for_staff_on_sync_source(mock_get_mappings):
     tabs = result["tabs"]
     assert len(tabs) == 1
     tab = tabs[0]
-    assert tab["tab_id"] == COURSE_SYNC_TAB_ID
+    assert tab["tab_id"] == COURSE_SYNC_ACTIONS_TAB_ID
     assert tab["title"] == "Course Sync Actions"
     # URL path is derived from INSTRUCTOR_MICROFRONTEND_URL's path component.
-    assert tab["url"] == f"/apps/instructor-dashboard/{COURSE_KEY}/{COURSE_SYNC_TAB_ID}"
+    assert (
+        tab["url"]
+        == f"/apps/instructor-dashboard/{COURSE_KEY}/{COURSE_SYNC_ACTIONS_TAB_ID}"
+    )
     assert "sort_order" in tab
 
 
@@ -93,7 +98,7 @@ def test_existing_tabs_preserved(mock_get_mappings):
     assert [tab["tab_id"] for tab in tabs] == [
         "course_info",
         "enrollments",
-        COURSE_SYNC_TAB_ID,
+        COURSE_SYNC_ACTIONS_TAB_ID,
     ]
     assert tabs[-1]["sort_order"] > max_existing_sort_order
 
@@ -104,10 +109,10 @@ def test_tab_not_duplicated(mock_get_mappings):
     """The tab is not added twice if it is already present."""
     mock_get_mappings.return_value = ACTIVE_MAPPINGS
 
-    existing = [{"tab_id": COURSE_SYNC_TAB_ID, "title": "Course Sync Actions"}]
+    existing = [{"tab_id": COURSE_SYNC_ACTIONS_TAB_ID, "title": "Course Sync Actions"}]
     result = _step().run_filter(tabs=existing, user=STAFF_USER, course_key=COURSE_KEY)
 
     course_sync_tabs = [
-        tab for tab in result["tabs"] if tab["tab_id"] == COURSE_SYNC_TAB_ID
+        tab for tab in result["tabs"] if tab["tab_id"] == COURSE_SYNC_ACTIONS_TAB_ID
     ]
     assert len(course_sync_tabs) == 1

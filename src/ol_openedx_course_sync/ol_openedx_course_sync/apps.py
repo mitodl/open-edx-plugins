@@ -20,7 +20,9 @@ class OLOpenEdxCourseSyncConfig(AppConfig):
         PluginURLs.CONFIG: {
             ProjectType.LMS: {
                 PluginURLs.NAMESPACE: "",
-                PluginURLs.REGEX: f"courses/{COURSE_ID_PATTERN}/course_sync/api/",
+                PluginURLs.REGEX: (
+                    f"courses/{COURSE_ID_PATTERN}/course_sync_actions/api/"
+                ),
                 PluginURLs.RELATIVE_PATH: "urls",
             }
         },

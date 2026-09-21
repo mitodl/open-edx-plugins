@@ -41,7 +41,7 @@ class SyncProblemActionsViewTests(ModuleStoreTestCase):
         post_data.setdefault("problem_id", self.problem_id)
         course_id = course_id or self.course_id
         request = self.factory.post(
-            f"/courses/{course_id}/course_sync/api/sync_problem_actions",
+            f"/courses/{course_id}/course_sync_actions/api/sync_problem_actions",
             data=post_data,
         )
         request.user = user

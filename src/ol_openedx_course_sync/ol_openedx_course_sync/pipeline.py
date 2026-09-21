@@ -9,7 +9,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext as _
 from openedx_filters import PipelineStep
 
-from ol_openedx_course_sync.constants import COURSE_SYNC_TAB_ID
+from ol_openedx_course_sync.constants import COURSE_SYNC_ACTIONS_TAB_ID
 from ol_openedx_course_sync.utils import get_syncable_course_mappings
 
 log = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ def build_instructor_dashboard_tab_url(course_key, tab_id):
     return "/".join([base_path, str(course_key).strip("/"), tab_id])
 
 
-class AddCourseSyncInstructorTab(PipelineStep):
+class AddCourseSyncActionsInstructorTab(PipelineStep):
     """
     Add a "Course Sync Actions" tab to the instructor dashboard MFE for staff users on
     courses that are an active sync source.
@@ -56,7 +56,7 @@ class AddCourseSyncInstructorTab(PipelineStep):
         except ImproperlyConfigured:
             log.warning(
                 "Course sync is not fully configured; omitting the %s tab for %s.",
-                COURSE_SYNC_TAB_ID,
+                COURSE_SYNC_ACTIONS_TAB_ID,
                 course_key,
             )
             return False
@@ -66,7 +66,7 @@ class AddCourseSyncInstructorTab(PipelineStep):
         # GlobalStaff().has_user() is `user.is_staff`, but tolerates user being None.
         if GlobalStaff().has_user(user) and self._is_sync_source(course_key):
             already_present = any(
-                tab.get("tab_id") == COURSE_SYNC_TAB_ID for tab in tabs
+                tab.get("tab_id") == COURSE_SYNC_ACTIONS_TAB_ID for tab in tabs
             )
             if not already_present:
                 # Land after every existing tab; built-in sort_order isn't fixed.
@@ -75,10 +75,10 @@ class AddCourseSyncInstructorTab(PipelineStep):
                 )
                 tabs.append(
                     {
-                        "tab_id": COURSE_SYNC_TAB_ID,
+                        "tab_id": COURSE_SYNC_ACTIONS_TAB_ID,
                         "title": _("Course Sync Actions"),
                         "url": build_instructor_dashboard_tab_url(
-                            course_key, COURSE_SYNC_TAB_ID
+                            course_key, COURSE_SYNC_ACTIONS_TAB_ID
                         ),
                         "sort_order": next_sort_order,
                     }

@@ -1,4 +1,4 @@
-"""Helper to register the course sync instructor-dashboard tab filter.
+"""Helper to register the course sync actions instructor-dashboard tab filter.
 
 Kept separate from ``pipeline`` (which imports xmodule) so it is safe to import
 at settings-load time.
@@ -7,13 +7,13 @@ at settings-load time.
 INSTRUCTOR_DASHBOARD_TABS_FILTER = (
     "org.openedx.learning.instructor.dashboard.tabs.requested.v1"
 )
-COURSE_SYNC_TAB_PIPELINE_STEP = (
-    "ol_openedx_course_sync.pipeline.AddCourseSyncInstructorTab"
+COURSE_SYNC_ACTIONS_TAB_PIPELINE_STEP = (
+    "ol_openedx_course_sync.pipeline.AddCourseSyncActionsInstructorTab"
 )
 
 
 def register_instructor_tab_filter(settings):
-    """Merge the course sync tab pipeline step into ``OPEN_EDX_FILTERS_CONFIG``.
+    """Merge the course sync actions tab pipeline step into ``OPEN_EDX_FILTERS_CONFIG``.
 
     Applied from production settings, which is where it has to happen:
     ``lms/envs/production.py`` overwrites ``OPEN_EDX_FILTERS_CONFIG`` wholesale
@@ -26,6 +26,6 @@ def register_instructor_tab_filter(settings):
         INSTRUCTOR_DASHBOARD_TABS_FILTER, {"fail_silently": True, "pipeline": []}
     )
     filter_entry.setdefault("pipeline", [])
-    if COURSE_SYNC_TAB_PIPELINE_STEP not in filter_entry["pipeline"]:
-        filter_entry["pipeline"].append(COURSE_SYNC_TAB_PIPELINE_STEP)
+    if COURSE_SYNC_ACTIONS_TAB_PIPELINE_STEP not in filter_entry["pipeline"]:
+        filter_entry["pipeline"].append(COURSE_SYNC_ACTIONS_TAB_PIPELINE_STEP)
     settings.OPEN_EDX_FILTERS_CONFIG = filters_config

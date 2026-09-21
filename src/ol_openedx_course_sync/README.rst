@@ -41,7 +41,7 @@ LMS Configuration
 -----------------
 
 * ``OL_OPENEDX_COURSE_SYNC_SERVICE_WORKER_USERNAME`` must also be set on the LMS,
-  not only the CMS: the Course Sync instructor dashboard tab is gated on it, and
+  not only the CMS: the Course Sync Actions instructor dashboard tab is gated on it, and
   without it the tab is silently omitted rather than shown broken.
 
   * For Tutor, you can run:
@@ -163,7 +163,7 @@ Rescore a problem for all learners across all synced courses:
 Problem Actions from the Instructor Dashboard (LMS)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The same actions are also available as a **Course Sync** tab in the LMS instructor
+The same actions are also available as a **Course Sync Actions** tab in the LMS instructor
 dashboard, so course teams can run them without shell access.
 
 The tab is only shown when both of the following are true:
@@ -179,7 +179,7 @@ scores only if higher. The course is taken from the dashboard URL, and the tasks
 to the source course and all of its active target courses, exactly like the management
 command above.
 
-**Endpoint:** ``POST /courses/{course_id}/course_sync/api/sync_problem_actions``
+**Endpoint:** ``POST /courses/{course_id}/course_sync_actions/api/sync_problem_actions``
 
 * Restricted to platform staff (``is_staff``); other users get a ``403``.
 * Form-encoded parameters: ``action``, ``problem_id``, and optionally
@@ -190,6 +190,6 @@ command above.
 **Frontend requirement**
 
 The tab entry itself is added by the LMS, but the page is rendered by the instructor
-dashboard MFE. The MFE must register a route widget for the ``course_sync`` tab ID on
+dashboard MFE. The MFE must register a route widget for the ``course_sync_actions`` tab ID on
 the ``org.openedx.frontend.slot.instructorDashboard.routes.v1`` slot. Without it, the
 tab appears but the page does not render.
