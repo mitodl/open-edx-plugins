@@ -1,5 +1,6 @@
 """Tests for the generate_uai_course_versions management command."""
 
+from contextlib import contextmanager
 from io import StringIO
 from unittest import mock
 
@@ -506,6 +507,53 @@ def test_delete_sections_called_before_create_chapter(csv_file, mock_user):  # n
             "Expected at least one create_chapter call after delete and before "
             "the next delete"
         )
+
+
+@pytest.mark.parametrize("destination_course_exists", [False, True])
+def test_delete_sections_bulk_operation_exits_before_content_creation(
+    csv_file,
+    mock_user,  # noqa: ARG001
+    destination_course_exists,
+):
+    """
+    Section deletion must commit in its own bulk operation before any block is
+    created; otherwise split can serve a new block from the bulk-operation cache
+    as the deleted block with the same id.
+    """
+    events = []
+    store_mock = _modulestore_mock(destination_course_exists=destination_course_exists)
+
+    @contextmanager
+    def record_bulk_operations(_course_key):
+        events.append("enter")
+        yield
+        events.append("exit")
+
+    store_mock.return_value.bulk_operations.side_effect = record_bulk_operations
+
+    def record_create_content_block(*_args, **_kwargs):
+        events.append("create")
+        return mock.Mock()
+
+    with (
+        mock.patch(f"{_CMD}.modulestore", store_mock),
+        mock.patch(f"{_CMD}.clone_course_in_modulestore", return_value=mock.Mock()),
+        mock.patch(
+            f"{_CMD}.delete_course_sections",
+            side_effect=lambda *_args: events.append("delete"),
+        ),
+        mock.patch(
+            f"{_CMD}.create_content_block", side_effect=record_create_content_block
+        ),
+        mock.patch(f"{_CMD}.save_video_block_with_edx_video_id"),
+    ):
+        call_command("generate_uai_course_versions", processed_videos_csv=csv_file)
+
+    delete_indices = [i for i, event in enumerate(events) if event == "delete"]
+    assert len(delete_indices) == EXPECTED_COURSE_COUNT
+    for delete_index in delete_indices:
+        next_create_index = events.index("create", delete_index)
+        assert "exit" in events[delete_index:next_create_index]
 
 
 def test_delete_all_course_assets_called_for_new_courses(csv_file, mock_user):  # noqa: ARG001
