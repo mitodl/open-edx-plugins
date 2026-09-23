@@ -1,6 +1,16 @@
 Changelog
 =========
 
+[0.5.1] - 2026-09-23
+---------------------
+
+Fixed
+~~~~~
+- Intermittent ``InsufficientSpecificationError`` when creating a new course.
+  Section deletion after cloning now commits in its own bulk operation, so
+  newly created blocks are not served from the modulestore cache as the
+  deleted blocks with the same id.
+
 [0.5.0] - 2026-09-14
 ---------------------
 
