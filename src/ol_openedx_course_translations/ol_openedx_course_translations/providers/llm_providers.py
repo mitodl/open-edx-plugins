@@ -54,15 +54,19 @@ TRANSLATION_TEMPERATURE = 0.0
 # their default temperature of 1 and reject anything else.
 FALLBACK_TEMPERATURE = 1.0
 
-# (model name, requested temperature) -> temperature that model actually
-# accepts. Populated the first time a model rejects the requested value, so
-# the rejection is paid once per process instead of once per request.
-# Deliberately process-wide: the answer depends on the model and on what was
-# asked for, not on which provider instance asked. The requested temperature
-# is part of the key so that a provider configured with a non-default
-# temperature still gets to try its own value rather than inheriting a
-# fallback another instance negotiated.
-_MODEL_TEMPERATURES: dict[tuple[str, float], float] = {}
+# Newer Claude models removed the parameter outright rather than restricting
+# its values, so they reject the fallback too and must be sent no temperature.
+OMIT_TEMPERATURE = None
+
+# (model name, requested temperature) -> the option that model actually
+# accepts, OMIT_TEMPERATURE meaning "send none". Populated the first time a
+# model rejects the requested value, so the probing is paid once per process
+# instead of once per request. Deliberately process-wide: the answer depends
+# on the model and on what was asked for, not on which provider instance
+# asked. The requested temperature is part of the key so that a provider
+# configured with a non-default temperature still gets to try its own value
+# rather than inheriting a fallback another instance negotiated.
+_MODEL_TEMPERATURES: dict[tuple[str, float], float | None] = {}
 
 # litellm rejects some models locally while mapping parameters
 # (UnsupportedParamsError), and lets others through to the provider, which
@@ -345,39 +349,40 @@ class LLMProvider(TranslationProvider):
         timeout = additional_kwargs.pop("timeout", self.litellm_timeout)
 
         cache_key = (self.model_name, self.temperature)
-        temperature = _MODEL_TEMPERATURES.get(cache_key, self.temperature)
-        try:
-            llm_response = completion(
-                model=self.model_name,
-                messages=llm_messages,
-                api_key=self.primary_api_key,
-                timeout=timeout,
-                temperature=temperature,
-                **additional_kwargs,
-            )
-        except _TEMPERATURE_REJECTION_ERRORS as error:
-            if (
-                temperature == FALLBACK_TEMPERATURE
-                or "temperature" not in str(error).lower()
-            ):
-                raise
-            logger.info(
-                "%s rejected temperature=%s; falling back to %s for this process.",
-                self.model_name,
-                temperature,
-                FALLBACK_TEMPERATURE,
-            )
-            _MODEL_TEMPERATURES[cache_key] = FALLBACK_TEMPERATURE
-            llm_response = completion(
-                model=self.model_name,
-                messages=llm_messages,
-                api_key=self.primary_api_key,
-                timeout=timeout,
-                temperature=FALLBACK_TEMPERATURE,
-                **additional_kwargs,
-            )
+        if cache_key in _MODEL_TEMPERATURES:
+            attempts: list[float | None] = [_MODEL_TEMPERATURES[cache_key]]
+        else:
+            attempts = [self.temperature, FALLBACK_TEMPERATURE, OMIT_TEMPERATURE]
 
-        return llm_response.choices[0].message.content.strip()
+        for index, temperature in enumerate(attempts):
+            call_kwargs = dict(additional_kwargs)
+            if temperature is not OMIT_TEMPERATURE:
+                call_kwargs["temperature"] = temperature
+            try:
+                llm_response = completion(
+                    model=self.model_name,
+                    messages=llm_messages,
+                    api_key=self.primary_api_key,
+                    timeout=timeout,
+                    **call_kwargs,
+                )
+            except _TEMPERATURE_REJECTION_ERRORS as error:
+                is_last_attempt = index == len(attempts) - 1
+                if is_last_attempt or "temperature" not in str(error).lower():
+                    raise
+                logger.info(
+                    "%s rejected temperature=%s; trying the next option.",
+                    self.model_name,
+                    temperature,
+                )
+                continue
+
+            _MODEL_TEMPERATURES[cache_key] = temperature
+            return llm_response.choices[0].message.content.strip()
+
+        # Unreachable: the final attempt either returns or re-raises.
+        msg = f"temperature negotiation exhausted for {self.model_name}"
+        raise RuntimeError(msg)
 
     def _translate_plain_text_unit(
         self,

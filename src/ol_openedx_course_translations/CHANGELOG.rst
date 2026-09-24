@@ -9,3 +9,16 @@ Change Log
 
    This project adheres to Semantic Versioning (https://semver.org/).
 .. There should always be an "Unreleased" section for changes pending release.
+
+[0.10.1] - 2026-09-24
+---------------------
+
+Fixed
+~~~~~
+- ``LLMProvider._call_llm`` can now send a request with no ``temperature`` at
+  all. Models that removed the parameter rather than restricting its values
+  (Claude Opus 5, Sonnet 5, Opus 4.8/4.7) rejected both the requested
+  temperature and the 1.0 fallback, so every call to them failed. Whichever
+  option a model accepts — including sending none — is memoized per (model,
+  requested temperature), so the probing is paid once per process rather than
+  on every request.
