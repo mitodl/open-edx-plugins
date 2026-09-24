@@ -375,7 +375,9 @@ silent one.
 
 Results are stored in ``TranslationQualityRun``, ``TranslationQualityCandidate``
 and ``TranslationQualityScore``, viewable read-only in the Django admin: the run
-page lists every candidate, its judge scores and the standings.
+page lists every candidate, its judge scores and the standings. A judge dropped
+from the scoring pass is recorded on the run in ``excluded_judges`` together
+with the reason, so a run that rests on fewer judges says so months later.
 
 **The benchmark unit**
 

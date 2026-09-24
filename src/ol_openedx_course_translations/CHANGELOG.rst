@@ -26,7 +26,10 @@ Added
   majority of first-place votes agree — at most one vote per judge, measured
   against the judges asked to rank. Results are stored in
   ``TranslationQualityRun``, ``TranslationQualityCandidate`` and
-  ``TranslationQualityScore``, and readable in the Django admin.
+  ``TranslationQualityScore``, and readable in the Django admin. A judge
+  dropped from the scoring pass is recorded on the run with the reason, so a
+  stored run says why it rests on fewer judges rather than leaving it to be
+  inferred from missing rows.
 - The report counts translation units a provider handed back identical to the
   source, so a partially translated document can be recognised as such rather
   than read as the model's judgement. Diagnostic only: it is not part of the

@@ -46,6 +46,12 @@ class Migration(migrations.Migration):
                     "judges_arg",
                     models.TextField(help_text="Resolved judge roster actually used"),
                 ),
+                (
+                    "excluded_judges",
+                    models.TextField(
+                        blank=True, help_text="Judges dropped from scoring, and why"
+                    ),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
             ],

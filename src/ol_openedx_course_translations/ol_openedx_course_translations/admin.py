@@ -92,6 +92,7 @@ class TranslationQualityRunAdmin(admin.ModelAdmin):
         "benchmark_fixture",
         "translators_arg",
         "judges_arg",
+        "excluded_judges",
         "created_at",
         "updated_at",
         "report",

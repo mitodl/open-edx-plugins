@@ -848,6 +848,10 @@ def test_a_judge_that_fails_on_one_candidate_keeps_none_of_its_rows():
     ).exists()
     assert TranslationQualityScore.objects.filter(judge=WINNER).exists()
     assert "gemini/gemini-test dropped" in output
+    # The stored run records why, not merely the absence of its scores.
+    stored = TranslationQualityRun.objects.get().excluded_judges
+    assert stored.startswith("gemini/gemini-test:")
+    assert "unparseable on this candidate" in stored
 
 
 @pytest.mark.django_db

@@ -91,7 +91,9 @@ class ScoringPass:
 
     overalls: dict[str, dict[Candidate, float]]
     ratings: dict[tuple[str, Candidate], Rating]
-    excluded_judges: tuple[str, ...]
+    # judge -> why it was dropped, kept so a stored run records the reason and
+    # not merely the absence of its scores.
+    excluded_judges: dict[str, str]
 
 
 @dataclass(frozen=True)
@@ -559,7 +561,7 @@ class Command(BaseCommand):
             rating = result["value"]
             overalls.setdefault(judge, {})[key] = average_overall(rating.scores)
             ratings[(judge, key)] = rating
-        return ScoringPass(overalls, ratings, tuple(sorted(reasons)))
+        return ScoringPass(overalls, ratings, dict(sorted(reasons.items())))
 
     def _scoring_job(
         self, judge: str, arm: Arm, target_language: str, benchmark: Benchmark
@@ -579,7 +581,7 @@ class Command(BaseCommand):
         shortlist,
         arms: dict[Candidate, Arm],
         judges: list[str],
-        excluded_judges: tuple[str, ...],
+        excluded_judges: dict[str, str],
         target_language: str,
         benchmark: Benchmark,
     ) -> RankingPass:
@@ -677,6 +679,10 @@ class Command(BaseCommand):
             benchmark_fixture=BENCHMARK_PATH.name,
             translators_arg=",".join(translators),
             judges_arg=",".join(judges),
+            excluded_judges="\n".join(
+                f"{judge}: {reason}"
+                for judge, reason in scoring.excluded_judges.items()
+            ),
         )
 
         # bulk_create does not populate primary keys on MySQL, and the scores
