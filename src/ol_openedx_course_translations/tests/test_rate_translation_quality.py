@@ -948,3 +948,27 @@ def test_a_partial_translation_is_visible_in_the_diagnostic_column():
     assert partial
     # Two of the fixture's three units came back untouched.
     assert all(line.split()[-1] == "2" for line in partial)
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "_benchmark")
+def test_an_expected_arm_failure_is_logged_without_a_traceback(caplog):
+    """
+    A stack trace per rejected arm buries the report that summarises them.
+
+    Only a bug-like exception earns a traceback; the arm gates raise
+    RuntimeError and the report already names each one.
+    """
+    with caplog.at_level("WARNING"):
+        _run(
+            modes={"gemini/gemini-test": "validator_prose"},
+            translators="openai,gemini",
+            judges="openai",
+        )
+
+    job_failures = [
+        record for record in caplog.records if record.msg.startswith("job %s failed")
+    ]
+
+    assert job_failures
+    assert all(record.exc_info is None for record in job_failures)

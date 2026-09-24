@@ -56,6 +56,12 @@ BENCHMARK_PATH = (
 # Rough characters per token, for the pre-flight size estimate only.
 CHARS_PER_TOKEN = 4
 
+# Exception types that mean the code is wrong, rather than the run hitting
+# something it already reports. Only these get a traceback: an arm gate raising
+# RuntimeError, or a judge reply the parser rejects, is summarised in one line
+# by the report itself, and a stack trace per rejected arm buries it.
+BUG_LIKE_ERRORS = (AttributeError, IndexError, KeyError, NameError, TypeError)
+
 
 @dataclass(frozen=True)
 class Benchmark:
@@ -352,10 +358,13 @@ class Command(BaseCommand):
                 try:
                     results.append((key, {"value": work(), "error": None}))
                 except Exception as error:
-                    # Logged with a traceback because this catches genuine bugs
-                    # as well as provider failures, and the two read alike in
-                    # the summary line.
-                    logger.exception("job %s failed", key)
+                    # This catches genuine bugs as well as provider failures,
+                    # and the two read alike in the summary line, so the
+                    # traceback is what separates them.
+                    if isinstance(error, BUG_LIKE_ERRORS):
+                        logger.exception("job %s failed", key)
+                    else:
+                        logger.warning("job %s failed: %s", key, error)
                     results.append(
                         (
                             key,
@@ -730,12 +739,13 @@ class Command(BaseCommand):
     def _report(self, rows, arms, scoring: ScoringPass, ranking: RankingPass) -> None:
         """Print the standings, the comparative pass and the verdict."""
         width = max(len(str(row.candidate)) for row in rows)
-        self.stdout.write("\n" + "=" * (width + 54))
-        self.stdout.write(
+        header = (
             f"{'candidate'.ljust(width)}  mean rank  mean score  spread  "
             f"judges  unchanged"
         )
-        self.stdout.write("-" * (width + 54))
+        self.stdout.write("\n" + "=" * len(header))
+        self.stdout.write(header)
+        self.stdout.write("-" * len(header))
         for row in rows:
             self.stdout.write(
                 f"{str(row.candidate).ljust(width)}  "
