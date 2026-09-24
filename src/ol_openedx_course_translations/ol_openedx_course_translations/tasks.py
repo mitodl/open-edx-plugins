@@ -18,6 +18,7 @@ from ol_openedx_course_translations.utils.course_translations import (
     apply_format_attribute_mapping,
     get_srt_output_filename,
     get_translation_provider,
+    looks_like_markup,
     translate_policy_fields,
     update_video_xml_complete,
 )
@@ -70,16 +71,6 @@ def _parse_marker_wrapped_translation(raw_text: str) -> str | None:
         return match_ci.group(1).strip()
 
     return None
-
-
-def _looks_like_markup(value: str) -> bool:
-    """
-    Heuristic to determine if a string looks like markup (XML/HTML).
-    """
-    if not value:
-        return False
-    # Require at least one tag-like token; avoid accepting plain prose
-    return bool(re.search(r"</?[\w:-]+(?:\s|>|/)", value))
 
 
 @shared_task(
@@ -238,7 +229,7 @@ def translate_file_task(  # noqa: PLR0913, PLR0917, PLR0912, C901
 
             if validated_content is None:
                 pass
-            elif _looks_like_markup(validated_content):
+            elif looks_like_markup(validated_content):
                 translated_content = validated_content
             else:
                 msg = (
@@ -408,7 +399,7 @@ def translate_info_updates_task(  # noqa: PLR0913, PLR0917, C901
                         str(e),
                     )
 
-                if validated_content and _looks_like_markup(validated_content):
+                if validated_content and looks_like_markup(validated_content):
                     translated_content = validated_content
                 elif validated_content is not None:
                     logger.warning(

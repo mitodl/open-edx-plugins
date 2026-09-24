@@ -1,7 +1,9 @@
 """LLM-based translation providers."""
 
+import json
 import logging
 import re
+import string
 from abc import abstractmethod
 from collections import OrderedDict
 from pathlib import Path
@@ -74,6 +76,106 @@ _MODEL_TEMPERATURES: dict[tuple[str, float], float | None] = {}
 # litellm-supported model gets the same fallback treatment without us
 # maintaining a list of which models have a temperature floor.
 _TEMPERATURE_REJECTION_ERRORS = (UnsupportedParamsError, BadRequestError)
+
+
+# Quality benchmarking: judges score each criterion on this scale, and rank
+# shortlisted candidates against each other. See CONTEXT.md for the vocabulary.
+RATING_CRITERIA = ("accuracy", "fluency", "terminology")
+MIN_RATING = 1
+MAX_RATING = 10
+MAX_JUSTIFICATION_CHARS = 300
+COMPARATIVE_LABELS = string.ascii_uppercase
+
+
+def extract_json_object(text: str) -> str:
+    """
+    Pull the JSON object out of a judge reply.
+
+    Tolerates what models actually emit around it: the response markers, a
+    ```json fence, or a sentence either side.
+    """
+    start = text.find(TRANSLATION_MARKER_START)
+    end = text.find(TRANSLATION_MARKER_END)
+    if start != -1 and end != -1 and start < end:
+        text = text[start + len(TRANSLATION_MARKER_START) : end]
+
+    first, last = text.find("{"), text.rfind("}")
+    if first == -1 or last <= first:
+        msg = "no JSON object in judge response"
+        raise ValueError(msg)
+    return text[first : last + 1]
+
+
+def _load_json_object(raw: str) -> dict:
+    try:
+        parsed = json.loads(extract_json_object(raw))
+    except json.JSONDecodeError as error:
+        msg = f"unparseable judge response: {error}"
+        raise ValueError(msg) from error
+    if not isinstance(parsed, dict):
+        msg = "judge response is not a JSON object"
+        raise ValueError(msg)  # noqa: TRY004 — bad data, not a caller type error
+    return parsed
+
+
+def _require_int(value: Any, field: str, low: int, high: int) -> int:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or value != int(value)
+    ):
+        msg = f"{field}={value!r} is not an integer"
+        raise ValueError(msg)
+    if not low <= int(value) <= high:
+        msg = f"{field}={value!r} is outside {low}-{high}"
+        raise ValueError(msg)
+    return int(value)
+
+
+def parse_rating_response(raw: str) -> dict[str, Any]:
+    """
+    Read one judge's scores for a single candidate.
+
+    Raises ValueError on anything that cannot be trusted, so the caller can
+    drop that rating rather than average a malformed one.
+    """
+    parsed = _load_json_object(raw)
+    scores = {
+        criterion: _require_int(
+            parsed.get(criterion), criterion, MIN_RATING, MAX_RATING
+        )
+        for criterion in RATING_CRITERIA
+    }
+    justification = str(parsed.get("justification", ""))[:MAX_JUSTIFICATION_CHARS]
+    return {"scores": scores, "justification": justification}
+
+
+def parse_ranking_response(raw: str, labels: list[str]) -> dict[str, int]:
+    """
+    Read one judge's ranking of the shortlisted candidates.
+
+    Every label sent must come back exactly once, and no others: a judge that
+    invented a label did not understand the comparison, so the whole reply is
+    rejected rather than partially used.
+    """
+    ranks = _load_json_object(raw).get("ranks")
+    if not isinstance(ranks, dict):
+        msg = "judge response has no 'ranks' object"
+        raise ValueError(msg)  # noqa: TRY004 — bad data, not a caller type error
+
+    unknown = sorted(set(ranks) - set(labels))
+    if unknown:
+        msg = f"ranks for unknown label(s) {unknown} (sent: {labels})"
+        raise ValueError(msg)
+    missing = [label for label in labels if label not in ranks]
+    if missing:
+        msg = f"no rank for label(s) {missing}"
+        raise ValueError(msg)
+
+    return {
+        label: _require_int(ranks[label], f"rank[{label}]", 1, len(labels))
+        for label in labels
+    }
 
 
 class LLMProvider(TranslationProvider):
@@ -923,6 +1025,158 @@ class LLMProvider(TranslationProvider):
         )
         return self._parse_text_response(llm_response)
 
+    def _get_rating_system_prompt(
+        self, source_language: str, target_language: str
+    ) -> str:
+        target_display = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+            target_language, target_language
+        )
+        source_display = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+            source_language, source_language
+        )
+        example = (
+            '{"accuracy": 8, "fluency": 7, "terminology": 9, '
+            '"justification": "one short sentence"}'
+        )
+        return (
+            "You are an impartial expert translation evaluator.\n\n"
+            f"You are given a SOURCE document in {source_display} "
+            f"({source_language}) and one candidate translation of it into "
+            f"{target_display} ({target_language}).\n\n"
+            "Score the translation on each criterion as an integer from "
+            f"{MIN_RATING} to {MAX_RATING}:\n"
+            "- accuracy: meaning preserved; nothing added, dropped or mistranslated\n"
+            "- fluency: grammar, register and phrasing natural to a native reader\n"
+            "- terminology: technical terms, proper nouns, brand names and acronyms "
+            "handled correctly and consistently\n\n"
+            "Use the whole scale:\n"
+            "10 = publication ready; a native subject expert would ship it unchanged\n"
+            " 8 = one or two minor wording choices a reviewer might change; no errors\n"
+            " 6 = understandable and correct, but reads as translated\n"
+            " 4 = a real error: a mistranslated term, dropped nuance, or wrong register\n"
+            " 2 = multiple errors, or passages a learner would misread\n"
+            " 1 = unusable\n\n"
+            "Ignore markup entirely: tags, attribute names, indentation and "
+            "whitespace are not part of the translation being judged.\n\n"
+            "OUTPUT FORMAT (exactly):\n"
+            f"{TRANSLATION_MARKER_START}\n"
+            f"{example}\n"
+            f"{TRANSLATION_MARKER_END}\n\n"
+            "RULES:\n"
+            "1. Output ONLY the JSON object between the markers. "
+            "No prose, no code fences.\n"
+            "2. All four fields are required. The three scores are integers from "
+            f"{MIN_RATING} to {MAX_RATING}.\n"
+            "3. justification is ONE English sentence, under "
+            f"{MAX_JUSTIFICATION_CHARS} characters."
+        )
+
+    def rate_translation(
+        self,
+        *,
+        source_language: str,
+        target_language: str,
+        source_content: str,
+        translated_content: str,
+    ) -> dict[str, Any]:
+        """
+        Score one candidate translation on its own, seeing no other candidate.
+
+        Returns ``{"scores": {...}, "justification": str, "error": str | None}``.
+        ``scores`` is empty and ``error`` set when the reply cannot be trusted;
+        API and network errors propagate to the caller.
+        """
+        system_prompt = self._get_rating_system_prompt(source_language, target_language)
+        user_payload = (
+            f"SOURCE DOCUMENT ({source_language}):\n{source_content}\n\n"
+            f"CANDIDATE TRANSLATION ({target_language}):\n{translated_content}\n"
+        )
+        raw_response = self._call_llm(system_prompt, user_payload)
+        try:
+            rating = parse_rating_response(raw_response)
+        except ValueError as error:
+            logger.warning("%s returned an unusable rating: %s", self.model_name, error)
+            return {"scores": {}, "justification": "", "error": str(error)}
+        return {**rating, "error": None}
+
+    def _get_ranking_system_prompt(
+        self, source_language: str, target_language: str, labels: list[str]
+    ) -> str:
+        target_display = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+            target_language, target_language
+        )
+        source_display = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+            source_language, source_language
+        )
+        label_list = ", ".join(labels)
+        example = (
+            '{"ranks": {'
+            + ", ".join(
+                f'"{label}": {position}'
+                for position, label in enumerate(labels, start=1)
+            )
+            + "}}"
+        )
+        return (
+            "You are an impartial expert translation evaluator.\n\n"
+            f"You are given a SOURCE document in {source_display} "
+            f"({source_language}) and {len(labels)} candidate translations of it "
+            f"into {target_display} ({target_language}), labelled {label_list}. "
+            "The labels are anonymous and say nothing about which system produced "
+            "a translation. Judge only the text in front of you.\n\n"
+            "Rank the candidates against each other: rank 1 is the best overall "
+            f"translation, rank {len(labels)} the worst.\n\n"
+            "Prefer the translation a native subject expert would ship with the "
+            "fewest changes. Ignore markup entirely — tags, attribute names, "
+            "indentation and whitespace are identical across candidates and are "
+            "not part of what is being judged.\n\n"
+            "OUTPUT FORMAT (exactly):\n"
+            f"{TRANSLATION_MARKER_START}\n"
+            f"{example}\n"
+            f"{TRANSLATION_MARKER_END}\n\n"
+            "RULES:\n"
+            "1. Output ONLY the JSON object between the markers. "
+            "No prose, no code fences.\n"
+            f"2. Include exactly one entry per label you were given: {label_list}.\n"
+            f"3. Ranks are whole numbers from 1 to {len(labels)}. Give two "
+            "candidates the same rank only if they are genuinely "
+            "indistinguishable."
+        )
+
+    def rank_translations(
+        self,
+        *,
+        source_language: str,
+        target_language: str,
+        source_content: str,
+        candidates: dict[str, str],
+    ) -> dict[str, Any]:
+        """
+        Rank several candidate translations seen side by side, in one call.
+
+        ``candidates`` maps an anonymized label to that candidate's translation.
+        Returns ``{"ranks": {label: position}, "error": str | None}``; ``ranks``
+        is empty and ``error`` set when the reply cannot be trusted.
+        """
+        labels = list(candidates)
+        system_prompt = self._get_ranking_system_prompt(
+            source_language, target_language, labels
+        )
+        payload = [f"SOURCE DOCUMENT ({source_language}):\n{source_content}"]
+        payload += [
+            f"CANDIDATE {label} ({target_language}):\n{text}"
+            for label, text in candidates.items()
+        ]
+        raw_response = self._call_llm(system_prompt, "\n\n".join(payload))
+        try:
+            ranks = parse_ranking_response(raw_response, labels)
+        except ValueError as error:
+            logger.warning(
+                "%s returned an unusable ranking: %s", self.model_name, error
+            )
+            return {"ranks": {}, "error": str(error)}
+        return {"ranks": ranks, "error": None}
+
     def translate_grading_types(
         self,
         terms: list[str],
@@ -1352,6 +1606,100 @@ class MistralProvider(LLMProvider):
             "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
             "9. Even if you merge fragmented sentences in translation, maintain 1:1 "
             "ID mapping by adding blank translation for the merged fragment.\n"
+        )
+
+        if glossary_directory:
+            system_prompt = self._load_glossary_into_prompt(
+                system_prompt,
+                glossary_directory,
+                target_language,
+                subtitle_list=subtitle_list,
+            )
+        return system_prompt
+
+
+class AnthropicProvider(LLMProvider):
+    """Anthropic translation provider."""
+
+    def __init__(  # noqa: PLR0913, PLR0917
+        self,
+        primary_api_key: str,
+        model_name: str | None = None,
+        srt_batch_size: int = 50,
+        litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
+        max_chunk_retries: int = MAX_CHUNK_RETRIES,
+        temperature: float = TRANSLATION_TEMPERATURE,
+    ):
+        """
+        Initialize Anthropic provider.
+
+        Args:
+            primary_api_key: Anthropic API key
+            model_name: Anthropic model name (e.g., "claude-opus-5")
+
+        Raises:
+            ValueError: If model_name is not provided
+        """
+        if not model_name:
+            msg = "model_name is required for AnthropicProvider"
+            raise ValueError(msg)
+        super().__init__(
+            primary_api_key,
+            f"anthropic/{model_name}",
+            srt_batch_size=srt_batch_size,
+            litellm_timeout=litellm_timeout,
+            max_chunk_retries=max_chunk_retries,
+            temperature=temperature,
+        )
+
+    def _get_subtitle_system_prompt(
+        self,
+        target_language: str,
+        glossary_directory: str | None = None,
+        *,
+        subtitle_list: list[srt.Subtitle] | None = None,
+    ) -> str:
+        """
+        Generate system prompt for subtitle translation.
+
+        Includes only glossary terms that actually appear in the subtitle content
+        (if subtitle_list is provided).
+
+        Args:
+            target_language: Target language code
+            glossary_directory: Path to glossary directory (optional)
+            subtitle_list: List of subtitle objects (optional)
+
+        Returns:
+            System prompt string for subtitle translation
+        """
+        target_language_display_name = (
+            settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES.get(
+                target_language, target_language
+            )
+        )
+
+        # Duplicates the OpenAI/Gemini prompt verbatim; hoisting the shared copy
+        # into LLMProvider is deliberately left to a separate change.
+        system_prompt = (
+            f"You are a professional subtitle translator. "
+            f"Translate English subtitles to {target_language_display_name} ({target_language}).\n\n"
+            "INPUT FORMAT:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: \n\n"
+            "OUTPUT FORMAT - Fill in each Target line:\n"
+            "Source [ID]: <srt_text>English text</srt_text>\n"
+            "Target [ID]: <srt_text>Translated text</srt_text>\n\n"
+            "CRITICAL RULES:\n"
+            "1. Fill in EVERY Target [ID] line with the translation.\n"
+            "2. Wrap ALL translations in <srt_text></srt_text> tags.\n"
+            "3. Each Target must translate ONLY its corresponding Source.\n"
+            "4. Do NOT merge or shift content between IDs.\n"
+            "5. If Source is a single word (e.g., 'Perfect.'), "
+            "Target must be just that word translated.\n"
+            "6. If Source is a sentence fragment, Target must be a fragment.\n"
+            "7. Keep proper nouns, brand names, and acronyms unchanged.\n"
+            "8. Maintain 1:1 mapping - every Source gets exactly one Target.\n"
         )
 
         if glossary_directory:

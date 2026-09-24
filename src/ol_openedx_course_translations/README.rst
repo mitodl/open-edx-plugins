@@ -68,6 +68,7 @@ The plugin supports multiple translation providers:
 - OpenAI (GPT models)
 - Gemini (Google)
 - Mistral
+- Anthropic (Claude models)
 
 **Configuration**
 
@@ -88,6 +89,10 @@ All providers are configured through the ``TRANSLATIONS_PROVIDERS`` dictionary i
         "mistral": {
             "api_key": "<YOUR_MISTRAL_API_KEY>",
             "default_model": "mistral-large-latest",
+        },
+        "anthropic": {
+            "api_key": "<YOUR_ANTHROPIC_API_KEY>",
+            "default_model": "claude-opus-5",
         },
     }
 
@@ -297,6 +302,75 @@ If subtitle translation fails after all attempts:
 - The translated course directory will be automatically cleaned up
 - An error message will indicate which subtitle file caused the failure
 - No partial or corrupted translation files will be left behind
+
+Benchmarking Translation Quality
+================================
+
+``rate_translation_quality`` answers "which provider should translate this
+language, and is it worth running a validator over the result?" with evidence
+rather than opinion. It translates one fixed benchmark unit with every
+translator, edits each translation with every validator, has every judge score
+the results, and reports a winner.
+
+.. code-block:: bash
+
+    ./manage.py cms rate_translation_quality \
+        --target-language hi \
+        --translators "openai/gpt-5.2,gemini/gemini-3-pro-preview,mistral/mistral-large-latest" \
+        --judges "openai/gpt-5.2,anthropic/claude-opus-5"
+
+**Arguments**
+
+- ``--target-language`` (required): must be in ``COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES``.
+- ``--translators``: comma-separated ``PROVIDER`` or ``PROVIDER/MODEL`` specs. The same
+  roster is used as the validator set, so a run covers every translator/validator
+  pairing plus an unvalidated arm for each translator. Defaults to every provider
+  with an ``api_key``.
+- ``--judges``: comma-separated specs that score the candidates. Defaults to every
+  provider with an ``api_key``. A provider may be a translator and a judge at once.
+- ``--yes``: skip the spend confirmation.
+
+Any roster entry whose provider has no ``api_key`` is skipped with a note rather
+than failing the run.
+
+**What a run does**
+
+1. Translates the benchmark once per translator, reusing that translation across
+   all of its validator arms so the arms differ only by validator.
+2. Runs each validator over each translation. A validator whose output is no
+   longer markup is reported and its arm dropped, never scored.
+3. Has every judge score every candidate on accuracy, fluency and terminology
+   from 1 to 10, one candidate per call.
+4. Orders candidates by **mean rank**: each judge's own scores are sorted into
+   positions, and those positions are averaged. This gives every judge one equal
+   vote regardless of how wide a range it uses. A judge whose reply cannot be
+   parsed is dropped from the whole run, so every candidate is ranked over the
+   same set of judges.
+5. Sends the top five to a second pass where each judge ranks them side by side,
+   anonymized and shuffled per judge.
+6. Names a winner only when the best mean rank and a majority of first-place
+   votes agree; otherwise it reports both and says there is no clear winner.
+
+**Reading the output**
+
+The table lists every candidate with its mean rank, mean score and ``spread``
+(the gap between its best and worst position across judges). A large spread
+means the judges disagreed about that candidate, and is worth more attention
+than a small difference in mean rank.
+
+Results are stored in ``TranslationQualityRun``, ``TranslationQualityCandidate``
+and ``TranslationQualityScore``, viewable read-only in the Django admin: the run
+page lists every candidate, its judge scores and the standings.
+
+**The benchmark unit**
+
+Every run translates ``ol_openedx_course_translations/benchmarks/benchmark_course_content.xml``.
+It is deliberately fixed: scores are only comparable across languages and over
+time because the input never changes. Replacing it invalidates comparisons with
+earlier runs.
+
+The methodology, and the alternatives that were rejected, are recorded in
+``docs/adr/0001-translation-quality-benchmark-methodology.md``.
 
 License
 *******

@@ -10,6 +10,21 @@ Change Log
    This project adheres to Semantic Versioning (https://semver.org/).
 .. There should always be an "Unreleased" section for changes pending release.
 
+[0.11.0] - 2026-09-24
+---------------------
+
+Added
+~~~~~
+- ``rate_translation_quality`` management command. Translates a fixed benchmark
+  unit with every configured translator, edits each translation with every
+  validator (keeping an unvalidated arm), has every judge score the results,
+  and reports which translator/validator pairing wins. Results are stored in
+  ``TranslationQualityRun``, ``TranslationQualityCandidate`` and
+  ``TranslationQualityScore``, and readable in the Django admin.
+- ``AnthropicProvider``, so Claude models can be used as translators,
+  validators or judges. Configure an ``"anthropic"`` entry in
+  ``TRANSLATIONS_PROVIDERS``.
+
 [0.10.1] - 2026-09-24
 ---------------------
 

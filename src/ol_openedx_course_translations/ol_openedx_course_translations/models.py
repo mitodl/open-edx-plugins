@@ -55,3 +55,125 @@ class CourseTranslationLog(models.Model):
             f"{self.source_course_id} "
             f"({self.source_course_language} → {self.target_course_language})"
         )
+
+
+class TranslationQualityRun(models.Model):
+    """One invocation of the rate_translation_quality command for a language."""
+
+    target_language = models.CharField(
+        max_length=10,
+        db_index=True,
+        help_text="Target language code for this run",
+    )
+    benchmark_fixture = models.CharField(
+        max_length=255,
+        help_text="Benchmark file this run translated",
+    )
+    translators_arg = models.TextField(
+        help_text="--translators roster as supplied",
+    )
+    judges_arg = models.TextField(
+        help_text="--judges roster as supplied",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        """Meta options for TranslationQualityRun."""
+
+        app_label = "ol_openedx_course_translations"
+
+    def __str__(self):
+        """Return a string representation of the run."""
+        return f"Translation quality run {self.pk} ({self.target_language})"
+
+
+class TranslationQualityCandidate(models.Model):
+    """One translator/validator pairing under test within a run."""
+
+    run = models.ForeignKey(
+        TranslationQualityRun,
+        on_delete=models.CASCADE,
+        related_name="candidates",
+    )
+    translator = models.CharField(
+        max_length=200,
+        help_text="Provider/model that translated",
+    )
+    validator = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Provider/model that reviewed; blank if none",
+    )
+    error = models.TextField(
+        blank=True,
+        help_text="Why this candidate was excluded, if it was",
+    )
+
+    class Meta:
+        """Meta options for TranslationQualityCandidate."""
+
+        app_label = "ol_openedx_course_translations"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run", "translator", "validator"],
+                name="unique_candidate_per_run",
+            )
+        ]
+
+    def __str__(self):
+        """Return a string representation of the candidate."""
+        return f"{self.translator} → {self.validator or 'none'}"
+
+
+class TranslationQualityScore(models.Model):
+    """One judge's assessment of one candidate."""
+
+    candidate = models.ForeignKey(
+        TranslationQualityCandidate,
+        on_delete=models.CASCADE,
+        related_name="scores",
+    )
+    judge = models.CharField(
+        max_length=200,
+        help_text="Provider/model that scored this candidate",
+    )
+    accuracy = models.PositiveSmallIntegerField(
+        help_text="Meaning preserved, 1-10",
+    )
+    fluency = models.PositiveSmallIntegerField(
+        help_text="Reads naturally to a native reader, 1-10",
+    )
+    terminology = models.PositiveSmallIntegerField(
+        help_text="Terms and proper nouns handled, 1-10",
+    )
+    justification = models.TextField(
+        blank=True,
+        help_text="One-sentence rationale the judge gave",
+    )
+    comparative_rank = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Rank within the shortlist; null if not shortlisted",
+    )
+    comparative_label = models.CharField(
+        max_length=2,
+        blank=True,
+        help_text="Anonymized label this judge saw while ranking",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        """Meta options for TranslationQualityScore."""
+
+        app_label = "ol_openedx_course_translations"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["candidate", "judge"],
+                name="unique_score_per_candidate_and_judge",
+            )
+        ]
+
+    def __str__(self):
+        """Return a string representation of the score."""
+        return f"{self.judge} on {self.candidate}"

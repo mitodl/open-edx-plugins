@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-course-translations"
-version = "0.10.1"
+version = "0.11.0"
 description = "An Open edX plugin to translate courses"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -31,6 +31,7 @@ build-backend = "hatchling.build"
 packages = ["ol_openedx_course_translations"]
 include = [
   "ol_openedx_course_translations/**/*.py",
+  "ol_openedx_course_translations/**/*.xml",
 ]
 
 [tool.hatch.build.targets.sdist]

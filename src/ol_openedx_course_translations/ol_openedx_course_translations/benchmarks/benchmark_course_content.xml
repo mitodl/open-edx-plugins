@@ -1,0 +1,139 @@
+<!--
+  Benchmark unit for `rate_translation_quality`.
+
+  PLACEHOLDER: replace with a real course unit's exported OLX before relying on
+  any scores from this benchmark, and record the source course and its licence
+  here. Every run translates this file byte for byte, so replacing it makes
+  scores incomparable with earlier runs.
+
+  Shaped to exercise the translation pipeline the way real content does:
+    - more than 6000 characters, so `_batch_translate_units` chunks it
+    - display_name / alt / title attributes, which are translatable
+    - href / url_name / filename attributes, which must survive untouched
+    - optioninput options= and correct=, translatable only on that element
+    - course terminology, an acronym and a brand name for the terminology score
+-->
+<problem display_name="Heat Transfer in Building Envelopes" max_attempts="3" weight="10">
+  <p>
+    Thermal bridging occurs wherever a material of high thermal conductivity
+    penetrates the insulated layer of a building envelope. A steel stud crossing
+    a wall cavity, a concrete slab edge meeting an exterior wall, or a balcony
+    cantilevered through the insulation line all create a preferential path for
+    heat flow. The consequence is measurable: the effective R-value of the
+    assembly drops well below the nominal value printed on the insulation
+    packaging, and the interior surface temperature at the bridge falls closer
+    to the outdoor temperature than the designer intended.
+  </p>
+  <p>
+    Two failure modes follow. The first is energy loss, which appears directly
+    in heating and cooling bills. The second, and more damaging, is surface
+    condensation: when the interior surface at the bridge drops below the dew
+    point of the indoor air, moisture accumulates, and sustained moisture in a
+    wall assembly leads to mould growth and eventual material degradation. A
+    designer who accounts only for the first has solved the cheaper half of the
+    problem.
+  </p>
+  <p>
+    Consider a wall assembly with nominal insulation of R-20, framed with steel
+    studs at 400 mm on centre. The steel conducts roughly 400 times more heat
+    than the mineral wool between the studs, so although the studs occupy a
+    small fraction of the wall area, they carry a disproportionate share of the
+    heat flow. Measurements of such assemblies routinely show effective values
+    near R-11 — barely more than half the nominal figure. Substituting wood
+    studs, which conduct far less, recovers much of the loss. Placing a
+    continuous layer of exterior insulation outboard of the framing recovers
+    more still, because it interrupts every bridge at once rather than treating
+    them one at a time.
+  </p>
+  <ul>
+    <li>Conduction moves heat through solid material in contact.</li>
+    <li>Convection moves heat by the bulk motion of air or water.</li>
+    <li>Radiation moves heat between surfaces with no medium required.</li>
+    <li>A thermal bridge short-circuits the first of these three.</li>
+  </ul>
+  <p>
+    The <a href="https://ocw.mit.edu/">OpenCourseWare</a> reference material for
+    this module includes an infrared survey of a residential building taken on a
+    winter morning. The images below show the exterior wall of the same room
+    photographed before and after a continuous insulation retrofit. Note the
+    bright vertical stripes in the first image, spaced regularly across the
+    facade at the stud locations, and their absence in the second.
+  </p>
+  <img src="/static/thermal_bridge_before.png" alt="Infrared image of an exterior wall showing warm vertical stripes at each steel stud" width="480"/>
+  <img src="/static/thermal_bridge_after.png" alt="The same wall after a continuous exterior insulation retrofit, showing an even surface temperature" width="480"/>
+  <p>
+    An engineer from the American Society of Heating, Refrigerating and
+    Air-Conditioning Engineers (ASHRAE) would describe the retrofit above as
+    moving the assembly from a bridged condition to a continuously insulated
+    one. The distinction matters for code compliance, because prescriptive paths
+    in most energy codes now specify continuous insulation explicitly rather
+    than relying on nominal cavity values alone.
+  </p>
+  <p>
+    Quantifying a bridge begins with the linear thermal transmittance, written
+    as psi and expressed in watts per metre kelvin. Unlike the U-value of a
+    plane assembly, psi describes the additional heat flow attributable to the
+    detail itself, over and above what the adjacent assemblies already lose. A
+    slab edge with a psi of 0.9 W/m·K running the full perimeter of a floor
+    plate contributes more to the building's heat loss than most designers
+    estimate from intuition, and the contribution grows in proportion to the
+    building's form factor.
+  </p>
+  <p>
+    Field verification matters because modelled details and built details
+    diverge. Insulation is compressed where a contractor forced it past a
+    bracket; a membrane is lapped the wrong way at a corner; a service
+    penetration drilled after the fact is never resealed. An infrared survey
+    conducted with a sufficient temperature difference across the envelope, at
+    least ten degrees Celsius, reveals these departures in minutes. The survey
+    is diagnostic rather than quantitative: it tells you where to look, not how
+    much heat is escaping, so it pairs naturally with a blower door test and
+    targeted heat flux measurements.
+  </p>
+  <p>
+    Remediation strategy depends on whether the bridge repeats. Repeating
+    linear bridges, such as studs or joists, are best addressed by adding a
+    continuous layer that crosses all of them. Isolated bridges, such as a
+    single structural column landing on a slab, may justify a bespoke detail: a
+    structural thermal break, a load-bearing insulating block engineered to
+    carry compression while conducting far less than steel or concrete. These
+    components cost considerably more per unit than insulation board, which is
+    why identifying whether a bridge repeats is the first question to answer.
+  </p>
+  <p>
+    Finally, a caution about nominal figures. Marketing literature quotes the
+    R-value of a product in isolation, measured through the material with no
+    fasteners, no framing and no gaps. The number a building actually achieves
+    is the effective R-value of the assembly as built, and the gap between the
+    two is precisely the subject of this unit. A designer who specifies R-20 and
+    delivers R-11 has not made an arithmetic error; they have omitted the
+    bridges from the calculation.
+  </p>
+  <multiplechoiceresponse>
+    <label>Which change to the wall assembly described above will reduce thermal bridging the most?</label>
+    <choicegroup type="MultipleChoice">
+      <choice correct="false">Increasing the depth of the cavity insulation between the existing steel studs.</choice>
+      <choice correct="true">Adding a continuous layer of rigid insulation outboard of the steel framing.</choice>
+      <choice correct="false">Sealing every penetration in the interior vapour barrier with tape.</choice>
+      <choice correct="false">Replacing the interior gypsum board with a thicker, denser panel.</choice>
+    </choicegroup>
+    <solution>
+      <p>
+        Continuous exterior insulation interrupts every bridge at once, which is
+        why it outperforms any change confined to the cavity. Deeper cavity
+        insulation still leaves the studs conducting straight through the
+        assembly, and neither air sealing nor a heavier interior finish changes
+        the conductive path.
+      </p>
+    </solution>
+  </multiplechoiceresponse>
+  <optionresponse>
+    <label>A balcony slab cantilevered straight through an insulated wall is best described as which kind of bridge?</label>
+    <optioninput options="('A repeating linear bridge','An isolated point bridge','A structural cantilever bridge')" correct="A repeating linear bridge"/>
+  </optionresponse>
+  <p>
+    In the next unit you will calculate the effective R-value of a bridged
+    assembly using the isothermal planes method, and compare the result with a
+    two-dimensional finite element simulation of the same detail.
+  </p>
+</problem>

@@ -38,6 +38,10 @@ def apply_common_settings(settings):
     )
     settings.TRANSLATIONS_PROVIDERS = {
         "default_provider": "mistral",
+        "anthropic": {
+            "api_key": "",
+            "default_model": "claude-opus-5",
+        },
         "openai": {
             "api_key": "",
             "default_model": "gpt-5.2",
