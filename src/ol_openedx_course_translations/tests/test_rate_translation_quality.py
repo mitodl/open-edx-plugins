@@ -17,6 +17,9 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from litellm import BadRequestError
 from ol_openedx_course_translations.admin import TranslationQualityRunAdmin
+from ol_openedx_course_translations.management.commands import (
+    rate_translation_quality as benchmark_command,
+)
 from ol_openedx_course_translations.models import (
     TranslationQualityCandidate,
     TranslationQualityRun,
@@ -972,3 +975,21 @@ def test_an_expected_arm_failure_is_logged_without_a_traceback(caplog):
 
     assert job_failures
     assert all(record.exc_info is None for record in job_failures)
+
+
+def test_the_shipped_benchmark_parses_and_has_units():
+    """
+    The fixture the package ships, read through the command's own parser.
+
+    An html block's body is a multi-root fragment, so a benchmark pasted in
+    without its wrapper raises XMLSyntaxError on the first run — after the
+    roster has been resolved but before anything useful happens.
+    """
+    units, elements = benchmark_command.Command._units_and_elements(  # noqa: SLF001
+        benchmark_command.BENCHMARK_PATH.read_text(encoding="utf-8")
+    )
+
+    assert len(units) > 10  # noqa: PLR2004
+    assert elements > 5  # noqa: PLR2004
+    # The display_name attribute is translatable and must be picked up.
+    assert any("Statistical Sommelier" in unit for unit in units)
