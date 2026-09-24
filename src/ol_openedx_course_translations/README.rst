@@ -328,7 +328,7 @@ the results, and reports a winner.
   with an ``api_key``.
 - ``--judges``: comma-separated specs that score the candidates. Defaults to every
   provider with an ``api_key``. A provider may be a translator and a judge at once.
-- ``--yes``: skip the spend confirmation.
+- ``--yes``: skip the run-size confirmation.
 
 A roster entry whose provider has no ``api_key`` is skipped with a note rather than
 failing the run, so a partly configured environment still produces a comparison.
@@ -359,8 +359,9 @@ fatal instead — skipping it would answer a different question than the one ask
 
 **Reading the output**
 
-The table lists every candidate with its mean rank, mean score and ``spread``
-(the gap between its best and worst position across judges). A large spread
+The table lists every scored candidate with its mean rank, mean score, ``spread``
+(the gap between its best and worst position across judges), the number of judges
+behind it, and the ``unchanged`` count below. A large spread
 means the judges disagreed about that candidate, and is worth more attention
 than a small difference in mean rank.
 

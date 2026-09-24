@@ -8,6 +8,7 @@ translator produced it, so a mis-joined label or candidate fails loudly
 instead of producing a plausible leaderboard.
 """
 
+import re
 from io import StringIO
 from unittest import mock
 
@@ -29,6 +30,7 @@ from ol_openedx_course_translations.providers.llm_providers import (
 from ol_openedx_course_translations.utils.quality_report import (
     Candidate,
     CandidateRow,
+    Rating,
     average_overall,
     build_rows,
     pick_winner,
@@ -106,10 +108,8 @@ def test_scores_are_read_from_a_well_formed_reply(judge):
         ),
     )
 
-    assert result == {
-        "scores": {"accuracy": 8, "fluency": 7, "terminology": 9},
-        "justification": "ok",
-    }
+    assert result.scores == {"accuracy": 8, "fluency": 7, "terminology": 9}
+    assert result.justification == "ok"
 
 
 def test_scores_survive_a_fenced_and_chatty_reply(judge):
@@ -122,7 +122,7 @@ def test_scores_survive_a_fenced_and_chatty_reply(judge):
         "Let me know if you need more detail."
     )
 
-    assert _rate(judge, reply)["scores"]["accuracy"] == 6  # noqa: PLR2004
+    assert _rate(judge, reply).scores["accuracy"] == 6  # noqa: PLR2004
 
 
 def test_an_unparseable_reply_is_rejected(judge):
@@ -235,8 +235,8 @@ def test_anthropic_provider_requires_a_model():
 
 
 def test_an_overall_is_the_mean_of_the_criteria():
-    """Pinned against max/min/median, which all differ on this input."""
-    assert average_overall({"accuracy": 9, "fluency": 3, "terminology": 6}) == 6.0  # noqa: PLR2004
+    """Mean 5.0; median is 3 and max is 9, so both are excluded."""
+    assert average_overall({"accuracy": 9, "fluency": 3, "terminology": 3}) == 5.0  # noqa: PLR2004
 
 
 def test_tied_scores_share_a_fractional_position():
@@ -246,6 +246,18 @@ def test_tied_scores_share_a_fractional_position():
 
     assert rows[a].mean_rank == 1.0
     assert rows[b].mean_rank == rows[c].mean_rank == 2.5  # noqa: PLR2004
+
+
+def test_mean_rank_is_a_mean_not_a_best_or_worst():
+    """Positions 1 and 2 average to 1.5; min would be 1.0 and max 2.0."""
+    a, b = Candidate("a"), Candidate("b")
+    rows = {
+        row.candidate: row
+        for row in build_rows({"j1": {a: 9.0, b: 7.0}, "j2": {a: 6.0, b: 8.0}})
+    }
+
+    assert rows[a].mean_rank == rows[b].mean_rank == 1.5  # noqa: PLR2004
+    assert rows[a].spread == 1.0
 
 
 def test_mean_score_and_rank_average_over_the_judges_present():
@@ -260,6 +272,8 @@ def test_mean_score_and_rank_average_over_the_judges_present():
     assert rows[a].mean_score == 7.5  # noqa: PLR2004
     assert rows[a].mean_rank == 1.0
     assert rows[b].judges == 1
+    # Averaged over j1 alone, not over j2 as a zero.
+    assert rows[b].mean_score == 7.0  # noqa: PLR2004
     assert rows[b].mean_rank == 2.0  # noqa: PLR2004
 
 
@@ -346,6 +360,27 @@ def test_a_winner_needs_both_signals_to_agree():
     assert "disagree" in reason
 
 
+def test_no_first_place_vote_is_not_a_winner():
+    """Mean rank alone must not resolve what the second signal never said."""
+    a, b = Candidate("a"), Candidate("b")
+    rows = build_rows({"j1": {a: 9.0, b: 7.0}})
+
+    winner, reason = pick_winner(rows, {"j1": {a: 1, b: 1}}, judges_attempted=1)
+
+    assert winner is None
+    assert "single best" in reason
+
+
+def test_no_comparative_pass_is_not_a_winner():
+    a, b = Candidate("a"), Candidate("b")
+    rows = build_rows({"j1": {a: 9.0, b: 7.0}})
+
+    winner, reason = pick_winner(rows, {}, judges_attempted=0)
+
+    assert winner is None
+    assert "did not run" in reason
+
+
 def test_a_tied_lead_is_not_a_winner():
     a, b = Candidate("a"), Candidate("b")
     rows = build_rows({"j1": {a: 9.0, b: 9.0}})
@@ -377,6 +412,9 @@ class FakeProvider:
             raise RuntimeError(msg)
         if self.mode == "translate_echoes":
             return source_content
+        if self.mode == "translate_partial":
+            # Only the display_name is translated; both paragraphs stay English.
+            return source_content.replace("Heat Transfer", f"CALOR[{self.spec}]")
         return (
             source_content.replace("Conduction moves", f"CONDUCCION[{self.spec}]")
             .replace("Radiation needs", f"RADIACION[{self.spec}]")
@@ -394,15 +432,22 @@ class FakeProvider:
         if self.mode == "score_rejects":
             msg = "unparseable"
             raise ValueError(msg)
+        if (
+            self.mode == "score_rejects_validated"
+            and "CONDUCCION!" in translated_content
+        ):
+            # Fails on the validated arms only, leaving good rows to leak.
+            msg = "unparseable on this candidate"
+            raise ValueError(msg)
         base = sum(translated_content.encode()) % 5
-        return {
-            "scores": {
+        return Rating(
+            scores={
                 "accuracy": 5 + base,
                 "fluency": 5 + (base + 1) % 5,
                 "terminology": 5 + (base + 2) % 5,
             },
-            "justification": f"scored by {self.spec}",
-        }
+            justification=f"scored by {self.spec}",
+        )
 
     def rank_translations(self, *, candidates, **_kwargs):
         if self.mode == "rank_rejects":
@@ -615,6 +660,8 @@ def test_a_ranking_failure_costs_only_the_comparative_pass():
     assert {score.judge for score in scores} == {WINNER, "gemini/gemini-test"}
     assert ranked_judges == {WINNER}
     assert "ranking failed" in output
+    # One of two judges ranked, which is not a majority of the two asked.
+    assert "No clear winner" in output
     # The label belongs to a completed ranking only.
     assert (
         not scores.filter(judge="gemini/gemini-test")
@@ -633,6 +680,8 @@ def test_a_repeated_roster_entry_is_collapsed():
 
     assert candidates.count() == 2  # noqa: PLR2004
     assert {candidate.translator for candidate in candidates} == {WINNER}
+    # The dedupe is only observable here and in the pre-flight estimate.
+    assert TranslationQualityRun.objects.get().translators_arg == WINNER
 
 
 @pytest.mark.django_db
@@ -643,9 +692,8 @@ def test_the_default_roster_skips_providers_without_a_key():
     run = TranslationQualityRun.objects.get()
 
     assert run.translators_arg == "openai/gpt-test,gemini/gemini-test"
+    assert run.judges_arg == "openai/gpt-test,gemini/gemini-test"
     assert "skipped translator mistral: no api_key" in output
-    # "default_provider" is a string in that setting, not a provider entry.
-    assert "default_provider" not in run.translators_arg
 
 
 @pytest.mark.django_db
@@ -698,13 +746,201 @@ def test_the_admin_report_ranks_the_same_way_the_command_does():
     run = TranslationQualityRun.objects.get()
 
     html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
-    rows = [row for row in html.split("<tr>") if "<td>" in row]
-    leader = rows[0]
+    rendered = [row for row in html.split("<tr>") if "<td>" in row]
+
+    expected = build_rows(
+        {
+            score.judge: {
+                Candidate(
+                    other.candidate.translator, other.candidate.validator
+                ): average_overall(
+                    {
+                        "accuracy": other.accuracy,
+                        "fluency": other.fluency,
+                        "terminology": other.terminology,
+                    }
+                )
+                for other in TranslationQualityScore.objects.filter(judge=score.judge)
+            }
+            for score in TranslationQualityScore.objects.all()
+        }
+    )
+
+    # Only scored candidates appear: a broken arm has no scores to aggregate.
+    assert len(rendered) == len(expected)
+    for row, expected_row in zip(rendered, expected, strict=True):
+        assert f"<td>{expected_row.candidate}</td>" in row
+        assert f"<td>{expected_row.mean_rank:.2f}</td>" in row
+        assert f"<td>{expected_row.mean_score:.2f}</td>" in row
+
+
+def _standings(output):
+    """Parse the printed standings table into (candidate, rank, score, judges)."""
+    lines = output.splitlines()
+    start = next(
+        index for index, line in enumerate(lines) if line.startswith("candidate")
+    )
+    rows = []
+    for line in lines[start + 2 :]:
+        if not line.strip() or line.startswith("'unchanged'"):
+            break
+        fields = re.split(r"\s{2,}", line.strip())
+        rows.append((fields[0], float(fields[1]), float(fields[2]), int(fields[4])))
+    return rows
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "_benchmark")
+def test_the_printed_standings_are_ordered_and_per_judge():
+    """
+    The table the operator reads, read back.
+
+    Nothing else asserts the report body, so a reversed ordering, a merged
+    pseudo-judge, or every judge scoring the English source instead of the
+    candidate would all print a confident, plausible, wrong table.
+    """
+    output, _ = _run(translators="openai,gemini", judges="openai,gemini")
+    rows = _standings(output)
 
     assert len(rows) == TranslationQualityCandidate.objects.count()
-    assert "→" in leader
-    # The leader must be a candidate, not a judge spec rendered as one.
-    assert any(
-        f"<td>{candidate.translator} → {candidate.validator or 'none'}</td>" in leader
-        for candidate in TranslationQualityCandidate.objects.all()
+    # Best first.
+    assert [row[1] for row in rows] == sorted(row[1] for row in rows)
+    # Every candidate was scored by both judges, not by one merged pseudo-judge.
+    assert {row[3] for row in rows} == {2}
+    # Judges scored the candidates, not the identical source document.
+    assert len({row[2] for row in rows}) > 1
+    assert all("→" in row[0] for row in rows)
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "_benchmark")
+def test_the_verdict_line_names_a_candidate_or_declines():
+    """`Winner: None` would be printed in green by an inverted branch."""
+    output, _ = _run(translators="openai,gemini", judges="openai,gemini")
+
+    verdict = next(
+        line
+        for line in output.splitlines()
+        if line.startswith(("Winner:", "No clear winner"))
     )
+
+    assert verdict.startswith("No clear winner") or "→" in verdict
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "_benchmark")
+def test_a_judge_that_fails_on_one_candidate_keeps_none_of_its_rows():
+    """
+    The all-or-nothing rule, with good rows available to leak.
+
+    The judge here succeeds on the two unvalidated arms and fails on the four
+    validated ones; partial credit would rank candidates over uneven judge
+    sets, which is exactly what mean rank cannot absorb.
+    """
+    output, _ = _run(
+        modes={"gemini/gemini-test": "score_rejects_validated"},
+        translators="openai,gemini",
+        judges="openai,gemini",
+    )
+
+    assert not TranslationQualityScore.objects.filter(
+        judge="gemini/gemini-test"
+    ).exists()
+    assert TranslationQualityScore.objects.filter(judge=WINNER).exists()
+    assert "gemini/gemini-test dropped" in output
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "_benchmark")
+def test_a_judge_dropped_from_scoring_is_not_asked_to_rank():
+    """Its ranking call would be paid for and then discarded."""
+    output, _ = _run(
+        modes={"gemini/gemini-test": "score_rejects"},
+        translators="openai,gemini",
+        judges="openai,gemini",
+    )
+
+    ranked_judges = {
+        score.judge
+        for score in TranslationQualityScore.objects.exclude(comparative_rank=None)
+    }
+
+    assert ranked_judges <= {WINNER}
+    assert "Judges dropped from scoring: gemini/gemini-test" in output
+    # Only the surviving judge was asked, so the denominator is 1, not 2.
+    assert "1 of 1 judge(s) ranked" in output
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers")
+def test_a_malformed_benchmark_is_named_as_the_cause(tmp_path):
+    """
+    Otherwise the run pays for N translations first, then blames them all.
+    """
+    broken = tmp_path / "broken.xml"
+    broken.write_text("<problem><p>unclosed</problem>", encoding="utf-8")
+
+    with (
+        mock.patch(
+            "ol_openedx_course_translations.management.commands."
+            "rate_translation_quality.BENCHMARK_PATH",
+            broken,
+        ),
+        pytest.raises(CommandError, match="not well-formed XML"),
+    ):
+        _run(translators="openai", judges="openai")
+
+    assert not TranslationQualityRun.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "_benchmark")
+def test_every_arm_failing_reports_the_reasons_before_giving_up():
+    """The one message left must not name the wrong layer."""
+    output = StringIO()
+
+    def build(provider, model):
+        return FakeProvider(f"{provider}/{model}", mode="translate_raises")
+
+    with (
+        mock.patch(
+            "ol_openedx_course_translations.management.commands."
+            "rate_translation_quality.get_translation_provider",
+            side_effect=build,
+        ),
+        pytest.raises(CommandError, match="No candidate was scored"),
+    ):
+        call_command(
+            "rate_translation_quality",
+            target_language="hi",
+            yes=True,
+            translators="openai",
+            judges="openai",
+            stdout=output,
+        )
+
+    assert "upstream refused" in output.getvalue()
+    assert "candidate(s) excluded" in output.getvalue()
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "_benchmark")
+def test_a_partial_translation_is_visible_in_the_diagnostic_column():
+    """
+    A document a third in English passes the unchanged-document check.
+
+    The count is the only thing that shows it, so a low score is not silently
+    read as the model's judgement.
+    """
+    output, _ = _run(
+        modes={"gemini/gemini-test": "translate_partial"},
+        translators="openai,gemini",
+        judges="openai",
+    )
+    partial = [
+        line for line in output.splitlines() if line.startswith("gemini/gemini-test →")
+    ]
+
+    assert partial
+    # Two of the fixture's three units came back untouched.
+    assert all(line.split()[-1] == "2" for line in partial)

@@ -14,6 +14,8 @@ from django.conf import settings
 from litellm import BadRequestError, completion
 from litellm.utils import UnsupportedParamsError
 
+from ol_openedx_course_translations.utils.quality_report import Rating
+
 from .base import TranslationProvider
 
 logger = logging.getLogger(__name__)
@@ -132,7 +134,7 @@ def _require_int(value: Any, field: str, low: int, high: int) -> int:
     return int(value)
 
 
-def parse_rating_response(raw: str) -> dict[str, Any]:
+def parse_rating_response(raw: str) -> Rating:
     """
     Read one judge's scores for a single candidate.
 
@@ -146,8 +148,10 @@ def parse_rating_response(raw: str) -> dict[str, Any]:
         )
         for criterion in RATING_CRITERIA
     }
-    justification = str(parsed.get("justification", ""))[:MAX_JUSTIFICATION_CHARS]
-    return {"scores": scores, "justification": justification}
+    return Rating(
+        scores=scores,
+        justification=str(parsed.get("justification", ""))[:MAX_JUSTIFICATION_CHARS],
+    )
 
 
 def parse_ranking_response(raw: str, labels: list[str]) -> dict[str, int]:
@@ -1084,11 +1088,9 @@ class LLMProvider(TranslationProvider):
         target_language: str,
         source_content: str,
         translated_content: str,
-    ) -> dict[str, Any]:
+    ) -> Rating:
         """
         Score one candidate translation on its own, seeing no other candidate.
-
-        Returns ``{"scores": {...}, "justification": str}``.
 
         A reply that cannot be trusted raises ``ValueError``, exactly as an API
         failure raises its own error: the caller drops the judge either way, so

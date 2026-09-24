@@ -30,6 +30,14 @@ class Candidate(NamedTuple):
 
 
 @dataclass(frozen=True)
+class Rating:
+    """One judge's scores for one candidate."""
+
+    scores: dict[str, int]
+    justification: str
+
+
+@dataclass(frozen=True)
 class CandidateRow:
     """One candidate's standing across the judges that scored it."""
 
@@ -154,7 +162,9 @@ def rank_one_votes(comparative_ranks: dict[str, dict[Candidate, int]]) -> dict:
 
     A judge that put two candidates at rank 1 named no single best, so it casts
     no vote: counting both would let one judge outvote the denominator, which
-    is a judge count.
+    is a judge count. A judge with no rank 1 at all cannot happen — the parser
+    rejects a reply whose ranks are out of range — and is skipped for the same
+    reason.
     """
     votes: dict[Candidate, int] = {}
     for ranks in comparative_ranks.values():
@@ -165,10 +175,10 @@ def rank_one_votes(comparative_ranks: dict[str, dict[Candidate, int]]) -> dict:
     return votes
 
 
-def pick_winner(
+def pick_winner(  # noqa: PLR0911 — each return is a distinct verdict reason
     rows: list[CandidateRow],
     comparative_ranks: dict[str, dict[Candidate, int]],
-    judges_attempted: int | None = None,
+    judges_attempted: int,
 ) -> tuple[Candidate | None, str]:
     """
     Name a winner only when both signals agree.
@@ -179,10 +189,9 @@ def pick_winner(
     the only confidence signal available, so a disagreement is reported rather
     than resolved.
 
-    ``judges_attempted`` is the number of judges *asked* to rank, which is the
-    honest majority denominator: judges whose ranking was rejected are absent
-    from ``comparative_ranks``, so counting only the survivors would let one
-    judge out of five carry a "majority".
+    ``judges_attempted`` is the number of judges *asked* to rank, and is
+    required: measuring the majority against the judges that answered instead
+    would let one survivor out of five carry a "majority".
     """
     if not rows:
         return None, "no candidates were scored"
@@ -192,19 +201,19 @@ def pick_winner(
         tied = ", ".join(str(row.candidate) for row in leaders)
         return None, f"mean rank is tied between {tied}"
 
-    denominator = (
-        len(comparative_ranks) if judges_attempted is None else judges_attempted
-    )
+    if not judges_attempted:
+        return None, "the comparative pass did not run, so there is one signal only"
+
     votes = rank_one_votes(comparative_ranks)
     if not votes:
         return None, "no judge named a single best candidate"
 
     best_votes = max(votes.values())
     voted = [candidate for candidate, count in votes.items() if count == best_votes]
-    if len(voted) > 1 or best_votes * 2 <= denominator:
+    if len(voted) > 1 or best_votes * 2 <= judges_attempted:
         shortfall = (
             f"no candidate took first place from a majority of the "
-            f"{denominator} judge(s) asked to rank"
+            f"{judges_attempted} judge(s) asked to rank"
         )
         return None, shortfall
 

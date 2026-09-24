@@ -51,7 +51,8 @@ _Avoid_: score, rating, average
 
 **Translation unit**:
 One piece of translatable text extracted from a document — a text node, a tail, or an allowlisted
-attribute value. Markup is never sent to a provider; units are.
+attribute value. On the translation path a provider is sent units, never markup; validation and
+judging deliberately send whole documents instead.
 _Avoid_: chunk, segment, string
 
 **Glossary**:

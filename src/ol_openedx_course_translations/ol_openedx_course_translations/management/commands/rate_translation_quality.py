@@ -12,7 +12,7 @@ import logging
 import random
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -35,8 +35,9 @@ from ol_openedx_course_translations.utils.course_translations import (
     parse_and_validate_provider_spec,
 )
 from ol_openedx_course_translations.utils.quality_report import (
-    SHORTLIST_SIZE,
+    SHORTLIST_CAP,
     Candidate,
+    Rating,
     average_overall,
     build_rows,
     pick_winner,
@@ -56,41 +57,50 @@ BENCHMARK_PATH = (
 CHARS_PER_TOKEN = 4
 
 
-@dataclass
+@dataclass(frozen=True)
+class Benchmark:
+    """The benchmark content, read and parsed once per run."""
+
+    content: str
+    # Stripped source unit texts, for the unchanged-unit diagnostic.
+    units: frozenset[str]
+    elements: int
+
+
+@dataclass(frozen=True)
 class Arm:
-    """One candidate's translated content, or why it has none."""
+    """One candidate's content, or why it has none."""
 
     content: str | None = None
     error: str = ""
-    # Units the translator handed back unchanged. Diagnostic only: some units
-    # are identical in any language, so this is shown, never scored.
-    unchanged_units: int = 0
+    elements: int = 0
+    # Units in this arm's content still identical to the English source.
+    # Diagnostic only: some units are identical in any language, so this is
+    # shown, never scored. None when it could not be measured.
+    unchanged_units: int | None = None
+
+    @property
+    def usable(self) -> bool:
+        """Whether this arm has content a judge can score."""
+        return self.content is not None and not self.error
 
 
-@dataclass
-class Rating:
-    """One judge's scores for one candidate."""
-
-    scores: dict[str, int]
-    justification: str
-
-
-@dataclass
+@dataclass(frozen=True)
 class ScoringPass:
     """What the scoring pass produced, and which judges it lost."""
 
-    overalls: dict[str, dict[Candidate, float]] = field(default_factory=dict)
-    ratings: dict[tuple[str, Candidate], Rating] = field(default_factory=dict)
-    excluded_judges: list[str] = field(default_factory=list)
+    overalls: dict[str, dict[Candidate, float]]
+    ratings: dict[tuple[str, Candidate], Rating]
+    excluded_judges: tuple[str, ...]
 
 
-@dataclass
+@dataclass(frozen=True)
 class RankingPass:
     """What the comparative pass produced, and how many judges attempted it."""
 
-    ranks: dict[str, dict[Candidate, int]] = field(default_factory=dict)
-    labels: dict[tuple[str, Candidate], str] = field(default_factory=dict)
-    attempted: int = 0
+    ranks: dict[str, dict[Candidate, int]]
+    labels: dict[tuple[str, Candidate], str]
+    attempted: int
 
 
 class Command(BaseCommand):
@@ -144,19 +154,17 @@ class Command(BaseCommand):
             msg = "No usable judges. Configure an api_key or pass --judges."
             raise CommandError(msg)
 
-        source_content = self._read_benchmark()
+        benchmark = self._read_benchmark()
         self._confirm_run(
             translators=translators,
             judges=judges,
-            source_content=source_content,
+            benchmark=benchmark,
             skip_prompt=options["yes"],
         )
 
-        translations = self._translate(translators, target_language, source_content)
-        arms = self._validate(
-            translators, translations, target_language, source_content
-        )
-        scoring = self._score(arms, judges, target_language, source_content)
+        translations = self._translate(translators, target_language, benchmark)
+        arms = self._validate(translators, translations, target_language, benchmark)
+        scoring = self._score(arms, judges, target_language, benchmark)
         if not scoring.overalls:
             self._report_broken_arms(arms)
             msg = "No candidate was scored by any judge."
@@ -165,12 +173,7 @@ class Command(BaseCommand):
         rows = build_rows(scoring.overalls)
         shortlist = select_shortlist(rows)
         ranking = self._rank(
-            shortlist,
-            arms,
-            judges,
-            scoring.excluded_judges,
-            target_language,
-            source_content,
+            shortlist, arms, judges, scoring.excluded_judges, target_language, benchmark
         )
 
         # Reported before persisting: the run costs real money, and a write
@@ -244,22 +247,37 @@ class Command(BaseCommand):
         # repeat would collide on the per-run unique constraint.
         return list(dict.fromkeys(resolved))
 
-    def _read_benchmark(self) -> str:
+    def _read_benchmark(self) -> Benchmark:
+        """
+        Read and parse the benchmark before anything is spent.
+
+        Parsing here means a malformed fixture is reported as the cause,
+        rather than surfacing later as every translator appearing to fail.
+        """
         if not BENCHMARK_PATH.exists():
             msg = f"Benchmark file is missing: {BENCHMARK_PATH}"
             raise CommandError(msg)
-        source_content = BENCHMARK_PATH.read_text(encoding="utf-8")
-        if not source_content.strip():
+        content = BENCHMARK_PATH.read_text(encoding="utf-8")
+        if not content.strip():
             msg = f"Benchmark file is empty: {BENCHMARK_PATH}"
             raise CommandError(msg)
-        return source_content
+        try:
+            units, elements = self._units_and_elements(content)
+        except Exception as error:
+            msg = f"Benchmark file is not well-formed XML ({BENCHMARK_PATH}): {error}"
+            raise CommandError(msg) from error
+        return Benchmark(
+            content=content,
+            units=frozenset(unit.strip() for unit in units),
+            elements=elements,
+        )
 
     def _confirm_run(
         self,
         *,
         translators: list[str],
         judges: list[str],
-        source_content: str,
+        benchmark: Benchmark,
         skip_prompt: bool,
     ) -> None:
         """Show the size of the run before any request is made."""
@@ -270,18 +288,20 @@ class Command(BaseCommand):
             "scoring": candidates * len(judges),
             "ranking": len(judges),
         }
-        payload = len(source_content)
+        payload = len(benchmark.content)
         # What each call carries: a translation sends the extracted text units
         # (roughly one source's worth), a validation sends source + translation,
         # a score sends source + one candidate, a ranking sends source + the
-        # whole shortlist.
+        # shortlist. Sized for the widest shortlist the cap allows and for every
+        # judge reaching the ranking pass, so the figure shown is an upper bound
+        # rather than one a dropped judge or a short shortlist can exceed.
         approx_tokens = (
             payload
             * (
                 calls["translations"]
                 + calls["validations"] * 2
                 + calls["scoring"] * 2
-                + calls["ranking"] * (1 + SHORTLIST_SIZE)
+                + calls["ranking"] * (1 + SHORTLIST_CAP)
             )
             // CHARS_PER_TOKEN
         )
@@ -360,17 +380,27 @@ class Command(BaseCommand):
         """Extract translatable units and count elements, for the arm checks."""
         helper = HtmlXmlTranslationHelper(is_xml=True)
         root, units, _ = helper.extract_units(markup)
-        return units, sum(1 for _ in root.iter())
+        # Comments and processing instructions have non-string tags; counting
+        # them would make a validator that touches a comment look like one that
+        # restructured the document.
+        return units, sum(1 for node in root.iter() if isinstance(node.tag, str))
 
-    def _unchanged_units(self, translated: str, source_content: str) -> int:
-        """Count units handed back identical to the source."""
-        source_units, _ = self._units_and_elements(source_content)
-        untouched = {unit.strip() for unit in source_units}
-        units, _ = self._units_and_elements(translated)
-        return sum(1 for unit in units if unit.strip() in untouched)
+    def _unchanged_units(self, markup: str, benchmark: Benchmark) -> int | None:
+        """
+        Count units whose text still matches some source unit.
+
+        Diagnostic only, so a parse failure returns None rather than
+        discarding an arm whose content is otherwise scoreable.
+        """
+        try:
+            units, _ = self._units_and_elements(markup)
+        except Exception:
+            logger.warning("could not measure unchanged units", exc_info=True)
+            return None
+        return sum(1 for unit in units if unit.strip() in benchmark.units)
 
     def _translate(
-        self, translators: list[str], target_language: str, source_content: str
+        self, translators: list[str], target_language: str, benchmark: Benchmark
     ) -> dict[str, dict]:
         """Translate the benchmark once per translator; arms reuse the result."""
         self.stdout.write(f"Translating with {len(translators)} translator(s)...")
@@ -378,17 +408,26 @@ class Command(BaseCommand):
         def translate(spec):
             def work():
                 translated = self._provider_for(spec).translate_text(
-                    source_content, target_language, tag_handling="xml"
+                    benchmark.content, target_language, tag_handling="xml"
                 )
                 # translate_text swallows failures and hands back the source,
                 # so an unchanged document means the translation did not happen.
-                if not translated or translated.strip() == source_content.strip():
+                if not translated or translated.strip() == benchmark.content.strip():
                     msg = "provider returned the source unchanged"
                     raise RuntimeError(msg)
+                try:
+                    _, elements = self._units_and_elements(translated)
+                except Exception as error:
+                    msg = f"translation does not parse as XML: {error}"
+                    raise RuntimeError(msg) from error
                 # A partial translation is not identical to the source, so the
                 # check above cannot see it: units the model skipped come back
                 # in English. Counted here and shown in the report.
-                return translated, self._unchanged_units(translated, source_content)
+                return Arm(
+                    content=translated,
+                    elements=elements,
+                    unchanged_units=self._unchanged_units(translated, benchmark),
+                )
 
             return work
 
@@ -399,7 +438,7 @@ class Command(BaseCommand):
         translators: list[str],
         translations: dict[str, dict],
         target_language: str,
-        source_content: str,
+        benchmark: Benchmark,
     ) -> dict[Candidate, Arm]:
         """Build every (translator, validator) arm, including the unvalidated one."""
         arms: dict[Candidate, Arm] = {}
@@ -414,17 +453,13 @@ class Command(BaseCommand):
                     )
                 continue
 
-            content, unchanged = translated["value"]
-            arms[Candidate(translator)] = Arm(
-                content=content, unchanged_units=unchanged
-            )
+            arm = translated["value"]
+            arms[Candidate(translator)] = arm
             jobs.extend(
                 (
                     validator,
                     Candidate(translator, validator),
-                    self._validation_job(
-                        validator, content, target_language, source_content
-                    ),
+                    self._validation_job(validator, arm, target_language, benchmark),
                 )
                 for validator in translators
             )
@@ -432,43 +467,52 @@ class Command(BaseCommand):
         if jobs:
             self.stdout.write(f"Validating {len(jobs)} arm(s)...")
             for key, result in self._run_lanes(jobs).items():
-                if result["error"]:
-                    arms[key] = Arm(error=result["error"])
-                    continue
-                content, unchanged = result["value"]
-                arms[key] = Arm(content=content, unchanged_units=unchanged)
+                arms[key] = (
+                    Arm(error=result["error"]) if result["error"] else result["value"]
+                )
         return arms
 
     def _validation_job(
         self,
         validator: str,
-        translated: str,
+        translated: Arm,
         target_language: str,
-        source_content: str,
-    ) -> Callable[[], tuple[str, int]]:
+        benchmark: Benchmark,
+    ) -> Callable[[], Arm]:
         def work():
             reviewed = self._provider_for(validator).validate_translation(
                 source_language=ENGLISH_LANGUAGE_CODE,
                 target_language=target_language,
-                source_content=source_content,
-                translated_content=translated,
+                source_content=benchmark.content,
+                translated_content=translated.content,
             )
             # Validation sends whole markup and bypasses the DOM-aware path, so
             # it can return prose or restructured markup. Production applies the
-            # same predicate but falls back to the unvalidated translation;
-            # here the arm is dropped instead, so nothing unusable is scored.
+            # same looks_like_markup gate (tasks.py) but falls back to the
+            # unvalidated translation; here the arm is dropped instead, so
+            # nothing unusable is scored. The element-count check below has no
+            # production counterpart — it is benchmark-only.
             if not looks_like_markup(reviewed):
                 msg = "validator returned no markup"
                 raise RuntimeError(msg)
-            _, before_elements = self._units_and_elements(translated)
-            _, after_elements = self._units_and_elements(reviewed)
-            if after_elements != before_elements:
+            try:
+                _, after_elements = self._units_and_elements(reviewed)
+            except Exception as error:
+                msg = f"validator returned markup that does not parse: {error}"
+                raise RuntimeError(msg) from error
+            # Compared against the count taken when the translation was made,
+            # so a translator-side problem is never blamed on the validator.
+            if after_elements != translated.elements:
                 msg = (
                     f"validator changed the markup structure "
-                    f"({before_elements} elements in, {after_elements} out)"
+                    f"({translated.elements} elements in, {after_elements} out)"
                 )
                 raise RuntimeError(msg)
-            return reviewed, self._unchanged_units(reviewed, source_content)
+            return Arm(
+                content=reviewed,
+                elements=after_elements,
+                unchanged_units=self._unchanged_units(reviewed, benchmark),
+            )
 
         return work
 
@@ -477,7 +521,7 @@ class Command(BaseCommand):
         arms: dict[Candidate, Arm],
         judges: list[str],
         target_language: str,
-        source_content: str,
+        benchmark: Benchmark,
     ) -> ScoringPass:
         """
         Have every judge score every usable candidate, one candidate per call.
@@ -485,19 +529,15 @@ class Command(BaseCommand):
         A judge that fails anywhere is dropped from the whole scoring pass, so
         every candidate ends up ranked over an identical set of judges.
         """
-        usable = {
-            key: arm.content
-            for key, arm in arms.items()
-            if not arm.error and arm.content is not None
-        }
+        usable = {key: arm for key, arm in arms.items() if arm.usable}
         jobs = [
             (
                 judge,
                 (judge, key),
-                self._scoring_job(judge, content, target_language, source_content),
+                self._scoring_job(judge, arm, target_language, benchmark),
             )
             for judge in judges
-            for key, content in usable.items()
+            for key, arm in usable.items()
         ]
         self.stdout.write(
             f"Scoring {len(usable)} candidate(s) with {len(judges)} judge(s)..."
@@ -511,24 +551,25 @@ class Command(BaseCommand):
         for judge, reason in sorted(reasons.items()):
             self.stdout.write(self.style.WARNING(f"⊘ judge {judge} dropped: {reason}"))
 
-        scoring = ScoringPass(excluded_judges=sorted(reasons))
+        overalls: dict[str, dict[Candidate, float]] = {}
+        ratings: dict[tuple[str, Candidate], Rating] = {}
         for (judge, key), result in results.items():
             if judge in reasons:
                 continue
-            rating = Rating(**result["value"])
-            scoring.overalls.setdefault(judge, {})[key] = average_overall(rating.scores)
-            scoring.ratings[(judge, key)] = rating
-        return scoring
+            rating = result["value"]
+            overalls.setdefault(judge, {})[key] = average_overall(rating.scores)
+            ratings[(judge, key)] = rating
+        return ScoringPass(overalls, ratings, tuple(sorted(reasons)))
 
     def _scoring_job(
-        self, judge: str, content: str, target_language: str, source_content: str
-    ) -> Callable[[], dict]:
+        self, judge: str, arm: Arm, target_language: str, benchmark: Benchmark
+    ) -> Callable[[], Rating]:
         def work():
             return self._provider_for(judge).rate_translation(
                 source_language=ENGLISH_LANGUAGE_CODE,
                 target_language=target_language,
-                source_content=source_content,
-                translated_content=content,
+                source_content=benchmark.content,
+                translated_content=arm.content,
             )
 
         return work
@@ -538,9 +579,9 @@ class Command(BaseCommand):
         shortlist,
         arms: dict[Candidate, Arm],
         judges: list[str],
-        excluded_judges: list[str],
+        excluded_judges: tuple[str, ...],
         target_language: str,
-        source_content: str,
+        benchmark: Benchmark,
     ) -> RankingPass:
         """
         Have each judge rank the shortlist side by side, shuffled per judge.
@@ -551,17 +592,12 @@ class Command(BaseCommand):
         """
         ranking_judges = [judge for judge in judges if judge not in excluded_judges]
         if len(shortlist) < 2 or not ranking_judges:  # noqa: PLR2004
-            return RankingPass()
+            return RankingPass({}, {}, 0)
 
         self.stdout.write(
             f"Ranking the top {len(shortlist)} with {len(ranking_judges)} judge(s)..."
         )
         jobs = []
-        # Shortlisted candidates were scored, so each has content; a missing one
-        # is a bug and should fail loudly rather than send an empty document.
-        contents = {
-            key: arm.content for key, arm in arms.items() if arm.content is not None
-        }
         label_maps: dict[str, dict[str, Candidate]] = {}
         for judge in ranking_judges:
             order = [row.candidate for row in shortlist]
@@ -572,19 +608,13 @@ class Command(BaseCommand):
                     judge,
                     judge,
                     self._ranking_job(
-                        judge,
-                        {
-                            label: contents[key]
-                            for label, key in label_maps[judge].items()
-                        },
-                        label_maps[judge],
-                        target_language,
-                        source_content,
+                        judge, label_maps[judge], arms, target_language, benchmark
                     ),
                 )
             )
 
-        ranking = RankingPass(attempted=len(ranking_judges))
+        ranks: dict[str, dict[Candidate, int]] = {}
+        labels: dict[tuple[str, Candidate], str] = {}
         for judge, result in self._run_lanes(jobs).items():
             if result["error"]:
                 self.stdout.write(
@@ -593,26 +623,37 @@ class Command(BaseCommand):
                     )
                 )
                 continue
-            ranking.ranks[judge] = result["value"]
+            ranks[judge] = result["value"]
             # Labels are recorded only for a completed ranking: a judge that
             # never returned one did not rank what it was shown.
             for label, key in label_maps[judge].items():
-                ranking.labels[(judge, key)] = label
-        return ranking
+                labels[(judge, key)] = label
+        return RankingPass(ranks, labels, len(ranking_judges))
 
     def _ranking_job(
         self,
         judge: str,
-        payload: dict[str, str],
         label_map: dict[str, Candidate],
+        arms: dict[Candidate, Arm],
         target_language: str,
-        source_content: str,
+        benchmark: Benchmark,
     ) -> Callable[[], dict]:
         def work():
+            # Built inside the job so that a candidate missing its content —
+            # a bug, since everything shortlisted was scored — costs this
+            # judge's ranking rather than the whole run's report.
+            payload = {}
+            for label, key in label_map.items():
+                content = arms[key].content
+                if content is None:
+                    msg = f"shortlisted candidate {key} has no content"
+                    raise RuntimeError(msg)
+                payload[label] = content
+
             ranks = self._provider_for(judge).rank_translations(
                 source_language=ENGLISH_LANGUAGE_CODE,
                 target_language=target_language,
-                source_content=source_content,
+                source_content=benchmark.content,
                 candidates=payload,
             )
             return {label_map[label]: position for label, position in ranks.items()}
@@ -666,6 +707,11 @@ class Command(BaseCommand):
         TranslationQualityScore.objects.bulk_create(scores)
         return run
 
+    @staticmethod
+    def _unchanged_display(arm: Arm) -> str:
+        """Render the diagnostic, or '?' when it could not be measured."""
+        return "?" if arm.unchanged_units is None else str(arm.unchanged_units)
+
     def _report_broken_arms(self, arms: dict[Candidate, Arm]) -> None:
         """Print why arms dropped out, so a short table is never a silent one."""
         broken = {key: arm.error for key, arm in arms.items() if arm.error}
@@ -689,7 +735,7 @@ class Command(BaseCommand):
                 f"{str(row.candidate).ljust(width)}  "
                 f"{row.mean_rank:9.2f}  {row.mean_score:10.2f}  "
                 f"{row.spread:6.1f}  {row.judges:6d}  "
-                f"{arms[row.candidate].unchanged_units:9d}"
+                f"{self._unchanged_display(arms[row.candidate]):>9}"
             )
         self.stdout.write(
             "\n'unchanged' counts translation units returned identical to the "
