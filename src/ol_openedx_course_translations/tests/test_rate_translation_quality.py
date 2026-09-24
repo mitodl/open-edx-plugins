@@ -248,9 +248,10 @@ def test_a_winner_needs_both_signals_to_agree():
 class FakeProvider:
     """Stands in for a real provider so the command's wiring can be exercised."""
 
-    def __init__(self, spec, failing_candidate=None):
+    def __init__(self, spec, failing_candidate=None, *, failing_rank=False):
         self.spec = spec
         self.failing_candidate = failing_candidate
+        self.failing_rank = failing_rank
 
     def translate_text(self, source_content, _target_language, **_kwargs):
         return f"<t by='{self.spec}'>{source_content}</t>"
@@ -273,6 +274,8 @@ class FakeProvider:
         }
 
     def rank_translations(self, *, candidates, **_kwargs):
+        if self.failing_rank:
+            return {"ranks": {}, "error": "unparseable ranking"}
         return {
             "ranks": {
                 label: position for position, label in enumerate(candidates, start=1)
@@ -290,13 +293,13 @@ def _providers(settings):
     settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES = {"en": "English", "hi": "Hindi"}
 
 
-def _run(failing_judge=None, failing_candidate=None, **options):
+def _run(failing_judge=None, failing_candidate=None, failing_rank=None, **options):
     """Run the command with every provider replaced by a scripted fake."""
 
     def build(provider, model):
         spec = f"{provider}/{model}"
         fails_here = failing_candidate if spec == failing_judge else None
-        return FakeProvider(spec, fails_here)
+        return FakeProvider(spec, fails_here, failing_rank=spec == failing_rank)
 
     with mock.patch(
         "ol_openedx_course_translations.management.commands."
@@ -369,3 +372,29 @@ def test_a_repeated_roster_entry_is_collapsed():
 
     assert candidates.count() == 2  # noqa: PLR2004
     assert {c.translator for c in candidates} == {"openai/gpt-test"}
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers")
+def test_a_ranking_failure_costs_only_the_comparative_pass():
+    """
+    A judge that cannot rank keeps its scores.
+
+    Mean rank comes from the scoring pass, so discarding those scores would
+    shrink the judge set every candidate is ranked over — a worse outcome than
+    losing one set of first-place votes.
+    """
+    _run(
+        failing_rank="gemini/gemini-test",
+        translators="openai,gemini",
+        judges="openai,gemini",
+    )
+
+    scores = TranslationQualityScore.objects.all()
+    ranked_judges = {score.judge for score in scores.exclude(comparative_rank=None)}
+
+    assert {score.judge for score in scores} == {
+        "openai/gpt-test",
+        "gemini/gemini-test",
+    }
+    assert ranked_judges == {"openai/gpt-test"}

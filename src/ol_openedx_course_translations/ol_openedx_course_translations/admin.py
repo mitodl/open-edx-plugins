@@ -44,7 +44,8 @@ class TranslationQualityCandidateInline(admin.TabularInline):
     model = TranslationQualityCandidate
     extra = 0
     can_delete = False
-    show_change_link = True
+    # No candidate ModelAdmin is registered, so a change link would lead nowhere.
+    show_change_link = False
     fields = ("translator", "validator_display", "judge_scores", "error")
     readonly_fields = fields
 
@@ -97,6 +98,10 @@ class TranslationQualityRunAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):  # noqa: ARG002
         """Deny edits: results are a record of what happened."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):  # noqa: ARG002
+        """Deny deletes: a run is evidence, and deleting it takes its scores."""
         return False
 
     @admin.display(description="Standings (by mean rank, best first)")

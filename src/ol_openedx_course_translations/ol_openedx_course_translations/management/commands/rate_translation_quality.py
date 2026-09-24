@@ -517,7 +517,10 @@ class Command(BaseCommand):
                 candidates=payload,
             )
             if result["error"]:
-                return {}
+                # Surface it as a failure so the run says the judge dropped out
+                # of the comparative pass instead of quietly omitting its votes.
+                msg = f"ranking rejected: {result['error']}"
+                raise RuntimeError(msg)
             return {
                 label_map[label]: position
                 for label, position in result["ranks"].items()
@@ -596,7 +599,10 @@ class Command(BaseCommand):
             )
 
         if comparative:
-            self.stdout.write("\nFirst-place votes among the shortlist:")
+            self.stdout.write(
+                f"\nFirst-place votes among the shortlist "
+                f"({len(comparative)} judge(s) ranked):"
+            )
             for candidate, votes in sorted(
                 rank_one_votes(comparative).items(), key=lambda item: -item[1]
             ):

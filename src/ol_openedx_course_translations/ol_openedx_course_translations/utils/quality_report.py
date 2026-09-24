@@ -73,8 +73,15 @@ def build_rows(overalls_by_judge: dict[str, dict[Any, float]]) -> list[Candidate
         judge: _positions(overalls) for judge, overalls in overalls_by_judge.items()
     }
 
+    # Sorted, not set order: candidates tied on every statistic would otherwise
+    # be ordered by hash, and the shortlist cap could then fall differently on
+    # identical data from one run to the next.
+    candidates = sorted(
+        {c for overalls in overalls_by_judge.values() for c in overalls}, key=str
+    )
+
     rows = []
-    for candidate in {c for overalls in overalls_by_judge.values() for c in overalls}:
+    for candidate in candidates:
         positions = {
             judge: positions[candidate]
             for judge, positions in positions_by_judge.items()
@@ -97,7 +104,9 @@ def build_rows(overalls_by_judge: dict[str, dict[Any, float]]) -> list[Candidate
             )
         )
 
-    return sorted(rows, key=lambda row: (row.mean_rank, -row.mean_score))
+    return sorted(
+        rows, key=lambda row: (row.mean_rank, -row.mean_score, str(row.candidate))
+    )
 
 
 def select_shortlist(
