@@ -38,11 +38,13 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "translators_arg",
-                    models.TextField(help_text="--translators roster as supplied"),
+                    models.TextField(
+                        help_text="Resolved translator roster actually used"
+                    ),
                 ),
                 (
                     "judges_arg",
-                    models.TextField(help_text="--judges roster as supplied"),
+                    models.TextField(help_text="Resolved judge roster actually used"),
                 ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
@@ -131,14 +133,14 @@ class Migration(migrations.Migration):
                 (
                     "justification",
                     models.TextField(
-                        blank=True, help_text="One-sentence rationale the judge gave"
+                        blank=True, help_text="The judge's rationale, truncated"
                     ),
                 ),
                 (
                     "comparative_rank",
                     models.PositiveSmallIntegerField(
                         blank=True,
-                        help_text="Rank within the shortlist; null if not shortlisted",
+                        help_text="Rank this judge gave; null if it did not rank this",
                         null=True,
                     ),
                 ),
@@ -146,7 +148,7 @@ class Migration(migrations.Migration):
                     "comparative_label",
                     models.CharField(
                         blank=True,
-                        help_text="Anonymized label this judge saw while ranking",
+                        help_text="Label this judge saw; blank if it did not rank this",
                         max_length=2,
                     ),
                 ),

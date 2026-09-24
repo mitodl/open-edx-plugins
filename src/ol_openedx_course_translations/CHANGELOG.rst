@@ -13,6 +13,27 @@ Change Log
 Unreleased
 ----------
 
+Fixed
+~~~~~
+- ``rate_translation_quality``: a judge's failure reason, and the reason an arm
+  dropped out, are now reported instead of discarded — a short standings table
+  is never a silent one.
+- A judge that ties two candidates for first place no longer casts two
+  first-place votes, and the majority is measured against the judges *asked* to
+  rank rather than the ones that answered, so one surviving judge out of five
+  can no longer carry a "majority".
+- Validator output whose element count differs from its input is rejected:
+  ``validate_translation`` is told to change no markup, so a change means the
+  document being scored is not the one that was translated.
+- The standings are printed before they are persisted, so a write failure does
+  not discard a run that cost money.
+- The admin standings table rendered by ``TranslationQualityRunAdmin.report``
+  raised ``TypeError`` on every call (``format_html`` with no interpolation
+  arguments, then a numeric format spec applied to an escaped ``SafeString``).
+- Translation units the provider handed back unchanged are counted and shown,
+  so a partially translated document is no longer scored as if a low result
+  were the model's judgement.
+
 [0.11.0] - 2026-09-24
 ---------------------
 

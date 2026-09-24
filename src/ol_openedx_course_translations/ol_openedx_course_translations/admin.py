@@ -9,6 +9,7 @@ from ol_openedx_course_translations.models import (
     TranslationQualityRun,
 )
 from ol_openedx_course_translations.utils.quality_report import (
+    Candidate,
     average_overall,
     build_rows,
 )
@@ -48,6 +49,15 @@ class TranslationQualityCandidateInline(admin.TabularInline):
     show_change_link = False
     fields = ("translator", "validator_display", "judge_scores", "error")
     readonly_fields = fields
+
+    def get_queryset(self, request):
+        """
+        Pull each candidate's scores with it.
+
+        The inline gets its own queryset, so the parent's prefetch does not
+        reach here and judge_scores would otherwise query once per row.
+        """
+        return super().get_queryset(request).prefetch_related("scores")
 
     def has_add_permission(self, request, obj=None):  # noqa: ARG002
         """Deny adding rows: runs are produced by the command, never by hand."""
@@ -89,11 +99,11 @@ class TranslationQualityRunAdmin(admin.ModelAdmin):
     inlines = (TranslationQualityCandidateInline,)
 
     def get_queryset(self, request):
-        """Pull the whole run in one go; the report reads every score."""
+        """Prefetch the whole run in as few queries as possible; report reads it all."""
         return super().get_queryset(request).prefetch_related("candidates__scores")
 
     def has_add_permission(self, request):  # noqa: ARG002
-        """Deny adding rows: runs are produced by the command, never by hand."""
+        """Deny adding rows, as on the inline."""
         return False
 
     def has_change_permission(self, request, obj=None):  # noqa: ARG002
@@ -116,38 +126,40 @@ class TranslationQualityRunAdmin(admin.ModelAdmin):
         overalls_by_judge: dict[str, dict[str, float]] = {}
         for candidate in run.candidates.all():
             for score in candidate.scores.all():
-                overalls_by_judge.setdefault(score.judge, {})[str(candidate)] = (
-                    average_overall(
-                        {
-                            "accuracy": score.accuracy,
-                            "fluency": score.fluency,
-                            "terminology": score.terminology,
-                        }
-                    )
+                key = Candidate(candidate.translator, candidate.validator)
+                overalls_by_judge.setdefault(score.judge, {})[key] = average_overall(
+                    {
+                        "accuracy": score.accuracy,
+                        "fluency": score.fluency,
+                        "terminology": score.terminology,
+                    }
                 )
 
         rows = build_rows(overalls_by_judge)
         if not rows:
             return "No scores recorded."
 
-        header = format_html(
-            "<tr><th>#</th><th>candidate</th><th>mean rank</th>"
-            "<th>mean score</th><th>spread</th><th>judges</th></tr>"
-        )
+        # Numbers are formatted before they reach format_html_join: it escapes
+        # each argument into a SafeString first, which no longer accepts a
+        # numeric format spec.
         body = format_html_join(
             "",
-            "<tr><td>{}</td><td>{}</td><td>{:.2f}</td><td>{:.2f}</td>"
-            "<td>{:.1f}</td><td>{}</td></tr>",
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td>"
+            "<td>{}</td><td>{}</td></tr>",
             (
                 (
                     position,
                     row.candidate,
-                    row.mean_rank,
-                    row.mean_score,
-                    row.spread,
+                    f"{row.mean_rank:.2f}",
+                    f"{row.mean_score:.2f}",
+                    f"{row.spread:.1f}",
                     row.judges,
                 )
                 for position, row in enumerate(rows, start=1)
             ),
         )
-        return format_html("<table>{}{}</table>", header, body)
+        return format_html(
+            "<table><tr><th>#</th><th>candidate</th><th>mean rank</th>"
+            "<th>mean score</th><th>spread</th><th>judges</th></tr>{}</table>",
+            body,
+        )

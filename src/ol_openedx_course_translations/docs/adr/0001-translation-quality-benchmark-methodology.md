@@ -9,14 +9,17 @@ Choosing the best translator/validator pairing for a language was a manual ritua
 unit with each model, paste the results into chat UIs for an opinion, average the answers by eye.
 The `rate_translation_quality` command replaces it: every candidate is scored **absolutely** by
 every judge (three criteria, 1–10, one candidate per call), candidates are ordered by **mean rank**
-(each judge's own scores sorted into positions, then averaged across judges), and only the top five
-go into a second **comparative** pass where each judge ranks them side by side. A winner is
-declared only when the best mean rank and a majority of comparative first-place votes agree.
+(each judge's own scores sorted into positions, then averaged across judges), and the leaders — the
+top five plus anything tied with fifth, capped at eight — go into a second **comparative** pass
+where each judge ranks them side by side. A winner is declared only when the best mean rank and a
+majority of first-place votes agree, counting at most one vote per judge and measuring the majority
+against the judges *asked* to rank rather than the ones that answered.
 
 ## Considered options
 
 **One comparative call per judge over all candidates.** Rejected. With 4 translators × 4 validators
-plus the unvalidated arms there are 20 near-identical documents; attention over a long input is
+plus the unvalidated arms there are 20 near-identical documents (as of the four providers configured
+by default); attention over a long input is
 U-shaped, so the middle of the list is read least reliably, and a strict 1..20 ordering demands
 ~190 pairwise distinctions a judge cannot support. A well-formed permutation with no signal in its
 middle is worse than an honest absolute score, because it looks like data.
@@ -48,5 +51,8 @@ Each translator translates the benchmark once and that translation is reused acr
 validator arms, so those arms differ only by validator. The cost is that each validator verdict
 rides on a single translation sample, which single-pass judging does not average out.
 
-A judge whose reply cannot be parsed is dropped from the entire run rather than from one candidate,
-so every candidate is ranked over an identical judge set.
+A judge whose reply cannot be parsed in the **scoring** pass is dropped from that pass entirely
+rather than from one candidate, so every candidate is ranked over an identical judge set. A judge
+that fails only the **comparative** pass keeps its scores and loses only its first-place vote:
+mean rank is computed from the scoring pass, so discarding those scores would shrink the judge set
+for every candidate to punish one malformed reply.

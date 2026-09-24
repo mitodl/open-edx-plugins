@@ -31,7 +31,7 @@ _Avoid_: rater, evaluator, grader
 **Benchmark**:
 The committed course-unit OLX that every benchmark run translates. Fixed on purpose, so scores
 stay comparable across languages and over time.
-_Avoid_: fixture, sample, test content
+_Avoid_: sample, test content
 
 **Candidate**:
 One (translator, validator-or-none) pairing under test, together with the translation it produced.
@@ -43,8 +43,8 @@ A single invocation of the benchmark command for one target language.
 _Avoid_: job, experiment, batch
 
 **Mean rank**:
-A candidate's average position across all judges, where each judge's positions come from sorting
-its own scores. Lower is better. The single ordering statistic for a run.
+A candidate's average position across the judges that scored it, where each judge's positions come
+from sorting its own scores. Lower is better. The single ordering statistic for a run.
 _Avoid_: score, rating, average
 
 ### Translation pipeline

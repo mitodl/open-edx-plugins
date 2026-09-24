@@ -472,7 +472,7 @@ class LLMProvider(TranslationProvider):
                 is_last_attempt = index == len(attempts) - 1
                 if is_last_attempt or "temperature" not in str(error).lower():
                     raise
-                logger.info(
+                logger.warning(
                     "%s rejected temperature=%s; trying the next option.",
                     self.model_name,
                     temperature,
@@ -480,7 +480,13 @@ class LLMProvider(TranslationProvider):
                 continue
 
             _MODEL_TEMPERATURES[cache_key] = temperature
-            return llm_response.choices[0].message.content.strip()
+            content = llm_response.choices[0].message.content
+            if content is None:
+                # A refusal or a length cut-off returns no content at all;
+                # without this the caller sees an opaque AttributeError.
+                msg = f"{self.model_name} returned no content"
+                raise ValueError(msg)
+            return content.strip()
 
         # Unreachable: the final attempt either returns or re-raises.
         msg = f"temperature negotiation exhausted for {self.model_name}"
@@ -1082,22 +1088,18 @@ class LLMProvider(TranslationProvider):
         """
         Score one candidate translation on its own, seeing no other candidate.
 
-        Returns ``{"scores": {...}, "justification": str, "error": str | None}``.
-        ``scores`` is empty and ``error`` set when the reply cannot be trusted;
-        API and network errors propagate to the caller.
+        Returns ``{"scores": {...}, "justification": str}``.
+
+        A reply that cannot be trusted raises ``ValueError``, exactly as an API
+        failure raises its own error: the caller drops the judge either way, so
+        one failure channel is enough.
         """
         system_prompt = self._get_rating_system_prompt(source_language, target_language)
         user_payload = (
             f"SOURCE DOCUMENT ({source_language}):\n{source_content}\n\n"
             f"CANDIDATE TRANSLATION ({target_language}):\n{translated_content}\n"
         )
-        raw_response = self._call_llm(system_prompt, user_payload)
-        try:
-            rating = parse_rating_response(raw_response)
-        except ValueError as error:
-            logger.warning("%s returned an unusable rating: %s", self.model_name, error)
-            return {"scores": {}, "justification": "", "error": str(error)}
-        return {**rating, "error": None}
+        return parse_rating_response(self._call_llm(system_prompt, user_payload))
 
     def _get_ranking_system_prompt(
         self, source_language: str, target_language: str, labels: list[str]
@@ -1150,13 +1152,13 @@ class LLMProvider(TranslationProvider):
         target_language: str,
         source_content: str,
         candidates: dict[str, str],
-    ) -> dict[str, Any]:
+    ) -> dict[str, int]:
         """
         Rank several candidate translations seen side by side, in one call.
 
         ``candidates`` maps an anonymized label to that candidate's translation.
-        Returns ``{"ranks": {label: position}, "error": str | None}``; ``ranks``
-        is empty and ``error`` set when the reply cannot be trusted.
+        Returns ``{label: position}``; a reply that cannot be trusted raises
+        ``ValueError``.
         """
         labels = list(candidates)
         system_prompt = self._get_ranking_system_prompt(
@@ -1168,14 +1170,7 @@ class LLMProvider(TranslationProvider):
             for label, text in candidates.items()
         ]
         raw_response = self._call_llm(system_prompt, "\n\n".join(payload))
-        try:
-            ranks = parse_ranking_response(raw_response, labels)
-        except ValueError as error:
-            logger.warning(
-                "%s returned an unusable ranking: %s", self.model_name, error
-            )
-            return {"ranks": {}, "error": str(error)}
-        return {"ranks": ranks, "error": None}
+        return parse_ranking_response(raw_response, labels)
 
     def translate_grading_types(
         self,

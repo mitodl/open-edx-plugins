@@ -2,15 +2,17 @@
 Benchmark translation quality across LLM providers.
 
 Translates one fixed benchmark unit with every translator, edits each
-translation with every validator (and keeps an unvalidated arm), has every
-judge score the results, and reports which configuration wins. See
+translation with every validator, has every judge score the results, and
+reports which configuration wins. See
 ``docs/adr/0001-translation-quality-benchmark-methodology.md`` for why the
 judging works the way it does.
 """
 
+import logging
 import random
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -24,16 +26,17 @@ from ol_openedx_course_translations.models import (
     TranslationQualityRun,
     TranslationQualityScore,
 )
-from ol_openedx_course_translations.providers.llm_providers import (
-    COMPARATIVE_LABELS,
-)
+from ol_openedx_course_translations.providers.llm_providers import COMPARATIVE_LABELS
 from ol_openedx_course_translations.utils.constants import ENGLISH_LANGUAGE_CODE
 from ol_openedx_course_translations.utils.course_translations import (
+    HtmlXmlTranslationHelper,
     get_translation_provider,
     looks_like_markup,
     parse_and_validate_provider_spec,
 )
 from ol_openedx_course_translations.utils.quality_report import (
+    SHORTLIST_SIZE,
+    Candidate,
     average_overall,
     build_rows,
     pick_winner,
@@ -41,16 +44,53 @@ from ol_openedx_course_translations.utils.quality_report import (
     select_shortlist,
 )
 
+logger = logging.getLogger(__name__)
+
 BENCHMARK_PATH = (
     Path(ol_openedx_course_translations.__file__).parent
     / "benchmarks"
     / "benchmark_course_content.xml"
 )
 
-# Rough characters per token, for the pre-flight spend estimate only.
+# Rough characters per token, for the pre-flight size estimate only.
 CHARS_PER_TOKEN = 4
 
-NO_VALIDATOR = ""
+
+@dataclass
+class Arm:
+    """One candidate's translated content, or why it has none."""
+
+    content: str | None = None
+    error: str = ""
+    # Units the translator handed back unchanged. Diagnostic only: some units
+    # are identical in any language, so this is shown, never scored.
+    unchanged_units: int = 0
+
+
+@dataclass
+class Rating:
+    """One judge's scores for one candidate."""
+
+    scores: dict[str, int]
+    justification: str
+
+
+@dataclass
+class ScoringPass:
+    """What the scoring pass produced, and which judges it lost."""
+
+    overalls: dict[str, dict[Candidate, float]] = field(default_factory=dict)
+    ratings: dict[tuple[str, Candidate], Rating] = field(default_factory=dict)
+    excluded_judges: list[str] = field(default_factory=list)
+
+
+@dataclass
+class RankingPass:
+    """What the comparative pass produced, and how many judges attempted it."""
+
+    ranks: dict[str, dict[Candidate, int]] = field(default_factory=dict)
+    labels: dict[tuple[str, Candidate], str] = field(default_factory=dict)
+    attempted: int = 0
 
 
 class Command(BaseCommand):
@@ -62,7 +102,6 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
-        """Add command arguments."""
         parser.add_argument(
             "--target-language",
             required=True,
@@ -88,7 +127,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--yes",
             action="store_true",
-            help="Skip the spend confirmation prompt.",
+            help="Skip the run-size confirmation prompt.",
         )
 
     def handle(self, *args, **options):  # noqa: ARG002
@@ -106,7 +145,7 @@ class Command(BaseCommand):
             raise CommandError(msg)
 
         source_content = self._read_benchmark()
-        self._confirm_spend(
+        self._confirm_run(
             translators=translators,
             judges=judges,
             source_content=source_content,
@@ -114,38 +153,42 @@ class Command(BaseCommand):
         )
 
         translations = self._translate(translators, target_language, source_content)
-        candidates = self._validate(
+        arms = self._validate(
             translators, translations, target_language, source_content
         )
-        scored, excluded_judges = self._score(
-            candidates, judges, target_language, source_content
-        )
-        if not scored:
+        scoring = self._score(arms, judges, target_language, source_content)
+        if not scoring.overalls:
+            self._report_broken_arms(arms)
             msg = "No candidate was scored by any judge."
             raise CommandError(msg)
 
-        rows = build_rows(scored)
+        rows = build_rows(scoring.overalls)
         shortlist = select_shortlist(rows)
-        comparative = self._rank(
+        ranking = self._rank(
             shortlist,
-            candidates,
+            arms,
             judges,
-            excluded_judges,
+            scoring.excluded_judges,
             target_language,
             source_content,
         )
+
+        # Reported before persisting: the run costs real money, and a write
+        # failure should not also throw away the result it paid for.
+        self._report(rows, arms, scoring, ranking)
 
         with transaction.atomic():
             run = self._persist(
                 target_language=target_language,
                 translators=translators,
                 judges=judges,
-                candidates=candidates,
-                scored=scored,
-                comparative=comparative,
+                arms=arms,
+                scoring=scoring,
+                ranking=ranking,
             )
-
-        self._report(rows, comparative, excluded_judges, run)
+        self.stdout.write(
+            f"\nStored as run {run.pk}; see the Django admin for details."
+        )
 
     # ---------------------------------------------------------------- setup
 
@@ -162,28 +205,41 @@ class Command(BaseCommand):
         """
         Turn a roster argument into canonical ``provider/model`` specs.
 
-        An entry whose provider has no api_key is skipped with a note rather
-        than failing the run, so a partly configured environment still produces
-        a usable comparison.
+        A provider with no ``api_key`` is skipped with a note, so a partly
+        configured environment still produces a usable comparison. A provider
+        named on the command line but absent from settings is fatal instead:
+        skipping it would answer a different question than the one asked.
         """
+        providers = settings.TRANSLATIONS_PROVIDERS
         requested = [entry.strip() for entry in raw.split(",") if entry.strip()]
-        if not requested:
+        explicit = bool(requested)
+        if not explicit:
+            # TRANSLATIONS_PROVIDERS also holds "default_provider", a plain
+            # string, which is not a provider entry.
             requested = [
-                name
-                for name, config in settings.TRANSLATIONS_PROVIDERS.items()
-                if isinstance(config, dict)
+                name for name, config in providers.items() if isinstance(config, dict)
             ]
 
         resolved = []
         for entry in requested:
-            try:
-                provider_name, model_name = parse_and_validate_provider_spec(entry)
-            except CommandError as error:
+            provider_name = entry.split("/", 1)[0].lower()
+            config = providers.get(provider_name)
+            if not isinstance(config, dict):
+                if explicit:
+                    msg = (
+                        f"Unknown {role} provider '{provider_name}'. Configured "
+                        f"providers: {', '.join(sorted(providers))}"
+                    )
+                    raise CommandError(msg)
+                continue
+            if not config.get("api_key"):
                 self.stdout.write(
-                    self.style.WARNING(f"⊘ skipped {role} {entry}: {error}")
+                    self.style.WARNING(f"⊘ skipped {role} {entry}: no api_key")
                 )
                 continue
-            resolved.append(f"{provider_name}/{model_name}")
+            name, model = parse_and_validate_provider_spec(entry)
+            resolved.append(f"{name}/{model}")
+
         # 'openai' and 'openai/<default_model>' resolve to the same spec, and a
         # repeat would collide on the per-run unique constraint.
         return list(dict.fromkeys(resolved))
@@ -198,7 +254,7 @@ class Command(BaseCommand):
             raise CommandError(msg)
         return source_content
 
-    def _confirm_spend(
+    def _confirm_run(
         self,
         *,
         translators: list[str],
@@ -206,7 +262,7 @@ class Command(BaseCommand):
         source_content: str,
         skip_prompt: bool,
     ) -> None:
-        """Show what the run will cost before any request is made."""
+        """Show the size of the run before any request is made."""
         candidates = len(translators) * (len(translators) + 1)
         calls = {
             "translations": len(translators),
@@ -214,26 +270,39 @@ class Command(BaseCommand):
             "scoring": candidates * len(judges),
             "ranking": len(judges),
         }
-        total_calls = sum(calls.values())
-        # Every call carries the source; scoring and ranking carry candidates too.
-        payload_chars = len(source_content)
+        payload = len(source_content)
+        # What each call carries: a translation sends the extracted text units
+        # (roughly one source's worth), a validation sends source + translation,
+        # a score sends source + one candidate, a ranking sends source + the
+        # whole shortlist.
         approx_tokens = (
-            payload_chars * (total_calls + calls["scoring"] + calls["ranking"] * 4)
-        ) // CHARS_PER_TOKEN
+            payload
+            * (
+                calls["translations"]
+                + calls["validations"] * 2
+                + calls["scoring"] * 2
+                + calls["ranking"] * (1 + SHORTLIST_SIZE)
+            )
+            // CHARS_PER_TOKEN
+        )
 
         self.stdout.write(
             f"\nBenchmark:   {BENCHMARK_PATH.name}"
             f"\nTranslators: {', '.join(translators)}"
             f"\nJudges:      {', '.join(judges)}"
             f"\nCandidates:  {candidates}"
-            f"\nLLM calls:   ~{total_calls} "
+            f"\nLLM calls:   ~{sum(calls.values())} "
             f"({calls['translations']} translate, {calls['validations']} validate, "
             f"{calls['scoring']} score, {calls['ranking']} rank)"
             f"\nInput tokens: ~{approx_tokens:,} (rough estimate)\n"
         )
         if skip_prompt:
             return
-        answer = input("Proceed? y/n: ").strip().lower()
+        try:
+            answer = input("Proceed? y/n: ").strip().lower()
+        except EOFError:
+            msg = "stdin is not a terminal; pass --yes to run unattended."
+            raise CommandError(msg) from None
         if answer not in ("y", "yes"):
             msg = "Aborted before any request was made."
             raise CommandError(msg)
@@ -260,7 +329,11 @@ class Command(BaseCommand):
             for key, work in lane:
                 try:
                     results.append((key, {"value": work(), "error": None}))
-                except Exception as error:  # noqa: BLE001
+                except Exception as error:
+                    # Logged with a traceback because this catches genuine bugs
+                    # as well as provider failures, and the two read alike in
+                    # the summary line.
+                    logger.exception("job %s failed", key)
                     results.append(
                         (
                             key,
@@ -282,6 +355,20 @@ class Command(BaseCommand):
         provider_name, model_name = spec.split("/", 1)
         return get_translation_provider(provider_name, model_name)
 
+    @staticmethod
+    def _units_and_elements(markup: str) -> tuple[list[str], int]:
+        """Extract translatable units and count elements, for the arm checks."""
+        helper = HtmlXmlTranslationHelper(is_xml=True)
+        root, units, _ = helper.extract_units(markup)
+        return units, sum(1 for _ in root.iter())
+
+    def _unchanged_units(self, translated: str, source_content: str) -> int:
+        """Count units handed back identical to the source."""
+        source_units, _ = self._units_and_elements(source_content)
+        untouched = {unit.strip() for unit in source_units}
+        units, _ = self._units_and_elements(translated)
+        return sum(1 for unit in units if unit.strip() in untouched)
+
     def _translate(
         self, translators: list[str], target_language: str, source_content: str
     ) -> dict[str, dict]:
@@ -298,7 +385,10 @@ class Command(BaseCommand):
                 if not translated or translated.strip() == source_content.strip():
                     msg = "provider returned the source unchanged"
                     raise RuntimeError(msg)
-                return translated
+                # A partial translation is not identical to the source, so the
+                # check above cannot see it: units the model skipped come back
+                # in English. Counted here and shown in the report.
+                return translated, self._unchanged_units(translated, source_content)
 
             return work
 
@@ -310,34 +400,30 @@ class Command(BaseCommand):
         translations: dict[str, dict],
         target_language: str,
         source_content: str,
-    ) -> dict[tuple[str, str], dict]:
+    ) -> dict[Candidate, Arm]:
         """Build every (translator, validator) arm, including the unvalidated one."""
-        candidates: dict[tuple[str, str], dict] = {}
+        arms: dict[Candidate, Arm] = {}
         jobs: list[tuple[str, Any, Callable[[], Any]]] = []
 
         for translator in translators:
             translated = translations[translator]
             if translated["error"]:
-                for validator in [NO_VALIDATOR, *translators]:
-                    candidates[(translator, validator)] = {
-                        "content": None,
-                        "error": f"translation failed: {translated['error']}",
-                    }
+                for validator in ["", *translators]:
+                    arms[Candidate(translator, validator)] = Arm(
+                        error=f"translation failed: {translated['error']}"
+                    )
                 continue
 
-            candidates[(translator, NO_VALIDATOR)] = {
-                "content": translated["value"],
-                "error": "",
-            }
+            content, unchanged = translated["value"]
+            arms[Candidate(translator)] = Arm(
+                content=content, unchanged_units=unchanged
+            )
             jobs.extend(
                 (
                     validator,
-                    (translator, validator),
+                    Candidate(translator, validator),
                     self._validation_job(
-                        validator,
-                        translated["value"],
-                        target_language,
-                        source_content,
+                        validator, content, target_language, source_content
                     ),
                 )
                 for validator in translators
@@ -346,11 +432,12 @@ class Command(BaseCommand):
         if jobs:
             self.stdout.write(f"Validating {len(jobs)} arm(s)...")
             for key, result in self._run_lanes(jobs).items():
-                candidates[key] = {
-                    "content": result["value"],
-                    "error": result["error"] or "",
-                }
-        return candidates
+                if result["error"]:
+                    arms[key] = Arm(error=result["error"])
+                    continue
+                content, unchanged = result["value"]
+                arms[key] = Arm(content=content, unchanged_units=unchanged)
+        return arms
 
     def _validation_job(
         self,
@@ -358,7 +445,7 @@ class Command(BaseCommand):
         translated: str,
         target_language: str,
         source_content: str,
-    ) -> Callable[[], str]:
+    ) -> Callable[[], tuple[str, int]]:
         def work():
             reviewed = self._provider_for(validator).validate_translation(
                 source_language=ENGLISH_LANGUAGE_CODE,
@@ -367,65 +454,71 @@ class Command(BaseCommand):
                 translated_content=translated,
             )
             # Validation sends whole markup and bypasses the DOM-aware path, so
-            # it can return prose or mangled tags; production rejects the same way.
+            # it can return prose or restructured markup. Production applies the
+            # same predicate but falls back to the unvalidated translation;
+            # here the arm is dropped instead, so nothing unusable is scored.
             if not looks_like_markup(reviewed):
-                msg = "validator returned unusable output"
+                msg = "validator returned no markup"
                 raise RuntimeError(msg)
-            return reviewed
+            _, before_elements = self._units_and_elements(translated)
+            _, after_elements = self._units_and_elements(reviewed)
+            if after_elements != before_elements:
+                msg = (
+                    f"validator changed the markup structure "
+                    f"({before_elements} elements in, {after_elements} out)"
+                )
+                raise RuntimeError(msg)
+            return reviewed, self._unchanged_units(reviewed, source_content)
 
         return work
 
     def _score(
         self,
-        candidates: dict[tuple[str, str], dict],
+        arms: dict[Candidate, Arm],
         judges: list[str],
         target_language: str,
         source_content: str,
-    ) -> tuple[dict[str, dict], list[str]]:
+    ) -> ScoringPass:
         """
         Have every judge score every usable candidate, one candidate per call.
 
-        A judge that fails anywhere is dropped from the whole run, so every
-        candidate ends up ranked over an identical set of judges.
+        A judge that fails anywhere is dropped from the whole scoring pass, so
+        every candidate ends up ranked over an identical set of judges.
         """
-        usable = {key: value for key, value in candidates.items() if not value["error"]}
+        usable = {
+            key: arm.content
+            for key, arm in arms.items()
+            if not arm.error and arm.content is not None
+        }
         jobs = [
             (
                 judge,
                 (judge, key),
-                self._scoring_job(
-                    judge, value["content"], target_language, source_content
-                ),
+                self._scoring_job(judge, content, target_language, source_content),
             )
             for judge in judges
-            for key, value in usable.items()
+            for key, content in usable.items()
         ]
         self.stdout.write(
             f"Scoring {len(usable)} candidate(s) with {len(judges)} judge(s)..."
         )
         results = self._run_lanes(jobs)
 
-        failed = {
-            judge
-            for (judge, _), result in results.items()
-            if result["error"] or result["value"]["error"]
-        }
-        for judge in sorted(failed):
-            self.stdout.write(
-                self.style.WARNING(f"⊘ judge {judge} dropped: it failed on a candidate")
-            )
-
-        overalls: dict[str, dict] = {}
-        self._justifications: dict[tuple[str, tuple[str, str]], str] = {}
-        self._scores: dict[tuple[str, tuple[str, str]], dict] = {}
+        reasons: dict[str, str] = {}
         for (judge, key), result in results.items():
-            if judge in failed:
+            if result["error"] and judge not in reasons:
+                reasons[judge] = f"{key} → {result['error']}"
+        for judge, reason in sorted(reasons.items()):
+            self.stdout.write(self.style.WARNING(f"⊘ judge {judge} dropped: {reason}"))
+
+        scoring = ScoringPass(excluded_judges=sorted(reasons))
+        for (judge, key), result in results.items():
+            if judge in reasons:
                 continue
-            rating = result["value"]
-            overalls.setdefault(judge, {})[key] = average_overall(rating["scores"])
-            self._scores[(judge, key)] = rating["scores"]
-            self._justifications[(judge, key)] = rating["justification"]
-        return overalls, sorted(failed)
+            rating = Rating(**result["value"])
+            scoring.overalls.setdefault(judge, {})[key] = average_overall(rating.scores)
+            scoring.ratings[(judge, key)] = rating
+        return scoring
 
     def _scoring_job(
         self, judge: str, content: str, target_language: str, source_content: str
@@ -443,12 +536,12 @@ class Command(BaseCommand):
     def _rank(  # noqa: PLR0913, PLR0917
         self,
         shortlist,
-        candidates: dict[tuple[str, str], dict],
+        arms: dict[Candidate, Arm],
         judges: list[str],
         excluded_judges: list[str],
         target_language: str,
         source_content: str,
-    ) -> dict[str, dict]:
+    ) -> RankingPass:
         """
         Have each judge rank the shortlist side by side, shuffled per judge.
 
@@ -456,21 +549,24 @@ class Command(BaseCommand):
         sit in the same prompt position for everyone, so presentation order
         cannot favour it consistently.
         """
-        self._labels: dict[tuple[str, tuple[str, str]], str] = {}
         ranking_judges = [judge for judge in judges if judge not in excluded_judges]
         if len(shortlist) < 2 or not ranking_judges:  # noqa: PLR2004
-            return {}
+            return RankingPass()
 
         self.stdout.write(
             f"Ranking the top {len(shortlist)} with {len(ranking_judges)} judge(s)..."
         )
         jobs = []
+        # Shortlisted candidates were scored, so each has content; a missing one
+        # is a bug and should fail loudly rather than send an empty document.
+        contents = {
+            key: arm.content for key, arm in arms.items() if arm.content is not None
+        }
+        label_maps: dict[str, dict[str, Candidate]] = {}
         for judge in ranking_judges:
             order = [row.candidate for row in shortlist]
             random.shuffle(order)
-            label_map = dict(zip(COMPARATIVE_LABELS, order, strict=False))
-            for label, key in label_map.items():
-                self._labels[(judge, key)] = label
+            label_maps[judge] = dict(zip(COMPARATIVE_LABELS, order, strict=False))
             jobs.append(
                 (
                     judge,
@@ -478,17 +574,17 @@ class Command(BaseCommand):
                     self._ranking_job(
                         judge,
                         {
-                            label: candidates[key]["content"]
-                            for label, key in label_map.items()
+                            label: contents[key]
+                            for label, key in label_maps[judge].items()
                         },
-                        label_map,
+                        label_maps[judge],
                         target_language,
                         source_content,
                     ),
                 )
             )
 
-        ranked = {}
+        ranking = RankingPass(attempted=len(ranking_judges))
         for judge, result in self._run_lanes(jobs).items():
             if result["error"]:
                 self.stdout.write(
@@ -497,34 +593,29 @@ class Command(BaseCommand):
                     )
                 )
                 continue
-            if result["value"]:
-                ranked[judge] = result["value"]
-        return ranked
+            ranking.ranks[judge] = result["value"]
+            # Labels are recorded only for a completed ranking: a judge that
+            # never returned one did not rank what it was shown.
+            for label, key in label_maps[judge].items():
+                ranking.labels[(judge, key)] = label
+        return ranking
 
     def _ranking_job(
         self,
         judge: str,
         payload: dict[str, str],
-        label_map: dict[str, tuple[str, str]],
+        label_map: dict[str, Candidate],
         target_language: str,
         source_content: str,
     ) -> Callable[[], dict]:
         def work():
-            result = self._provider_for(judge).rank_translations(
+            ranks = self._provider_for(judge).rank_translations(
                 source_language=ENGLISH_LANGUAGE_CODE,
                 target_language=target_language,
                 source_content=source_content,
                 candidates=payload,
             )
-            if result["error"]:
-                # Surface it as a failure so the run says the judge dropped out
-                # of the comparative pass instead of quietly omitting its votes.
-                msg = f"ranking rejected: {result['error']}"
-                raise RuntimeError(msg)
-            return {
-                label_map[label]: position
-                for label, position in result["ranks"].items()
-            }
+            return {label_map[label]: position for label, position in ranks.items()}
 
         return work
 
@@ -536,9 +627,9 @@ class Command(BaseCommand):
         target_language: str,
         translators: list[str],
         judges: list[str],
-        candidates: dict[tuple[str, str], dict],
-        scored: dict[str, dict],
-        comparative: dict[str, dict],
+        arms: dict[Candidate, Arm],
+        scoring: ScoringPass,
+        ranking: RankingPass,
     ) -> TranslationQualityRun:
         run = TranslationQualityRun.objects.create(
             target_language=target_language,
@@ -552,73 +643,85 @@ class Command(BaseCommand):
         rows = {
             key: TranslationQualityCandidate.objects.create(
                 run=run,
-                translator=key[0],
-                validator=key[1],
-                error=value["error"],
+                translator=key.translator,
+                validator=key.validator,
+                error=arm.error,
             )
-            for key, value in candidates.items()
+            for key, arm in arms.items()
         }
 
         scores = [
             TranslationQualityScore(
                 candidate=rows[key],
                 judge=judge,
-                accuracy=self._scores[(judge, key)]["accuracy"],
-                fluency=self._scores[(judge, key)]["fluency"],
-                terminology=self._scores[(judge, key)]["terminology"],
-                justification=self._justifications[(judge, key)],
-                comparative_rank=comparative.get(judge, {}).get(key),
-                comparative_label=self._labels.get((judge, key), ""),
+                accuracy=rating.scores["accuracy"],
+                fluency=rating.scores["fluency"],
+                terminology=rating.scores["terminology"],
+                justification=rating.justification,
+                comparative_rank=ranking.ranks.get(judge, {}).get(key),
+                comparative_label=ranking.labels.get((judge, key), ""),
             )
-            for judge, overalls in scored.items()
-            for key in overalls
+            for (judge, key), rating in scoring.ratings.items()
         ]
         TranslationQualityScore.objects.bulk_create(scores)
         return run
 
-    def _report(self, rows, comparative, excluded_judges, run) -> None:
+    def _report_broken_arms(self, arms: dict[Candidate, Arm]) -> None:
+        """Print why arms dropped out, so a short table is never a silent one."""
+        broken = {key: arm.error for key, arm in arms.items() if arm.error}
+        if not broken:
+            return
+        self.stdout.write(self.style.WARNING(f"\n{len(broken)} candidate(s) excluded:"))
+        for key, error in sorted(broken.items(), key=lambda item: str(item[0])):
+            self.stdout.write(self.style.WARNING(f"  ⊘ {key}: {error}"))
+
+    def _report(self, rows, arms, scoring: ScoringPass, ranking: RankingPass) -> None:
         """Print the standings, the comparative pass and the verdict."""
-        width = max(len(self._label(row.candidate)) for row in rows)
-        self.stdout.write("\n" + "=" * (width + 44))
+        width = max(len(str(row.candidate)) for row in rows)
+        self.stdout.write("\n" + "=" * (width + 54))
         self.stdout.write(
-            f"{'candidate'.ljust(width)}  mean rank  mean score  spread  judges"
+            f"{'candidate'.ljust(width)}  mean rank  mean score  spread  "
+            f"judges  unchanged"
         )
-        self.stdout.write("-" * (width + 44))
+        self.stdout.write("-" * (width + 54))
         for row in rows:
             self.stdout.write(
-                f"{self._label(row.candidate).ljust(width)}  "
+                f"{str(row.candidate).ljust(width)}  "
                 f"{row.mean_rank:9.2f}  {row.mean_score:10.2f}  "
-                f"{row.spread:6.1f}  {row.judges:6d}"
+                f"{row.spread:6.1f}  {row.judges:6d}  "
+                f"{arms[row.candidate].unchanged_units:9d}"
             )
+        self.stdout.write(
+            "\n'unchanged' counts translation units returned identical to the "
+            "source. Diagnostic only — it is not part of the ranking, and some "
+            "units are identical in any language."
+        )
 
-        if excluded_judges:
+        self._report_broken_arms(arms)
+
+        if scoring.excluded_judges:
             self.stdout.write(
                 self.style.WARNING(
-                    f"\nJudges dropped from this run: {', '.join(excluded_judges)}"
+                    f"Judges dropped from scoring: {', '.join(scoring.excluded_judges)}"
                 )
             )
 
-        if comparative:
+        if ranking.ranks:
             self.stdout.write(
                 f"\nFirst-place votes among the shortlist "
-                f"({len(comparative)} judge(s) ranked):"
+                f"({len(ranking.ranks)} of {ranking.attempted} judge(s) ranked):"
             )
             for candidate, votes in sorted(
-                rank_one_votes(comparative).items(), key=lambda item: -item[1]
+                rank_one_votes(ranking.ranks).items(), key=lambda item: -item[1]
             ):
-                self.stdout.write(f"  {self._label(candidate)}: {votes}")
+                self.stdout.write(f"  {candidate}: {votes}")
 
-        winner, reason = pick_winner(rows, comparative)
+        winner, reason = pick_winner(
+            rows, ranking.ranks, judges_attempted=ranking.attempted
+        )
         self.stdout.write("")
         if winner:
-            self.stdout.write(self.style.SUCCESS(f"Winner: {self._label(winner)}"))
+            self.stdout.write(self.style.SUCCESS(f"Winner: {winner}"))
         else:
             self.stdout.write(self.style.WARNING("No clear winner."))
         self.stdout.write(f"  {reason}")
-        self.stdout.write(
-            f"\nStored as run {run.pk}; see the Django admin for details."
-        )
-
-    def _label(self, candidate: tuple[str, str]) -> str:
-        translator, validator = candidate
-        return f"{translator} → {validator or 'none'}"

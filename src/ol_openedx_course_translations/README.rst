@@ -330,8 +330,10 @@ the results, and reports a winner.
   provider with an ``api_key``. A provider may be a translator and a judge at once.
 - ``--yes``: skip the spend confirmation.
 
-Any roster entry whose provider has no ``api_key`` is skipped with a note rather
-than failing the run.
+A roster entry whose provider has no ``api_key`` is skipped with a note rather than
+failing the run, so a partly configured environment still produces a comparison.
+A provider named on the command line but absent from ``TRANSLATIONS_PROVIDERS`` is
+fatal instead — skipping it would answer a different question than the one asked.
 
 **What a run does**
 
@@ -344,12 +346,16 @@ than failing the run.
 4. Orders candidates by **mean rank**: each judge's own scores are sorted into
    positions, and those positions are averaged. This gives every judge one equal
    vote regardless of how wide a range it uses. A judge whose reply cannot be
-   parsed is dropped from the whole run, so every candidate is ranked over the
-   same set of judges.
-5. Sends the top five to a second pass where each judge ranks them side by side,
-   anonymized and shuffled per judge.
+   parsed is dropped from the whole scoring pass, so every candidate is ranked
+   over the same set of judges.
+5. Sends the leaders — the top five plus anything tied with fifth, capped at
+   eight — to a second pass where each judge ranks them side by side,
+   anonymized and shuffled per judge. A judge that fails here keeps its scores
+   and loses only its first-place vote.
 6. Names a winner only when the best mean rank and a majority of first-place
-   votes agree; otherwise it reports both and says there is no clear winner.
+   votes agree. At most one vote counts per judge, and the majority is measured
+   against the judges asked to rank, not the ones that answered; otherwise it
+   reports both signals and says there is no clear winner.
 
 **Reading the output**
 
@@ -357,6 +363,14 @@ The table lists every candidate with its mean rank, mean score and ``spread``
 (the gap between its best and worst position across judges). A large spread
 means the judges disagreed about that candidate, and is worth more attention
 than a small difference in mean rank.
+
+The ``unchanged`` column counts translation units the provider returned identical
+to the source. It is a diagnostic, not part of the ranking: some units are
+identical in any language, but a high count means the provider skipped content
+and the score belongs to a partial translation. Arms that failed — a translation
+that came back unchanged, or a validator that returned prose or restructured the
+markup — are listed under the table with the reason, so a short table is never a
+silent one.
 
 Results are stored in ``TranslationQualityRun``, ``TranslationQualityCandidate``
 and ``TranslationQualityScore``, viewable read-only in the Django admin: the run
