@@ -62,6 +62,14 @@ FALLBACK_TEMPERATURE = 1.0
 # its values, so they reject the fallback too and must be sent no temperature.
 OMIT_TEMPERATURE = None
 
+# Gemini 3 accepts a temperature below 1.0 without complaint and then behaves
+# badly on it: litellm's own warning is that it "can cause infinite loops,
+# degraded reasoning performance, and failure on complex tasks". Observed as
+# whole-document validation calls hanging until they timed out, while the small
+# chunked translation calls at 0.0 succeeded. So Gemini asks for 1.0 up front
+# rather than relying on a rejection to find out.
+GEMINI_TEMPERATURE = 1.0
+
 # (model name, requested temperature) -> the option that model actually
 # accepts, OMIT_TEMPERATURE meaning "send none". Populated the first time a
 # model rejects the requested value, so the probing is paid once per process
@@ -458,7 +466,14 @@ class LLMProvider(TranslationProvider):
         if cache_key in _MODEL_TEMPERATURES:
             attempts: list[float | None] = [_MODEL_TEMPERATURES[cache_key]]
         else:
-            attempts = [self.temperature, FALLBACK_TEMPERATURE, OMIT_TEMPERATURE]
+            # dict.fromkeys keeps order and drops a duplicate rung, so a
+            # provider already asking for the fallback value does not probe it
+            # twice before omitting the parameter.
+            attempts = list(
+                dict.fromkeys(
+                    [self.temperature, FALLBACK_TEMPERATURE, OMIT_TEMPERATURE]
+                )
+            )
 
         for index, temperature in enumerate(attempts):
             call_kwargs = dict(additional_kwargs)
@@ -1439,7 +1454,7 @@ class GeminiProvider(LLMProvider):
         srt_batch_size: int = 50,
         litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
         max_chunk_retries: int = MAX_CHUNK_RETRIES,
-        temperature: float = TRANSLATION_TEMPERATURE,
+        temperature: float = GEMINI_TEMPERATURE,
     ):
         """
         Initialize Gemini provider.

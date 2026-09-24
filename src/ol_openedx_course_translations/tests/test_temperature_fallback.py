@@ -225,3 +225,42 @@ def test_rejection_without_temperature_is_raised(provider):
         provider._call_llm("system", "user")  # noqa: SLF001
 
     assert completion.call_count == 3  # noqa: PLR2004
+
+
+def test_gemini_asks_for_its_own_temperature_and_probes_once():
+    """
+    Gemini 3 accepts a low temperature and then hangs on hard calls.
+
+    litellm warns that below 1.0 it "can cause infinite loops, degraded
+    reasoning performance, and failure on complex tasks", so the provider asks
+    for 1.0 up front. Probing 1.0 twice would be the bug the dedupe prevents.
+    """
+    provider = llm_providers.GeminiProvider("test-key", "gemini-3.1-pro-preview")
+
+    with mock.patch.object(
+        llm_providers, "completion", return_value=_response()
+    ) as completion:
+        provider._call_llm("system", "user")  # noqa: SLF001
+
+    assert completion.call_count == 1
+    assert completion.call_args.kwargs["temperature"] == FALLBACK_TEMPERATURE
+
+    # And when it is rejected outright, the next rung omits the parameter
+    # rather than resending the same value.
+    llm_providers._MODEL_TEMPERATURES.clear()  # noqa: SLF001
+    with mock.patch.object(
+        llm_providers,
+        "completion",
+        side_effect=[
+            BadRequestError(
+                message="temperature: Extra inputs are not permitted",
+                model="gemini-3.1-pro-preview",
+                llm_provider="gemini",
+            ),
+            _response(),
+        ],
+    ) as completion:
+        provider._call_llm("system", "user")  # noqa: SLF001
+
+    assert completion.call_count == 2  # noqa: PLR2004
+    assert "temperature" not in completion.call_args.kwargs

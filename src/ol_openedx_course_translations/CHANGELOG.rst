@@ -13,6 +13,16 @@ Change Log
 Unreleased
 ----------
 
+Fixed
+~~~~~
+- Gemini now asks for ``temperature=1.0`` rather than 0.0. Gemini 3 accepts a
+  lower value without error and then behaves badly on it — litellm warns it
+  "can cause infinite loops, degraded reasoning performance, and failure on
+  complex tasks", which showed up as whole-document validation calls hanging
+  until they timed out while the smaller chunked translation calls succeeded.
+- ``_call_llm`` no longer probes the same temperature twice when a provider
+  already asks for the fallback value.
+
 [0.11.0] - 2026-09-24
 ---------------------
 
