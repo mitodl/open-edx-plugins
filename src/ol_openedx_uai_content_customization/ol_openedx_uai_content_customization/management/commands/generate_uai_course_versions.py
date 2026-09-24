@@ -285,26 +285,27 @@ class Command(BaseCommand):
         user_id = user.id
         store = modulestore()
 
-        course = None
-        # Delete existing course content if the course
-        # already exists, to ensure a clean slate.
         if store.has_course(parsed_key):
             course = store.get_course(parsed_key)
-            with store.bulk_operations(parsed_key):
-                delete_course_sections(course, user_id)
+        else:
+            course = clone_course_in_modulestore(
+                source_key,
+                parsed_key.org,
+                parsed_key.course,
+                parsed_key.run,
+                display_name,
+                user_id,
+            )
+
+        # Section deletion must commit in its own bulk operation. Split reuses
+        # serial block ids (chapter1, html1, ...), and within a single bulk
+        # operation a newly created block can be served from the cache as the
+        # deleted block of the same id, whose location the mixed modulestore
+        # has stripped of its branch -> InsufficientSpecificationError.
+        with store.bulk_operations(parsed_key):
+            delete_course_sections(course, user_id)
 
         with store.bulk_operations(parsed_key):
-            if not course:
-                course = clone_course_in_modulestore(
-                    source_key,
-                    parsed_key.org,
-                    parsed_key.course,
-                    parsed_key.run,
-                    display_name,
-                    user_id,
-                )
-                delete_course_sections(course, user_id)
-
             # Delete all course assets to prevent orphaned assets from
             # the source course, which may be shared across multiple
             # courses in a split modulestore setup.
