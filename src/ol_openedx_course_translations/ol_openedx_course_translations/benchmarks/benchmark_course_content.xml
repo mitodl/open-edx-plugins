@@ -1,8 +1,11 @@
 <!--
   Benchmark unit for `rate_translation_quality`.
 
-  Source: an MITx course unit — "Lecture 1: Linear Regression & the Statistical
-  Sommelier (Supervised Learning)" — supplied by the plugin maintainer.
+  Source: two MITx course units supplied by the plugin maintainer — "Lecture 1:
+  Linear Regression & the Statistical Sommelier (Supervised Learning)" and the
+  "Supervised and Unsupervised Learning" module overview. They are concatenated
+  inside one <html> wrapper so a single run covers both, which is why two
+  "Learning Objectives"-style sections appear.
 
   LICENCE UNVERIFIED. This file ships inside a package published under AGPL, so
   confirm the source course's licence permits redistribution before releasing a
@@ -11,20 +14,22 @@
   Every run translates this file byte for byte. Replacing or editing it makes
   new scores incomparable with earlier ones, so treat it as frozen.
 
-  What it exercises (measured, not estimated): 35 translatable units over ~2,070
-  characters, wrapped in <html> because an html block's body is a fragment and
-  the XML parser needs a single root. The value is in the shape of those units
-  rather than their volume — inline <strong> markup splits sentences into very
-  short fragments ("R²", "and", "Apply", "Compare"), which is the case the
-  batching protocol has historically mishandled — plus a dense load of proper
-  nouns and technical terms (Bertsimas, Ashenfelter, Bordeaux, MIT, Princeton,
-  R², SSE, supervised learning) for the terminology criterion to bite on.
+  What it exercises (measured, not estimated): 87 translatable units
+  over ~6,549 characters, which spans two requests at the 6000-char cap,
+  so chunk-boundary behaviour is covered. Wrapped in <html> because an html
+  block's body is a fragment and the XML parser needs a single root.
 
-  Known gaps, should someone extend it: the content fits in a single request, so
-  chunk-boundary behaviour is not covered, and `display_name` is the only
-  translatable attribute present — no alt, title, or optioninput options/correct.
+  The shape matters as much as the volume: inline <strong> markup splits
+  sentences into fragments as short as "R²", "and" and "Compare", which is the
+  case the batching protocol has historically mishandled, and several empty
+  elements (<ol></ol>, <p><strong></strong></p>) are kept as real-world cruft.
+  Terminology is dense and genuinely hard — Bertsimas, Ashenfelter, Bordeaux,
+  Framingham, Supreme Court, k-means, scree plots, OCT, R², AUC, SSE.
+
+  Known gap, should someone extend it: `display_name` is the only translatable
+  attribute present — no alt, title, or optioninput options/correct.
 -->
-<html display_name="Lecture 1: Linear Regression &amp; the Statistical Sommelier">
+<html display_name="Supervised and Unsupervised Learning">
 <h4>Overview</h4>
 <p>Welcome to <strong>Lecture 1: Linear Regression &amp; the Statistical Sommelier (Supervised Learning)</strong>, taught by Professor <strong>Dimitris Bertsimas</strong>, Boeing Leaders for Global Operations Professor of Management and Professor of Operations Research at MIT. In this lecture, we explore one of the most fundamental tools in machine learning and statistics: <strong>linear regression</strong>. To bring the concept to life, we consider an unconventional but fascinating application—predicting the quality of Bordeaux wines.</p>
 <p>Traditionally, expert sommeliers evaluate wine vintages based on taste and experience. But can data and quantitative models provide equally accurate or even superior predictions? In the early 1990s, Princeton economist Orley Ashenfelter stirred controversy by showing that simple linear regression models, using weather and aging variables, could predict wine quality and prices with surprising accuracy. His approach challenged the authority of world-famous critics, sparking debate in both the wine industry and the statistical community.</p>
@@ -38,5 +43,45 @@
 <li>Interpret<strong> regression coefficients</strong>: Understand how to interpret the coefficients in a linear regression model and their significance.</li>
 <li>Evaluate<strong> </strong>model performance: Learn how to use metrics like <strong>R²</strong> and <strong>Sum of Squared Errors (SSE)</strong> to assess the performance of a linear regression model.</li>
 <li>Compare<strong> </strong>models to expert opinions: Understand how<strong> quantitative models</strong> can outperform traditional expert judgments in certain domains.</li>
+</ol>
+<h4>Module Overview</h4>
+<p>Welcome to<strong> Supervised and Unsupervised Learning!</strong> This module explores both supervised and unsupervised learning, both important aspects of machine learning.</p>
+<p><strong></strong></p>
+<p><strong>Supervised learning</strong></p>
+<p>Supervised learning is at the heart of modern machine learning. In supervised learning, models are trained on datasets where the outcomes (or “labels”) are already known, allowing us to make predictions for future cases. This module introduces the foundations of supervised learning through four diverse and real-world applications that together show how supervised learning enables us to predict outcomes, evaluate model performance, and inform real-world decisions across medicine, law, and beyond.</p>
+<ul>
+<li><strong>Linear regression (The Statistical Sommelier) </strong>– predicting Bordeaux wine quality using weather and aging data.</li>
+<li><strong>Logistic regression (The Framingham Heart Study) </strong>– predicting the 10-year risk of heart disease based on patient risk factors.</li>
+<li><strong>Decision trees (The Supreme Court)</strong> – using interpretable tree-based models to forecast Supreme Court rulings.</li>
+<li><strong>Logistic regression in healthcare (Predicting Quality in Healthcare) </strong>– scaling expert assessments to evaluate patient care quality using claims data.</li>
+</ul>
+<p><strong></strong></p>
+<p><strong>Unsupervised Learning</strong></p>
+<p>Unsupervised learning focuses on uncovering hidden structures in data where labels are not available. Instead of predicting outcomes, the goal is to find meaningful patterns, groupings, or representations that make complex data easier to understand and act upon. This module introduces unsupervised learning through the lens of clustering, a method for grouping similar observations:</p>
+<ul>
+<li><strong>Foundations of Clustering </strong>– You will learn how k-means and hierarchical clustering organize data into meaningful groups, why normalization is essential when features are on different scales, and how tools like scree plots help determine the right number of clusters. Real-world examples—from customer segmentation to patient health profiles—demonstrate how clustering transforms raw data into actionable insights.</li>
+<li><strong>Interpretable Clustering </strong>– You will see how clustering results can be made transparent and actionable. By combining k-means clustering with Optimal Classification Trees (OCT), complex groupings can be explained through simple, rule-based profiles (e.g., “Female Commuters,” “Weekend Riders,” “Short Rides”). This approach bridges the gap between machine-generated clusters and human understanding, enabling decisions in marketing, planning, and customer engagement.</li>
+</ul>
+<p>Together, these lectures show how unsupervised learning allows us to uncover patterns without labels and transform them into strategies that managers, clinicians, and policymakers can readily use.</p>
+<p>Each lecture comes with a downloadable PDF slide deck that maps directly to the visual materials shown in the video. These files are designed as an alternative study aid to read the detail of key text, math, and graphics shown in the video</p>
+<p><strong></strong></p>
+<h4>Learning Goals</h4>
+<p><strong></strong>By the end of this module, students will be able to:</p>
+<p><strong>In supervised learning,</strong></p>
+<ol>
+<li><strong>Understand </strong>the role of data and analytics in decision-making: Learn how data-driven approaches can improve decision-making in various domains, from sports to healthcare.</li>
+<li><strong>Apply </strong>statistical and machine learning models: Gain hands-on experience with models like linear regression, logistic regression, and decision trees.</li>
+<li><strong>Interpret </strong>model results: Learn how to interpret coefficients, odds ratios, and tree splits to make informed decisions.</li>
+<li><strong>Evaluate </strong>model performance: Understand how to use metrics like<strong> R²</strong>,<strong> AUC,</strong> and <strong>accuracy</strong> to assess model performance.</li>
+<li><strong>Compare </strong>models to traditional approaches: Learn how data-driven models can complement or outperform traditional methods, such as expert opinions or subjective assessments. </li>
+</ol>
+<p></p>
+<p><strong>In unsupervised learning</strong></p>
+<ol>
+<li><strong>Define and apply </strong>clustering methods: Understand the role of clustering in unsupervised learning, and learn how k-means and hierarchical clustering group data points into meaningful segments.</li>
+<li><strong>Prepare and normalize</strong> data for clustering: Recognize why scaling and normalization are essential for fair comparisons across features with different units.</li>
+<li><strong>Determine the number</strong> of clusters: Use tools such as scree plots to identify the “sweet spot” for distinct and actionable groupings.</li>
+<li><strong>Interpret and communicate </strong>clusters: Analyze centroids, dendrograms, and segmentation outputs to describe patterns in the data.</li>
+<li><strong>Make clusters interpretable</strong>: Combine clustering with Optimal Classification Trees (OCT) to generate transparent, rule-based profiles that decision-makers can easily understand and apply.</li>
 </ol>
 </html>
