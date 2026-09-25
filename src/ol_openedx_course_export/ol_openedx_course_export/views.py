@@ -5,7 +5,6 @@ import logging
 from cms.djangoapps.contentstore.api.views.course_import import (
     CourseImportExportViewMixin,
 )
-from cms.djangoapps.contentstore.tasks import CourseExportTask
 from openedx.core.lib.api.view_utils import verify_course_exists
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
@@ -13,7 +12,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from user_tasks.models import UserTaskStatus
 
-from ol_openedx_course_export.tasks import task_upload_course_s3
+from ol_openedx_course_export.tasks import CourseS3ExportTask, task_upload_course_s3
 from ol_openedx_course_export.utils import (
     get_aws_file_url,
     is_bucket_configuration_valid,
@@ -153,7 +152,7 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
         try:
             task_id = request.GET["task_id"]
             args = {"course_key_string": course_id}
-            name = CourseExportTask.generate_name(args)
+            name = CourseS3ExportTask.generate_name(args)
             task_status = UserTaskStatus.objects.filter(
                 name=name, task_id=task_id
             ).first()
