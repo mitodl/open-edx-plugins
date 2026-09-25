@@ -5,6 +5,10 @@ Translation wants the lowest temperature a model will accept. Some models
 (OpenAI o-series, some gpt-5 configurations) allow only their default of 1 and
 reject anything else — litellm raises locally for some of them and lets others
 through to the provider, which returns a 400. Both are treated the same way.
+
+Newer Claude models (Opus 5, Sonnet 5, Opus 4.8/4.7) removed the parameter
+outright, so they reject every value including the fallback; those need the
+request sent with no temperature at all.
 """
 
 from unittest import mock
@@ -150,3 +154,113 @@ def test_validation_uses_a_longer_timeout_without_mutating_the_provider(provider
         assert completion.call_args.kwargs["timeout"] == original_timeout
 
     assert provider.litellm_timeout == original_timeout
+
+
+def _param_removed_rejection():
+    """A model that dropped the parameter rejects the fallback value too."""
+    return BadRequestError(
+        message="temperature: Extra inputs are not permitted",
+        model="claude-opus-5",
+        llm_provider="anthropic",
+    )
+
+
+def test_omits_temperature_when_model_rejects_every_value(provider):
+    """Models that removed the parameter need the request sent without it."""
+    with mock.patch.object(
+        llm_providers,
+        "completion",
+        side_effect=[
+            _param_removed_rejection(),
+            _param_removed_rejection(),
+            _response(),
+        ],
+    ) as completion:
+        assert provider._call_llm("system", "user") == "ok"  # noqa: SLF001
+
+    assert completion.call_count == 3  # noqa: PLR2004
+    attempts = completion.call_args_list
+    assert attempts[0].kwargs["temperature"] == TRANSLATION_TEMPERATURE
+    assert attempts[1].kwargs["temperature"] == FALLBACK_TEMPERATURE
+    assert "temperature" not in attempts[2].kwargs
+
+
+def test_omission_is_remembered_for_later_calls(provider):
+    """The two rejected probes are paid once per model, not once per request."""
+    with mock.patch.object(
+        llm_providers,
+        "completion",
+        side_effect=[
+            _param_removed_rejection(),
+            _param_removed_rejection(),
+            _response(),
+        ],
+    ):
+        provider._call_llm("system", "user")  # noqa: SLF001
+
+    other = OpenAIProvider("test-key", "gpt-test")
+    with mock.patch.object(
+        llm_providers, "completion", return_value=_response()
+    ) as completion:
+        other._call_llm("system", "user")  # noqa: SLF001
+
+    assert completion.call_count == 1
+    assert "temperature" not in completion.call_args.kwargs
+
+
+def test_rejection_without_temperature_is_raised(provider):
+    """Nothing is left to try once the parameter has already been dropped."""
+    with (
+        mock.patch.object(
+            llm_providers,
+            "completion",
+            side_effect=[
+                _param_removed_rejection(),
+                _param_removed_rejection(),
+                _param_removed_rejection(),
+            ],
+        ) as completion,
+        pytest.raises(BadRequestError),
+    ):
+        provider._call_llm("system", "user")  # noqa: SLF001
+
+    assert completion.call_count == 3  # noqa: PLR2004
+
+
+def test_gemini_asks_for_its_own_temperature_and_probes_once():
+    """
+    Gemini 3 accepts a low temperature and then hangs on hard calls.
+
+    litellm warns that below 1.0 it "can cause infinite loops, degraded
+    reasoning performance, and failure on complex tasks", so the provider asks
+    for 1.0 up front. Probing 1.0 twice would be the bug the dedupe prevents.
+    """
+    provider = llm_providers.GeminiProvider("test-key", "gemini-3.1-pro-preview")
+
+    with mock.patch.object(
+        llm_providers, "completion", return_value=_response()
+    ) as completion:
+        provider._call_llm("system", "user")  # noqa: SLF001
+
+    assert completion.call_count == 1
+    assert completion.call_args.kwargs["temperature"] == FALLBACK_TEMPERATURE
+
+    # And when it is rejected outright, the next rung omits the parameter
+    # rather than resending the same value.
+    llm_providers._MODEL_TEMPERATURES.clear()  # noqa: SLF001
+    with mock.patch.object(
+        llm_providers,
+        "completion",
+        side_effect=[
+            BadRequestError(
+                message="temperature: Extra inputs are not permitted",
+                model="gemini-3.1-pro-preview",
+                llm_provider="gemini",
+            ),
+            _response(),
+        ],
+    ) as completion:
+        provider._call_llm("system", "user")  # noqa: SLF001
+
+    assert completion.call_count == 2  # noqa: PLR2004
+    assert "temperature" not in completion.call_args.kwargs

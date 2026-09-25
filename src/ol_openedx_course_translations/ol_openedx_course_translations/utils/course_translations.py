@@ -23,12 +23,14 @@ from django.core.management.base import CommandError
 from lxml import etree
 
 from ol_openedx_course_translations.providers.llm_providers import (
+    AnthropicProvider,
     GeminiProvider,
     MistralProvider,
     OpenAIProvider,
 )
 from ol_openedx_course_translations.utils.constants import (
     NEVER_TRANSLATE_ATTRS,
+    PROVIDER_ANTHROPIC,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
     PROVIDER_OPENAI,
@@ -38,6 +40,84 @@ from ol_openedx_course_translations.utils.constants import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def looks_like_markup(value: str) -> bool:
+    """
+    Heuristic to determine if a string looks like markup (XML/HTML).
+    """
+    if not value:
+        return False
+    # Require at least one tag-like token; avoid accepting plain prose
+    return bool(re.search(r"</?[\w:-]+(?:\s|>|/)", value))
+
+
+def parse_and_validate_provider_spec(provider_spec: str) -> tuple[str, str | None]:
+    """
+    Parse and validate provider specification into provider name and model.
+
+    Resolves model from settings if not provided in specification.
+
+    Args:
+        provider_spec: Provider specification
+
+    Returns:
+        Tuple of (provider_name, model_name), resolved from settings if not
+        specified.
+
+    Raises:
+        CommandError: If provider specification format is invalid
+        or model and api_key cannot be resolved
+    """
+    # Parse the specification
+    if "/" in provider_spec:
+        parts = provider_spec.split("/", 1)
+        if len(parts) != 2 or not parts[0] or not parts[1]:  # noqa: PLR2004
+            error_msg = (
+                f"Invalid provider specification: {provider_spec}. "
+                "Use format 'PROVIDER' or 'PROVIDER/MODEL' "
+                "(e.g., 'openai', 'openai/gpt-5.2')"
+            )
+            raise CommandError(error_msg)
+        provider_name = parts[0].lower()
+        model_name = parts[1]
+    else:
+        provider_name = provider_spec.lower()
+        model_name = None
+
+    # Try to get default model from settings
+    providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
+    if provider_name not in providers_config:
+        error_msg = (
+            f"Provider '{provider_name}' not configured in TRANSLATIONS_PROVIDERS. "
+            f"Available providers: {', '.join(providers_config.keys())}"
+        )
+        raise CommandError(error_msg)
+
+    provider_config = providers_config[provider_name]
+    api_key = provider_config.get("api_key")
+    if not api_key:
+        error_msg = (
+            f"API key for provider '{provider_name}' is not configured in "
+            "TRANSLATIONS_PROVIDERS. Please set the 'api_key' in settings."
+        )
+        raise CommandError(error_msg)
+
+    # If model is explicitly provided, return it
+    if model_name:
+        return provider_name, model_name
+
+    default_model = provider_config.get("default_model")
+    if not default_model:
+        error_msg = (
+            f"No model specified for provider '{provider_name}' and no "
+            f"default_model found in TRANSLATIONS_PROVIDERS['{provider_name}']. "
+            f"Either specify a model (e.g., '{provider_name}/gpt-5.2') or "
+            f"configure a default_model in settings."
+        )
+        raise CommandError(error_msg)
+
+    return provider_name, default_model
 
 
 def get_translation_provider(
@@ -51,7 +131,7 @@ def get_translation_provider(
     _parse_and_validate_provider_spec() in the management command.
 
     Args:
-        provider_name: Name of the provider (openai, gemini, mistral)
+        provider_name: Name of the provider (anthropic, openai, gemini, mistral)
         model_name: Model name to use
 
     Returns:
@@ -65,7 +145,9 @@ def get_translation_provider(
     provider_config = providers_config[provider_name]
     api_key = provider_config["api_key"]
 
-    if provider_name == PROVIDER_OPENAI:
+    if provider_name == PROVIDER_ANTHROPIC:
+        return AnthropicProvider(api_key, model_name)
+    elif provider_name == PROVIDER_OPENAI:
         return OpenAIProvider(api_key, model_name)
     elif provider_name == PROVIDER_GEMINI:
         return GeminiProvider(api_key, model_name)

@@ -68,6 +68,7 @@ The plugin supports multiple translation providers:
 - OpenAI (GPT models)
 - Gemini (Google)
 - Mistral
+- Anthropic (Claude models)
 
 **Configuration**
 
@@ -88,6 +89,10 @@ All providers are configured through the ``TRANSLATIONS_PROVIDERS`` dictionary i
         "mistral": {
             "api_key": "<YOUR_MISTRAL_API_KEY>",
             "default_model": "mistral-large-latest",
+        },
+        "anthropic": {
+            "api_key": "<YOUR_ANTHROPIC_API_KEY>",
+            "default_model": "claude-opus-5",
         },
     }
 
@@ -297,6 +302,100 @@ If subtitle translation fails after all attempts:
 - The translated course directory will be automatically cleaned up
 - An error message will indicate which subtitle file caused the failure
 - No partial or corrupted translation files will be left behind
+
+Benchmarking Translation Quality
+================================
+
+``rate_translation_quality`` answers "which provider should translate this
+language, and is it worth running a validator over the result?" with evidence
+rather than opinion. It translates one fixed benchmark unit with every
+translator, edits each translation with every validator, has every judge score
+the results, and reports a winner.
+
+.. code-block:: bash
+
+    ./manage.py cms rate_translation_quality \
+        --target-language hi \
+        --translators "openai/gpt-5.2,gemini/gemini-3-pro-preview,mistral/mistral-large-latest" \
+        --judges "openai/gpt-5.2,anthropic/claude-opus-5"
+
+**Arguments**
+
+- ``--target-language`` (required): must be in ``COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES``.
+- ``--translators``: comma-separated ``PROVIDER`` or ``PROVIDER/MODEL`` specs. The same
+  roster is used as the validator set, so a run covers every translator/validator
+  pairing plus an unvalidated arm for each translator. Defaults to every provider
+  with an ``api_key``.
+- ``--judges``: comma-separated specs that score the candidates. Defaults to every
+  provider with an ``api_key``. A provider may be a translator and a judge at once.
+- ``--yes``: skip the run-size confirmation.
+
+A roster entry whose provider has no ``api_key`` is skipped with a note rather than
+failing the run, so a partly configured environment still produces a comparison.
+A provider named on the command line but absent from ``TRANSLATIONS_PROVIDERS`` is
+fatal instead — skipping it would answer a different question than the one asked.
+
+The work runs as Celery tasks on the CMS workers, so a large run is not bound
+by one process. Each stage is dispatched as a group and awaited before the next
+begins; the command prints progress and must stay open for the duration. Tasks
+are queued on ``edx.cms.core.low`` because the CMS workers are shared with
+course publishing — schedule large runs accordingly.
+
+**What a run does**
+
+1. Translates the benchmark once per translator, reusing that translation across
+   all of its validator arms so the arms differ only by validator.
+2. Runs each validator over each translation. A validator whose output is no
+   longer markup is reported and its arm dropped, never scored.
+3. Has every judge score every candidate on accuracy, fluency and terminology
+   from 1 to 10, one candidate per call.
+4. Orders candidates by **mean rank**: each judge's own scores are sorted into
+   positions, and those positions are averaged. This gives every judge one equal
+   vote regardless of how wide a range it uses. A judge whose reply cannot be
+   parsed is dropped from the whole scoring pass, so every candidate is ranked
+   over the same set of judges.
+5. Sends the leaders — the top five plus anything tied with fifth, capped at
+   eight — to a second pass where each judge ranks them side by side,
+   anonymized and shuffled per judge. A judge that fails here keeps its scores
+   and loses only its first-place vote.
+6. Names a winner only when the best mean rank and a majority of first-place
+   votes agree. At most one vote counts per judge, and the majority is measured
+   against the judges asked to rank, not the ones that answered; otherwise it
+   reports both signals and says there is no clear winner.
+
+**Reading the output**
+
+The table lists every scored candidate with its mean rank, mean score, ``spread``
+(the gap between its best and worst position across judges), the number of judges
+behind it, and the ``unchanged`` count below. A large spread
+means the judges disagreed about that candidate, and is worth more attention
+than a small difference in mean rank.
+
+The ``unchanged`` column counts translation units the provider returned identical
+to the source. It is a diagnostic, not part of the ranking: some units are
+identical in any language, but a high count means the provider skipped content
+and the score belongs to a partial translation. Arms that failed — a translation
+that came back unchanged, or a validator that returned prose or restructured the
+markup — are listed under the table with the reason, so a short table is never a
+silent one.
+
+Results are stored in ``TranslationQualityRun``, ``TranslationQualityCandidate``
+and ``TranslationQualityScore``, viewable read-only in the Django admin: the run
+page lists every candidate, its judge scores and the standings. Each candidate
+row keeps the content it was scored on, so a verdict can be checked against the
+text the judges actually saw. A judge dropped
+from the scoring pass is recorded on the run in ``excluded_judges`` together
+with the reason, so a run that rests on fewer judges says so months later.
+
+**The benchmark unit**
+
+Every run translates ``ol_openedx_course_translations/benchmarks/benchmark_course_content.xml``.
+It is deliberately fixed: scores are only comparable across languages and over
+time because the input never changes. Replacing it invalidates comparisons with
+earlier runs.
+
+The methodology, and the alternatives that were rejected, are recorded in
+``docs/adr/0001-translation-quality-benchmark-methodology.md``.
 
 License
 *******
