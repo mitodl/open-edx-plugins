@@ -171,7 +171,7 @@ run_plugin_tests() {
 	if [[ "$plugin_dir" == *"ol_openedx_uai_content_customization"* ]]; then
 		echo "Using CMS settings only for $plugin_dir (skipping LMS run)."
 		pytest_command="pytest . --cov . --ds=cms.envs.test"
-	elif [[ "$plugin_dir" == *"ol_openedx_git_auto_export"* ]]; then
+	elif [[ "$plugin_dir" == *"ol_openedx_git_auto_export"* || "$plugin_dir" == *"ol_openedx_course_export"* ]]; then
 		# CMS-only plugin (cms.djangoapp entry point, no lms.djangoapp). Under
 		# LMS settings its app isn't installed at all, so its models/tasks fail
 		# to import. --nomigrations matches edx-platform's own test convention,

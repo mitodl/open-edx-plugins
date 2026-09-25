@@ -2182,7 +2182,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-export"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "src/ol_openedx_course_export" }
 dependencies = [
     { name = "celery" },
