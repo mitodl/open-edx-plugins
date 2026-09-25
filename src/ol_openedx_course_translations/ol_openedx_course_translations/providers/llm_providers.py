@@ -51,6 +51,18 @@ MAX_CHUNK_RETRIES = 3
 # Validation reviews a whole document in one call, so it needs a longer timeout
 VALIDATION_TIMEOUT = 90
 
+# Benchmark timeouts. Judging sends a whole document (or a shortlist of them)
+# and gets a short JSON reply back, so it is bounded well below the 300s
+# provider default: a judge that hangs holds a worker slot for the duration.
+SCORING_TIMEOUT = 120
+RANKING_TIMEOUT = 180
+
+# litellm forwards this to the provider client, which otherwise retries twice
+# on its own — turning one 90s timeout into a 4.5 minute wait. The benchmark
+# would rather fail a call once and report it than retry silently, so it opts
+# out; translate_course keeps the client default.
+NO_CLIENT_RETRIES = 0
+
 # Translation wants the most deterministic output a model will give us.
 TRANSLATION_TEMPERATURE = 0.0
 
@@ -1025,10 +1037,15 @@ class LLMProvider(TranslationProvider):
         target_language: str,
         source_content: str,
         translated_content: str,
+        **call_kwargs: Any,
     ) -> str:
         """
         Validate and fix a translated XML/HTML document by sending the full markup blob
         to the LLM. This bypasses the DOM-aware translate_text() flow intentionally.
+
+        ``call_kwargs`` reaches the provider call unchanged, so a caller that
+        wants a different timeout or no client retries can say so without
+        changing what translate_course does.
         """
         if not translated_content or not translated_content.strip():
             return translated_content
@@ -1045,9 +1062,8 @@ class LLMProvider(TranslationProvider):
             f"{translated_content}\n"
         )
 
-        llm_response = self._call_llm(
-            system_prompt, user_payload, timeout=VALIDATION_TIMEOUT
-        )
+        call_kwargs.setdefault("timeout", VALIDATION_TIMEOUT)
+        llm_response = self._call_llm(system_prompt, user_payload, **call_kwargs)
         return self._parse_text_response(llm_response)
 
     def _get_rating_system_prompt(
@@ -1116,7 +1132,14 @@ class LLMProvider(TranslationProvider):
             f"SOURCE DOCUMENT ({source_language}):\n{source_content}\n\n"
             f"CANDIDATE TRANSLATION ({target_language}):\n{translated_content}\n"
         )
-        return parse_rating_response(self._call_llm(system_prompt, user_payload))
+        return parse_rating_response(
+            self._call_llm(
+                system_prompt,
+                user_payload,
+                timeout=SCORING_TIMEOUT,
+                max_retries=NO_CLIENT_RETRIES,
+            )
+        )
 
     def _get_ranking_system_prompt(
         self, source_language: str, target_language: str, labels: list[str]
@@ -1186,7 +1209,12 @@ class LLMProvider(TranslationProvider):
             f"CANDIDATE {label} ({target_language}):\n{text}"
             for label, text in candidates.items()
         ]
-        raw_response = self._call_llm(system_prompt, "\n\n".join(payload))
+        raw_response = self._call_llm(
+            system_prompt,
+            "\n\n".join(payload),
+            timeout=RANKING_TIMEOUT,
+            max_retries=NO_CLIENT_RETRIES,
+        )
         return parse_ranking_response(raw_response, labels)
 
     def translate_grading_types(

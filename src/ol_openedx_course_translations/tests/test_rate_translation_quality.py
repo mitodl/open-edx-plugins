@@ -13,9 +13,10 @@ from io import StringIO
 from unittest import mock
 
 import pytest
+from celery import current_app
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from litellm import BadRequestError
+from litellm import BadRequestError, RateLimitError, Timeout
 from ol_openedx_course_translations.admin import TranslationQualityRunAdmin
 from ol_openedx_course_translations.management.commands import (
     rate_translation_quality as benchmark_command,
@@ -30,6 +31,8 @@ from ol_openedx_course_translations.providers.llm_providers import (
     AnthropicProvider,
     OpenAIProvider,
 )
+from ol_openedx_course_translations.utils import benchmark as benchmark_module
+from ol_openedx_course_translations.utils.benchmark import units_and_elements
 from ol_openedx_course_translations.utils.quality_report import (
     Candidate,
     CandidateRow,
@@ -40,6 +43,8 @@ from ol_openedx_course_translations.utils.quality_report import (
     rank_one_votes,
     select_shortlist,
 )
+
+from ol_openedx_course_translations import tasks
 
 FAKE_KEY = "not-a-real-key"  # pragma: allowlist secret
 SOURCE = "<problem><p>Hello</p></problem>"
@@ -477,14 +482,31 @@ def _providers(settings):
 
 @pytest.fixture
 def _benchmark(tmp_path):
+    """Point both the command and the tasks at a small benchmark."""
     path = tmp_path / "benchmark_test.xml"
     path.write_text(BENCHMARK, encoding="utf-8")
-    with mock.patch(
-        "ol_openedx_course_translations.management.commands."
-        "rate_translation_quality.BENCHMARK_PATH",
-        path,
+    with (
+        mock.patch(
+            "ol_openedx_course_translations.utils.benchmark.BENCHMARK_PATH", path
+        ),
+        mock.patch(
+            "ol_openedx_course_translations.management.commands."
+            "rate_translation_quality.BENCHMARK_PATH",
+            path,
+        ),
     ):
         yield path
+
+
+@pytest.fixture(autouse=True)
+def _eager_celery():
+    """Run benchmark tasks in-process, so a stage is still one call away."""
+    app = current_app._get_current_object()  # noqa: SLF001
+    previous = app.conf.task_always_eager, app.conf.task_eager_propagates
+    app.conf.task_always_eager = True
+    app.conf.task_eager_propagates = False
+    yield
+    app.conf.task_always_eager, app.conf.task_eager_propagates = previous
 
 
 def _run(modes=None, *, confirm=True, **options):
@@ -497,8 +519,7 @@ def _run(modes=None, *, confirm=True, **options):
         return FakeProvider(spec, mode=modes.get(spec))
 
     with mock.patch(
-        "ol_openedx_course_translations.management.commands."
-        "rate_translation_quality.get_translation_provider",
+        "ol_openedx_course_translations.tasks.get_translation_provider",
         side_effect=build,
     ) as factory:
         call_command(
@@ -597,7 +618,11 @@ def test_a_translator_failure_still_records_all_of_its_arms():
     arms = TranslationQualityCandidate.objects.filter(translator="gemini/gemini-test")
 
     assert arms.count() == 3  # noqa: PLR2004
-    assert all("translation failed" in arm.error for arm in arms)
+    assert all(arm.error for arm in arms)
+    # The arm that did the translating carries the provider's own error; the
+    # validator arms that depended on it say why they never ran.
+    assert "upstream refused" in arms.get(validator="").error
+    assert all("translation failed" in arm.error for arm in arms.exclude(validator=""))
 
 
 @pytest.mark.django_db
@@ -889,9 +914,7 @@ def test_a_malformed_benchmark_is_named_as_the_cause(tmp_path):
 
     with (
         mock.patch(
-            "ol_openedx_course_translations.management.commands."
-            "rate_translation_quality.BENCHMARK_PATH",
-            broken,
+            "ol_openedx_course_translations.utils.benchmark.BENCHMARK_PATH", broken
         ),
         pytest.raises(CommandError, match="not well-formed XML"),
     ):
@@ -911,8 +934,7 @@ def test_every_arm_failing_reports_the_reasons_before_giving_up():
 
     with (
         mock.patch(
-            "ol_openedx_course_translations.management.commands."
-            "rate_translation_quality.get_translation_provider",
+            "ol_openedx_course_translations.tasks.get_translation_provider",
             side_effect=build,
         ),
         pytest.raises(CommandError, match="No candidate was scored"),
@@ -970,7 +992,9 @@ def test_an_expected_arm_failure_is_logged_without_a_traceback(caplog):
         )
 
     job_failures = [
-        record for record in caplog.records if record.msg.startswith("job %s failed")
+        record
+        for record in caplog.records
+        if record.msg.startswith("benchmark task failed")
     ]
 
     assert job_failures
@@ -985,11 +1009,142 @@ def test_the_shipped_benchmark_parses_and_has_units():
     without its wrapper raises XMLSyntaxError on the first run — after the
     roster has been resolved but before anything useful happens.
     """
-    units, elements = benchmark_command.Command._units_and_elements(  # noqa: SLF001
-        benchmark_command.BENCHMARK_PATH.read_text(encoding="utf-8")
+    units, elements = units_and_elements(
+        benchmark_module.BENCHMARK_PATH.read_text(encoding="utf-8")
     )
 
     assert len(units) > 10  # noqa: PLR2004
     assert elements > 5  # noqa: PLR2004
     # The display_name attribute is translatable and must be picked up.
     assert any("Statistical Sommelier" in unit for unit in units)
+
+
+def test_judging_calls_are_bounded_and_do_not_retry(judge):
+    """
+    A hung judge holds a worker slot, and the client retries twice by default.
+
+    Scoring inherited the 300s provider default and the client's two retries,
+    so one hang could occupy a slot for 15 minutes.
+    """
+    with mock.patch.object(
+        llm_providers,
+        "completion",
+        return_value=_response(
+            _wrapped(
+                '{"accuracy": 8, "fluency": 8, "terminology": 8, "justification": "x"}'
+            )
+        ),
+    ) as completion:
+        judge.rate_translation(
+            source_language="en",
+            target_language="hi",
+            source_content=SOURCE,
+            translated_content=TRANSLATED,
+        )
+
+    assert completion.call_args.kwargs["timeout"] == llm_providers.SCORING_TIMEOUT
+    assert completion.call_args.kwargs["max_retries"] == 0
+
+
+def test_validation_keeps_its_defaults_unless_a_caller_overrides_them(judge):
+    """translate_course must not inherit the benchmark's call parameters."""
+    reply = _wrapped("<problem><p>ok</p></problem>")
+
+    with mock.patch.object(
+        llm_providers, "completion", return_value=_response(reply)
+    ) as completion:
+        judge.validate_translation(
+            source_language="en",
+            target_language="hi",
+            source_content=SOURCE,
+            translated_content=TRANSLATED,
+        )
+    assert completion.call_args.kwargs["timeout"] == llm_providers.VALIDATION_TIMEOUT
+    assert "max_retries" not in completion.call_args.kwargs
+
+    with mock.patch.object(
+        llm_providers, "completion", return_value=_response(reply)
+    ) as completion:
+        judge.validate_translation(
+            source_language="en",
+            target_language="hi",
+            source_content=SOURCE,
+            translated_content=TRANSLATED,
+            timeout=240,
+            max_retries=0,
+        )
+    assert completion.call_args.kwargs["timeout"] == 240  # noqa: PLR2004
+    assert completion.call_args.kwargs["max_retries"] == 0
+
+
+# --------------------------------------------------------- celery plumbing
+
+
+@pytest.mark.parametrize(
+    "task",
+    [
+        tasks.benchmark_translate_task,
+        tasks.benchmark_validate_task,
+        tasks.benchmark_score_task,
+        tasks.benchmark_rank_task,
+    ],
+)
+def test_benchmark_tasks_stay_off_the_default_queue(task):
+    """
+    A run is hundreds of tasks on workers shared with course publishing.
+
+    Anything that lands on the default queue blocks CMS work for the duration.
+    """
+    assert task.queue == tasks.BENCHMARK_QUEUE
+    assert task.queue != "edx.cms.core.default"
+
+
+@pytest.mark.parametrize(
+    "task",
+    [tasks.benchmark_translate_task, tasks.benchmark_score_task],
+)
+def test_benchmark_tasks_retry_only_transient_failures(task):
+    """
+    A malformed judge reply will be malformed again.
+
+    Retrying it only delays the exclusion, so retries are limited to the
+    classes that can plausibly succeed on a second attempt.
+    """
+    assert set(task.autoretry_for) == {RateLimitError, Timeout}
+    assert RuntimeError not in task.autoretry_for
+    assert ValueError not in task.autoretry_for
+
+
+def test_a_dead_task_is_recorded_rather_than_ending_the_stage():
+    """
+    Groups are collected with propagate=False.
+
+    A task that exhausted its retries comes back as the exception object, and
+    must read as one failed unit of work rather than taking down the stage.
+    """
+    succeeded, reason = benchmark_command.Command._outcome(  # noqa: SLF001
+        RuntimeError("worker died")
+    )
+
+    assert not succeeded
+    assert "worker died" in reason
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "_benchmark")
+def test_each_arm_stores_the_content_it_was_scored_on():
+    """
+    Tasks address rows by id, so the content has to be on the row.
+
+    It is also what lets a reader check a judge's verdict against the text.
+    """
+    _run(translators="openai", judges="openai")
+
+    unvalidated = TranslationQualityCandidate.objects.get(validator="")
+    validated = TranslationQualityCandidate.objects.exclude(validator="").get()
+
+    assert "CONDUCCION" in unvalidated.translated_content
+    # The validator's edit is visible, so the stored arm is its output and not
+    # a copy of what it was given.
+    assert "CONDUCCION!" in validated.translated_content
+    assert validated.translated_content != unvalidated.translated_content

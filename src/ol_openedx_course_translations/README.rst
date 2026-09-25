@@ -335,6 +335,12 @@ failing the run, so a partly configured environment still produces a comparison.
 A provider named on the command line but absent from ``TRANSLATIONS_PROVIDERS`` is
 fatal instead — skipping it would answer a different question than the one asked.
 
+The work runs as Celery tasks on the CMS workers, so a large run is not bound
+by one process. Each stage is dispatched as a group and awaited before the next
+begins; the command prints progress and must stay open for the duration. Tasks
+are queued on ``edx.cms.core.low`` because the CMS workers are shared with
+course publishing — schedule large runs accordingly.
+
 **What a run does**
 
 1. Translates the benchmark once per translator, reusing that translation across
@@ -375,7 +381,9 @@ silent one.
 
 Results are stored in ``TranslationQualityRun``, ``TranslationQualityCandidate``
 and ``TranslationQualityScore``, viewable read-only in the Django admin: the run
-page lists every candidate, its judge scores and the standings. A judge dropped
+page lists every candidate, its judge scores and the standings. Each candidate
+row keeps the content it was scored on, so a verdict can be checked against the
+text the judges actually saw. A judge dropped
 from the scoring pass is recorded on the run in ``excluded_judges`` together
 with the reason, so a run that rests on fewer judges says so months later.
 

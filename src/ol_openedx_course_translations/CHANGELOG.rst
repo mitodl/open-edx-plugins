@@ -13,8 +13,25 @@ Change Log
 Unreleased
 ----------
 
+Changed
+~~~~~~~
+- ``rate_translation_quality`` dispatches its work as Celery tasks on the CMS
+  workers instead of an in-process thread pool. A 10-translator, 4-judge run is
+  ~550 calls, which one process serialises into hours; the three CMS workers
+  offer 18 slots. Tasks go to ``edx.cms.core.low``, retry only on ``Timeout``
+  and ``RateLimitError``, and each stage is awaited before the next begins.
+- ``TranslationQualityCandidate`` keeps the content each arm was scored on, so
+  tasks address rows by id rather than passing documents through the broker,
+  and a stored verdict can be checked against the text behind it.
+
 Fixed
 ~~~~~
+- Judging calls are bounded and no longer retried by the provider client.
+  Scoring and ranking inherited the 300s provider default and the client's two
+  retries, so one hang could hold a worker slot for 15 minutes. Validation from
+  the benchmark now allows 240s with retries off — the same worst case as
+  before, but a slow-but-working model gets to finish instead of failing three
+  times.
 - Gemini now asks for ``temperature=1.0`` rather than 0.0. Gemini 3 accepts a
   lower value without error and then behaves badly on it — litellm warns it
   "can cause infinite loops, degraded reasoning performance, and failure on

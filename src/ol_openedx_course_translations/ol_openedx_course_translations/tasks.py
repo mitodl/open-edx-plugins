@@ -8,12 +8,23 @@ from pathlib import Path
 from celery import shared_task
 from defusedxml import ElementTree
 from django.conf import settings
+from litellm import RateLimitError, Timeout
 
+from ol_openedx_course_translations.models import TranslationQualityCandidate
 from ol_openedx_course_translations.providers.llm_providers import (
+    NO_CLIENT_RETRIES,
     TRANSLATION_MARKER_END,
     TRANSLATION_MARKER_START,
 )
-from ol_openedx_course_translations.utils.constants import XML_FORMAT_ATTR
+from ol_openedx_course_translations.utils.benchmark import (
+    count_unchanged_units,
+    read_benchmark,
+    units_and_elements,
+)
+from ol_openedx_course_translations.utils.constants import (
+    ENGLISH_LANGUAGE_CODE,
+    XML_FORMAT_ATTR,
+)
 from ol_openedx_course_translations.utils.course_translations import (
     apply_format_attribute_mapping,
     get_srt_output_filename,
@@ -423,3 +434,197 @@ def translate_info_updates_task(  # noqa: PLR0913, PLR0917, C901
         return {"status": "error", "file": updates_file_path_str, "error": str(e)}
     else:
         return {"status": "success", "file": updates_file_path_str}
+
+
+# ---------------------------------------------------------------- benchmark
+
+# Benchmark work is dispatched in stages of up to ~550 tasks, so it runs on the
+# low queue: the cms workers are shared with course publishing.
+# Longer than translate_course's 90s: a reasoning model reviewing the whole
+# benchmark needs it, and with client retries off a slow-but-working model gets
+# to finish instead of failing three times.
+BENCHMARK_VALIDATION_TIMEOUT = 240
+
+BENCHMARK_QUEUE = "edx.cms.core.low"
+
+# Retried only when the failure is transient. A malformed judge reply is not
+# worth retrying — it will be malformed again, and the run drops that judge
+# either way, so a retry only delays the exclusion.
+BENCHMARK_TRANSIENT_ERRORS = (RateLimitError, Timeout)
+BENCHMARK_RETRY_KWARGS = {"max_retries": 2}
+
+# Exception types that mean the code is wrong, rather than the run hitting
+# something it already reports. Only these get a traceback: an arm gate raising
+# RuntimeError, or a judge reply the parser rejects, is summarised in one line
+# by the report itself, and a stack trace per rejected arm buries it.
+BUG_LIKE_ERRORS = (AttributeError, IndexError, KeyError, NameError, TypeError)
+
+
+def _log_benchmark_failure(error: Exception, context: str) -> str:
+    """
+    Record a task failure and return the string the run will report.
+
+    A traceback is what separates a genuine bug from a provider that timed
+    out, since both read the same way in the summary line.
+    """
+    if isinstance(error, BUG_LIKE_ERRORS):
+        logger.exception("benchmark task failed (%s)", context)
+    else:
+        logger.warning("benchmark task failed (%s): %s", context, error)
+    return f"{type(error).__name__}: {error}"
+
+
+def _benchmark_task(name):
+    """Shared decorator for the benchmark's stage tasks."""
+    return shared_task(
+        bind=True,
+        name=name,
+        queue=BENCHMARK_QUEUE,
+        autoretry_for=BENCHMARK_TRANSIENT_ERRORS,
+        retry_backoff=True,
+        retry_kwargs=BENCHMARK_RETRY_KWARGS,
+    )
+
+
+@_benchmark_task("benchmark_translate_task")
+def benchmark_translate_task(_self, candidate_id, translator, target_language):
+    """
+    Translate the benchmark and store it on its unvalidated arm.
+
+    Returns a status dict rather than raising, so one translator failing is
+    data the command aggregates rather than an exception that ends the stage.
+    """
+
+    candidate = TranslationQualityCandidate.objects.get(pk=candidate_id)
+    try:
+        benchmark = read_benchmark()
+        provider = get_translation_provider(*translator.split("/", 1))
+        translated = provider.translate_text(
+            benchmark.content, target_language, tag_handling="xml"
+        )
+        # translate_text swallows failures and hands back the source, so an
+        # unchanged document means the translation did not happen.
+        if not translated or translated.strip() == benchmark.content.strip():
+            msg = "provider returned the source unchanged"
+            raise RuntimeError(msg)  # noqa: TRY301
+        units_and_elements(translated)
+    except Exception as error:  # noqa: BLE001
+        candidate.error = _log_benchmark_failure(error, f"translate {translator}")
+        candidate.save(update_fields=["error"])
+        return {"status": "error", "candidate_id": candidate_id, "error": str(error)}
+
+    candidate.translated_content = translated
+    candidate.save(update_fields=["translated_content"])
+    return {
+        "status": "success",
+        "candidate_id": candidate_id,
+        "unchanged_units": count_unchanged_units(translated, benchmark),
+    }
+
+
+@_benchmark_task("benchmark_validate_task")
+def benchmark_validate_task(
+    _self, candidate_id, source_candidate_id, validator, target_language
+):
+    """Review one translation and store the result as its own arm."""
+
+    candidate = TranslationQualityCandidate.objects.get(pk=candidate_id)
+    source_arm = TranslationQualityCandidate.objects.get(pk=source_candidate_id)
+    try:
+        benchmark = read_benchmark()
+        provider = get_translation_provider(*validator.split("/", 1))
+        reviewed = provider.validate_translation(
+            source_language=ENGLISH_LANGUAGE_CODE,
+            target_language=target_language,
+            source_content=benchmark.content,
+            translated_content=source_arm.translated_content,
+            timeout=BENCHMARK_VALIDATION_TIMEOUT,
+            max_retries=NO_CLIENT_RETRIES,
+        )
+        # Validation sends whole markup and bypasses the DOM-aware path, so it
+        # can return prose or restructured markup. Production applies the same
+        # looks_like_markup gate but falls back to the unvalidated translation;
+        # here the arm is dropped instead, so nothing unusable is scored.
+        if not looks_like_markup(reviewed):
+            msg = "validator returned no markup"
+            raise RuntimeError(msg)  # noqa: TRY301
+        _, before_elements = units_and_elements(source_arm.translated_content)
+        _, after_elements = units_and_elements(reviewed)
+        if after_elements != before_elements:
+            msg = (
+                f"validator changed the markup structure "
+                f"({before_elements} elements in, {after_elements} out)"
+            )
+            raise RuntimeError(msg)  # noqa: TRY301
+    except Exception as error:  # noqa: BLE001
+        candidate.error = _log_benchmark_failure(error, f"validate {validator}")
+        candidate.save(update_fields=["error"])
+        return {"status": "error", "candidate_id": candidate_id, "error": str(error)}
+
+    candidate.translated_content = reviewed
+    candidate.save(update_fields=["translated_content"])
+    return {"status": "success", "candidate_id": candidate_id}
+
+
+@_benchmark_task("benchmark_score_task")
+def benchmark_score_task(_self, candidate_id, judge, target_language):
+    """
+    Score one candidate with one judge.
+
+    Deliberately does not write: whether this judge counts at all is a decision
+    over every result in the stage, which only the command can make.
+    """
+
+    try:
+        benchmark = read_benchmark()
+        candidate = TranslationQualityCandidate.objects.get(pk=candidate_id)
+        rating = get_translation_provider(*judge.split("/", 1)).rate_translation(
+            source_language=ENGLISH_LANGUAGE_CODE,
+            target_language=target_language,
+            source_content=benchmark.content,
+            translated_content=candidate.translated_content,
+        )
+    except Exception as error:  # noqa: BLE001
+        return {
+            "status": "error",
+            "candidate_id": candidate_id,
+            "judge": judge,
+            "error": _log_benchmark_failure(error, f"score {judge}"),
+        }
+    return {
+        "status": "success",
+        "candidate_id": candidate_id,
+        "judge": judge,
+        "scores": rating.scores,
+        "justification": rating.justification,
+    }
+
+
+@_benchmark_task("benchmark_rank_task")
+def benchmark_rank_task(_self, judge, label_map, target_language):
+    """Rank the shortlist for one judge; ``label_map`` is label -> candidate id."""
+
+    try:
+        benchmark = read_benchmark()
+        rows = TranslationQualityCandidate.objects.in_bulk(label_map.values())
+        payload = {
+            label: rows[candidate_id].translated_content
+            for label, candidate_id in label_map.items()
+        }
+        ranks = get_translation_provider(*judge.split("/", 1)).rank_translations(
+            source_language=ENGLISH_LANGUAGE_CODE,
+            target_language=target_language,
+            source_content=benchmark.content,
+            candidates=payload,
+        )
+    except Exception as error:  # noqa: BLE001
+        return {
+            "status": "error",
+            "judge": judge,
+            "error": _log_benchmark_failure(error, f"rank {judge}"),
+        }
+    return {
+        "status": "success",
+        "judge": judge,
+        "ranks": {label_map[label]: position for label, position in ranks.items()},
+    }

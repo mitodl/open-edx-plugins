@@ -1,37 +1,33 @@
-"""
-Benchmark translation quality across LLM providers.
-
-Translates one fixed benchmark unit with every translator, edits each
-translation with every validator, has every judge score the results, and
-reports which configuration wins. See
-``docs/adr/0001-translation-quality-benchmark-methodology.md`` for why the
-judging works the way it does.
-"""
-
 import logging
 import random
-from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+import time
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
 
+from celery import group
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-import ol_openedx_course_translations
 from ol_openedx_course_translations.models import (
     TranslationQualityCandidate,
     TranslationQualityRun,
     TranslationQualityScore,
 )
 from ol_openedx_course_translations.providers.llm_providers import COMPARATIVE_LABELS
-from ol_openedx_course_translations.utils.constants import ENGLISH_LANGUAGE_CODE
+from ol_openedx_course_translations.tasks import (
+    benchmark_rank_task,
+    benchmark_score_task,
+    benchmark_translate_task,
+    benchmark_validate_task,
+)
+from ol_openedx_course_translations.utils.benchmark import (
+    BENCHMARK_PATH,
+    Benchmark,
+    BenchmarkError,
+    count_unchanged_units,
+    read_benchmark,
+)
 from ol_openedx_course_translations.utils.course_translations import (
-    HtmlXmlTranslationHelper,
-    get_translation_provider,
-    looks_like_markup,
     parse_and_validate_provider_spec,
 )
 from ol_openedx_course_translations.utils.quality_report import (
@@ -47,30 +43,13 @@ from ol_openedx_course_translations.utils.quality_report import (
 
 logger = logging.getLogger(__name__)
 
-BENCHMARK_PATH = (
-    Path(ol_openedx_course_translations.__file__).parent
-    / "benchmarks"
-    / "benchmark_course_content.xml"
-)
-
 # Rough characters per token, for the pre-flight size estimate only.
 CHARS_PER_TOKEN = 4
 
-# Exception types that mean the code is wrong, rather than the run hitting
-# something it already reports. Only these get a traceback: an arm gate raising
-# RuntimeError, or a judge reply the parser rejects, is summarised in one line
-# by the report itself, and a stack trace per rejected arm buries it.
-BUG_LIKE_ERRORS = (AttributeError, IndexError, KeyError, NameError, TypeError)
-
-
-@dataclass(frozen=True)
-class Benchmark:
-    """The benchmark content, read and parsed once per run."""
-
-    content: str
-    # Stripped source unit texts, for the unchanged-unit diagnostic.
-    units: frozenset[str]
-    elements: int
+# Stage polling. The stage timeout matches translate_course's: a 10-translator
+# run is tens of minutes of work, and the group must not be abandoned mid-flight.
+BENCHMARK_POLL_INTERVAL = 2
+BENCHMARK_STAGE_TIMEOUT = 7200
 
 
 @dataclass(frozen=True)
@@ -162,7 +141,11 @@ class Command(BaseCommand):
             msg = "No usable judges. Configure an api_key or pass --judges."
             raise CommandError(msg)
 
-        benchmark = self._read_benchmark()
+        try:
+            benchmark = read_benchmark()
+        except BenchmarkError as error:
+            raise CommandError(str(error)) from error
+
         self._confirm_run(
             translators=translators,
             judges=judges,
@@ -170,33 +153,39 @@ class Command(BaseCommand):
             skip_prompt=options["yes"],
         )
 
-        translations = self._translate(translators, target_language, benchmark)
-        arms = self._validate(translators, translations, target_language, benchmark)
-        scoring = self._score(arms, judges, target_language, benchmark)
+        run = TranslationQualityRun.objects.create(
+            target_language=target_language,
+            benchmark_fixture=BENCHMARK_PATH.name,
+            translators_arg=",".join(translators),
+            judges_arg=",".join(judges),
+        )
+        rows = self._create_rows(run, translators)
+
+        failed_translators = self._translate(rows, translators, target_language)
+        self._validate(rows, translators, failed_translators, target_language)
+        arms = self._load_arms(run, benchmark)
+
+        scoring = self._score(rows, arms, judges, target_language)
         if not scoring.overalls:
             self._report_broken_arms(arms)
-            msg = "No candidate was scored by any judge."
+            run.excluded_judges = self._format_exclusions(scoring)
+            run.save(update_fields=["excluded_judges"])
+            msg = f"No candidate was scored by any judge (run {run.pk})."
             raise CommandError(msg)
 
-        rows = build_rows(scoring.overalls)
-        shortlist = select_shortlist(rows)
+        report_rows = build_rows(scoring.overalls)
+        shortlist = select_shortlist(report_rows)
         ranking = self._rank(
-            shortlist, arms, judges, scoring.excluded_judges, target_language, benchmark
+            shortlist, rows, judges, scoring.excluded_judges, target_language
         )
 
-        # Reported before persisting: the run costs real money, and a write
-        # failure should not also throw away the result it paid for.
-        self._report(rows, arms, scoring, ranking)
+        # Reported before the scores are written: the translations are already
+        # safe on their rows, and a write failure should not also cost the
+        # standings the run paid for.
+        self._report(report_rows, arms, scoring, ranking)
 
         with transaction.atomic():
-            run = self._persist(
-                target_language=target_language,
-                translators=translators,
-                judges=judges,
-                arms=arms,
-                scoring=scoring,
-                ranking=ranking,
-            )
+            self._persist_scores(run, rows, scoring, ranking)
         self.stdout.write(
             f"\nStored as run {run.pk}; see the Django admin for details."
         )
@@ -255,31 +244,6 @@ class Command(BaseCommand):
         # repeat would collide on the per-run unique constraint.
         return list(dict.fromkeys(resolved))
 
-    def _read_benchmark(self) -> Benchmark:
-        """
-        Read and parse the benchmark before anything is spent.
-
-        Parsing here means a malformed fixture is reported as the cause,
-        rather than surfacing later as every translator appearing to fail.
-        """
-        if not BENCHMARK_PATH.exists():
-            msg = f"Benchmark file is missing: {BENCHMARK_PATH}"
-            raise CommandError(msg)
-        content = BENCHMARK_PATH.read_text(encoding="utf-8")
-        if not content.strip():
-            msg = f"Benchmark file is empty: {BENCHMARK_PATH}"
-            raise CommandError(msg)
-        try:
-            units, elements = self._units_and_elements(content)
-        except Exception as error:
-            msg = f"Benchmark file is not well-formed XML ({BENCHMARK_PATH}): {error}"
-            raise CommandError(msg) from error
-        return Benchmark(
-            content=content,
-            units=frozenset(unit.strip() for unit in units),
-            elements=elements,
-        )
-
     def _confirm_run(
         self,
         *,
@@ -337,262 +301,178 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------ execution
 
-    def _run_lanes(self, jobs: list[tuple[str, Any, Callable[[], Any]]]) -> dict:
+    def _dispatch(self, signatures: list, header: str) -> list:
         """
-        Run jobs concurrently, one lane per provider.
+        Run a stage as one Celery group and wait for it.
 
-        Jobs sharing a provider run in sequence, so a run cannot rate-limit
-        itself against a single API key; different providers run in parallel.
-        Each result is ``{"value": ..., "error": str | None}``.
+        ``propagate=False`` so a task that exhausted its retries comes back as
+        a result to record rather than an exception that ends the stage: one
+        provider failing must not cost the work already paid for.
         """
-        if not jobs:
-            return {}
+        if not signatures:
+            return []
 
-        lanes: dict[str, list[tuple[Any, Callable[[], Any]]]] = {}
-        for spec, key, work in jobs:
-            lanes.setdefault(spec.split("/", 1)[0], []).append((key, work))
-
-        def run_lane(lane):
-            results = []
-            for key, work in lane:
-                try:
-                    results.append((key, {"value": work(), "error": None}))
-                except Exception as error:
-                    # This catches genuine bugs as well as provider failures,
-                    # and the two read alike in the summary line, so the
-                    # traceback is what separates them.
-                    if isinstance(error, BUG_LIKE_ERRORS):
-                        logger.exception("job %s failed", key)
-                    else:
-                        logger.warning("job %s failed: %s", key, error)
-                    results.append(
-                        (
-                            key,
-                            {
-                                "value": None,
-                                "error": f"{type(error).__name__}: {error}",
-                            },
-                        )
-                    )
-            return results
-
-        collected: dict[Any, Any] = {}
-        with ThreadPoolExecutor(max_workers=len(lanes)) as pool:
-            for lane_results in pool.map(run_lane, lanes.values()):
-                collected.update(lane_results)
-        return collected
-
-    def _provider_for(self, spec: str):
-        provider_name, model_name = spec.split("/", 1)
-        return get_translation_provider(provider_name, model_name)
+        self.stdout.write(f"{header}: {len(signatures)} task(s)...")
+        result = group(signatures).apply_async()
+        while not result.ready():
+            done = sum(1 for child in result.results if child.ready())
+            self.stdout.write(f"  {done}/{len(signatures)} done\r", ending="")
+            self.stdout.flush()
+            time.sleep(BENCHMARK_POLL_INTERVAL)
+        return result.get(timeout=BENCHMARK_STAGE_TIMEOUT, propagate=False)
 
     @staticmethod
-    def _units_and_elements(markup: str) -> tuple[list[str], int]:
-        """Extract translatable units and count elements, for the arm checks."""
-        helper = HtmlXmlTranslationHelper(is_xml=True)
-        root, units, _ = helper.extract_units(markup)
-        # Comments and processing instructions have non-string tags; counting
-        # them would make a validator that touches a comment look like one that
-        # restructured the document.
-        return units, sum(1 for node in root.iter() if isinstance(node.tag, str))
+    def _outcome(result) -> tuple[bool, str]:
+        """Read a task result, treating anything unexpected as a failure."""
+        if not isinstance(result, dict):
+            return False, f"{type(result).__name__}: {result}"
+        if result.get("status") != "success":
+            return False, str(result.get("error", "unknown error"))
+        return True, ""
 
-    def _unchanged_units(self, markup: str, benchmark: Benchmark) -> int | None:
-        """
-        Count units whose text still matches some source unit.
-
-        Diagnostic only, so a parse failure returns None rather than
-        discarding an arm whose content is otherwise scoreable.
-        """
-        try:
-            units, _ = self._units_and_elements(markup)
-        except Exception:
-            logger.warning("could not measure unchanged units", exc_info=True)
-            return None
-        return sum(1 for unit in units if unit.strip() in benchmark.units)
+    def _create_rows(
+        self, run: TranslationQualityRun, translators: list[str]
+    ) -> dict[Candidate, TranslationQualityCandidate]:
+        """Create every arm up front, so tasks can address rows by id."""
+        return {
+            Candidate(
+                translator, validator
+            ): TranslationQualityCandidate.objects.create(
+                run=run, translator=translator, validator=validator
+            )
+            for translator in translators
+            for validator in ["", *translators]
+        }
 
     def _translate(
-        self, translators: list[str], target_language: str, benchmark: Benchmark
-    ) -> dict[str, dict]:
-        """Translate the benchmark once per translator; arms reuse the result."""
-        self.stdout.write(f"Translating with {len(translators)} translator(s)...")
-
-        def translate(spec):
-            def work():
-                translated = self._provider_for(spec).translate_text(
-                    benchmark.content, target_language, tag_handling="xml"
+        self,
+        rows: dict[Candidate, TranslationQualityCandidate],
+        translators: list[str],
+        target_language: str,
+    ) -> set[str]:
+        """Translate once per translator; returns the translators that failed."""
+        signatures = [
+            benchmark_translate_task.s(
+                rows[Candidate(translator)].pk, translator, target_language
+            )
+            for translator in translators
+        ]
+        failed = set()
+        for translator, result in zip(
+            translators, self._dispatch(signatures, "Translating"), strict=False
+        ):
+            succeeded, reason = self._outcome(result)
+            if not succeeded:
+                failed.add(translator)
+                self.stdout.write(
+                    self.style.WARNING(f"⊘ translator {translator}: {reason}")
                 )
-                # translate_text swallows failures and hands back the source,
-                # so an unchanged document means the translation did not happen.
-                if not translated or translated.strip() == benchmark.content.strip():
-                    msg = "provider returned the source unchanged"
-                    raise RuntimeError(msg)
-                try:
-                    _, elements = self._units_and_elements(translated)
-                except Exception as error:
-                    msg = f"translation does not parse as XML: {error}"
-                    raise RuntimeError(msg) from error
-                # A partial translation is not identical to the source, so the
-                # check above cannot see it: units the model skipped come back
-                # in English. Counted here and shown in the report.
-                return Arm(
-                    content=translated,
-                    elements=elements,
-                    unchanged_units=self._unchanged_units(translated, benchmark),
-                )
-
-            return work
-
-        return self._run_lanes([(spec, spec, translate(spec)) for spec in translators])
+        return failed
 
     def _validate(
         self,
+        rows: dict[Candidate, TranslationQualityCandidate],
         translators: list[str],
-        translations: dict[str, dict],
+        failed_translators: set[str],
         target_language: str,
-        benchmark: Benchmark,
-    ) -> dict[Candidate, Arm]:
-        """Build every (translator, validator) arm, including the unvalidated one."""
-        arms: dict[Candidate, Arm] = {}
-        jobs: list[tuple[str, Any, Callable[[], Any]]] = []
-
+    ) -> None:
+        """Review each usable translation with every validator."""
+        signatures: list = []
         for translator in translators:
-            translated = translations[translator]
-            if translated["error"]:
-                for validator in ["", *translators]:
-                    arms[Candidate(translator, validator)] = Arm(
-                        error=f"translation failed: {translated['error']}"
-                    )
+            if translator in failed_translators:
+                # The arms of a failed translation have nothing to review.
+                for validator in translators:
+                    arm = rows[Candidate(translator, validator)]
+                    arm.error = "translation failed"
+                    arm.save(update_fields=["error"])
                 continue
-
-            arm = translated["value"]
-            arms[Candidate(translator)] = arm
-            jobs.extend(
-                (
+            signatures.extend(
+                benchmark_validate_task.s(
+                    rows[Candidate(translator, validator)].pk,
+                    rows[Candidate(translator)].pk,
                     validator,
-                    Candidate(translator, validator),
-                    self._validation_job(validator, arm, target_language, benchmark),
+                    target_language,
                 )
                 for validator in translators
             )
+        self._dispatch(signatures, "Validating")
 
-        if jobs:
-            self.stdout.write(f"Validating {len(jobs)} arm(s)...")
-            for key, result in self._run_lanes(jobs).items():
-                arms[key] = (
-                    Arm(error=result["error"]) if result["error"] else result["value"]
-                )
+    def _load_arms(
+        self, run: TranslationQualityRun, benchmark: Benchmark
+    ) -> dict[Candidate, Arm]:
+        """Read back what the tasks wrote, with the diagnostic recomputed."""
+        arms = {}
+        for row in run.candidates.all():
+            content = row.translated_content or None
+            arms[Candidate(row.translator, row.validator)] = Arm(
+                content=content,
+                error=row.error,
+                unchanged_units=(
+                    count_unchanged_units(content, benchmark) if content else None
+                ),
+            )
         return arms
-
-    def _validation_job(
-        self,
-        validator: str,
-        translated: Arm,
-        target_language: str,
-        benchmark: Benchmark,
-    ) -> Callable[[], Arm]:
-        def work():
-            reviewed = self._provider_for(validator).validate_translation(
-                source_language=ENGLISH_LANGUAGE_CODE,
-                target_language=target_language,
-                source_content=benchmark.content,
-                translated_content=translated.content,
-            )
-            # Validation sends whole markup and bypasses the DOM-aware path, so
-            # it can return prose or restructured markup. Production applies the
-            # same looks_like_markup gate (tasks.py) but falls back to the
-            # unvalidated translation; here the arm is dropped instead, so
-            # nothing unusable is scored. The element-count check below has no
-            # production counterpart — it is benchmark-only.
-            if not looks_like_markup(reviewed):
-                msg = "validator returned no markup"
-                raise RuntimeError(msg)
-            try:
-                _, after_elements = self._units_and_elements(reviewed)
-            except Exception as error:
-                msg = f"validator returned markup that does not parse: {error}"
-                raise RuntimeError(msg) from error
-            # Compared against the count taken when the translation was made,
-            # so a translator-side problem is never blamed on the validator.
-            if after_elements != translated.elements:
-                msg = (
-                    f"validator changed the markup structure "
-                    f"({translated.elements} elements in, {after_elements} out)"
-                )
-                raise RuntimeError(msg)
-            return Arm(
-                content=reviewed,
-                elements=after_elements,
-                unchanged_units=self._unchanged_units(reviewed, benchmark),
-            )
-
-        return work
 
     def _score(
         self,
+        rows: dict[Candidate, TranslationQualityCandidate],
         arms: dict[Candidate, Arm],
         judges: list[str],
         target_language: str,
-        benchmark: Benchmark,
     ) -> ScoringPass:
         """
         Have every judge score every usable candidate, one candidate per call.
 
         A judge that fails anywhere is dropped from the whole scoring pass, so
-        every candidate ends up ranked over an identical set of judges.
+        every candidate ends up ranked over an identical set of judges. That is
+        a decision over the whole stage, which is why the tasks return their
+        ratings instead of writing them.
         """
-        usable = {key: arm for key, arm in arms.items() if arm.usable}
-        jobs = [
-            (
-                judge,
-                (judge, key),
-                self._scoring_job(judge, arm, target_language, benchmark),
-            )
+        usable = [key for key, arm in arms.items() if arm.usable]
+        signatures = [
+            benchmark_score_task.s(rows[key].pk, judge, target_language)
             for judge in judges
-            for key, arm in usable.items()
+            for key in usable
         ]
-        self.stdout.write(
-            f"Scoring {len(usable)} candidate(s) with {len(judges)} judge(s)..."
+        results = self._dispatch(
+            signatures,
+            f"Scoring {len(usable)} candidate(s) against {len(judges)} judge(s)",
         )
-        results = self._run_lanes(jobs)
 
+        by_id = {rows[key].pk: key for key in usable}
         reasons: dict[str, str] = {}
-        for (judge, key), result in results.items():
-            if result["error"] and judge not in reasons:
-                reasons[judge] = f"{key} → {result['error']}"
+        collected: list[tuple[str, Candidate, Rating]] = []
+        for result in results:
+            succeeded, reason = self._outcome(result)
+            judge = str(result.get("judge", "")) if isinstance(result, dict) else ""
+            if not succeeded:
+                if judge and judge not in reasons:
+                    reasons[judge] = reason
+                continue
+            key = by_id[result["candidate_id"]]
+            collected.append(
+                (judge, key, Rating(result["scores"], result["justification"]))
+            )
+
         for judge, reason in sorted(reasons.items()):
             self.stdout.write(self.style.WARNING(f"⊘ judge {judge} dropped: {reason}"))
 
         overalls: dict[str, dict[Candidate, float]] = {}
         ratings: dict[tuple[str, Candidate], Rating] = {}
-        for (judge, key), result in results.items():
+        for judge, key, rating in collected:
             if judge in reasons:
                 continue
-            rating = result["value"]
             overalls.setdefault(judge, {})[key] = average_overall(rating.scores)
             ratings[(judge, key)] = rating
         return ScoringPass(overalls, ratings, dict(sorted(reasons.items())))
 
-    def _scoring_job(
-        self, judge: str, arm: Arm, target_language: str, benchmark: Benchmark
-    ) -> Callable[[], Rating]:
-        def work():
-            return self._provider_for(judge).rate_translation(
-                source_language=ENGLISH_LANGUAGE_CODE,
-                target_language=target_language,
-                source_content=benchmark.content,
-                translated_content=arm.content,
-            )
-
-        return work
-
-    def _rank(  # noqa: PLR0913, PLR0917
+    def _rank(
         self,
         shortlist,
-        arms: dict[Candidate, Arm],
+        rows: dict[Candidate, TranslationQualityCandidate],
         judges: list[str],
         excluded_judges: dict[str, str],
         target_language: str,
-        benchmark: Benchmark,
     ) -> RankingPass:
         """
         Have each judge rank the shortlist side by side, shuffled per judge.
@@ -605,122 +485,81 @@ class Command(BaseCommand):
         if len(shortlist) < 2 or not ranking_judges:  # noqa: PLR2004
             return RankingPass({}, {}, 0)
 
-        self.stdout.write(
-            f"Ranking the top {len(shortlist)} with {len(ranking_judges)} judge(s)..."
-        )
-        jobs = []
+        by_id = {rows[row.candidate].pk: row.candidate for row in shortlist}
+        signatures: list = []
         label_maps: dict[str, dict[str, Candidate]] = {}
         for judge in ranking_judges:
             order = [row.candidate for row in shortlist]
             random.shuffle(order)
             label_maps[judge] = dict(zip(COMPARATIVE_LABELS, order, strict=False))
-            jobs.append(
-                (
+            signatures.append(
+                benchmark_rank_task.s(
                     judge,
-                    judge,
-                    self._ranking_job(
-                        judge, label_maps[judge], arms, target_language, benchmark
-                    ),
+                    {label: rows[key].pk for label, key in label_maps[judge].items()},
+                    target_language,
                 )
             )
 
         ranks: dict[str, dict[Candidate, int]] = {}
         labels: dict[tuple[str, Candidate], str] = {}
-        for judge, result in self._run_lanes(jobs).items():
-            if result["error"]:
+        for result in self._dispatch(signatures, f"Ranking the top {len(shortlist)}"):
+            succeeded, reason = self._outcome(result)
+            judge = str(result.get("judge", "")) if isinstance(result, dict) else ""
+            if not succeeded:
                 self.stdout.write(
-                    self.style.WARNING(
-                        f"⊘ judge {judge} ranking failed: {result['error']}"
-                    )
+                    self.style.WARNING(f"⊘ judge {judge} ranking failed: {reason}")
                 )
                 continue
-            ranks[judge] = result["value"]
+            ranks[judge] = {
+                by_id[int(candidate_id)]: position
+                for candidate_id, position in result["ranks"].items()
+            }
             # Labels are recorded only for a completed ranking: a judge that
             # never returned one did not rank what it was shown.
             for label, key in label_maps[judge].items():
                 labels[(judge, key)] = label
         return RankingPass(ranks, labels, len(ranking_judges))
 
-    def _ranking_job(
-        self,
-        judge: str,
-        label_map: dict[str, Candidate],
-        arms: dict[Candidate, Arm],
-        target_language: str,
-        benchmark: Benchmark,
-    ) -> Callable[[], dict]:
-        def work():
-            # Built inside the job so that a candidate missing its content —
-            # a bug, since everything shortlisted was scored — costs this
-            # judge's ranking rather than the whole run's report.
-            payload = {}
-            for label, key in label_map.items():
-                content = arms[key].content
-                if content is None:
-                    msg = f"shortlisted candidate {key} has no content"
-                    raise RuntimeError(msg)
-                payload[label] = content
-
-            ranks = self._provider_for(judge).rank_translations(
-                source_language=ENGLISH_LANGUAGE_CODE,
-                target_language=target_language,
-                source_content=benchmark.content,
-                candidates=payload,
-            )
-            return {label_map[label]: position for label, position in ranks.items()}
-
-        return work
-
     # ------------------------------------------------------------- outputs
 
-    def _persist(  # noqa: PLR0913
-        self,
-        *,
-        target_language: str,
-        translators: list[str],
-        judges: list[str],
-        arms: dict[Candidate, Arm],
-        scoring: ScoringPass,
-        ranking: RankingPass,
-    ) -> TranslationQualityRun:
-        run = TranslationQualityRun.objects.create(
-            target_language=target_language,
-            benchmark_fixture=BENCHMARK_PATH.name,
-            translators_arg=",".join(translators),
-            judges_arg=",".join(judges),
-            excluded_judges="\n".join(
-                f"{judge}: {reason}"
-                for judge, reason in scoring.excluded_judges.items()
-            ),
+    @staticmethod
+    def _format_exclusions(scoring: ScoringPass) -> str:
+        """One line per dropped judge, so a stored run records why."""
+        return "\n".join(
+            f"{judge}: {reason}" for judge, reason in scoring.excluded_judges.items()
         )
 
-        # bulk_create does not populate primary keys on MySQL, and the scores
-        # need them, so candidates are created one at a time.
-        rows = {
-            key: TranslationQualityCandidate.objects.create(
-                run=run,
-                translator=key.translator,
-                validator=key.validator,
-                error=arm.error,
-            )
-            for key, arm in arms.items()
-        }
+    def _persist_scores(
+        self,
+        run: TranslationQualityRun,
+        rows: dict[Candidate, TranslationQualityCandidate],
+        scoring: ScoringPass,
+        ranking: RankingPass,
+    ) -> None:
+        """
+        Write the scores.
 
-        scores = [
-            TranslationQualityScore(
-                candidate=rows[key],
-                judge=judge,
-                accuracy=rating.scores["accuracy"],
-                fluency=rating.scores["fluency"],
-                terminology=rating.scores["terminology"],
-                justification=rating.justification,
-                comparative_rank=ranking.ranks.get(judge, {}).get(key),
-                comparative_label=ranking.labels.get((judge, key), ""),
-            )
-            for (judge, key), rating in scoring.ratings.items()
-        ]
-        TranslationQualityScore.objects.bulk_create(scores)
-        return run
+        The run and its candidates already exist — the tasks wrote their
+        content as they went — so only the ratings are new here.
+        """
+        run.excluded_judges = self._format_exclusions(scoring)
+        run.save(update_fields=["excluded_judges"])
+
+        TranslationQualityScore.objects.bulk_create(
+            [
+                TranslationQualityScore(
+                    candidate=rows[key],
+                    judge=judge,
+                    accuracy=rating.scores["accuracy"],
+                    fluency=rating.scores["fluency"],
+                    terminology=rating.scores["terminology"],
+                    justification=rating.justification,
+                    comparative_rank=ranking.ranks.get(judge, {}).get(key),
+                    comparative_label=ranking.labels.get((judge, key), ""),
+                )
+                for (judge, key), rating in scoring.ratings.items()
+            ]
+        )
 
     @staticmethod
     def _unchanged_display(arm: Arm) -> str:

@@ -109,6 +109,10 @@ class TranslationQualityCandidate(models.Model):
         blank=True,
         help_text="Provider/model that reviewed; blank if none",
     )
+    translated_content = models.TextField(
+        blank=True,
+        help_text="This arm's translated OLX, blank if the arm failed",
+    )
     error = models.TextField(
         blank=True,
         help_text="Why this candidate was excluded, if it was",
