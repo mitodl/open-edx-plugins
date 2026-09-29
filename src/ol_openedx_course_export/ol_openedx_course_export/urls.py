@@ -8,7 +8,6 @@ from django.urls import re_path
 from ol_openedx_course_export.views import CourseContentVersionsView, CourseExportView
 
 urlpatterns = [
-    # Ahead of the catch-all below, which would otherwise route it to the export.
     re_path(
         r"^versions/$",
         CourseContentVersionsView.as_view(),
@@ -19,5 +18,9 @@ urlpatterns = [
         CourseExportView.as_view(),
         name="course_export_status",
     ),
-    re_path(r"^", CourseExportView.as_view(), name="course_export"),
+    # Anchored at both ends. An unanchored pattern here caught every path under
+    # api/courses/v0/export/ that nothing above matched, so a POST meant for an
+    # endpoint the installed release does not have (e.g. versions/ before 0.4.0)
+    # queued an export of every course in its body instead of failing.
+    re_path(r"^$", CourseExportView.as_view(), name="course_export"),
 ]
