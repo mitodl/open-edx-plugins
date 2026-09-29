@@ -83,3 +83,48 @@ The successful response would look like:
 
 
 The response will contain either the s3 bucket url for successful uploads and/or an error message for failed uploads.
+
+
+Content versions
+~~~~~~~~~~~~~~~~
+
+A course's published version only moves when modulestore content is published.
+Files uploaded to the course and transcripts uploaded through VAL never move it,
+though an export carries both. To tell whether an earlier export has gone stale,
+send a POST request to ``<STUDIO_BASE>/api/courses/v0/export/versions/`` with up to
+200 course ids:
+
+.. code-block::
+
+    {
+       "courses": ["course-v1:edX+DemoX+Demo_Course", "course-v1:edX+Gone+Run"]
+    }
+
+The response reports each course's published version, how many files it has and
+which was uploaded last, and how many VAL transcripts its videos have and when
+any last changed. Ids that name no course on the instance are listed under
+``missing`` instead of failing the request. Every value is read from an index or
+an aggregate, never by walking the course, so it is cheap enough to poll for
+every course on an instance.
+
+.. code-block::
+
+    {
+        "versions": {
+            "course-v1:edX+DemoX+Demo_Course": {
+                "published_version": "<ObjectId of the published branch>",
+                "static_assets": {
+                    "count": 12,
+                    "latest_upload": "2026-09-01T14:03:22+00:00",
+                    "latest_asset": "asset-v1:edX+DemoX+Demo_Course+type@asset+block@syllabus.pdf"
+                },
+                "transcripts": {
+                    "count": 40,
+                    "latest_modified": "2026-09-12T09:30:00.123456+00:00"
+                }
+            }
+        },
+        "missing": ["course-v1:edX+Gone+Run"]
+    }
+
+Like the export API, it requires JWT authentication as a staff user.

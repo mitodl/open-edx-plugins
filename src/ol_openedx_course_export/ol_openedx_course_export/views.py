@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from user_tasks.models import UserTaskStatus
 
+from ol_openedx_course_export.content_versions import course_content_versions
 from ol_openedx_course_export.tasks import task_upload_course_s3
 from ol_openedx_course_export.utils import (
     get_aws_file_url,
@@ -20,6 +21,11 @@ from ol_openedx_course_export.utils import (
 )
 
 log = logging.getLogger(__name__)
+
+# Enough to keep a caller's request count low across a few thousand courses,
+# small enough that one request's contentstore lookups stay well inside a
+# gateway timeout.
+MAX_COURSES_PER_VERSIONS_REQUEST = 200
 
 
 class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
@@ -169,3 +175,75 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
                 developer_message=str(e),
                 error_code="internal_error",
             )
+
+
+class CourseContentVersionsView(CourseImportExportViewMixin, GenericAPIView):
+    """
+    An API View reporting what a course export would reflect, for many courses.
+
+    A course's published version moves only when modulestore content is
+    published. Files uploaded to the course and VAL transcripts never move it,
+    though an export carries both, so something that re-exports on publish alone
+    lets its copy drift. This reports all three so that caller can tell.
+
+    **Example Request**
+
+    POST /api/courses/v0/export/versions/
+
+    {
+        "courses": ["course-v1:edX+DemoX+Demo_Course", "course-v1:edX+Gone+Run"]
+    }
+
+    At most 200 course ids per request.
+
+    **Example Response**
+
+    {
+        "versions": {
+            "course-v1:edX+DemoX+Demo_Course": {
+                "published_version": "<ObjectId of the published branch>",
+                "static_assets": {
+                    "count": 12,
+                    "latest_upload": "2026-09-01T14:03:22+00:00",
+                    "latest_asset": "asset-v1:edX+DemoX+Demo_Course+type@asset+block@syllabus.pdf"
+                },
+                "transcripts": {
+                    "count": 40,
+                    "latest_modified": "2026-09-12T09:30:00.123456+00:00"
+                }
+            }
+        },
+        "missing": ["course-v1:edX+Gone+Run"]
+    }
+
+    ``missing`` lists the requested ids that name no course here, including ids
+    that do not parse as course keys and library keys, so one bad id does not
+    fail the batch.
+    """  # noqa: E501
+
+    http_method_names = ["post"]
+    permission_classes = [
+        IsAdminUser,
+    ]
+
+    def post(self, request):
+        """Report the content versions of the requested courses."""
+        # A JSON body need not be an object; a list or null has no .get.
+        body = request.data if isinstance(request.data, dict) else {}
+        course_ids = body.get("courses", [])
+        if not isinstance(course_ids, list) or not course_ids:
+            raise self.api_error(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                developer_message="Provide a non-empty list of course ids as courses",
+                error_code="invalid_request",
+            )
+        if len(course_ids) > MAX_COURSES_PER_VERSIONS_REQUEST:
+            raise self.api_error(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                developer_message=(
+                    f"At most {MAX_COURSES_PER_VERSIONS_REQUEST} course ids per request"
+                ),
+                error_code="invalid_request",
+            )
+        versions, missing = course_content_versions([str(c) for c in course_ids])
+        return Response({"versions": versions, "missing": missing})

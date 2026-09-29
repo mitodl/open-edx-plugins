@@ -9,3 +9,16 @@ Change Log
 
    This project adheres to Semantic Versioning (https://semver.org/).
 .. There should always be an "Unreleased" section for changes pending release.
+
+Unreleased
+~~~~~~~~~~
+
+[0.4.0]
+~~~~~~~
+
+Added
+_____
+
+* ``POST /api/courses/v0/export/versions/`` reports, for up to 200 courses at a
+  time, the published version together with the static-file and VAL transcript
+  facts an export carries but a publish does not move.
