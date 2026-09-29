@@ -17,7 +17,11 @@ from xmodule.contentstore.content import StaticContent
 from xmodule.contentstore.django import contentstore
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
-from xmodule.modulestore.tests.factories import BlockFactory, CourseFactory
+from xmodule.modulestore.tests.factories import (
+    BlockFactory,
+    CourseFactory,
+    LibraryFactory,
+)
 
 VERSIONS_URL = "/api/courses/v0/export/versions/"
 
@@ -136,6 +140,21 @@ class CourseContentVersionsViewTests(ModuleStoreTestCase):
 
         assert list(body["versions"]) == [self.course_id]
         assert body["missing"] == [unknown, unparseable]
+
+    def test_a_library_is_missing_not_reported_as_a_course(self):
+        """library-v1 ids have course index rows, but a library is not a course."""
+        library = LibraryFactory.create()
+
+        body = self._versions(str(library.location.library_key), self.course_id)
+
+        assert list(body["versions"]) == [self.course_id]
+        assert body["missing"] == [str(library.location.library_key)]
+
+    def test_rejects_a_body_that_is_not_an_object(self):
+        """A JSON list or null is a bad request, not a server error."""
+        for payload in ([self.course_id], None):
+            response = self.client.post(VERSIONS_URL, payload, format="json")
+            assert response.status_code == HTTPStatus.BAD_REQUEST
 
     def test_rejects_an_empty_or_oversized_batch(self):
         """A request must name between one and the maximum number of courses."""

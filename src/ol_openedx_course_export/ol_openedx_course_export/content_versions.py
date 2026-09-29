@@ -22,6 +22,7 @@ from django.db.models import Count, Max
 from edxval.models import CourseVideo
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.locator import CourseLocator
 from pymongo import DESCENDING
 from xmodule.contentstore.django import contentstore
 
@@ -83,15 +84,21 @@ def course_content_versions(course_ids: list[str]) -> tuple[dict[str, dict], lis
     """Report the published version, files and transcripts of each course.
 
     Returns the per-course facts, and the requested ids that name no course on
-    this instance (including ids that do not parse as course keys), in request
-    order.
+    this instance, in request order. That includes ids that do not parse as
+    course keys, and library keys: ``library-v1:`` ids parse as course keys and
+    have rows in the course index, but a library is not a course.
     """
     keys: dict[str, CourseKey] = {}
     missing: list[str] = []
     for course_id in dict.fromkeys(course_ids):
         try:
-            keys[course_id] = CourseKey.from_string(course_id)
+            key = CourseKey.from_string(course_id)
         except InvalidKeyError:
+            missing.append(course_id)
+            continue
+        if isinstance(key, CourseLocator):
+            keys[course_id] = key
+        else:
             missing.append(course_id)
 
     published = dict(

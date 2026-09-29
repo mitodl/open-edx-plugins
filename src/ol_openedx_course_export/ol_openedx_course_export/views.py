@@ -217,7 +217,8 @@ class CourseContentVersionsView(CourseImportExportViewMixin, GenericAPIView):
     }
 
     ``missing`` lists the requested ids that name no course here, including ids
-    that do not parse as course keys, so one bad id does not fail the batch.
+    that do not parse as course keys and library keys, so one bad id does not
+    fail the batch.
     """  # noqa: E501
 
     http_method_names = ["post"]
@@ -227,7 +228,9 @@ class CourseContentVersionsView(CourseImportExportViewMixin, GenericAPIView):
 
     def post(self, request):
         """Report the content versions of the requested courses."""
-        course_ids = request.data.get("courses", [])
+        # A JSON body need not be an object; a list or null has no .get.
+        body = request.data if isinstance(request.data, dict) else {}
+        course_ids = body.get("courses", [])
         if not isinstance(course_ids, list) or not course_ids:
             raise self.api_error(
                 status_code=status.HTTP_400_BAD_REQUEST,
