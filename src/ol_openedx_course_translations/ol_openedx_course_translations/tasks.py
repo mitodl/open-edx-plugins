@@ -9,7 +9,6 @@ from pathlib import Path
 from celery import shared_task
 from defusedxml import ElementTree
 from django.conf import settings
-from litellm import RateLimitError, Timeout
 
 from ol_openedx_course_translations.models import (
     TranslationQualityCandidate,
@@ -17,6 +16,7 @@ from ol_openedx_course_translations.models import (
 )
 from ol_openedx_course_translations.providers.llm_providers import (
     NO_CLIENT_RETRIES,
+    TRANSIENT_PROVIDER_ERRORS,
     TRANSLATION_MARKER_END,
     TRANSLATION_MARKER_START,
 )
@@ -460,7 +460,7 @@ BENCHMARK_QUEUE = "edx.cms.core.low"
 # Celery's autoretry wrapper only sees what escapes the task body, so every
 # task below re-raises these ahead of its own handler. Catching them like the
 # rest would silently make this configuration dead.
-BENCHMARK_TRANSIENT_ERRORS = (RateLimitError, Timeout)
+BENCHMARK_TRANSIENT_ERRORS = TRANSIENT_PROVIDER_ERRORS
 
 # Exception types that mean the code is wrong, rather than the run hitting
 # something it already reports. Only these get a traceback: an arm gate raising
