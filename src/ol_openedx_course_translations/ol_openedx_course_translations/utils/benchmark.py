@@ -39,11 +39,18 @@ class Benchmark:
 def units_and_elements(markup: str) -> tuple[list[str], int]:
     """Extract translatable units and count elements, for the arm checks."""
     helper = HtmlXmlTranslationHelper(is_xml=False)
-    if helper.parse(markup) is None:
-        # The HTML parser returns no root for a document with no element node
-        # at all — a lone comment, DOCTYPE, PI or CDATA section. Reported as
-        # "nothing to translate" rather than left to raise AttributeError
-        # deep inside extract_units.
+    try:
+        root = helper.parse(markup)
+    except AttributeError:
+        # edx-platform's defuse_xml_libs() replaces lxml.etree wholesale, and
+        # its fromstring calls .getroottree() on the parse result — so inside
+        # the platform an element-free document raises here where bare lxml
+        # returns None. Both mean the same thing and neither is this run's
+        # fault, so both are "nothing to translate".
+        return [], 0
+    if root is None:
+        # No element node at all: a lone comment, DOCTYPE, PI or CDATA
+        # section. Reported rather than left to raise deeper in.
         return [], 0
     root, units, _ = helper.extract_units(markup)
     # Comments and processing instructions have non-string tags; counting them
