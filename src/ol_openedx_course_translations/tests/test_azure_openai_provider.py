@@ -212,6 +212,28 @@ def test_azure_settings_are_skipped_without_an_endpoint(endpoint):
     assert settings.TRANSLATIONS_PROVIDERS == OTHER_PROVIDERS
 
 
+@pytest.mark.parametrize(
+    ("overrides", "missing"),
+    [
+        ({"AZURE_OPENAI_DEFAULT_DEPLOYMENT": "gpt-5.2"}, "AZURE_OPENAI_API_VERSION"),
+        ({"AZURE_OPENAI_API_VERSION": API_VERSION}, "AZURE_OPENAI_DEFAULT_DEPLOYMENT"),
+        (
+            {"AZURE_OPENAI_API_VERSION": "", "AZURE_OPENAI_DEFAULT_DEPLOYMENT": ""},
+            "AZURE_OPENAI_API_VERSION, AZURE_OPENAI_DEFAULT_DEPLOYMENT",
+        ),
+    ],
+)
+def test_partial_azure_settings_skip_the_provider_with_a_warning(
+    overrides, missing, caplog
+):
+    settings = _settings(AZURE_OPENAI_ENDPOINT=ENDPOINT, **overrides)
+
+    apply_azure_openai_settings(settings)
+
+    assert settings.TRANSLATIONS_PROVIDERS == OTHER_PROVIDERS
+    assert f"AZURE_OPENAI_ENDPOINT is set but {missing} is not" in caplog.text
+
+
 def test_production_settings_keep_the_deployed_providers():
     """
     The production hook runs after the YAML config is loaded.

@@ -2,7 +2,11 @@
 
 """Common settings for LMS and CMS to provide to edX"""
 
+import logging
+
 from ol_openedx_course_translations.utils.constants import PROVIDER_AZURE
+
+logger = logging.getLogger(__name__)
 
 
 def apply_common_settings(settings):
@@ -112,11 +116,30 @@ def apply_azure_openai_settings(settings):
     endpoint = getattr(settings, "AZURE_OPENAI_ENDPOINT", None)
     if not endpoint:
         return
+    api_version = getattr(settings, "AZURE_OPENAI_API_VERSION", None)
+    deployment = getattr(settings, "AZURE_OPENAI_DEFAULT_DEPLOYMENT", None)
+    missing = [
+        name
+        for name, value in (
+            ("AZURE_OPENAI_API_VERSION", api_version),
+            ("AZURE_OPENAI_DEFAULT_DEPLOYMENT", deployment),
+        )
+        if not value
+    ]
+    # A partial Azure config must not stop LMS/CMS from starting over one
+    # translation provider; leave azure unregistered and say why.
+    if missing:
+        logger.warning(
+            "AZURE_OPENAI_ENDPOINT is set but %s is not; "
+            "the azure translation provider is not registered",
+            ", ".join(missing),
+        )
+        return
     settings.TRANSLATIONS_PROVIDERS = {
         **settings.TRANSLATIONS_PROVIDERS,
         PROVIDER_AZURE: {
             "api_base": endpoint,
-            "api_version": settings.AZURE_OPENAI_API_VERSION,
-            "default_model": settings.AZURE_OPENAI_DEFAULT_DEPLOYMENT,
+            "api_version": api_version,
+            "default_model": deployment,
         },
     }
