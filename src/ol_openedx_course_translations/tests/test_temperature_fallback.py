@@ -14,7 +14,7 @@ request sent with no temperature at all.
 from unittest import mock
 
 import pytest
-from litellm import BadRequestError
+from litellm import BadRequestError, RateLimitError, Timeout
 from litellm.utils import UnsupportedParamsError
 from ol_openedx_course_translations.providers import llm_providers
 from ol_openedx_course_translations.providers.llm_providers import (
@@ -257,3 +257,34 @@ def test_gemini_asks_for_its_own_temperature_and_probes_once():
 
     assert completion.call_count == 2  # noqa: PLR2004
     assert "temperature" not in completion.call_args.kwargs
+
+
+def test_a_throttled_markup_translation_is_raised_not_swallowed(provider):
+    """
+    The DOM path's safety net is for parsing and reinsertion, not for the network.
+
+    Swallowing a rate limit returns the source, which reads downstream as "the
+    provider declined to translate": the file stays English in a course run,
+    and a benchmark scores a throttled provider as one that refused. Both
+    callers retry these errors, so they have to reach them.
+    """
+    html = "<p>Conduction moves heat.</p>"
+    transient = [
+        Timeout(message="t", model="gpt-test", llm_provider="openai"),
+        RateLimitError(message="r", model="gpt-test", llm_provider="openai"),
+    ]
+
+    for error in transient:
+        with (
+            mock.patch.object(
+                type(provider), "_batch_translate_units", side_effect=error
+            ),
+            pytest.raises(type(error)),
+        ):
+            provider.translate_text(html, "hi", tag_handling="html")
+
+    # Everything else still returns the source rather than risk broken markup.
+    with mock.patch.object(
+        type(provider), "_batch_translate_units", side_effect=ValueError("reinsert")
+    ):
+        assert provider.translate_text(html, "hi", tag_handling="html") == html

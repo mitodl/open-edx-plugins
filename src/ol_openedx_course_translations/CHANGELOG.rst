@@ -131,12 +131,11 @@ Fixed
 Added
 ~~~~~
 - ``rate_translation_quality`` management command. Translates the chosen benchmark
-  with every configured translator, edits each translation with every
-  validator (keeping an unvalidated arm), has every judge score the results,
-  and reports which translator/validator pairing wins. Candidates are ordered
-  by mean rank, and a winner is named only when the best mean rank and a
-  majority of first-place votes agree — at most one vote per judge, measured
-  against the judges asked to rank. Results are stored in
+  with every configured translator, reviews each translation with every
+  validator, has every judge score the results, and reports which
+  translator/validator pairing wins. Candidates are ordered by mean rank,
+  which picks the shortlist for the comparative pass; that pass names the
+  winner, by lowest mean comparative rank. Results are stored in
   ``TranslationQualityRun``, ``TranslationQualityCandidate`` and
   ``TranslationQualityScore``, and readable in the Django admin. A judge
   dropped from the scoring pass is recorded on the run with the reason, so a
