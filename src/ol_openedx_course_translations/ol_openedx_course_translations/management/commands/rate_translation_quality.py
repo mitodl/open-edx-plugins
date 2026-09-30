@@ -445,7 +445,16 @@ class Command(BaseCommand):
 
     @staticmethod
     def _outcome(result) -> tuple[bool, str]:
-        """Read a task result, treating anything unexpected as a failure."""
+        """
+        Read a task result, treating anything unexpected as a failure.
+
+        A block that cannot be read is named as such rather than by its
+        exception class: the stage that records it can only key the reason
+        by the judge or arm that hit it, so the reason itself has to say
+        the fault is not theirs.
+        """
+        if isinstance(result, BenchmarkError):
+            return False, f"benchmark unreadable: {result}"
         if not isinstance(result, dict):
             return False, f"{type(result).__name__}: {result}"
         if result.get("status") != "success":
