@@ -13,6 +13,17 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.4.1]
+~~~~~~~
+
+Fixed
+_____
+
+* The export endpoint's route is anchored, so a path under
+  ``/api/courses/v0/export/`` that no endpoint serves returns 404 instead of
+  being handled as an export request and queuing an export of every course in
+  the request body.
+
 [0.4.0]
 ~~~~~~~
 
