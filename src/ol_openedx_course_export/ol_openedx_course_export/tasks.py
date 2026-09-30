@@ -11,12 +11,31 @@ from opaque_keys.edx.keys import CourseKey
 from user_tasks.models import UserTaskStatus
 from xmodule.modulestore.django import modulestore
 
+from ol_openedx_course_export.constants import S3_EXPORT_TASK_NAME_PREFIX
 from ol_openedx_course_export.s3_client import S3Client
 
 log = logging.getLogger(__name__)
 
 
-@shared_task(base=CourseExportTask, bind=True)
+class CourseS3ExportTask(CourseExportTask):
+    """
+    Base class for the S3 course export task.
+
+    Uses its own task status name so these tasks aren't mistaken for Studio's
+    own course exports, which look up their latest status by name and expect
+    an "Output" artifact that this task doesn't create.
+    """
+
+    @classmethod
+    def generate_name(cls, arguments_dict):
+        """
+        Create a name for this particular S3 export task instance.
+        """
+        key = arguments_dict["course_key_string"]
+        return f"{S3_EXPORT_TASK_NAME_PREFIX}{key}"
+
+
+@shared_task(base=CourseS3ExportTask, bind=True)
 def task_upload_course_s3(self, user_id, course_key_string):  # noqa: ARG001
     """
     A task to generate course tarball and upload to s3 bucket, Also creates task status object to keep track of the
