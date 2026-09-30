@@ -2681,7 +2681,10 @@ def test_a_block_that_goes_missing_mid_run_keeps_what_the_run_produced():
     assert "mean rank" in output
     stored = TranslationQualityRun.objects.get()
     assert TranslationQualityScore.objects.exists()
-    assert "No published block at gone" in stored.excluded_judges
+    # Named as the block's fault, not the judge's: the reason can only be
+    # keyed by the judge that hit it, so it has to say so itself.
+    assert "benchmark unreadable: No published block at gone" in stored.excluded_judges
+    assert "BenchmarkError" not in stored.excluded_judges
 
 
 @pytest.mark.django_db
