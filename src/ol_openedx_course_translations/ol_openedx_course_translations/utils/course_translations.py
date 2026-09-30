@@ -23,12 +23,14 @@ from django.core.management.base import CommandError
 from lxml import etree
 
 from ol_openedx_course_translations.providers.llm_providers import (
+    AzureOpenAIProvider,
     GeminiProvider,
     MistralProvider,
     OpenAIProvider,
 )
 from ol_openedx_course_translations.utils.constants import (
     NEVER_TRANSLATE_ATTRS,
+    PROVIDER_AZURE,
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
     PROVIDER_OPENAI,
@@ -51,7 +53,7 @@ def get_translation_provider(
     _parse_and_validate_provider_spec() in the management command.
 
     Args:
-        provider_name: Name of the provider (openai, gemini, mistral)
+        provider_name: Name of the provider (openai, azure, gemini, mistral)
         model_name: Model name to use
 
     Returns:
@@ -63,6 +65,13 @@ def get_translation_provider(
     # Handle LLM providers
     providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
     provider_config = providers_config[provider_name]
+
+    # Azure authenticates with an Entra ID token, so its entry has no api_key.
+    if provider_name == PROVIDER_AZURE:
+        return AzureOpenAIProvider(
+            provider_config["api_base"], provider_config["api_version"], model_name
+        )
+
     api_key = provider_config["api_key"]
 
     if provider_name == PROVIDER_OPENAI:

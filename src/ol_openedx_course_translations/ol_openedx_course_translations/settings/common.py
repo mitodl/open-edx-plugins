@@ -2,6 +2,8 @@
 
 """Common settings for LMS and CMS to provide to edX"""
 
+from ol_openedx_course_translations.utils.constants import PROVIDER_AZURE
+
 
 def apply_common_settings(settings):
     """
@@ -87,4 +89,34 @@ def apply_common_settings(settings):
         "zh": "Chinese",
         "zh_HANS": "Chinese (Simplified)",
         "zh_HANT": "Chinese (Traditional)",
+    }
+
+    apply_azure_openai_settings(settings)
+
+
+def apply_azure_openai_settings(settings):
+    """
+    Add an ``azure`` entry to TRANSLATIONS_PROVIDERS from the AZURE_OPENAI_* settings.
+
+    The deployment delivers Azure OpenAI configuration as flat top-level
+    settings in its own config file rather than as part of
+    TRANSLATIONS_PROVIDERS, because the config files are concatenated rather
+    than merged, and a second TRANSLATIONS_PROVIDERS key would silently replace
+    the one holding the other providers. Folding them in here leaves every
+    other provider entry as it was. Does nothing unless AZURE_OPENAI_ENDPOINT
+    is set.
+
+    Args:
+        settings: Django settings object to modify
+    """
+    endpoint = getattr(settings, "AZURE_OPENAI_ENDPOINT", None)
+    if not endpoint:
+        return
+    settings.TRANSLATIONS_PROVIDERS = {
+        **settings.TRANSLATIONS_PROVIDERS,
+        PROVIDER_AZURE: {
+            "api_base": endpoint,
+            "api_version": settings.AZURE_OPENAI_API_VERSION,
+            "default_model": settings.AZURE_OPENAI_DEFAULT_DEPLOYMENT,
+        },
     }

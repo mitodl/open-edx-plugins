@@ -1,13 +1,16 @@
 """LLM-based translation providers."""
 
+import functools
 import logging
 import re
 from abc import abstractmethod
 from collections import OrderedDict
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import srt
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from django.conf import settings
 from litellm import BadRequestError, completion
 from litellm.utils import UnsupportedParamsError
@@ -70,6 +73,26 @@ _MODEL_TEMPERATURES: dict[tuple[str, float], float] = {}
 # litellm-supported model gets the same fallback treatment without us
 # maintaining a list of which models have a temperature floor.
 _TEMPERATURE_REJECTION_ERRORS = (UnsupportedParamsError, BadRequestError)
+
+AZURE_COGNITIVE_SERVICES_SCOPE = "https://cognitiveservices.azure.com/.default"
+
+
+@functools.cache
+def get_azure_token_provider() -> Callable[[], str]:
+    """
+    Return the process-wide Entra ID bearer token provider for Azure OpenAI.
+
+    DefaultAzureCredential resolves to WorkloadIdentityCredential in the cluster
+    (from the AZURE_CLIENT_ID, AZURE_TENANT_ID and AZURE_FEDERATED_TOKEN_FILE
+    env vars on the pod) and to AzureCliCredential on a laptop after
+    ``az login``. Built on first use rather
+    than at import so a Celery prefork child builds its own instead of
+    inheriting one from the parent. The provider caches the token and refreshes
+    it shortly before expiry.
+    """
+    return get_bearer_token_provider(
+        DefaultAzureCredential(), AZURE_COGNITIVE_SERVICES_SCOPE
+    )
 
 
 class LLMProvider(TranslationProvider):
@@ -324,6 +347,10 @@ class LLMProvider(TranslationProvider):
         # If we still have no result, return the original response
         return result if result else llm_response_text.strip()
 
+    def _completion_auth_kwargs(self) -> dict[str, Any]:
+        """Return the litellm ``completion`` arguments that authenticate the call."""
+        return {"api_key": self.primary_api_key}
+
     def _call_llm(
         self, system_prompt: str, user_content: str, **additional_kwargs: Any
     ) -> str:
@@ -350,7 +377,7 @@ class LLMProvider(TranslationProvider):
             llm_response = completion(
                 model=self.model_name,
                 messages=llm_messages,
-                api_key=self.primary_api_key,
+                **self._completion_auth_kwargs(),
                 timeout=timeout,
                 temperature=temperature,
                 **additional_kwargs,
@@ -371,7 +398,7 @@ class LLMProvider(TranslationProvider):
             llm_response = completion(
                 model=self.model_name,
                 messages=llm_messages,
-                api_key=self.primary_api_key,
+                **self._completion_auth_kwargs(),
                 timeout=timeout,
                 temperature=FALLBACK_TEMPERATURE,
                 **additional_kwargs,
@@ -1041,6 +1068,8 @@ class LLMProvider(TranslationProvider):
 class OpenAIProvider(LLMProvider):
     """OpenAI translation provider."""
 
+    litellm_prefix = "openai"
+
     def __init__(  # noqa: PLR0913, PLR0917
         self,
         primary_api_key: str,
@@ -1061,11 +1090,11 @@ class OpenAIProvider(LLMProvider):
             ValueError: If model_name is not provided
         """
         if not model_name:
-            msg = "model_name is required for OpenAIProvider"
+            msg = f"model_name is required for {type(self).__name__}"
             raise ValueError(msg)
         super().__init__(
             primary_api_key,
-            f"openai/{model_name}",
+            f"{self.litellm_prefix}/{model_name}",
             srt_batch_size=srt_batch_size,
             litellm_timeout=litellm_timeout,
             max_chunk_retries=max_chunk_retries,
@@ -1171,6 +1200,58 @@ class OpenAIProvider(LLMProvider):
                 subtitle_list=subtitle_list,
             )
         return system_prompt
+
+
+class AzureOpenAIProvider(OpenAIProvider):
+    """
+    Azure OpenAI translation provider, authenticated with an Entra ID token.
+
+    Key auth is disabled on the Azure OpenAI accounts, so there is no API key.
+    ``model_name`` is the Azure deployment name, which litellm expects as
+    ``azure/<deployment>``. Prompts are inherited from OpenAIProvider because
+    the deployments serve OpenAI models.
+    """
+
+    litellm_prefix = "azure"
+
+    def __init__(  # noqa: PLR0913, PLR0917
+        self,
+        api_base: str,
+        api_version: str,
+        model_name: str | None = None,
+        srt_batch_size: int = 50,
+        litellm_timeout: int = settings.LITE_LLM_REQUEST_TIMEOUT,
+        max_chunk_retries: int = MAX_CHUNK_RETRIES,
+        temperature: float = TRANSLATION_TEMPERATURE,
+    ):
+        """
+        Initialize Azure OpenAI provider.
+
+        Args:
+            api_base: Azure OpenAI account endpoint
+            api_version: Azure OpenAI REST API version
+            model_name: Azure deployment name (e.g., "gpt-5.2")
+
+        Raises:
+            ValueError: If model_name is not provided
+        """
+        super().__init__(
+            "",
+            model_name,
+            srt_batch_size=srt_batch_size,
+            litellm_timeout=litellm_timeout,
+            max_chunk_retries=max_chunk_retries,
+            temperature=temperature,
+        )
+        self.api_base = api_base
+        self.api_version = api_version
+
+    def _completion_auth_kwargs(self) -> dict[str, Any]:
+        return {
+            "api_base": self.api_base,
+            "api_version": self.api_version,
+            "azure_ad_token_provider": get_azure_token_provider(),
+        }
 
 
 class GeminiProvider(LLMProvider):
