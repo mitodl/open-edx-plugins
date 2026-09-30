@@ -24,6 +24,11 @@ _____
   status page return a 500 when an S3 export was a course's latest export. A
   data migration renames existing statuses.
 
+* The export endpoint's route is anchored, so a path under
+  ``/api/courses/v0/export/`` that no endpoint serves returns 404 instead of
+  being handled as an export request and queuing an export of every course in
+  the request body.
+
 [0.4.0]
 ~~~~~~~
 
