@@ -1588,6 +1588,30 @@ def test_a_body_with_no_element_node_counts_zero_rather_than_crashing():
         assert benchmark_module.units_and_elements(body) == ([], 0)
         assert benchmark_module.count_unchanged_units(body, benchmark) == 0
 
+
+def test_a_body_with_no_element_node_counts_zero_inside_the_platform_too():
+    """
+    Bare lxml returns None for an element-free document; edx-platform does
+    not have bare lxml.
+
+    ``defuse_xml_libs()`` replaces ``lxml.etree`` with a wrapper whose
+    ``fromstring`` calls ``.getroottree()`` on the result, so the same input
+    raises where it used to return None. Both shapes mean "nothing to
+    translate", and the host suite only ever sees the first — which is how
+    this reached CI green and the platform broken.
+    """
+    benchmark = benchmark_module.Benchmark(
+        block_id=BLOCK_ID, display_name="x", content=BENCHMARK, units=frozenset({"a"})
+    )
+
+    with mock.patch.object(
+        HtmlXmlTranslationHelper,
+        "parse",
+        side_effect=AttributeError("'NoneType' object has no attribute 'getroottree'"),
+    ):
+        assert benchmark_module.units_and_elements("<!-- draft -->") == ([], 0)
+        assert benchmark_module.count_unchanged_units("<!-- draft -->", benchmark) == 0
+
     # A bug in the extractor must still escape rather than read as zero.
     with (
         mock.patch.object(
