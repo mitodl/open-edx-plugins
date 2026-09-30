@@ -69,6 +69,7 @@ The plugin supports multiple translation providers:
 - Azure OpenAI (GPT models, authenticated with Entra ID)
 - Gemini (Google)
 - Mistral
+- Anthropic (Claude models)
 
 **Configuration**
 
@@ -89,6 +90,10 @@ All providers are configured through the ``TRANSLATIONS_PROVIDERS`` dictionary i
         "mistral": {
             "api_key": "<YOUR_MISTRAL_API_KEY>",
             "default_model": "mistral-large-latest",
+        },
+        "anthropic": {
+            "api_key": "<YOUR_ANTHROPIC_API_KEY>",
+            "default_model": "claude-opus-5",
         },
     }
 
@@ -318,6 +323,154 @@ If subtitle translation fails after all attempts:
 - The translated course directory will be automatically cleaned up
 - An error message will indicate which subtitle file caused the failure
 - No partial or corrupted translation files will be left behind
+
+Benchmarking Translation Quality
+================================
+
+``rate_translation_quality`` answers "which provider should translate this
+language, and is it worth running a validator over the result?" with evidence
+rather than opinion. It translates a chosen benchmark with every
+translator, edits each translation with every validator, has every judge score
+the results, and reports a winner.
+
+.. code-block:: bash
+
+    ./manage.py cms rate_translation_quality \
+        --benchmark-block block-v1:Org+Course+Run+type@html+block@abc123 \
+        --target-language hi \
+        --translators "openai/gpt-5.2,gemini/gemini-3-pro-preview,mistral/mistral-large-latest" \
+        --judges "openai/gpt-5.2,anthropic/claude-opus-5"
+
+**Arguments**
+
+- ``--benchmark-block`` (required): usage key of the course block to translate.
+  Its published body is the benchmark; nothing ships with the plugin.
+- ``--target-language`` (required): must be in ``COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES``.
+- ``--translators``: comma-separated ``PROVIDER`` or ``PROVIDER/MODEL`` specs. The same
+  roster is used as the validator set, so a run covers every translator/validator
+  pairing — ``translators x translators`` candidates. Defaults to every provider
+  with an ``api_key``.
+- ``--judges``: comma-separated specs that score the candidates. Defaults to every
+  provider with an ``api_key``. A provider may be a translator and a judge at once.
+- ``--comparative-only``: skip the scoring pass and rank every candidate in one
+  call per judge. Turns ``candidates x judges + judges`` judging calls into
+  ``judges``, at the cost of the absolute scores, the mean-score column and the
+  shortlist. Refuses to run above 26 candidates, the number of anonymous labels
+  one comparative call can carry.
+- ``--yes``: skip the run-size confirmation.
+
+A roster entry whose provider has no ``api_key`` is skipped with a note rather than
+failing the run, so a partly configured environment still produces a comparison.
+A provider named on the command line but absent from ``TRANSLATIONS_PROVIDERS`` is
+fatal instead — skipping it would answer a different question than the one asked.
+
+The work runs as Celery tasks on the CMS workers, so a large run is not bound
+by one process. Each stage is dispatched as a group and awaited before the next
+begins; the command prints progress and must stay open for the duration. Tasks
+are queued on ``edx.cms.core.low`` because the CMS workers are shared with
+course publishing — schedule large runs accordingly.
+
+**What a run does**
+
+1. Translates the benchmark once per translator, reusing that translation across
+   all of its validator arms so the arms differ only by validator. The
+   unvalidated translation is scaffolding: every validator reads it, then it is
+   deleted, so only validated pairings are scored.
+2. Runs each validator over each translation. A validator whose output is no
+   longer markup is reported and its arm dropped, never scored.
+3. Has every judge score every surviving candidate on accuracy, fluency and terminology
+   from 1 to 10, one candidate per call.
+4. Orders candidates by **mean rank**: each judge's own scores are sorted into
+   positions, and those positions are averaged. This gives every judge one equal
+   vote regardless of how wide a range it uses. A judge whose reply cannot be
+   parsed is dropped from the whole scoring pass, so every candidate is ranked
+   over the same set of judges.
+5. Sends the leaders — the top five plus anything tied with fifth, capped at
+   eight — to a second pass where each judge ranks them side by side,
+   anonymized and shuffled per judge. A judge that fails here keeps its scores
+   and drops out of the verdict only. With ``--comparative-only`` this is the
+   first and only judging pass, and every candidate goes into it.
+6. Names the candidate with the lowest mean comparative rank. The verdict
+   always comes from the comparative pass — mean rank from the scoring pass
+   orders the table and chooses the shortlist, but does not decide the winner.
+   A tie at the top is the only refusal, because one pass has no second signal
+   to break it.
+
+``--comparative-only`` skips steps 3 and 4 entirely and ranks every candidate
+in a single call per judge. That trades ``candidates x judges`` scoring calls
+for nothing, at the cost of the absolute scores, the mean-score column and the
+shortlist. It refuses to run when the candidates outnumber the 26 anonymous
+labels a single comparative call can carry.
+
+**Reading the output**
+
+The table lists every scored candidate with its mean rank, mean score, ``spread``
+(the gap between its best and worst position across judges), the number of judges
+behind it, and the ``unchanged`` count below. A large spread
+means the judges disagreed about that candidate, and is worth more attention
+than a small difference in mean rank.
+
+The ``unchanged`` column counts translation units the provider returned identical
+to the source. It is a diagnostic, not part of the ranking: some units are
+identical in any language, but a high count means the provider skipped content
+and the score belongs to a partial translation. In ``--comparative-only`` runs
+there is no mean score and the column reads ``—``; ``mean rank`` is then the
+mean comparative rank. Arms that failed — a translation
+whose every unit came back unchanged, or a validator that returned prose or restructured the
+markup — are listed under the table with the reason, so a short table is never a
+silent one.
+
+The run records whether the scoring pass was skipped, so the admin renders
+the standings as what the run actually was rather than inferring it from the
+absence of scores.
+
+Results are stored in ``TranslationQualityRun``, ``TranslationQualityCandidate``
+and ``TranslationQualityScore``, viewable read-only in the Django admin: the run
+page lists every candidate, its judge scores and the standings, with a column
+per judge showing that judge's position, its raw scores and its comparative
+rank, and the verdict above the table. A ``--comparative-only`` run recorded
+no scores, so those slots read ``—`` and the position is the comparative rank. Each candidate
+row keeps the content it was scored on in the database — not shown in the admin
+— so a verdict can be checked against the text the judges actually saw.
+A judge dropped
+from the scoring pass is recorded on the run in ``excluded_judges`` together
+with the reason, so a run that rests on fewer judges says so months later.
+
+**The benchmark content**
+
+Nothing is bundled. Point the command at an ``html`` course block and its
+published body becomes the benchmark::
+
+    --benchmark-block block-v1:Org+Course+Run+type@html+block@abc123
+
+The published revision is read, not the Studio draft: it is what a course
+export contains, so the benchmark measures the same text ``translate_course``
+would process, and it does not shift under an author editing in Studio. The
+command re-reads the block after creating the run row, so the unchanged-unit
+diagnostic is measured against the run's own copy rather than the one the
+size estimate was built from.
+
+Each worker process reads the block once per run and reuses it for every task
+it runs, which keeps a run from re-reading the course structure hundreds of
+times and pins the text that worker measures. The cache key is the run,
+which records the block, so a later run never inherits an earlier one's copy. What it does not promise:
+workers take their first task at different moments, so a republish *during* a
+run still reaches whichever of them has not read yet, and a worker juggling
+more runs than it caches re-reads the block for one it evicted.
+
+An html block's body is a fragment with no single root, so it is translated as
+HTML — the same ``tag_handling`` production picks from a ``.html`` file
+suffix. Only ``html`` blocks are accepted for that reason: a ``problem`` block
+has a body too, but it exports as ``.xml``. A block of the wrong type, one
+with no markup body, or one whose body has no translatable text, is reported
+before anything is spent.
+
+Because the block is live content, two runs naming the same block are only
+comparable if nobody republished it in between. The run records the usage key,
+not a copy of the text.
+
+The methodology, and the alternatives that were rejected, are recorded in
+``docs/adr/0001-translation-quality-benchmark-methodology.md``.
 
 License
 *******
