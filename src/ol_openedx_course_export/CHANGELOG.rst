@@ -13,7 +13,7 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
-[0.4.1]
+[0.4.2]
 ~~~~~~~
 
 Fixed
@@ -23,6 +23,12 @@ _____
   sharing Studio's ``Export of <course key>`` name, which made Studio's export
   status page return a 500 when an S3 export was a course's latest export. A
   data migration renames existing statuses.
+
+[0.4.1]
+~~~~~~~
+
+Fixed
+_____
 
 * The export endpoint's route is anchored, so a path under
   ``/api/courses/v0/export/`` that no endpoint serves returns 404 instead of
