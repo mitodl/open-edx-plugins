@@ -66,6 +66,34 @@ class FeedbackAsideTests(OLFeedbackTestCase):
         assert "aria-haspopup" not in fragment.content
         assert 'aria-label="' in fragment.content
 
+    @skip_unless_lms
+    def test_payload_sends_visible_title_for_a_block_that_renders_it(self):
+        """A video draws its name as a heading, so the panel may use it."""
+        self.runtime.user_id = 5
+        self.runtime.is_author_mode = False
+        self.video_aside_instance.runtime = self.runtime
+
+        fragment = self.video_aside_instance.student_view_aside(self.video_block)
+        payload = fragment.json_init_args["drawer_payload"]
+
+        assert payload["visibleTitle"] == "My Video"
+        assert payload["blockDisplayName"] == "My Video"
+
+    @skip_unless_lms
+    def test_payload_withholds_studio_name_for_a_block_that_hides_it(self):
+        """An html block renders only its body, so its Studio name is
+        author-only: withheld from the panel, still recorded.
+        """
+        self.runtime.user_id = 5
+        self.runtime.is_author_mode = False
+        self.html_aside_instance.runtime = self.runtime
+
+        fragment = self.html_aside_instance.student_view_aside(self.html_block)
+        payload = fragment.json_init_args["drawer_payload"]
+
+        assert payload["visibleTitle"] == ""
+        assert payload["blockDisplayName"] == "An HTML Block"
+
     @data(
         *[
             ["video", True, False, True],
