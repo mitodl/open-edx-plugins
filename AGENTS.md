@@ -38,7 +38,7 @@ edx-extensions/
 ├── pyproject.toml               # Root workspace configuration
 ├── uv.lock                      # Locked dependencies
 ├── setup.cfg                    # Legacy flake8/mypy config
-├── .pre-commit-config.yaml      # Pre-commit hooks configuration
+├── .pre-commit-config.yaml      # prek hooks configuration
 ├── run_edx_integration_tests.sh # Test runner script
 └── image_check.sh               # Docker image verification
 
@@ -69,7 +69,7 @@ Each plugin directory contains:
 ```bash
 uv sync --dev
 ```
-This installs all workspace dependencies and dev tools (pytest, ruff, pre-commit, etc.). Always run this first in a clean environment or after pulling changes.
+This installs all workspace dependencies and dev tools (pytest, ruff, prek, etc.). Always run this first in a clean environment or after pulling changes.
 
 **Build all packages:**
 ```bash
@@ -84,9 +84,10 @@ uv run ruff format .  # Auto-format code
 ```
 Lints all Python code using Ruff with extensive rule set (see pyproject.toml). Must pass for CI.
 
-**Run pre-commit hooks:**
+**Install and run prek hooks:**
 ```bash
-pre-commit run --all-files
+uv run prek install -f  # replaces an existing pre-commit git hook
+uv run prek run --all-files
 ```
 Runs all quality checks: trailing whitespace, YAML validation, secrets detection, ruff format, ruff linting, mypy type checking, and actionlint. Takes ~2-3 minutes on first run (caches environments).
 
@@ -177,8 +178,8 @@ cd /openedx/open-edx-plugins
 - **Time:** ~5-10 minutes
 - **Note:** This workflow's test job shows errors because tests require Open edX environment
 
-### Pre-commit Hooks
-All the following run automatically on `git commit` or via `pre-commit run --all-files`:
+### prek Hooks
+After `uv run prek install -f`, all the following run automatically on `git commit` or via `uv run prek run --all-files`:
 - trailing-whitespace, end-of-file-fixer, check-yaml, check-toml
 - check-added-large-files, check-merge-conflicts, debug-statements
 - yamlfmt (format YAML with specific width/indent rules)
@@ -226,7 +227,7 @@ plugin_name = "plugin_name.apps:ConfigClass"
    ```bash
    uv run ruff format .
    uv run ruff check . --fix
-   pre-commit run --all-files
+   uv run prek run --all-files
    ```
 
 2. **Test changes:**
@@ -257,7 +258,7 @@ Before submitting changes:
 - [ ] Updated the Open edX Release Compatibility table in `docs/README.rst` (if this version changes which Open edX release the plugin supports)
 - [ ] Code formatted: `uv run ruff format .`
 - [ ] Linting passes: `uv run ruff check .`
-- [ ] Pre-commit hooks pass: `pre-commit run --all-files`
+- [ ] prek hooks pass: `uv run prek run --all-files`
 - [ ] Packages build successfully: `uv build --all-packages`
 - [ ] Integration tests pass (if modifying plugin logic)
 - [ ] Documentation updated (if changing functionality)
