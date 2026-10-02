@@ -1,0 +1,111 @@
+"""Backfill existing course access roles to the enrollment webhook consumer."""
+
+import logging
+
+from django.conf import settings
+from django.core.management.base import BaseCommand
+
+log = logging.getLogger(__name__)
+
+
+class Command(BaseCommand):
+    """
+    Send the enrollment webhook for course access roles that already exist.
+
+    The webhook only fires on COURSE_ACCESS_ROLE_ADDED, so roles granted before
+    the consumer started recording them are invisible to it. Without this the
+    feature appears broken for every course team that was already in place.
+
+    Org-wide roles (a CourseAccessRole with no course_id) are skipped: the
+    consumer keys its records on a single course run, so there is nothing to
+    send them against.
+    """
+
+    help = (
+        "Send the enrollment webhook for existing course access roles, so a "
+        "consumer that only learns about roles from live events can catch up."
+    )
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--course-id",
+            action="append",
+            dest="course_ids",
+            help=(
+                "Limit to this course ID. Repeat for several; omit for every course."
+            ),
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="List what would be sent without queueing anything.",
+        )
+
+    def handle(self, *_args, **options):
+        from common.djangoapps.student.models import (  # noqa: PLC0415
+            CourseAccessRole,
+        )
+
+        from ol_openedx_events_handler.tasks import (  # noqa: PLC0415
+            notify_course_access_role_addition,
+        )
+        from ol_openedx_events_handler.utils import (  # noqa: PLC0415
+            validate_enrollment_webhook,
+        )
+
+        if not validate_enrollment_webhook():
+            self.stderr.write(
+                self.style.ERROR(
+                    "The enrollment webhook is not configured. Set "
+                    "ENROLLMENT_WEBHOOK_URL and ENROLLMENT_WEBHOOK_ACCESS_TOKEN."
+                )
+            )
+            return
+
+        allowed_roles = getattr(settings, "ENROLLMENT_COURSE_ACCESS_ROLES", [])
+        if not allowed_roles:
+            self.stderr.write(
+                self.style.ERROR(
+                    "ENROLLMENT_COURSE_ACCESS_ROLES is empty, so no role would be sent."
+                )
+            )
+            return
+
+        roles = CourseAccessRole.objects.filter(role__in=allowed_roles).select_related(
+            "user"
+        )
+        if options["course_ids"]:
+            roles = roles.filter(course_id__in=options["course_ids"])
+
+        dry_run = options["dry_run"]
+        sent = skipped = 0
+
+        for access_role in roles.order_by("id").iterator():
+            course_key = str(access_role.course_id or "")
+            if not course_key:
+                skipped += 1
+                continue
+
+            email = access_role.user.email
+            if not email:
+                self.stderr.write(
+                    self.style.WARNING(
+                        f"Skipping user {access_role.user.username}: no email."
+                    )
+                )
+                skipped += 1
+                continue
+
+            self.stdout.write(f"{email} — {access_role.role} in {course_key}")
+            if not dry_run:
+                notify_course_access_role_addition.delay(
+                    user_email=email,
+                    course_key=course_key,
+                    role=access_role.role,
+                )
+            sent += 1
+
+        verb = "Would send" if dry_run else "Queued"
+        self.stdout.write(
+            self.style.SUCCESS(f"{verb} {sent} role(s); skipped {skipped}.")
+        )
