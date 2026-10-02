@@ -66,6 +66,7 @@ Translation Providers
 The plugin supports multiple translation providers:
 
 - OpenAI (GPT models)
+- Azure OpenAI (GPT models, authenticated with Entra ID)
 - Gemini (Google)
 - Mistral
 
@@ -90,6 +91,26 @@ All providers are configured through the ``TRANSLATIONS_PROVIDERS`` dictionary i
             "default_model": "mistral-large-latest",
         },
     }
+
+**Azure OpenAI**
+
+The ``azure`` provider has no API key. It authenticates with an Entra ID token from
+``azure.identity.DefaultAzureCredential``, which uses workload identity in Kubernetes
+(the ``AZURE_CLIENT_ID``, ``AZURE_TENANT_ID`` and ``AZURE_FEDERATED_TOKEN_FILE``
+environment variables) and the Azure CLI login (``az login``) on a laptop.
+
+It is configured with flat settings rather than an entry in ``TRANSLATIONS_PROVIDERS``.
+When ``AZURE_OPENAI_ENDPOINT`` is set, the plugin adds an ``azure`` entry to
+``TRANSLATIONS_PROVIDERS`` from them and leaves the other providers as they are:
+
+.. code-block:: yaml
+
+    AZURE_OPENAI_ENDPOINT: "https://<account>.openai.azure.com/"
+    AZURE_OPENAI_API_VERSION: "2024-10-21"
+    AZURE_OPENAI_DEFAULT_DEPLOYMENT: "gpt-5.2"
+
+The model part of an ``azure/<model>`` provider specification is the Azure deployment
+name (e.g., ``azure/gpt-5-mini``).
 
 **Important Notes:**
 

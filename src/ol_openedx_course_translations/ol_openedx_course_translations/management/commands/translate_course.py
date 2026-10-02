@@ -30,6 +30,7 @@ from ol_openedx_course_translations import tasks as translation_tasks
 from ol_openedx_course_translations.models import CourseTranslationLog
 from ol_openedx_course_translations.utils.constants import (
     ENGLISH_LANGUAGE_CODE,
+    PROVIDER_AZURE,
     PROVIDER_MISTRAL,
 )
 from ol_openedx_course_translations.utils.course_translations import (
@@ -75,7 +76,11 @@ class Command(BaseCommand):
         '    "openai": {"api_key": "<KEY>", "default_model": "gpt-5.2"},\n'
         '    "gemini": {"api_key": "<KEY>", "default_model": "gemini-3-pro-preview"},\n'
         '    "mistral": {"api_key": "<KEY>", "default_model": "mistral-large-latest"}\n'
-        "}\n"
+        "}\n\n"
+        "The azure provider has no api_key. It is added to TRANSLATIONS_PROVIDERS\n"
+        "from the AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_VERSION and\n"
+        "AZURE_OPENAI_DEFAULT_DEPLOYMENT settings, and authenticates with an\n"
+        "Entra ID token from DefaultAzureCredential.\n"
     )
 
     def __init__(self, *args, **kwargs):
@@ -253,7 +258,7 @@ class Command(BaseCommand):
 
         provider_config = providers_config[provider_name]
         api_key = provider_config.get("api_key")
-        if not api_key:
+        if provider_name != PROVIDER_AZURE and not api_key:
             error_msg = (
                 f"API key for provider '{provider_name}' is not configured in "
                 "TRANSLATIONS_PROVIDERS. Please set the 'api_key' in settings."
