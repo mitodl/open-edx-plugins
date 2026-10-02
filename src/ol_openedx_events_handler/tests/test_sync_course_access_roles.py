@@ -4,6 +4,7 @@ from unittest import mock
 
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import override_settings
 
 COMMAND = "sync_course_access_roles"
@@ -122,9 +123,48 @@ def test_refuses_when_misconfigured(mock_task, access_roles, overrides):  # noqa
     Bail out rather than queue a batch of webhooks that cannot land.
 
     A backfill is a bulk operation, so failing loudly up front beats queueing
-    thousands of tasks that each fail on their own.
+    thousands of tasks that each fail on their own. It raises rather than
+    returning so the process exits non-zero, which is the only thing an
+    automated run can act on.
     """
-    with override_settings(**{**WEBHOOK_SETTINGS, **overrides}):
+    with (
+        override_settings(**{**WEBHOOK_SETTINGS, **overrides}),
+        pytest.raises(CommandError),
+    ):
         call_command(COMMAND)
 
     mock_task.delay.assert_not_called()
+
+
+@mock.patch(TASK_PATH)
+def test_course_id_narrows_the_queryset(mock_task, access_roles):  # noqa: ARG001
+    """--course-id is repeatable and filters the roles that get sent."""
+    queryset = _set_rows(
+        access_roles, [_role("staff@example.com", "staff", "course-v1:Org+Course+Run")]
+    )
+
+    with override_settings(**WEBHOOK_SETTINGS):
+        call_command(
+            COMMAND,
+            "--course-id",
+            "course-v1:Org+Course+Run",
+            "--course-id",
+            "course-v1:Org+Other+Run",
+        )
+
+    queryset.filter.assert_called_once_with(
+        course_id__in=["course-v1:Org+Course+Run", "course-v1:Org+Other+Run"]
+    )
+
+
+@mock.patch(TASK_PATH)
+def test_without_course_id_no_extra_filter(mock_task, access_roles):  # noqa: ARG001
+    """Omitting --course-id leaves the role queryset unnarrowed."""
+    queryset = _set_rows(
+        access_roles, [_role("staff@example.com", "staff", "course-v1:Org+Course+Run")]
+    )
+
+    with override_settings(**WEBHOOK_SETTINGS):
+        call_command(COMMAND)
+
+    queryset.filter.assert_not_called()

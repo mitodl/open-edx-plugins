@@ -1,6 +1,11 @@
 Change Log
 ==========
 
+.. There should always be an "Unreleased" section for changes pending release.
+
+Unreleased
+----------
+
 Version 0.5.0 (2026-10-01)
 ---------------------------
 

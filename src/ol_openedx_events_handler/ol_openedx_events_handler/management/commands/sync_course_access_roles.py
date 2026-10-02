@@ -3,7 +3,7 @@
 import logging
 
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 log = logging.getLogger(__name__)
 
@@ -53,23 +53,20 @@ class Command(BaseCommand):
             validate_enrollment_webhook,
         )
 
+        # Raise rather than return: a backfill that no-ops on a misconfigured
+        # install would still exit 0, leaving an automated run unable to tell
+        # "nothing to send" from "never tried".
         if not validate_enrollment_webhook():
-            self.stderr.write(
-                self.style.ERROR(
-                    "The enrollment webhook is not configured. Set "
-                    "ENROLLMENT_WEBHOOK_URL and ENROLLMENT_WEBHOOK_ACCESS_TOKEN."
-                )
+            msg = (
+                "The enrollment webhook is not configured. Set "
+                "ENROLLMENT_WEBHOOK_URL and ENROLLMENT_WEBHOOK_ACCESS_TOKEN."
             )
-            return
+            raise CommandError(msg)
 
         allowed_roles = getattr(settings, "ENROLLMENT_COURSE_ACCESS_ROLES", [])
         if not allowed_roles:
-            self.stderr.write(
-                self.style.ERROR(
-                    "ENROLLMENT_COURSE_ACCESS_ROLES is empty, so no role would be sent."
-                )
-            )
-            return
+            msg = "ENROLLMENT_COURSE_ACCESS_ROLES is empty, so no role would be sent."
+            raise CommandError(msg)
 
         roles = CourseAccessRole.objects.filter(role__in=allowed_roles).select_related(
             "user"
