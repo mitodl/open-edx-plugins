@@ -1,6 +1,19 @@
 Change Log
 ==========
 
+.. There should always be an "Unreleased" section for changes pending release.
+
+Unreleased
+----------
+
+Version 0.5.0 (2026-10-01)
+---------------------------
+
+* Added the ``sync_course_access_roles`` management command, which sends the
+  enrollment webhook for course access roles that already exist. The webhook
+  only fires on ``COURSE_ACCESS_ROLE_ADDED``, so a consumer that records those
+  roles has no way to learn about the course teams already in place.
+
 Version 0.3.0 (2026-08-11)
 ---------------------------
 
