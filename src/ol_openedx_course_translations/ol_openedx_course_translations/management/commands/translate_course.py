@@ -37,6 +37,7 @@ from ol_openedx_course_translations.utils.course_translations import (
     create_translated_copy,
     get_translatable_file_paths,
     get_translation_provider,
+    parse_and_validate_provider_spec,
     translate_grading_policy,
     update_course_language_attribute,
 )
@@ -207,75 +208,6 @@ class Command(BaseCommand):
             help=("Keep failed translation files instead of deleting them."),
         )
 
-    def _parse_and_validate_provider_spec(
-        self, provider_spec: str
-    ) -> tuple[str, str | None]:
-        """
-        Parse and validate provider specification into provider name and model.
-
-        Resolves model from settings if not provided in specification.
-
-        Args:
-            provider_spec: Provider specification
-
-        Returns:
-            Tuple of (provider_name, model_name), resolved from settings if not
-            specified.
-
-        Raises:
-            CommandError: If provider specification format is invalid
-            or model and api_key cannot be resolved
-        """
-        # Parse the specification
-        if "/" in provider_spec:
-            parts = provider_spec.split("/", 1)
-            if len(parts) != 2 or not parts[0] or not parts[1]:  # noqa: PLR2004
-                error_msg = (
-                    f"Invalid provider specification: {provider_spec}. "
-                    "Use format 'PROVIDER' or 'PROVIDER/MODEL' "
-                    "(e.g., 'openai', 'openai/gpt-5.2')"
-                )
-                raise CommandError(error_msg)
-            provider_name = parts[0].lower()
-            model_name = parts[1]
-        else:
-            provider_name = provider_spec.lower()
-            model_name = None
-
-        # Try to get default model from settings
-        providers_config = getattr(settings, "TRANSLATIONS_PROVIDERS", {})
-        if provider_name not in providers_config:
-            error_msg = (
-                f"Provider '{provider_name}' not configured in TRANSLATIONS_PROVIDERS. "
-                f"Available providers: {', '.join(providers_config.keys())}"
-            )
-            raise CommandError(error_msg)
-
-        provider_config = providers_config[provider_name]
-        api_key = provider_config.get("api_key")
-        if not api_key:
-            error_msg = (
-                f"API key for provider '{provider_name}' is not configured in "
-                "TRANSLATIONS_PROVIDERS. Please set the 'api_key' in settings."
-            )
-            raise CommandError(error_msg)
-
-        # If model is explicitly provided, return it
-        if model_name:
-            return provider_name, model_name
-
-        default_model = provider_config.get("default_model")
-        if not default_model:
-            error_msg = (
-                f"No model specified for provider '{provider_name}' and no "
-                f"default_model found in TRANSLATIONS_PROVIDERS['{provider_name}']. "
-                f"Either specify a model (e.g., '{provider_name}/gpt-5.2') or "
-                f"configure a default_model in settings."
-            )
-            raise CommandError(error_msg)
-
-        return provider_name, default_model
-
     def handle(self, **options) -> None:  # noqa: PLR0915, PLR0912, C901
         """Handle the translate_course command."""
         try:
@@ -334,10 +266,10 @@ class Command(BaseCommand):
             self.batch_size = batch_size
 
             # Parse and validate provider specifications (includes validation)
-            content_provider_name, content_model = (
-                self._parse_and_validate_provider_spec(content_provider_spec)
+            content_provider_name, content_model = parse_and_validate_provider_spec(
+                content_provider_spec
             )
-            srt_provider_name, srt_model = self._parse_and_validate_provider_spec(
+            srt_provider_name, srt_model = parse_and_validate_provider_spec(
                 srt_provider_spec
             )
             translation_validation_provider_name = None
@@ -346,7 +278,7 @@ class Command(BaseCommand):
                 (
                     translation_validation_provider_name,
                     translation_validation_model,
-                ) = self._parse_and_validate_provider_spec(
+                ) = parse_and_validate_provider_spec(
                     translation_validation_provider_spec
                 )
 
