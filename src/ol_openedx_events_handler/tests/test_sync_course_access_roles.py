@@ -1,5 +1,6 @@
 """Tests for the sync_course_access_roles management command."""
 
+import io
 from unittest import mock
 
 import pytest
@@ -14,99 +15,147 @@ WEBHOOK_SETTINGS = {
     "ENROLLMENT_COURSE_ACCESS_ROLES": ["instructor", "staff"],
 }
 TASK_PATH = "ol_openedx_events_handler.tasks.notify_course_access_role_addition"
+COURSE = "course-v1:Org+Course+Run"
+OTHER_COURSE = "course-v1:Org+Other+Run"
 
 
-@pytest.fixture
-def access_roles():
-    """Patch CourseAccessRole so the command can run without real course data."""
-    with mock.patch("common.djangoapps.student.models.CourseAccessRole") as mock_model:
-        yield mock_model
+def _make_role(email, role, course_id, username=None):
+    """Create a real CourseAccessRole row, so the command's filters are exercised."""
+    from common.djangoapps.student.models import CourseAccessRole  # noqa: PLC0415
+    from django.contrib.auth import get_user_model  # noqa: PLC0415
+    from opaque_keys.edx.keys import CourseKey  # noqa: PLC0415
 
-
-EXPECTED_ROLE_COUNT = 2
-
-
-def _role(email, role, course_id, username="someone"):
-    """Build a stand-in for a CourseAccessRole row."""
-    access_role = mock.MagicMock()
-    access_role.role = role
-    access_role.course_id = course_id
-    access_role.user.email = email
-    access_role.user.username = username
-    return access_role
-
-
-def _set_rows(access_roles, rows):
-    """Wire the patched model's query chain to return ``rows``."""
-    queryset = access_roles.objects.filter.return_value.select_related.return_value
-    queryset.filter.return_value = queryset
-    queryset.order_by.return_value.iterator.return_value = iter(rows)
-    return queryset
-
-
-@mock.patch(TASK_PATH)
-def test_queues_a_webhook_per_role(mock_task, access_roles):
-    """Each role with a course and an email is sent."""
-    _set_rows(
-        access_roles,
-        [
-            _role("staff@example.com", "staff", "course-v1:Org+Course+Run"),
-            _role("admin@example.com", "instructor", "course-v1:Org+Course+Run"),
-        ],
+    user = get_user_model().objects.create(
+        username=username or f"{role}-{email or 'noemail'}-{course_id or 'org'}",
+        email=email,
+    )
+    return CourseAccessRole.objects.create(
+        user=user,
+        role=role,
+        course_id=CourseKey.from_string(course_id) if course_id else None,
+        org=CourseKey.from_string(course_id).org if course_id else "Org",
     )
 
-    with override_settings(**WEBHOOK_SETTINGS):
-        call_command(COMMAND)
 
-    assert mock_task.delay.call_count == EXPECTED_ROLE_COUNT
+def _run(*args):
+    """Run the command, returning its stdout."""
+    out = io.StringIO()
+    call_command(COMMAND, *args, stdout=out, stderr=io.StringIO())
+    return out.getvalue()
+
+
+@pytest.mark.django_db
+@mock.patch(TASK_PATH)
+def test_queues_a_webhook_per_allowed_role(mock_task):
+    """Each role in ENROLLMENT_COURSE_ACCESS_ROLES with a course and email is sent."""
+    _make_role("staff@example.com", "staff", COURSE)
+    _make_role("admin@example.com", "instructor", COURSE)
+
+    with override_settings(**WEBHOOK_SETTINGS):
+        output = _run()
+
+    assert mock_task.delay.call_count == 2  # noqa: PLR2004
     mock_task.delay.assert_any_call(
-        user_email="staff@example.com",
-        course_key="course-v1:Org+Course+Run",
-        role="staff",
+        user_email="staff@example.com", course_key=COURSE, role="staff"
     )
+    assert "staff@example.com — staff in " + COURSE in output
+    assert "Queued 2 role(s)" in output
 
 
+@pytest.mark.django_db
 @mock.patch(TASK_PATH)
-def test_dry_run_queues_nothing(mock_task, access_roles):
-    """A dry run reports what it would send without sending it."""
-    _set_rows(
-        access_roles, [_role("staff@example.com", "staff", "course-v1:Org+Course+Run")]
-    )
-
-    with override_settings(**WEBHOOK_SETTINGS):
-        call_command(COMMAND, "--dry-run")
-
-    mock_task.delay.assert_not_called()
-
-
-@mock.patch(TASK_PATH)
-def test_skips_org_wide_roles(mock_task, access_roles):
+def test_roles_outside_the_setting_are_not_sent(mock_task):
     """
-    An org-wide role has no course_id, so there is no run to attach it to.
+    A role the consumer was never told about is skipped by the queryset filter.
 
-    Open edX stores one as a CourseAccessRole with an empty course_id; the
-    consumer keys its records on a single course run, so sending it would be
-    meaningless.
+    Real rows rather than a mocked queryset, so `role__in=allowed_roles` is
+    actually exercised - with a mock that returns the same rows regardless of
+    filter, dropping that filter would leave every test green.
     """
-    _set_rows(access_roles, [_role("staff@example.com", "staff", "")])
+    _make_role("researcher@example.com", "data_researcher", COURSE)
+    _make_role("beta@example.com", "beta_testers", COURSE)
+    _make_role("staff@example.com", "staff", COURSE)
 
     with override_settings(**WEBHOOK_SETTINGS):
-        call_command(COMMAND)
+        _run()
 
-    mock_task.delay.assert_not_called()
-
-
-@mock.patch(TASK_PATH)
-def test_skips_users_without_an_email(mock_task, access_roles):
-    """The consumer identifies users by email, so a user without one is skipped."""
-    _set_rows(
-        access_roles, [_role("", "staff", "course-v1:Org+Course+Run", "no-email")]
+    mock_task.delay.assert_called_once_with(
+        user_email="staff@example.com", course_key=COURSE, role="staff"
     )
 
+
+@pytest.mark.django_db
+@mock.patch(TASK_PATH)
+def test_a_widened_setting_sends_the_extra_role(mock_task):
+    """Adding a role to the setting is all it takes for it to be sent."""
+    _make_role("researcher@example.com", "data_researcher", COURSE)
+
+    with override_settings(
+        **{
+            **WEBHOOK_SETTINGS,
+            "ENROLLMENT_COURSE_ACCESS_ROLES": [
+                "instructor",
+                "staff",
+                "data_researcher",
+            ],
+        }
+    ):
+        _run()
+
+    mock_task.delay.assert_called_once_with(
+        user_email="researcher@example.com", course_key=COURSE, role="data_researcher"
+    )
+
+
+@pytest.mark.django_db
+@mock.patch(TASK_PATH)
+def test_dry_run_lists_without_queueing(mock_task):
+    """A dry run reports what it would send, and queues nothing."""
+    _make_role("staff@example.com", "staff", COURSE)
+
     with override_settings(**WEBHOOK_SETTINGS):
-        call_command(COMMAND)
+        output = _run("--dry-run")
 
     mock_task.delay.assert_not_called()
+    assert "staff@example.com — staff in " + COURSE in output
+    assert "Would send 1 role(s)" in output
+
+
+@pytest.mark.django_db
+@mock.patch(TASK_PATH)
+def test_course_id_narrows_to_the_named_courses(mock_task):
+    """--course-id is repeatable and limits which roles are sent."""
+    _make_role("a@example.com", "staff", COURSE)
+    _make_role("b@example.com", "staff", OTHER_COURSE)
+    _make_role("c@example.com", "staff", "course-v1:Org+Third+Run")
+
+    with override_settings(**WEBHOOK_SETTINGS):
+        _run("--course-id", COURSE, "--course-id", OTHER_COURSE)
+
+    sent = sorted(c.kwargs["user_email"] for c in mock_task.delay.call_args_list)
+    assert sent == ["a@example.com", "b@example.com"]
+
+
+@pytest.mark.django_db
+@mock.patch(TASK_PATH)
+def test_skips_are_reported_by_reason(mock_task):
+    """
+    Org-wide and missing-email skips are counted separately.
+
+    One mixed run rather than a row per test: with a single row, a `continue`
+    that should be a `break` would pass just as well.
+    """
+    _make_role("", "staff", COURSE, username="no-email-user")
+    _make_role("orgwide@example.com", "staff", None)
+    _make_role("valid@example.com", "staff", COURSE)
+
+    with override_settings(**WEBHOOK_SETTINGS):
+        output = _run()
+
+    mock_task.delay.assert_called_once_with(
+        user_email="valid@example.com", course_key=COURSE, role="staff"
+    )
+    assert "Queued 1 role(s); skipped 1 org-wide and 1 with no email." in output
 
 
 @pytest.mark.parametrize(
@@ -118,53 +167,17 @@ def test_skips_users_without_an_email(mock_task, access_roles):
     ],
 )
 @mock.patch(TASK_PATH)
-def test_refuses_when_misconfigured(mock_task, access_roles, overrides):  # noqa: ARG001
+def test_refuses_when_misconfigured(mock_task, overrides):
     """
     Bail out rather than queue a batch of webhooks that cannot land.
 
-    A backfill is a bulk operation, so failing loudly up front beats queueing
-    thousands of tasks that each fail on their own. It raises rather than
-    returning so the process exits non-zero, which is the only thing an
-    automated run can act on.
+    It raises rather than returning so the process exits non-zero, which is the
+    only thing an automated run can act on.
     """
     with (
         override_settings(**{**WEBHOOK_SETTINGS, **overrides}),
         pytest.raises(CommandError),
     ):
-        call_command(COMMAND)
+        _run()
 
     mock_task.delay.assert_not_called()
-
-
-@mock.patch(TASK_PATH)
-def test_course_id_narrows_the_queryset(mock_task, access_roles):  # noqa: ARG001
-    """--course-id is repeatable and filters the roles that get sent."""
-    queryset = _set_rows(
-        access_roles, [_role("staff@example.com", "staff", "course-v1:Org+Course+Run")]
-    )
-
-    with override_settings(**WEBHOOK_SETTINGS):
-        call_command(
-            COMMAND,
-            "--course-id",
-            "course-v1:Org+Course+Run",
-            "--course-id",
-            "course-v1:Org+Other+Run",
-        )
-
-    queryset.filter.assert_called_once_with(
-        course_id__in=["course-v1:Org+Course+Run", "course-v1:Org+Other+Run"]
-    )
-
-
-@mock.patch(TASK_PATH)
-def test_without_course_id_no_extra_filter(mock_task, access_roles):  # noqa: ARG001
-    """Omitting --course-id leaves the role queryset unnarrowed."""
-    queryset = _set_rows(
-        access_roles, [_role("staff@example.com", "staff", "course-v1:Org+Course+Run")]
-    )
-
-    with override_settings(**WEBHOOK_SETTINGS):
-        call_command(COMMAND)
-
-    queryset.filter.assert_not_called()

@@ -1,30 +1,19 @@
 """Backfill existing course access roles to the enrollment webhook consumer."""
 
-import logging
-
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-
-log = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
     """
     Send the enrollment webhook for course access roles that already exist.
 
-    The webhook only fires on COURSE_ACCESS_ROLE_ADDED, so roles granted before
-    the consumer started recording them are invisible to it. Without this the
-    feature appears broken for every course team that was already in place.
-
     Org-wide roles (a CourseAccessRole with no course_id) are skipped: the
     consumer keys its records on a single course run, so there is nothing to
     send them against.
     """
 
-    help = (
-        "Send the enrollment webhook for existing course access roles, so a "
-        "consumer that only learns about roles from live events can catch up."
-    )
+    help = "Send the enrollment webhook for existing course access roles."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -75,12 +64,14 @@ class Command(BaseCommand):
             roles = roles.filter(course_id__in=options["course_ids"])
 
         dry_run = options["dry_run"]
-        sent = skipped = 0
+        sent = skipped_org_wide = skipped_no_email = 0
 
         for access_role in roles.order_by("id").iterator():
+            # A blank course_id reads back as None, so an org-wide role has no
+            # run to send against.
             course_key = str(access_role.course_id or "")
             if not course_key:
-                skipped += 1
+                skipped_org_wide += 1
                 continue
 
             email = access_role.user.email
@@ -90,7 +81,7 @@ class Command(BaseCommand):
                         f"Skipping user {access_role.user.username}: no email."
                     )
                 )
-                skipped += 1
+                skipped_no_email += 1
                 continue
 
             self.stdout.write(f"{email} — {access_role.role} in {course_key}")
@@ -103,6 +94,11 @@ class Command(BaseCommand):
             sent += 1
 
         verb = "Would send" if dry_run else "Queued"
+        # Broken out by reason: an org-wide skip is expected, a missing email is
+        # a data problem worth chasing, and one total cannot tell them apart.
         self.stdout.write(
-            self.style.SUCCESS(f"{verb} {sent} role(s); skipped {skipped}.")
+            self.style.SUCCESS(
+                f"{verb} {sent} role(s); skipped {skipped_org_wide} org-wide "
+                f"and {skipped_no_email} with no email."
+            )
         )
