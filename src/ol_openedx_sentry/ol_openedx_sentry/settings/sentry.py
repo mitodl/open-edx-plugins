@@ -26,6 +26,9 @@ Design notes
   structured logs in Loki correlate on identical values.  ``opentelemetry`` is
   a soft dependency; this module deliberately does not import
   ``ol_openedx_logging``.
+* ``SENTRY_USER_HASH_KEY`` installs ``SentryUserHashMiddleware`` and makes
+  ``before_send`` set ``user.id`` to an HMAC of the user's primary key.  That
+  restores "users affected" counts while ``send_default_pii`` stays off.
 """
 
 from __future__ import annotations
@@ -40,7 +43,11 @@ from typing import Any
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
 
+from ol_openedx_sentry.middleware import apply_hashed_user
+
 logger = logging.getLogger(__name__)
+
+USER_HASH_MIDDLEWARE = "ol_openedx_sentry.middleware.SentryUserHashMiddleware"
 
 # Soft OpenTelemetry import — mirrors ``ol_openedx_logging.processors`` so the
 # plugins stay independent.  Names are always defined so tests can patch them
@@ -238,13 +245,15 @@ def sentry_event_filter(
     *,
     ignored_classes: tuple[type[BaseException], ...] = (),
     ignored_patterns: tuple[re.Pattern[str], ...] = (),
+    user_hash_key: bytes | None = None,
 ) -> dict[str, Any] | None:
     """``before_send`` hook: drop ignored events, else tag and pass through.
 
     Drops the event (returns ``None``) when the raised exception is a subclass
     of an ignored type, or when any candidate message matches an ignored regex.
-    Otherwise scrubs Postgres ``DETAIL`` row echoes, stamps OTel trace context,
-    and returns the event.
+    Otherwise scrubs Postgres ``DETAIL`` row echoes, replaces the user with a
+    hashed id when ``user_hash_key`` is given, stamps OTel trace context, and
+    returns the event.
 
     Fail-open: any unexpected error is logged and the event is returned, so a
     bug here can never silently drop error reporting.  The scrub runs first so
@@ -255,12 +264,16 @@ def sentry_event_filter(
         https://docs.sentry.io/platforms/python/configuration/filtering/hints/
     :param ignored_classes: Exception classes to drop, resolved at init.
     :param ignored_patterns: Compiled message regexes to drop, built at init.
+    :param user_hash_key: HMAC key for the hashed user id, or ``None`` to leave
+        the event's user alone.
     :returns: The (possibly tagged) event, or ``None`` to drop it.
     """
     try:
         # Scrub before anything else can raise: the fail-open handler below
         # returns this same dict, and a privacy control must not fail open.
         _scrub_pg_details(event)
+        if user_hash_key:
+            apply_hashed_user(event, user_hash_key)
         exception_info = hint.get("exc_info")
         exception_value: object = ""
         if exception_info:
@@ -333,6 +346,15 @@ def plugin_settings(app_settings):
     )
     log_event_level = _coerce_log_event_level(env_tokens.get("SENTRY_LOG_EVENT_LEVEL"))
 
+    user_hash_key = env_tokens.get("SENTRY_USER_HASH_KEY")
+    if user_hash_key:
+        app_settings.OL_OPENEDX_SENTRY_USER_HASH_KEY = user_hash_key
+        # Appended, so it runs inside the authentication middleware.  Open edX
+        # applies plugin settings once per settings layer (common, then
+        # production), hence the membership check.
+        if USER_HASH_MIDDLEWARE not in app_settings.MIDDLEWARE:
+            app_settings.MIDDLEWARE.append(USER_HASH_MIDDLEWARE)
+
     sentry_sdk.init(
         dsn=sentry_dsn,
         environment=env_tokens.get("SENTRY_ENVIRONMENT"),
@@ -363,5 +385,6 @@ def plugin_settings(app_settings):
             sentry_event_filter,
             ignored_classes=ignored_classes,
             ignored_patterns=ignored_patterns,
+            user_hash_key=user_hash_key.encode() if user_hash_key else None,
         ),
     )

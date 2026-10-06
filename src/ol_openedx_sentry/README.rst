@@ -87,6 +87,13 @@ never initialized.
      - When ``True``, attaches identifying data (user id, username, client IP)
        to events. Off by default for FERPA/privacy reasons; operators opt in
        per deployment.
+   * - ``SENTRY_USER_HASH_KEY``
+     - unset
+     - Secret key for the hashed user id. When set, the plugin appends
+       ``SentryUserHashMiddleware`` to ``MIDDLEWARE`` and every event from an
+       authenticated request carries ``user.id`` = the first 16 hex characters
+       of ``HMAC-SHA256(key, user primary key)``, and no other user field. See
+       the behavior note below before setting or rotating it.
    * - ``SENTRY_IGNORED_EXCEPTION_CLASSES``
      - ``[]``
      - List of dotted import paths (e.g. ``requests.exceptions.HTTPError``) or
@@ -118,6 +125,7 @@ Example ``ENV_TOKENS`` fragment:
     SENTRY_RELEASE_SPECIFIER: "edx-platform@2026.07.15"
     SENTRY_TRACES_SAMPLE_RATE: 0.05
     SENTRY_SEND_DEFAULT_PII: false
+    SENTRY_USER_HASH_KEY: "<from your secret store>"
     SENTRY_IGNORED_EXCEPTION_CLASSES:
       - "django.http.Http404"
       - "requests.exceptions.HTTPError"
@@ -159,6 +167,30 @@ correlate on identical values. ``opentelemetry`` is a soft dependency: if it is
 not installed (or there is no active recording span) the tagging is simply
 skipped. The plugin deliberately does not import ``ol_openedx_logging`` so the
 two plugins stay independent.
+
+**``SENTRY_USER_HASH_KEY`` restores "users affected" without identity.** With
+``SENTRY_SEND_DEFAULT_PII`` off the SDK attaches no user to an event, so Sentry
+cannot count the users an issue affects or rank issues by impact. Turning the
+flag on is a poor way to get that back: besides user id, email and username it
+sends the client IP, the whole cookie jar (session ids and JWT cookies included)
+and unredacted ``Authorization`` headers. Setting ``SENTRY_USER_HASH_KEY``
+instead sends one field, ``user.id``, holding a keyed hash of the user's
+primary key.
+
+* The key is the privacy property. User primary keys are small sequential
+  integers, so anyone holding the key can enumerate them and reverse every
+  hash. Keep it in a secret store, one key per deployment, and never in an
+  image or in plain configuration.
+* The LMS and the CMS of one deployment share a user table, so give them the
+  same key and a user hashes to the same id in both.
+* Rotating the key makes every user look new. Unique-user counts are
+  discontinuous across a rotation, so rotate deliberately.
+* The user is read when an event is captured, not when the request arrives, so
+  requests that DRF authenticates inside the view (JWT, OAuth2) are covered.
+  Events raised outside a request, e.g. in Celery tasks, carry no user.
+* If ``SENTRY_SEND_DEFAULT_PII`` is also on, the hashed id replaces the user
+  fields the SDK attached for authenticated requests. Cookies, headers and the
+  ``REMOTE_ADDR`` request field are still governed by that flag.
 
 **Sentry's structured Logs feature is intentionally left OFF.** The plugin does
 not enable ``enable_logs`` / ``_experiments`` log ingestion. Application logs
