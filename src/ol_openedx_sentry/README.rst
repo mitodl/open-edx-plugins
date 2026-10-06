@@ -185,12 +185,17 @@ primary key.
   same key and a user hashes to the same id in both.
 * Rotating the key makes every user look new. Unique-user counts are
   discontinuous across a rotation, so rotate deliberately.
-* The user is read when an event is captured, not when the request arrives, so
+* The user is read when an event is sent, not when the request arrives, so
   requests that DRF authenticates inside the view (JWT, OAuth2) are covered.
-  Events raised outside a request, e.g. in Celery tasks, carry no user.
-* If ``SENTRY_SEND_DEFAULT_PII`` is also on, the hashed id replaces the user
-  fields the SDK attached for authenticated requests. Cookies, headers and the
-  ``REMOTE_ADDR`` request field are still governed by that flag.
+* With the key set, an event's ``user`` is either the hashed id or absent. The
+  plugin removes whatever user the SDK attached before it looks for one to
+  hash, for errors and for transactions. Events sent where no user can be read
+  carry none: anonymous requests, Celery tasks, code running outside the
+  plugin's middleware (an outer middleware, a streaming response body), or a
+  request whose user can't be loaded.
+* That holds if ``SENTRY_SEND_DEFAULT_PII`` is also on, but cookies, headers
+  and the ``REMOTE_ADDR`` request field are still governed by that flag. Leave
+  it off.
 
 **Sentry's structured Logs feature is intentionally left OFF.** The plugin does
 not enable ``enable_logs`` / ``_experiments`` log ingestion. Application logs

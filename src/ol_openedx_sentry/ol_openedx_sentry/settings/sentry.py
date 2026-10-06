@@ -239,6 +239,31 @@ def _tag_otel_context(event: dict[str, Any]) -> dict[str, Any]:
     return event
 
 
+def _hashed_user_only(
+    event: dict[str, Any], _hint: dict[str, Any], *, user_hash_key: bytes
+) -> dict[str, Any]:
+    """``before_send_transaction`` hook: same user handling as error events."""
+    _apply_hashed_user_or_none(event, user_hash_key)
+    return event
+
+
+def _apply_hashed_user_or_none(event: dict[str, Any], user_hash_key: bytes) -> None:
+    """Apply the hashed user; on failure leave the event without a user.
+
+    ``apply_hashed_user`` drops the SDK's user before anything in it can
+    raise, so catching here costs the hash and nothing else, and the ignore
+    rules below still run.
+    """
+    try:
+        apply_hashed_user(event, user_hash_key)
+    except Exception:
+        logger.warning(
+            "ol_openedx_sentry: could not read the user to hash; sending the "
+            "event without one",
+            exc_info=True,
+        )
+
+
 def sentry_event_filter(
     event: dict[str, Any],
     hint: dict[str, Any],
@@ -273,7 +298,7 @@ def sentry_event_filter(
         # returns this same dict, and a privacy control must not fail open.
         _scrub_pg_details(event)
         if user_hash_key:
-            apply_hashed_user(event, user_hash_key)
+            _apply_hashed_user_or_none(event, user_hash_key)
         exception_info = hint.get("exc_info")
         exception_value: object = ""
         if exception_info:
@@ -346,7 +371,9 @@ def plugin_settings(app_settings):
     )
     log_event_level = _coerce_log_event_level(env_tokens.get("SENTRY_LOG_EVENT_LEVEL"))
 
-    user_hash_key = env_tokens.get("SENTRY_USER_HASH_KEY")
+    user_hash_token = env_tokens.get("SENTRY_USER_HASH_KEY")
+    # str() because an all-digit key is loaded from YAML as an int.
+    user_hash_key = str(user_hash_token).encode() if user_hash_token else None
     if user_hash_key:
         app_settings.OL_OPENEDX_SENTRY_USER_HASH_KEY = user_hash_key
         # Appended, so it runs inside the authentication middleware.  Open edX
@@ -385,6 +412,12 @@ def plugin_settings(app_settings):
             sentry_event_filter,
             ignored_classes=ignored_classes,
             ignored_patterns=ignored_patterns,
-            user_hash_key=user_hash_key.encode() if user_hash_key else None,
+            user_hash_key=user_hash_key,
+        ),
+        # before_send does not see transactions.
+        before_send_transaction=(
+            partial(_hashed_user_only, user_hash_key=user_hash_key)
+            if user_hash_key
+            else None
         ),
     )

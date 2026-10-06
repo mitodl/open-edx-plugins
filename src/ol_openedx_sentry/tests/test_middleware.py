@@ -175,6 +175,71 @@ class TestSentryUserHashMiddleware:
         assert middleware._current_request.get() is None  # noqa: SLF001
 
 
+SDK_USER = {
+    "id": str(USER_PK),
+    "email": LEARNER_EMAIL,
+    "username": LEARNER_USERNAME,
+    "ip_address": "192.0.2.1",
+}
+
+
+class TestIdentityNeverSurvives:
+    """With the key set, the user the SDK attached is never sent."""
+
+    def test_event_outside_the_middleware_loses_the_sdk_user(self):
+        """E.g. an outer middleware or a streaming response body."""
+        event = HASHING_FILTER({"user": dict(SDK_USER)}, {})
+        assert "user" not in event
+
+    def test_unreadable_user_loses_the_sdk_user_and_still_filters(self, settings):
+        settings.OL_OPENEDX_SENTRY_USER_HASH_KEY = HASH_KEY
+
+        class BrokenUser:
+            @property
+            def is_authenticated(self):
+                raise RuntimeError
+
+        results = []
+        ignoring_filter = partial(
+            sentry.sentry_event_filter,
+            user_hash_key=HASH_KEY.encode(),
+            ignored_classes=(KeyError,),
+        )
+
+        def view(request):
+            request.user = BrokenUser()
+            results.append(HASHING_FILTER({"user": dict(SDK_USER)}, {}))
+            results.append(
+                ignoring_filter(
+                    {"user": dict(SDK_USER)}, {"exc_info": (KeyError, KeyError(), None)}
+                )
+            )
+
+        middleware.SentryUserHashMiddleware(view)(RequestFactory().get("/courses/"))
+        passed, ignored = results
+        assert "user" not in passed
+        assert ignored is None
+
+    def test_anonymous_request_loses_the_sdk_ip_address(self, settings):
+        settings.OL_OPENEDX_SENTRY_USER_HASH_KEY = HASH_KEY
+        results = []
+
+        def view(request):
+            request.user = AnonymousUser()
+            results.append(HASHING_FILTER({"user": {"ip_address": "192.0.2.1"}}, {}))
+
+        middleware.SentryUserHashMiddleware(view)(RequestFactory().get("/courses/"))
+        assert "user" not in results[0]
+
+    def test_transaction_hook_replaces_the_user(self):
+        event = sentry._hashed_user_only(  # noqa: SLF001
+            {"type": "transaction", "user": dict(SDK_USER)},
+            {},
+            user_hash_key=HASH_KEY.encode(),
+        )
+        assert "user" not in event
+
+
 class TestWithDjangoIntegration:
     """The middleware next to the SDK's own Django integration, PII on."""
 
@@ -220,7 +285,7 @@ class TestPluginSettingsUserHash:
         )
         sentry.plugin_settings(app_settings)
         sentry.plugin_settings(app_settings)
-        assert app_settings.OL_OPENEDX_SENTRY_USER_HASH_KEY == HASH_KEY
+        assert HASH_KEY.encode() == app_settings.OL_OPENEDX_SENTRY_USER_HASH_KEY
         assert app_settings.MIDDLEWARE == [
             "django.contrib.auth.middleware.AuthenticationMiddleware",
             sentry.USER_HASH_MIDDLEWARE,
@@ -236,8 +301,26 @@ class TestPluginSettingsUserHash:
             MIDDLEWARE=[],
         )
         sentry.plugin_settings(app_settings)
+        kwargs = init.call_args.kwargs
+        assert kwargs["before_send"].keywords["user_hash_key"] == HASH_KEY.encode()
+        assert (
+            kwargs["before_send_transaction"].keywords["user_hash_key"]
+            == HASH_KEY.encode()
+        )
+
+    def test_all_digit_key_loaded_as_int(self, mocker):
+        init = mocker.patch.object(sentry.sentry_sdk, "init")
+        numeric_key = 12345678
+        app_settings = types.SimpleNamespace(
+            ENV_TOKENS={
+                "SENTRY_DSN": "https://example.invalid/1",
+                "SENTRY_USER_HASH_KEY": numeric_key,
+            },
+            MIDDLEWARE=[],
+        )
+        sentry.plugin_settings(app_settings)
         before_send = init.call_args.kwargs["before_send"]
-        assert before_send.keywords["user_hash_key"] == HASH_KEY.encode()
+        assert before_send.keywords["user_hash_key"] == b"12345678"
 
     def test_no_key_leaves_middleware_alone(self, mocker):
         init = mocker.patch.object(sentry.sentry_sdk, "init")
@@ -247,4 +330,6 @@ class TestPluginSettingsUserHash:
         )
         sentry.plugin_settings(app_settings)
         assert app_settings.MIDDLEWARE == []
-        assert init.call_args.kwargs["before_send"].keywords["user_hash_key"] is None
+        kwargs = init.call_args.kwargs
+        assert kwargs["before_send"].keywords["user_hash_key"] is None
+        assert kwargs["before_send_transaction"] is None

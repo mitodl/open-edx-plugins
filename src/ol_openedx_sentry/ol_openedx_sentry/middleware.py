@@ -14,6 +14,11 @@ from ``before_send``.  That is the last hook to touch an event: an event
 processor would run before the SDK's own Django user processor (registered on
 the current scope, which runs after the isolation scope), and with
 ``send_default_pii`` on that processor would add email and username back.
+
+``apply_hashed_user`` removes whatever user the SDK attached before it looks
+for one to hash.  An event sent outside the middleware (an outer middleware, a
+streaming response body, a Celery task) or while the user can't be read
+therefore carries no user, never the SDK's.
 """
 
 from __future__ import annotations
@@ -55,12 +60,14 @@ def apply_hashed_user(event: dict[str, Any], key: bytes) -> dict[str, Any]:
     :param event: Sentry event payload.
     :param key: Per-deployment HMAC key.
 
-    :returns: The event.  Unchanged outside a request or for an anonymous one.
+    :returns: The event, with ``user`` either ``{"id": <hash>}`` or absent.
     """
+    # Drop first.  With send_default_pii on, the SDK has already filled in id,
+    # email, username and ip_address, and reading request.user below can raise
+    # (it is lazy, and the database may be the thing that failed).
+    event.pop("user", None)
     user = getattr(_current_request.get(), "user", None)
     if user is not None and user.is_authenticated:
-        # Replace rather than merge: with send_default_pii on, the SDK has
-        # already filled in email, username and ip_address.
         event["user"] = {"id": hash_user_id(key, user.pk)}
     return event
 
