@@ -242,7 +242,12 @@ def _tag_otel_context(event: dict[str, Any]) -> dict[str, Any]:
 def _hashed_user_only(
     event: dict[str, Any], _hint: dict[str, Any], *, user_hash_key: bytes
 ) -> dict[str, Any]:
-    """``before_send_transaction`` hook: same user handling as error events."""
+    """``before_send_transaction`` hook: drop the SDK's user from transactions.
+
+    The SDK finishes a request's transaction after the Django handler has
+    returned, when ``SentryUserHashMiddleware`` no longer holds the request,
+    so a request transaction carries no user rather than a hashed one.
+    """
     _apply_hashed_user_or_none(event, user_hash_key)
     return event
 
@@ -294,11 +299,13 @@ def sentry_event_filter(
     :returns: The (possibly tagged) event, or ``None`` to drop it.
     """
     try:
-        # Scrub before anything else can raise: the fail-open handler below
-        # returns this same dict, and a privacy control must not fail open.
-        _scrub_pg_details(event)
+        # The two privacy controls run before anything else can raise: the
+        # fail-open handler below returns this same dict, and a privacy control
+        # must not fail open.  The user goes first because dropping it cannot
+        # fail, while the scrub walks the whole event.
         if user_hash_key:
             _apply_hashed_user_or_none(event, user_hash_key)
+        _scrub_pg_details(event)
         exception_info = hint.get("exc_info")
         exception_value: object = ""
         if exception_info:

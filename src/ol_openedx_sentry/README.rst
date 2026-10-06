@@ -189,10 +189,13 @@ primary key.
   requests that DRF authenticates inside the view (JWT, OAuth2) are covered.
 * With the key set, an event's ``user`` is either the hashed id or absent. The
   plugin removes whatever user the SDK attached before it looks for one to
-  hash, for errors and for transactions. Events sent where no user can be read
-  carry none: anonymous requests, Celery tasks, code running outside the
-  plugin's middleware (an outer middleware, a streaming response body), or a
-  request whose user can't be loaded.
+  hash. Events sent where no user can be read carry none: anonymous requests,
+  Celery tasks, code running outside the plugin's middleware (an outer
+  middleware, a streaming response body), or a request whose user can't be
+  loaded.
+* Performance transactions carry no user. The SDK finishes a request's
+  transaction after the plugin's middleware has returned, so the plugin only
+  removes the SDK's user from them. The hashed id is on error events.
 * That holds if ``SENTRY_SEND_DEFAULT_PII`` is also on, but cookies, headers
   and the ``REMOTE_ADDR`` request field are still governed by that flag. Leave
   it off.

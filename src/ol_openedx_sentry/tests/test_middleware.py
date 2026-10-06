@@ -231,7 +231,12 @@ class TestIdentityNeverSurvives:
         middleware.SentryUserHashMiddleware(view)(RequestFactory().get("/courses/"))
         assert "user" not in results[0]
 
-    def test_transaction_hook_replaces_the_user(self):
+    def test_scrub_failure_still_loses_the_sdk_user(self, mocker):
+        mocker.patch.object(sentry, "_scrub_pg_details", side_effect=RuntimeError)
+        event = HASHING_FILTER({"user": dict(SDK_USER)}, {})
+        assert "user" not in event
+
+    def test_transaction_hook_drops_the_user(self):
         event = sentry._hashed_user_only(  # noqa: SLF001
             {"type": "transaction", "user": dict(SDK_USER)},
             {},
