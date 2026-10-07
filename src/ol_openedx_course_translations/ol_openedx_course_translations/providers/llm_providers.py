@@ -13,20 +13,15 @@ from typing import Any
 import srt
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from django.conf import settings
-from litellm import BadRequestError, RateLimitError, Timeout, completion
+from litellm import BadRequestError, RateLimitError, completion
 from litellm.utils import UnsupportedParamsError
 
 from ol_openedx_course_translations.utils.quality_report import Rating
 
-from .base import TranslationProvider
+from .base import TRANSIENT_PROVIDER_ERRORS, TranslationProvider
 
 logger = logging.getLogger(__name__)
 
-# A rate limit or a timeout says nothing about the content, so it must not be
-# swallowed into "the provider returned the source": callers retry these, and
-# a benchmark run would otherwise score a throttled provider as one that
-# refused to translate.
-TRANSIENT_PROVIDER_ERRORS = (RateLimitError, Timeout)
 
 # LLM error detection keywords
 LLM_ERROR_KEYWORDS = [
@@ -1009,6 +1004,10 @@ class LLMProvider(TranslationProvider):
                     )
                     return translated_subtitle_list
 
+            except RateLimitError:
+                # "limit" is a keyword below, but a smaller batch won't help a
+                # 429. Leave the wait to the task retry.
+                raise
             except Exception as llm_error:
                 error_message = str(llm_error).lower()
                 is_context_error = any(kw in error_message for kw in LLM_ERROR_KEYWORDS)
@@ -1071,10 +1070,8 @@ class LLMProvider(TranslationProvider):
                 root = helper.apply_translations(root, refs, translated_units)
                 return helper.serialize(root)
             except TRANSIENT_PROVIDER_ERRORS:
-                # The safety net below is for parsing and reinsertion, which
-                # is what its comment describes. A throttled or timed-out
-                # call has produced no markup to be unsafe about, and the
-                # tasks that call this retry on exactly these.
+                # The fallback below is for parsing and reinsertion. A
+                # throttled call produced no markup, and the tasks retry it.
                 raise
             except Exception as e:  # noqa: BLE001
                 # Safety first: if parsing/reinsertion fails, return original

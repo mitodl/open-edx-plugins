@@ -426,9 +426,10 @@ absence of scores.
 
 Results are stored in ``TranslationBenchmark``, ``TranslationBenchmarkCandidate``
 and ``TranslationBenchmarkScore``, and shown in the Django admin. A run can't be
-edited there, only deleted as a whole. The run page lists every candidate, its judge scores and the standings, with a column
-per judge showing that judge's position, its raw scores and its comparative
-rank, and the verdict above the table. A ``--comparative-only`` run recorded
+edited there, only deleted as a whole. The run page lists every candidate, its
+judge scores and the standings, with a column per judge showing that judge's
+position, its raw scores and its comparative rank, and the verdict above the
+table. A ``--comparative-only`` run recorded
 no scores, so those slots read ``—`` and the position is the comparative rank. Each candidate
 row keeps the content it was scored on in the database — not shown in the admin
 — so a verdict can be checked against the text the judges actually saw.

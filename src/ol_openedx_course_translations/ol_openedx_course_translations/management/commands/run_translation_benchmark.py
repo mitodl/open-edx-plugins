@@ -243,8 +243,7 @@ class Command(BaseCommand):
             # here, so this is the only chance to record why every judge's
             # ranking call failed — the case the field exists for.
             self._record_exclusions(run, scoring.excluded_judges | ranking.failures)
-            # With fewer than two contenders the judges were never asked, so
-            # the arms are the cause.
+            # Under two contenders _rank asks no judge, so the arms are the cause.
             msg = (
                 f"Only {len(contenders)} usable candidate(s), so there was "
                 f"nothing to rank (run {run.pk})."
@@ -362,9 +361,7 @@ class Command(BaseCommand):
     ) -> None:
         """Show the size of the run before any request is made."""
         candidates = len(translators) * len(translators)
-        if comparative_only and candidates < 2:  # noqa: PLR2004
-            # One translator makes one candidate, and with the scoring pass
-            # skipped there is nothing else to report on it.
+        if comparative_only and len(translators) < 2:  # noqa: PLR2004
             msg = (
                 f"Only one usable translator ({translators[0]}), so "
                 "--comparative-only has nothing to compare. Pass at least two "

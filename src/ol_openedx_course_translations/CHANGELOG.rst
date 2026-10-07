@@ -105,15 +105,17 @@ Changed
 
 Fixed
 -----
-- A rate limit or timeout during HTML/XML translation is retried instead of
-  returning the source unchanged. ``translate_text`` used to swallow it, so in
-  ``translate_course`` the file stayed English and the course still imported.
-  ``translate_file_task`` and ``translate_info_updates_task`` now let these
-  errors reach their Celery retry (``TRANSLATE_FILE_TASK_LIMITS``). If the
-  retries run out, the file fails the run, the same as any other failed file.
-  The info-updates task had no retry before and now uses the same limits.
-  Subtitle files, which already failed the run once their own retries ran out,
-  get the task retry too.
+- A rate limit or timeout in ``translate_course`` is retried instead of being
+  hidden or failing the run at once. ``translate_text`` used to swallow it on
+  HTML/XML, so the file stayed English and the course still imported, and the
+  subtitle path reported it as "validation failed". ``translate_file_task``,
+  ``translate_info_updates_task`` and ``translate_policy_json_task`` now let
+  these errors reach their Celery retry (``TRANSLATE_FILE_TASK_LIMITS``); the
+  last two had none before. If the retries run out, the file fails the run,
+  the same as any other failed file. A throttled validation call is still
+  skipped, keeping the unvalidated translation, as before.
+  A rate-limited subtitle batch is no longer retried straight away at half
+  size, which only sent more requests to a provider already throttling.
 - A translator whose batch protocol broke is now reported as failed rather
   than scored as bad. ``translate_text`` keeps the original unit whenever a
   reply arrives without its ``:::N:::`` markers and then reserializes, so a
@@ -152,10 +154,9 @@ Added
   winner, by lowest mean comparative rank. Results are stored in
   ``TranslationBenchmark``, ``TranslationBenchmarkCandidate`` and
   ``TranslationBenchmarkScore``, and readable in the Django admin, where a run
-  can be deleted but not edited. A judge
-  dropped from the scoring pass is recorded on the run with the reason, so a
-  stored run says why it rests on fewer judges rather than leaving it to be
-  inferred from missing rows.
+  can be deleted but not edited. A judge dropped from the scoring pass is
+  recorded on the run with the reason, so a stored run says why it rests on
+  fewer judges rather than leaving it to be inferred from missing rows.
 - The report counts translation units a provider handed back identical to the
   source, so a partially translated document can be recognised as such rather
   than read as the model's judgement. Diagnostic only: it is not part of the

@@ -5,10 +5,17 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import srt
+from litellm import RateLimitError, Timeout
 
 logger = logging.getLogger(__name__)
 
 MAX_SUBTITLE_TRANSLATION_RETRIES = 1
+
+# A rate limit or a timeout says nothing about the content. It must not be
+# swallowed into "the provider returned the source" or "validation failed":
+# the course and benchmark tasks retry these, and a benchmark run would
+# otherwise score a throttled provider as one that refused to translate.
+TRANSIENT_PROVIDER_ERRORS = (RateLimitError, Timeout)
 
 
 class TranslationProvider(ABC):
@@ -81,6 +88,8 @@ class TranslationProvider(ABC):
 
                 log.warning("  ❌ Validation failed for %s, retrying...", path_str)
 
+            except TRANSIENT_PROVIDER_ERRORS:
+                raise
             except Exception as e:  # noqa: BLE001
                 log.warning(
                     "  ❌ Attempt %d failed with error: %s for %s...",

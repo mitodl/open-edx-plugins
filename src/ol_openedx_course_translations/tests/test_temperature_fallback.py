@@ -265,8 +265,8 @@ def test_a_throttled_markup_translation_is_raised_not_swallowed(provider):
 
     Swallowing a rate limit returns the source, which reads downstream as "the
     provider declined to translate": the file stays English in a course run,
-    and a benchmark scores a throttled provider as one that refused. Both
-    callers retry these errors, so they have to reach them.
+    and a benchmark scores a throttled provider as one that refused. The course
+    and benchmark tasks retry these, so they have to reach them.
     """
     html = "<p>Conduction moves heat.</p>"
     transient = [

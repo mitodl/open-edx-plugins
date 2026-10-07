@@ -84,6 +84,8 @@ class TranslationBenchmarkCandidateInline(admin.TabularInline):
 
     model = TranslationBenchmarkCandidate
     extra = 0
+    # The run can be deleted whole; dropping one candidate would silently
+    # change its standings.
     can_delete = False
     # No candidate ModelAdmin is registered, so a change link would lead nowhere.
     show_change_link = False
@@ -142,7 +144,7 @@ class TranslationBenchmarkCandidateInline(admin.TabularInline):
 
 @admin.register(TranslationBenchmark)
 class TranslationBenchmarkAdmin(admin.ModelAdmin):
-    """Read-only view of one benchmark run and how its candidates placed."""
+    """One benchmark run and how its candidates placed: deletable, never editable."""
 
     list_display = (
         "id",
@@ -171,13 +173,7 @@ class TranslationBenchmarkAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):  # noqa: ARG002
-        """
-        Deny edits: results are a record of what happened.
-
-        Deleting a whole run is allowed, so smoke tests and interrupted runs can
-        be cleaned up. The inline keeps can_delete off, because removing one
-        candidate would silently change the run's standings.
-        """
+        """Deny edits: results are a record of what happened."""
         return False
 
     @admin.display(description="Standings (by mean rank, best first)")

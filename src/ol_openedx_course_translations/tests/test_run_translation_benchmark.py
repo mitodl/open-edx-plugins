@@ -2139,6 +2139,21 @@ def _stored_run():
 
 
 @pytest.mark.django_db
+def test_deleting_a_run_takes_its_candidates_and_scores():
+    """The admin deletes a whole run, so nothing hanging off it may protect it."""
+    run = _stored_run()
+    candidate = TranslationBenchmarkCandidate.objects.create(
+        run=run, translator="a", validator="v"
+    )
+    TranslationBenchmarkScore.objects.create(candidate=candidate, judge="j")
+
+    run.delete()
+
+    assert not TranslationBenchmarkCandidate.objects.exists()
+    assert not TranslationBenchmarkScore.objects.exists()
+
+
+@pytest.mark.django_db
 def test_the_standings_render_a_partly_judged_run():
     """
     Partial coverage is the designed-for case and the one that broke.
@@ -2272,6 +2287,18 @@ def test_comparative_only_with_no_usable_arm_blames_the_arms_not_the_judges():
 
     stages = [stage for p in FakeProvider.all_providers for stage, _ in p.calls]
     assert "rank" not in stages
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "benchmark_block")
+def test_comparative_only_with_one_usable_arm_blames_the_arms_not_the_judges():
+    """Only openai -> gemini survives: openai cannot validate, gemini translate."""
+    modes = {
+        "openai/gpt-test": "validator_prose",
+        "gemini/gemini-test": "translate_raises",
+    }
+    with pytest.raises(CommandError, match="Only 1 usable candidate"):
+        _run(modes, judges="openai", comparative_only=True)
 
 
 @pytest.mark.django_db

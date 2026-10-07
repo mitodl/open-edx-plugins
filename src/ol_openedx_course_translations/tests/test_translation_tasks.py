@@ -1,16 +1,29 @@
 """translate_course's per-file tasks retry a throttled call instead of failing."""
 
+import datetime
 import json
 from unittest import mock
 
 import pytest
+import srt
 from litellm import RateLimitError
+from ol_openedx_course_translations.providers import llm_providers
+from ol_openedx_course_translations.providers.base import TRANSIENT_PROVIDER_ERRORS
+from ol_openedx_course_translations.providers.llm_providers import OpenAIProvider
 
 from ol_openedx_course_translations import tasks
 
+SOURCES = {"<p>Conduction moves heat.</p>", "<p>Welcome.</p>", "Heat Transfer"}
 
-def _throttled():
-    return RateLimitError(message="r", model="gpt-test", llm_provider="openai")
+
+def _transient(error_class):
+    return error_class(message="r", model="gpt-test", llm_provider="openai")
+
+
+def _cue():
+    return srt.Subtitle(
+        1, datetime.timedelta(0), datetime.timedelta(seconds=1), "Hello."
+    )
 
 
 def _translate_file(path):
@@ -25,55 +38,91 @@ def _translate_updates(path):
     )
 
 
-@pytest.fixture
-def html_file(tmp_path):
+def _translate_policy(path):
+    return tasks.translate_policy_json_task.apply(
+        args=(str(path), "hi", "openai", "gpt-test")
+    )
+
+
+def _html_file(tmp_path):
     path = tmp_path / "intro.html"
     path.write_text("<p>Conduction moves heat.</p>", encoding="utf-8")
     return path
 
 
-@pytest.fixture
-def updates_file(tmp_path):
+def _updates_file(tmp_path):
     path = tmp_path / "updates.items.json"
-    path.write_text(json.dumps([{"content": "<p>Welcome.</p>"}]), encoding="utf-8")
+    items = [
+        {"content": "<p>Welcome.</p>"},
+        {"content": "<p>Conduction moves heat.</p>"},
+    ]
+    path.write_text(json.dumps(items), encoding="utf-8")
     return path
 
 
-@pytest.mark.parametrize(
-    ("run", "path_fixture"),
-    [(_translate_file, "html_file"), (_translate_updates, "updates_file")],
-)
-def test_a_throttled_call_is_retried_not_reported_as_an_error(
-    request, run, path_fixture
+def _policy_file(tmp_path):
+    path = tmp_path / "policy.json"
+    path.write_text(
+        json.dumps({"course/2026": {"display_name": "Heat Transfer"}}),
+        encoding="utf-8",
+    )
+    return path
+
+
+TASKS = [
+    pytest.param(_translate_file, _html_file, id="file"),
+    pytest.param(_translate_updates, _updates_file, id="updates"),
+    pytest.param(_translate_policy, _policy_file, id="policy"),
+]
+
+
+@pytest.mark.parametrize("error_class", TRANSIENT_PROVIDER_ERRORS)
+@pytest.mark.parametrize(("run", "make_file"), TASKS)
+def test_a_throttled_call_is_retried_from_the_source(
+    tmp_path, run, make_file, error_class
 ):
     """
-    Returned as {"status": "error"}, one rate limit failed the whole course.
+    A throttled call must reach autoretry_for.
 
-    The task's own handler caught it before autoretry_for could see it.
+    Returned as an error, it would fail the whole course. The retry has to
+    start again from the English source: in the updates file the first item is
+    translated before the second one throttles.
     """
-    path = request.getfixturevalue(path_fixture)
+    path = make_file(tmp_path)
+    throttled = []
     provider = mock.Mock()
-    provider.translate_text.side_effect = [_throttled(), "<p>ऊष्मा</p>"]
+
+    def translate_text(text, *args, **kwargs):  # noqa: ARG001
+        if text != "<p>Welcome.</p>" and not throttled:
+            throttled.append(text)
+            raise _transient(error_class)
+        return "ऊष्मा"
+
+    provider.translate_text.side_effect = translate_text
 
     with mock.patch.object(tasks, "get_translation_provider", return_value=provider):
         result = run(path)
 
     assert result.get()["status"] == "success"
-    assert provider.translate_text.call_count == 2  # noqa: PLR2004
+    assert throttled
+    sent = {call.args[0] for call in provider.translate_text.call_args_list}
+    assert sent <= SOURCES
     assert "ऊष्मा" in path.read_text(encoding="utf-8")
 
 
-def test_a_throttle_that_outlasts_the_retries_fails_the_task(html_file):
+@pytest.mark.parametrize(("run", "make_file"), TASKS)
+def test_a_throttle_that_outlasts_the_retries_fails_the_task(tmp_path, run, make_file):
+    path = make_file(tmp_path)
     provider = mock.Mock()
-    provider.translate_text.side_effect = _throttled()
+    provider.translate_text.side_effect = _transient(RateLimitError)
 
     with (
         mock.patch.object(tasks, "get_translation_provider", return_value=provider),
-        # Celery rebuilds the exception across the eager retry, as its base
-        # class, so match the message rather than the type.
+        # The eager retry re-raises it as openai's base OpenAIError, so match
+        # the message rather than the type.
         pytest.raises(Exception, match="RateLimitError"),
     ):
-        _translate_file(html_file).get()
+        run(path).get()
 
     assert (
         provider.translate_text.call_count
@@ -81,15 +130,46 @@ def test_a_throttle_that_outlasts_the_retries_fails_the_task(html_file):
     )
 
 
-def test_any_other_failure_is_still_reported_without_a_retry(html_file):
+@pytest.mark.parametrize("error_class", TRANSIENT_PROVIDER_ERRORS)
+def test_a_throttled_subtitle_is_not_reported_as_failed_validation(error_class):
+    """The subtitle wrapper's catch-all used to turn a 429 into a ValueError."""
+    provider = OpenAIProvider("key", "gpt-test")
+
+    with (
+        mock.patch.object(
+            provider, "translate_subtitles", side_effect=_transient(error_class)
+        ),
+        pytest.raises(error_class),
+    ):
+        provider.translate_srt_with_validation([_cue()], "hi")
+
+
+def test_a_rate_limited_subtitle_batch_is_not_retried_smaller():
+    """Halving the batch does nothing for a 429; the task retry waits instead."""
+    provider = OpenAIProvider("key", "gpt-test")
+
+    with (
+        mock.patch.object(
+            llm_providers, "completion", side_effect=_transient(RateLimitError)
+        ) as completion,
+        pytest.raises(RateLimitError),
+    ):
+        provider.translate_subtitles([_cue()], "hi")
+
+    assert completion.call_count == 1
+
+
+def test_any_other_failure_is_still_reported_without_a_retry(tmp_path):
+    path = _html_file(tmp_path)
     provider = mock.Mock()
     provider.translate_text.side_effect = ValueError("bad markup")
 
     with mock.patch.object(tasks, "get_translation_provider", return_value=provider):
-        result = _translate_file(html_file)
+        result = _translate_file(path)
 
     assert result.get() == {
         "status": "error",
-        "file": str(html_file),
+        "file": str(path),
         "error": "bad markup",
     }
+    assert provider.translate_text.call_count == 1

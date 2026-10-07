@@ -53,6 +53,18 @@ TRANSLATE_FILE_TASK_LIMITS = getattr(
     },
 )
 
+# Course tasks retry only a throttle: any other failure comes back as an error
+# dict. Each re-raises TRANSIENT_PROVIDER_ERRORS ahead of its catch-all, or
+# autoretry_for never sees them and one throttled call fails the whole course.
+TRANSIENT_RETRY = {
+    "autoretry_for": TRANSIENT_PROVIDER_ERRORS,
+    "retry_kwargs": {
+        "max_retries": TRANSLATE_FILE_TASK_LIMITS["max_retries"],
+        "countdown": TRANSLATE_FILE_TASK_LIMITS["retry_countdown"],
+    },
+    "retry_backoff": False,
+}
+
 
 def _parse_marker_wrapped_translation(raw_text: str) -> str | None:
     """
@@ -95,12 +107,7 @@ def _parse_marker_wrapped_translation(raw_text: str) -> str | None:
     name="translate_file_task",
     soft_time_limit=TRANSLATE_FILE_TASK_LIMITS["soft_time_limit"],
     time_limit=TRANSLATE_FILE_TASK_LIMITS["time_limit"],
-    autoretry_for=(Exception,),
-    retry_kwargs={
-        "max_retries": TRANSLATE_FILE_TASK_LIMITS["max_retries"],
-        "countdown": TRANSLATE_FILE_TASK_LIMITS["retry_countdown"],
-    },
-    retry_backoff=False,  # keep retries predictable
+    **TRANSIENT_RETRY,
 )
 def translate_file_task(  # noqa: PLR0913, PLR0917, PLR0912, C901
     _self,
@@ -274,8 +281,6 @@ def translate_file_task(  # noqa: PLR0913, PLR0917, PLR0912, C901
 
         file_path.write_text(translated_content, encoding="utf-8")
     except TRANSIENT_PROVIDER_ERRORS:
-        # Let autoretry_for retry the file. Returned as an error, one throttled
-        # call would fail the whole translate_course run.
         raise
     except Exception as e:
         logger.exception("Failed to translate file %s", file_path_str)
@@ -284,7 +289,7 @@ def translate_file_task(  # noqa: PLR0913, PLR0917, PLR0912, C901
         return {"status": "success", "file": file_path_str}
 
 
-@shared_task(bind=True, name="translate_policy_json_task")
+@shared_task(bind=True, name="translate_policy_json_task", **TRANSIENT_RETRY)
 def translate_policy_json_task(
     _self,
     policy_file_path_str: str,
@@ -327,6 +332,8 @@ def translate_policy_json_task(
             json.dumps(policy_json_data, ensure_ascii=False, indent=4),
             encoding="utf-8",
         )
+    except TRANSIENT_PROVIDER_ERRORS:
+        raise
     except Exception as e:
         logger.exception("Failed to translate policy.json %s", policy_file_path_str)
         return {"status": "error", "file": policy_file_path_str, "error": str(e)}
@@ -334,16 +341,7 @@ def translate_policy_json_task(
         return {"status": "success", "file": policy_file_path_str}
 
 
-@shared_task(
-    bind=True,
-    name="translate_info_updates_task",
-    autoretry_for=TRANSIENT_PROVIDER_ERRORS,
-    retry_kwargs={
-        "max_retries": TRANSLATE_FILE_TASK_LIMITS["max_retries"],
-        "countdown": TRANSLATE_FILE_TASK_LIMITS["retry_countdown"],
-    },
-    retry_backoff=False,
-)
+@shared_task(bind=True, name="translate_info_updates_task", **TRANSIENT_RETRY)
 def translate_info_updates_task(  # noqa: PLR0913, PLR0917, C901
     _self,
     updates_file_path_str: str,
@@ -447,7 +445,6 @@ def translate_info_updates_task(  # noqa: PLR0913, PLR0917, C901
             encoding="utf-8",
         )
     except TRANSIENT_PROVIDER_ERRORS:
-        # Retried by autoretry_for, as in translate_file_task.
         raise
     except Exception as e:
         logger.exception(
@@ -468,15 +465,6 @@ BENCHMARK_VALIDATION_TIMEOUT = 240
 # Benchmark work is dispatched in stages of several hundred tasks, so it runs
 # on the low queue: the cms workers are shared with course publishing.
 BENCHMARK_QUEUE = "edx.cms.core.low"
-
-# Retried only when the failure is transient. A malformed judge reply is not
-# worth retrying — it will be malformed again, and the run drops that judge
-# either way, so a retry only delays the exclusion.
-#
-# Celery's autoretry wrapper only sees what escapes the task body, so every
-# task below re-raises these ahead of its own handler. Catching them like the
-# rest would silently make this configuration dead.
-BENCHMARK_TRANSIENT_ERRORS = TRANSIENT_PROVIDER_ERRORS
 
 # Exception types that mean the code is wrong, rather than the run hitting
 # something it already reports. Only these get a traceback: an arm gate raising
@@ -500,12 +488,12 @@ def _log_benchmark_failure(error: Exception, context: str) -> str:
 
 
 def _benchmark_task(name):
-    """Shared decorator for the benchmark's stage tasks."""
+    """Shared decorator for the benchmark's stage tasks; see TRANSIENT_RETRY."""
     return shared_task(
         bind=True,
         name=name,
         queue=BENCHMARK_QUEUE,
-        autoretry_for=BENCHMARK_TRANSIENT_ERRORS,
+        autoretry_for=TRANSIENT_PROVIDER_ERRORS,
         retry_backoff=True,
         retry_kwargs={"max_retries": 2},
     )
@@ -598,7 +586,7 @@ def benchmark_translate_task(_self, candidate_id, translator, target_language, r
                 f"(all {len(translated_units)} units)"
             )
             raise RuntimeError(msg)  # noqa: TRY301
-    except BENCHMARK_TRANSIENT_ERRORS:
+    except TRANSIENT_PROVIDER_ERRORS:
         raise
     except Exception as error:  # noqa: BLE001
         candidate.error = _log_benchmark_failure(error, f"translate {translator}")
@@ -653,7 +641,7 @@ def benchmark_validate_task(
                 f"({before_elements} elements in, {after_elements} out)"
             )
             raise RuntimeError(msg)  # noqa: TRY301
-    except BENCHMARK_TRANSIENT_ERRORS:
+    except TRANSIENT_PROVIDER_ERRORS:
         raise
     except Exception as error:  # noqa: BLE001
         candidate.error = _log_benchmark_failure(error, f"validate {validator}")
@@ -690,7 +678,7 @@ def benchmark_score_task(_self, candidate_id, judge, target_language, run_id):
             source_content=benchmark.content,
             translated_content=candidate.translated_content,
         )
-    except BENCHMARK_TRANSIENT_ERRORS:
+    except TRANSIENT_PROVIDER_ERRORS:
         raise
     except Exception as error:  # noqa: BLE001
         return {
@@ -731,7 +719,7 @@ def benchmark_rank_task(_self, judge, label_map, target_language, run_id):
             source_content=benchmark.content,
             candidates=payload,
         )
-    except BENCHMARK_TRANSIENT_ERRORS:
+    except TRANSIENT_PROVIDER_ERRORS:
         raise
     except Exception as error:  # noqa: BLE001
         return {
