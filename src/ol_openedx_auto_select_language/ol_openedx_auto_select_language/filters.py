@@ -125,10 +125,20 @@ class RestrictVideoTranscriptLanguages(PipelineStep):
         if not course_language:
             return {"block": block, "context": context}
 
-        def restricted(transcripts, dest_lang=None):
-            """Return the student-view transcript info for one language only."""
+        def restricted(transcripts, dest_lang=None):  # noqa: ARG001
+            """
+            Return the student-view transcript info for one language only.
+
+            The incoming ``dest_lang`` is deliberately ignored in favour of
+            this block's own course language. ``AddDestLangForVideoBlock``
+            writes a single shared ``student_view_context`` key once per
+            child, so in a vertical holding several videos the last child
+            wins and would otherwise drag its siblings off the course
+            language. The platform resolver already falls back on its own
+            when the course language has no transcript.
+            """
             track_url, language, languages = original(
-                transcripts=transcripts, dest_lang=dest_lang
+                transcripts=transcripts, dest_lang=course_language
             )
             if language in languages and _same_language(language, course_language):
                 languages = OrderedDict([(language, languages[language])])

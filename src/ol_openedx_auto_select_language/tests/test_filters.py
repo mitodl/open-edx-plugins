@@ -448,3 +448,32 @@ def test_no_restriction_when_course_language_has_no_transcript(mocker, settings)
     )
 
     assert result == languages
+
+
+def test_resolves_with_course_language_not_shared_dest_lang(mocker, settings):
+    """A sibling video must not drag this one off the course language."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    _patch_course_language(mocker, "es")
+    languages = OrderedDict([("en", "English"), ("es", "Español")])
+
+    def resolver(transcripts, dest_lang=None):
+        """Stand in for get_default_transcript_language's fallback chain."""
+        resolved = dest_lang if dest_lang in transcripts["transcripts"] else "en"
+        return ("http://example.com/transcript", resolved, languages)
+
+    block = mocker.Mock()
+    block.scope_ids.block_type = "video"
+    block.ol_transcripts_restricted = False
+    block.get_transcripts_for_student = mocker.Mock(side_effect=resolver)
+
+    _make_restrict_step(mocker).run_filter(block=block, context={})
+
+    # dest_lang arrives as "en" because another video in the same vertical
+    # overwrote the shared student_view_context key.
+    _, language, result = block.get_transcripts_for_student(
+        transcripts={"sub": "", "transcripts": {"es": "es.srt", "en": "en.srt"}},
+        dest_lang="en",
+    )
+
+    assert language == "es"
+    assert result == {"es": "Español"}
