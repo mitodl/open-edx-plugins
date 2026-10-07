@@ -425,8 +425,8 @@ the standings as what the run actually was rather than inferring it from the
 absence of scores.
 
 Results are stored in ``TranslationQualityRun``, ``TranslationQualityCandidate``
-and ``TranslationQualityScore``, viewable read-only in the Django admin: the run
-page lists every candidate, its judge scores and the standings, with a column
+and ``TranslationQualityScore``, and shown in the Django admin. A run can't be
+edited there, only deleted as a whole. The run page lists every candidate, its judge scores and the standings, with a column
 per judge showing that judge's position, its raw scores and its comparative
 rank, and the verdict above the table. A ``--comparative-only`` run recorded
 no scores, so those slots read ``—`` and the position is the comparative rank. Each candidate

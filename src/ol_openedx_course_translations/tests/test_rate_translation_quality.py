@@ -20,6 +20,7 @@ from unittest import mock
 import pytest
 from celery import current_app
 from django.contrib import admin
+from django.contrib.auth import get_permission_codename
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from litellm import BadRequestError, RateLimitError, Timeout
@@ -2080,13 +2081,26 @@ def test_the_admin_renders_a_comparative_only_run():
         assert "None" not in inline.judge_scores(candidate)
 
 
-def test_the_run_admin_is_read_only():
-    """A run is evidence: deleting it takes its scores with it."""
+def test_the_run_admin_is_read_only_but_a_run_can_be_deleted():
+    """
+    A run can be removed as a whole, never altered.
+
+    Smoke tests and interrupted runs need to be cleared out somehow. Deleting
+    one candidate would quietly change the standings, so the inline still can't.
+    """
     admin_view = TranslationQualityRunAdmin(TranslationQualityRun, admin.site)
+    inline = TranslationQualityCandidateInline(TranslationQualityCandidate, admin.site)
+    opts = TranslationQualityRun._meta  # noqa: SLF001
+    delete_perm = f"{opts.app_label}.{get_permission_codename('delete', opts)}"
     request = mock.Mock()
+    request.user.has_perm = lambda perm: perm == delete_perm
 
     assert not admin_view.has_add_permission(request)
     assert not admin_view.has_change_permission(request)
+    assert admin_view.has_delete_permission(request)
+    assert not inline.can_delete
+
+    request.user.has_perm = lambda perm: False  # noqa: ARG005
     assert not admin_view.has_delete_permission(request)
 
 

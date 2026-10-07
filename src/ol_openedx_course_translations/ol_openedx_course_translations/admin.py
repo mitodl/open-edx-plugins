@@ -171,11 +171,13 @@ class TranslationQualityRunAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):  # noqa: ARG002
-        """Deny edits: results are a record of what happened."""
-        return False
+        """
+        Deny edits: results are a record of what happened.
 
-    def has_delete_permission(self, request, obj=None):  # noqa: ARG002
-        """Deny deletes: a run is evidence, and deleting it takes its scores."""
+        Deleting a whole run is allowed, so smoke tests and interrupted runs can
+        be cleaned up. The inline keeps can_delete off, because removing one
+        candidate would silently change the run's standings.
+        """
         return False
 
     @admin.display(description="Standings (by mean rank, best first)")

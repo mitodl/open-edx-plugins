@@ -148,7 +148,8 @@ Added
   which picks the shortlist for the comparative pass; that pass names the
   winner, by lowest mean comparative rank. Results are stored in
   ``TranslationQualityRun``, ``TranslationQualityCandidate`` and
-  ``TranslationQualityScore``, and readable in the Django admin. A judge
+  ``TranslationQualityScore``, and readable in the Django admin, where a run
+  can be deleted but not edited. A judge
   dropped from the scoring pass is recorded on the run with the reason, so a
   stored run says why it rests on fewer judges rather than leaving it to be
   inferred from missing rows.
