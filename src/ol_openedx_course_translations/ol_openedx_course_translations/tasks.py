@@ -273,6 +273,10 @@ def translate_file_task(  # noqa: PLR0913, PLR0917, PLR0912, C901
             )
 
         file_path.write_text(translated_content, encoding="utf-8")
+    except TRANSIENT_PROVIDER_ERRORS:
+        # Let autoretry_for retry the file. Returned as an error, one throttled
+        # call would fail the whole translate_course run.
+        raise
     except Exception as e:
         logger.exception("Failed to translate file %s", file_path_str)
         return {"status": "error", "file": file_path_str, "error": str(e)}
@@ -330,7 +334,16 @@ def translate_policy_json_task(
         return {"status": "success", "file": policy_file_path_str}
 
 
-@shared_task(bind=True, name="translate_info_updates_task")
+@shared_task(
+    bind=True,
+    name="translate_info_updates_task",
+    autoretry_for=TRANSIENT_PROVIDER_ERRORS,
+    retry_kwargs={
+        "max_retries": TRANSLATE_FILE_TASK_LIMITS["max_retries"],
+        "countdown": TRANSLATE_FILE_TASK_LIMITS["retry_countdown"],
+    },
+    retry_backoff=False,
+)
 def translate_info_updates_task(  # noqa: PLR0913, PLR0917, C901
     _self,
     updates_file_path_str: str,
@@ -433,6 +446,9 @@ def translate_info_updates_task(  # noqa: PLR0913, PLR0917, C901
             json.dumps(updates_data, ensure_ascii=False, indent=4),
             encoding="utf-8",
         )
+    except TRANSIENT_PROVIDER_ERRORS:
+        # Retried by autoretry_for, as in translate_file_task.
+        raise
     except Exception as e:
         logger.exception(
             "Failed to translate updates.items.json %s", updates_file_path_str

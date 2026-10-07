@@ -102,6 +102,15 @@ Changed
 
 Fixed
 -----
+- A rate limit or timeout during HTML/XML translation is retried instead of
+  returning the source unchanged. ``translate_text`` used to swallow it, so in
+  ``translate_course`` the file stayed English and the course still imported.
+  ``translate_file_task`` and ``translate_info_updates_task`` now let these
+  errors reach their Celery retry (``TRANSLATE_FILE_TASK_LIMITS``). If the
+  retries run out, the file fails the run, the same as any other failed file.
+  The info-updates task had no retry before and now uses the same limits.
+  Subtitle files, which already failed the run once their own retries ran out,
+  get the task retry too.
 - A translator whose batch protocol broke is now reported as failed rather
   than scored as bad. ``translate_text`` keeps the original unit whenever a
   reply arrives without its ``:::N:::`` markers and then reserializes, so a
