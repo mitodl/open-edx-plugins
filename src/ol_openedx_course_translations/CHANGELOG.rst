@@ -44,7 +44,10 @@ Changed
   ``candidates x judges + judges`` calls down to ``judges``. The standings
   then show mean comparative rank and no mean score. It refuses to start when
   the candidates outnumber the 26 anonymous labels one call can carry, since
-  the label mapping would otherwise drop the excess silently.
+  the label mapping would otherwise drop the excess silently. It also refuses
+  a single translator, which leaves nothing to compare. If fewer than two
+  candidates survive translation and validation, the run says so, rather than
+  reporting that no judge ranked anything.
 - ``TranslationQualityScore`` allows null accuracy/fluency/terminology, for
   runs that never scored on the 1-10 scale.
 - ``TranslationQualityRun`` records ``comparative_only``, so the console

@@ -2247,6 +2247,31 @@ def test_a_single_contender_is_not_sent_to_be_ranked():
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("_providers", "benchmark_block")
+def test_comparative_only_refuses_one_translator_before_spending():
+    """With scoring skipped, a field of one has no result to give."""
+    with pytest.raises(CommandError, match="nothing to compare"):
+        _run(translators="openai", judges="openai", comparative_only=True)
+
+    assert not FakeProvider.all_providers
+    assert not TranslationQualityRun.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "benchmark_block")
+def test_comparative_only_with_no_usable_arm_blames_the_arms_not_the_judges():
+    modes = {
+        "openai/gpt-test": "translate_raises",
+        "gemini/gemini-test": "translate_raises",
+    }
+    with pytest.raises(CommandError, match="Only 0 usable candidate"):
+        _run(modes, judges="openai", comparative_only=True)
+
+    stages = [stage for p in FakeProvider.all_providers for stage, _ in p.calls]
+    assert "rank" not in stages
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "benchmark_block")
 @pytest.mark.parametrize(
     ("mode", "message"),
     [
