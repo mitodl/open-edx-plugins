@@ -61,6 +61,23 @@ class AddDestLangForVideoBlock(PipelineStep):
         return {"context": context, "student_view_context": student_view_context}
 
 
+def _is_course_language(language, dest_lang):
+    """
+    Return True when `language` is the course language rather than a fallback.
+
+    `get_default_transcript_language` falls back to `sorted(transcripts)[0]`
+    when the course language has no transcript, and pinning the player to that
+    arbitrary language would both break the promise in the README and take
+    away languages the learner could otherwise pick. Comparing primary
+    subtags keeps the legitimate generalisations (`pt-BR` resolving to `pt`)
+    without importing platform transcript helpers, whose module path differs
+    between Open edX releases.
+    """
+    if not dest_lang:
+        return False
+    return language.split("-")[0].lower() == dest_lang.split("-")[0].lower()
+
+
 class RestrictVideoTranscriptLanguages(PipelineStep):
     """
     Pipeline step to offer only the course-language transcript in the player.
@@ -80,21 +97,21 @@ class RestrictVideoTranscriptLanguages(PipelineStep):
         ``InvalidScopeError``, because the LMS wraps authored scopes in
         ``ReadOnlyFieldData``.
         """
+        original = getattr(block, "get_transcripts_for_student", None)
         if (
             not getattr(settings, "ENABLE_AUTO_LANGUAGE_SELECTION", False)
             or block.scope_ids.block_type != VIDEO_BLOCK_TYPE
             or getattr(block, "ol_transcripts_restricted", False)
+            or original is None
         ):
             return {"block": block, "context": context}
-
-        original = block.get_transcripts_for_student
 
         def restricted(transcripts, dest_lang=None):
             """Return the student-view transcript info for one language only."""
             track_url, language, languages = original(
                 transcripts=transcripts, dest_lang=dest_lang
             )
-            if language in languages:
+            if language in languages and _is_course_language(language, dest_lang):
                 languages = OrderedDict([(language, languages[language])])
             return track_url, language, languages
 

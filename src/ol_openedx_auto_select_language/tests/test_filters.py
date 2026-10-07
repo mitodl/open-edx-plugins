@@ -334,3 +334,85 @@ def test_applying_twice_does_not_stack_wrappers(mocker, settings):
     step.run_filter(block=block, context={})
 
     assert block.get_transcripts_for_student is wrapped_once
+
+
+def test_block_without_transcript_method_is_untouched(mocker, settings):
+    """A HiddenBlock standing in for a disabled video type must not raise."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    block = mocker.Mock(spec=["scope_ids"])
+    block.scope_ids.block_type = "video"
+
+    result = _make_restrict_step(mocker).run_filter(block=block, context={})
+
+    assert result == {"block": block, "context": {}}
+    assert not hasattr(block, "get_transcripts_for_student")
+
+
+def test_no_restriction_when_resolved_language_is_a_fallback(mocker, settings):
+    """A video with no course-language transcript keeps its full menu."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    # Course language is English; the video only has Spanish and French, so
+    # get_default_transcript_language falls back to sorted(other_lang)[0].
+    block = _make_video_block(mocker, language="es")
+
+    _make_restrict_step(mocker).run_filter(block=block, context={})
+
+    _, _, languages = block.get_transcripts_for_student(
+        transcripts={"sub": "", "transcripts": {"es": "es.srt", "fr": "fr.srt"}},
+        dest_lang="en",
+    )
+
+    assert languages == ALL_LANGUAGES
+
+
+def test_restricts_when_resolved_language_generalizes_dest_lang(mocker, settings):
+    """pt-BR resolving to pt still counts as the course language."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    languages = OrderedDict([("en", "English"), ("pt", "Português")])
+    block = _make_video_block(mocker, language="pt", languages=languages)
+
+    _make_restrict_step(mocker).run_filter(block=block, context={})
+
+    _, _, restricted = block.get_transcripts_for_student(
+        transcripts={"sub": "", "transcripts": {"pt": "pt.srt"}},
+        dest_lang="pt-BR",
+    )
+
+    assert restricted == {"pt": "Português"}
+
+
+def test_real_video_block_is_not_dirtied(settings):
+    """The instance override must not mark the real XBlock dirty."""
+    from opaque_keys.edx.locator import CourseLocator  # noqa: PLC0415
+    from xblock.field_data import DictFieldData  # noqa: PLC0415
+    from xblock.fields import ScopeIds  # noqa: PLC0415
+    from xmodule.tests import get_test_descriptor_system  # noqa: PLC0415
+    from xmodule.video_block.video_block import VideoBlock  # noqa: PLC0415
+
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    course_key = CourseLocator("org", "course", "run")
+    usage_key = course_key.make_usage_key("video", "SampleVideo")
+    block = get_test_descriptor_system().construct_xblock_from_class(
+        VideoBlock,
+        scope_ids=ScopeIds(None, "video", usage_key, usage_key),
+        field_data=DictFieldData(
+            {"transcripts": {"es": "es.srt", "fr": "fr.srt"}, "sub": "sample"}
+        ),
+    )
+
+    transcripts_info = block.get_transcripts_info()
+    dirty_before = dict(block._dirty_fields)  # noqa: SLF001
+
+    RestrictVideoTranscriptLanguages(filter_type="t", running_pipeline=[]).run_filter(
+        block=block, context={}
+    )
+
+    _, language, languages = block.get_transcripts_for_student(
+        transcripts=transcripts_info, dest_lang="es"
+    )
+
+    assert language == "es"
+    assert list(languages) == ["es"]
+    # XBlock marks mutable Dict fields dirty on read, so the invariant that
+    # matters is that the step adds nothing of its own.
+    assert dict(block._dirty_fields) == dirty_before  # noqa: SLF001

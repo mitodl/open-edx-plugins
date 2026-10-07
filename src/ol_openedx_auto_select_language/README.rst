@@ -77,14 +77,6 @@ To make auto language selection work with Micro-Frontends (MFEs), you need to us
 
 **Note:** The custom Footer is required because MFEs run as separate applications and need their own mechanism to detect and respond to course language settings. The environment variable must be set in each MFE's configuration for the feature to work properly.
 
-License
-*******
-
-The code in this repository is licensed under the AGPL 3.0 unless
-otherwise noted.
-
-Please see `LICENSE.txt <LICENSE.txt>`_ for details.
-
 Video Transcript Languages
 ==========================
 
@@ -101,3 +93,11 @@ uploaded language.
 Videos rendered outside a vertical -- a direct ``render_xblock`` on a video
 usage key, or the public video sharing page -- are not covered, because the
 filter only fires for children of a vertical block.
+
+License
+*******
+
+The code in this repository is licensed under the AGPL 3.0 unless
+otherwise noted.
+
+Please see `LICENSE.txt <LICENSE.txt>`_ for details.
