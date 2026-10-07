@@ -288,7 +288,7 @@ def _make_video_block(mocker, language="es", languages=None):
     ],
     ids=["exact", "generalized", "fallback", "course_language_absent", "unlabeled"],
 )
-def test_language_restriction(  # noqa: PLR0913
+def test_language_restriction(  # noqa: PLR0913, PLR0917
     mocker, settings, course_language, resolved, languages, expected
 ):
     """Only a transcript in the course language narrows the player's menu."""
