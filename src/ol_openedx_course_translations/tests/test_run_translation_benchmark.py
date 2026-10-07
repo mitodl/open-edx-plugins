@@ -2266,6 +2266,22 @@ def test_a_single_contender_is_not_sent_to_be_ranked():
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("_providers", "benchmark_block")
+def test_english_is_refused_as_a_target():
+    """It is supported for courses, but it is the benchmark's source."""
+    with pytest.raises(CommandError, match="translates from English"):
+        call_command(
+            "run_translation_benchmark",
+            target_language="en",
+            benchmark_block=BLOCK_ID,
+            yes=True,
+            stdout=StringIO(),
+        )
+
+    assert not TranslationBenchmark.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("_providers", "benchmark_block")
 def test_comparative_only_refuses_one_translator_before_spending():
     """With scoring skipped, a field of one has no result to give."""
     with pytest.raises(CommandError, match="nothing to compare"):

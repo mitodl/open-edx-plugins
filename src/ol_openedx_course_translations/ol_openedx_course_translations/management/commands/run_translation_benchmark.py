@@ -28,7 +28,10 @@ from ol_openedx_course_translations.utils.benchmark import (
     count_unchanged_units,
     read_benchmark,
 )
-from ol_openedx_course_translations.utils.constants import PROVIDER_AZURE
+from ol_openedx_course_translations.utils.constants import (
+    ENGLISH_LANGUAGE_CODE,
+    PROVIDER_AZURE,
+)
 from ol_openedx_course_translations.utils.course_translations import (
     parse_and_validate_provider_spec,
 )
@@ -130,7 +133,7 @@ class Command(BaseCommand):
             help=(
                 "Comma-separated PROVIDER or PROVIDER/MODEL specs used both as "
                 "translators and as validators. Defaults to every provider with "
-                "an api_key, at its default_model."
+                "an api_key, plus azure if configured, at its default_model."
             ),
         )
         parser.add_argument(
@@ -138,7 +141,8 @@ class Command(BaseCommand):
             default="",
             help=(
                 "Comma-separated PROVIDER or PROVIDER/MODEL specs that score the "
-                "candidates. Defaults to every provider with an api_key."
+                "candidates. Defaults to every provider with an api_key, plus "
+                "azure if configured."
             ),
         )
         parser.add_argument(
@@ -299,6 +303,10 @@ class Command(BaseCommand):
 
     def _validate_language(self, target_language: str) -> None:
         supported = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES
+        if target_language == ENGLISH_LANGUAGE_CODE:
+            # The prompts translate from English, so there is nothing to do.
+            msg = "The benchmark translates from English; pick another target."
+            raise CommandError(msg)
         if target_language not in supported:
             msg = (
                 f"Unsupported target language: {target_language}. "

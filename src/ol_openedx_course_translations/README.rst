@@ -345,13 +345,14 @@ the results, and reports a winner.
 
 - ``--benchmark-block`` (required): usage key of the course block to translate.
   Its published body is the benchmark; nothing ships with the plugin.
-- ``--target-language`` (required): must be in ``COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES``.
+- ``--target-language`` (required): must be in ``COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES``
+  and not ``en``, the source language.
 - ``--translators``: comma-separated ``PROVIDER`` or ``PROVIDER/MODEL`` specs. The same
   roster is used as the validator set, so a run covers every translator/validator
   pairing — ``translators x translators`` candidates. Defaults to every provider
-  with an ``api_key``.
+  with an ``api_key``, plus ``azure`` when configured.
 - ``--judges``: comma-separated specs that score the candidates. Defaults to every
-  provider with an ``api_key``. A provider may be a translator and a judge at once.
+  provider with an ``api_key``, plus ``azure`` when configured. A provider may be a translator and a judge at once.
 - ``--comparative-only``: skip the scoring pass and rank every candidate in one
   call per judge. Turns ``candidates x judges + judges`` judging calls into
   ``judges``, at the cost of the absolute scores, the mean-score column and the
@@ -360,7 +361,7 @@ the results, and reports a winner.
 - ``--yes``: skip the run-size confirmation.
 
 A roster entry whose provider has no ``api_key`` is skipped with a note rather than
-failing the run, so a partly configured environment still produces a comparison.
+failing the run (``azure`` needs none: it authenticates with Entra ID), so a partly configured environment still produces a comparison.
 A provider named on the command line but absent from ``TRANSLATIONS_PROVIDERS`` is
 fatal instead — skipping it would answer a different question than the one asked.
 

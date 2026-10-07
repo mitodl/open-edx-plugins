@@ -157,6 +157,7 @@ Added
   can be deleted but not edited. A judge dropped from the scoring pass is
   recorded on the run with the reason, so a stored run says why it rests on
   fewer judges rather than leaving it to be inferred from missing rows.
+  English is refused as a target, since it is the source.
 - The report counts translation units a provider handed back identical to the
   source, so a partially translated document can be recognised as such rather
   than read as the model's judgement. Diagnostic only: it is not part of the
