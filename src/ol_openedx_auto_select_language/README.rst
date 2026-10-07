@@ -84,3 +84,20 @@ The code in this repository is licensed under the AGPL 3.0 unless
 otherwise noted.
 
 Please see `LICENSE.txt <LICENSE.txt>`_ for details.
+
+Video Transcript Languages
+==========================
+
+When ``ENABLE_AUTO_LANGUAGE_SELECTION`` is true, the LMS video player offers
+only the course-language transcript; its language menu is not rendered.
+
+This is implemented as a ``VerticalBlockChildRenderStarted`` pipeline step
+(``org.openedx.learning.vertical_block_child.render.started.v1``) that narrows
+the language list each video block hands to the player. Transcript downloads,
+the ``available_translations`` handler, the mobile ``student_view_data``
+payload and Studio are unaffected, so course teams continue to manage every
+uploaded language.
+
+Videos rendered outside a vertical -- a direct ``render_xblock`` on a video
+usage key, or the public video sharing page -- are not covered, because the
+filter only fires for children of a vertical block.
