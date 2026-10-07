@@ -28,3 +28,28 @@ def register_video_language_filter(settings):
     if VIDEO_LANGUAGE_PIPELINE_STEP not in filter_entry["pipeline"]:
         filter_entry["pipeline"].append(VIDEO_LANGUAGE_PIPELINE_STEP)
     settings.OPEN_EDX_FILTERS_CONFIG = filters_config
+
+
+VERTICAL_CHILD_RENDER_STARTED_FILTER = (
+    "org.openedx.learning.vertical_block_child.render.started.v1"
+)
+RESTRICT_TRANSCRIPTS_PIPELINE_STEP = (
+    "ol_openedx_auto_select_language.filters.RestrictVideoTranscriptLanguages"
+)
+
+
+def register_restrict_transcripts_filter(settings):
+    """Merge the transcript-restriction step into ``OPEN_EDX_FILTERS_CONFIG``.
+
+    Idempotent and preserves other configured filters and pipeline steps, for
+    the same reason as ``register_video_language_filter``.
+    """
+    filters_config = getattr(settings, "OPEN_EDX_FILTERS_CONFIG", {}) or {}
+    filter_entry = filters_config.setdefault(
+        VERTICAL_CHILD_RENDER_STARTED_FILTER,
+        {"fail_silently": False, "pipeline": []},
+    )
+    filter_entry.setdefault("pipeline", [])
+    if RESTRICT_TRANSCRIPTS_PIPELINE_STEP not in filter_entry["pipeline"]:
+        filter_entry["pipeline"].append(RESTRICT_TRANSCRIPTS_PIPELINE_STEP)
+    settings.OPEN_EDX_FILTERS_CONFIG = filters_config
