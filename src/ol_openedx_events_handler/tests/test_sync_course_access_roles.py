@@ -20,7 +20,17 @@ OTHER_COURSE = "course-v1:Org+Other+Run"
 
 
 def _make_role(email, role, course_id, username=None):
-    """Create a real CourseAccessRole row, so the command's filters are exercised."""
+    """
+    Create a real CourseAccessRole row, so the command's filters are exercised.
+
+    Written with bulk_create because it does not send post_save. These rows
+    stand for roles that were granted before the consumer started recording
+    them -- which is the whole reason the command exists -- so a "role added"
+    event is wrong for them. It also matters mechanically: on an install where
+    this plugin's receiver is active, that event calls the same task the tests
+    mock, and every row would then be counted as a dispatch the command never
+    made.
+    """
     from common.djangoapps.student.models import CourseAccessRole  # noqa: PLC0415
     from django.contrib.auth import get_user_model  # noqa: PLC0415
     from opaque_keys.edx.keys import CourseKey  # noqa: PLC0415
@@ -29,12 +39,16 @@ def _make_role(email, role, course_id, username=None):
         username=username or f"{role}-{email or 'noemail'}-{course_id or 'org'}",
         email=email,
     )
-    return CourseAccessRole.objects.create(
-        user=user,
-        role=role,
-        course_id=CourseKey.from_string(course_id) if course_id else None,
-        org=CourseKey.from_string(course_id).org if course_id else "Org",
-    )
+    return CourseAccessRole.objects.bulk_create(
+        [
+            CourseAccessRole(
+                user=user,
+                role=role,
+                course_id=CourseKey.from_string(course_id) if course_id else None,
+                org=CourseKey.from_string(course_id).org if course_id else "Org",
+            )
+        ]
+    )[0]
 
 
 def _run(*args):
@@ -205,9 +219,6 @@ def test_survives_the_connection_closing_between_dispatches(mock_task):
     for n in range(total):
         _make_role(f"staff{n}@example.com", "staff", COURSE, username=f"closer-{n}")
 
-    # On an install where the plugin's receiver is active, creating the rows
-    # above already called this mock. Only the command's dispatches matter here.
-    mock_task.reset_mock()
     mock_task.delay.side_effect = lambda **_kwargs: connection.close()
 
     with override_settings(**WEBHOOK_SETTINGS):
@@ -228,8 +239,6 @@ def test_pages_through_roles_beyond_one_batch(mock_task):
     total = 7
     for n in range(total):
         _make_role(f"paged{n}@example.com", "staff", COURSE, username=f"paged-{n}")
-
-    mock_task.reset_mock()
 
     with mock.patch.object(cmd, "BATCH_SIZE", 2), override_settings(**WEBHOOK_SETTINGS):
         output = _run()
