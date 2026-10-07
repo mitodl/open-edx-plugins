@@ -5,6 +5,7 @@ Filters for Open edX auto select language.
 from collections import OrderedDict
 
 from django.conf import settings
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx_filters import PipelineStep
 from xmodule.modulestore.django import modulestore
 
@@ -61,21 +62,35 @@ class AddDestLangForVideoBlock(PipelineStep):
         return {"context": context, "student_view_context": student_view_context}
 
 
-def _is_course_language(language, dest_lang):
+def _course_language(block):
     """
-    Return True when `language` is the course language rather than a fallback.
+    Return the block's course language as a BCP47 code, or None.
 
-    `get_default_transcript_language` falls back to `sorted(transcripts)[0]`
-    when the course language has no transcript, and pinning the player to that
-    arbitrary language would both break the promise in the README and take
-    away languages the learner could otherwise pick. Comparing primary
-    subtags keeps the legitimate generalisations (`pt-BR` resolving to `pt`)
-    without importing platform transcript helpers, whose module path differs
-    between Open edX releases.
+    Read from the course rather than inferred from ``dest_lang``:
+    ``AddDestLangForVideoBlock`` sets ``dest_lang`` to English whenever the
+    course language is not an exact key in the video's transcripts, so on an
+    ``es`` course with only ``en`` and ``fr`` transcripts ``dest_lang`` is
+    ``en`` and would be mistaken for the course language. Reading the course
+    per block also avoids the shared-context key that a vertical with several
+    videos overwrites.
     """
-    if not dest_lang:
-        return False
-    return language.split("-")[0].lower() == dest_lang.split("-")[0].lower()
+    try:
+        overview = CourseOverview.get_from_id(block.scope_ids.usage_id.course_key)
+    except Exception:  # noqa: BLE001
+        return None
+    language = getattr(overview, "language", None)
+    return LanguageCode(language).to_bcp47() if language else None
+
+
+def _same_language(language, course_language):
+    """
+    Return True when two language codes share a primary subtag.
+
+    Comparing primary subtags keeps the legitimate generalisations
+    (``pt-BR`` resolving to ``pt``) without importing platform transcript
+    helpers, whose module path differs between Open edX releases.
+    """
+    return language.split("-")[0].lower() == course_language.split("-")[0].lower()
 
 
 class RestrictVideoTranscriptLanguages(PipelineStep):
@@ -106,12 +121,16 @@ class RestrictVideoTranscriptLanguages(PipelineStep):
         ):
             return {"block": block, "context": context}
 
+        course_language = _course_language(block)
+        if not course_language:
+            return {"block": block, "context": context}
+
         def restricted(transcripts, dest_lang=None):
             """Return the student-view transcript info for one language only."""
             track_url, language, languages = original(
                 transcripts=transcripts, dest_lang=dest_lang
             )
-            if language in languages and _is_course_language(language, dest_lang):
+            if language in languages and _same_language(language, course_language):
                 languages = OrderedDict([(language, languages[language])])
             return track_url, language, languages
 

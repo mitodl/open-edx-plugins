@@ -90,6 +90,11 @@ the ``available_translations`` handler, the mobile ``student_view_data``
 payload and Studio are unaffected, so course teams continue to manage every
 uploaded language.
 
+The course language is read from the course, not from the transcript the
+player resolved. If a video has no transcript in the course language, the
+player keeps its full language menu rather than being pinned to whichever
+transcript the platform happened to fall back to.
+
 Videos rendered outside a vertical -- a direct ``render_xblock`` on a video
 usage key, or the public video sharing page -- are not covered, because the
 filter only fires for children of a vertical block.
