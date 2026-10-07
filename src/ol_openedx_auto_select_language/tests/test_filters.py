@@ -262,74 +262,82 @@ def _make_video_block(mocker, language="es", languages=None):
     return block
 
 
-def test_restricts_to_resolved_language(mocker, settings):
-    """Only the resolved language is offered to the player."""
+@pytest.mark.parametrize(
+    ("course_language", "resolved", "languages", "expected"),
+    [
+        # The course language has a transcript: the menu collapses to it.
+        ("es", "es", ALL_LANGUAGES, {"es": "Español"}),
+        # pt-BR legitimately resolves to pt, which still counts as a match.
+        (
+            "pt-BR",
+            "pt",
+            OrderedDict([("en", "English"), ("pt", "Português")]),
+            {"pt": "Português"},
+        ),
+        # No transcript in the course language: the platform falls back, and
+        # the full menu survives rather than being pinned to the fallback.
+        ("en", "es", ALL_LANGUAGES, ALL_LANGUAGES),
+        (
+            "es",
+            "en",
+            OrderedDict([("en", "English"), ("fr", "Français")]),
+            OrderedDict([("en", "English"), ("fr", "Français")]),
+        ),
+        # The resolved language has no label, so narrowing would empty the menu.
+        ("de", "de", ALL_LANGUAGES, ALL_LANGUAGES),
+    ],
+    ids=["exact", "generalized", "fallback", "course_language_absent", "unlabeled"],
+)
+def test_language_restriction(  # noqa: PLR0913
+    mocker, settings, course_language, resolved, languages, expected
+):
+    """Only a transcript in the course language narrows the player's menu."""
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    _patch_course_language(mocker, course_language)
+    block = _make_video_block(mocker, language=resolved, languages=languages)
+
+    _make_restrict_step(mocker).run_filter(block=block, context={})
+
+    _, _, result = block.get_transcripts_for_student(
+        transcripts={"sub": "", "transcripts": {}}, dest_lang="en"
+    )
+
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("block_type", "has_transcript_method", "flag"),
+    [
+        ("problem", True, True),
+        ("video", True, False),
+        ("video", True, None),
+        ("video", False, True),
+    ],
+    ids=["non_video", "flag_disabled", "flag_undefined", "no_transcript_method"],
+)
+def test_step_declines_to_wrap(
+    mocker, settings, block_type, has_transcript_method, flag
+):
+    """The block keeps its own method when the step has no business wrapping."""
+    if flag is None:
+        # A deployment that never defined the setting at all.
+        if hasattr(settings, "ENABLE_AUTO_LANGUAGE_SELECTION"):
+            del settings.ENABLE_AUTO_LANGUAGE_SELECTION
+    else:
+        settings.ENABLE_AUTO_LANGUAGE_SELECTION = flag
     _patch_course_language(mocker, "es")
-    block = _make_video_block(mocker)
-
-    _make_restrict_step(mocker).run_filter(block=block, context={})
-
-    track_url, language, languages = block.get_transcripts_for_student(
-        transcripts={"sub": "", "transcripts": {"es": "es.srt"}},
-        dest_lang="es",
-    )
-
-    assert track_url == "http://example.com/transcript"
-    assert language == "es"
-    assert languages == {"es": "Espa\u00f1ol"}
-
-
-def test_keeps_full_list_when_resolved_language_has_no_label(mocker, settings):
-    """An unlabeled resolved language leaves the menu usable."""
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    _patch_course_language(mocker, "de")
-    block = _make_video_block(mocker, language="de")
-
-    _make_restrict_step(mocker).run_filter(block=block, context={})
-
-    _, _, languages = block.get_transcripts_for_student(
-        transcripts={"sub": "", "transcripts": {}},
-        dest_lang="de",
-    )
-
-    assert languages == ALL_LANGUAGES
-
-
-def test_non_video_block_is_untouched(mocker, settings):
-    """Non-video children are returned unmodified."""
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    block = mocker.Mock()
-    block.scope_ids.block_type = "problem"
-    original = block.get_transcripts_for_student
+    if has_transcript_method:
+        block = _make_video_block(mocker)
+    else:
+        # HiddenBlock stands in for a disabled video type, keeping block_type.
+        block = mocker.Mock(spec=["scope_ids"])
+    block.scope_ids.block_type = block_type
+    original = getattr(block, "get_transcripts_for_student", None)
 
     result = _make_restrict_step(mocker).run_filter(block=block, context={})
 
     assert result == {"block": block, "context": {}}
-    assert block.get_transcripts_for_student is original
-
-
-def test_noop_when_flag_disabled(mocker, settings):
-    """The step does nothing unless auto language selection is enabled."""
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
-    block = _make_video_block(mocker)
-    original = block.get_transcripts_for_student
-
-    _make_restrict_step(mocker).run_filter(block=block, context={})
-
-    assert block.get_transcripts_for_student is original
-
-
-def test_noop_when_flag_undefined(mocker, settings):
-    """A deployment that never set the flag must not raise."""
-    if hasattr(settings, "ENABLE_AUTO_LANGUAGE_SELECTION"):
-        del settings.ENABLE_AUTO_LANGUAGE_SELECTION
-    block = _make_video_block(mocker)
-    original = block.get_transcripts_for_student
-
-    _make_restrict_step(mocker).run_filter(block=block, context={})
-
-    assert block.get_transcripts_for_student is original
+    assert getattr(block, "get_transcripts_for_student", None) is original
 
 
 def test_applying_twice_does_not_stack_wrappers(mocker, settings):
@@ -344,53 +352,6 @@ def test_applying_twice_does_not_stack_wrappers(mocker, settings):
     step.run_filter(block=block, context={})
 
     assert block.get_transcripts_for_student is wrapped_once
-
-
-def test_block_without_transcript_method_is_untouched(mocker, settings):
-    """A HiddenBlock standing in for a disabled video type must not raise."""
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    block = mocker.Mock(spec=["scope_ids"])
-    block.scope_ids.block_type = "video"
-
-    result = _make_restrict_step(mocker).run_filter(block=block, context={})
-
-    assert result == {"block": block, "context": {}}
-    assert not hasattr(block, "get_transcripts_for_student")
-
-
-def test_no_restriction_when_resolved_language_is_a_fallback(mocker, settings):
-    """A video with no course-language transcript keeps its full menu."""
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    _patch_course_language(mocker, "en")
-    # Course language is English; the video only has Spanish and French, so
-    # get_default_transcript_language falls back to sorted(other_lang)[0].
-    block = _make_video_block(mocker, language="es")
-
-    _make_restrict_step(mocker).run_filter(block=block, context={})
-
-    _, _, languages = block.get_transcripts_for_student(
-        transcripts={"sub": "", "transcripts": {"es": "es.srt", "fr": "fr.srt"}},
-        dest_lang="en",
-    )
-
-    assert languages == ALL_LANGUAGES
-
-
-def test_restricts_when_resolved_language_generalizes_dest_lang(mocker, settings):
-    """pt-BR resolving to pt still counts as the course language."""
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    _patch_course_language(mocker, "pt-BR")
-    languages = OrderedDict([("en", "English"), ("pt", "Português")])
-    block = _make_video_block(mocker, language="pt", languages=languages)
-
-    _make_restrict_step(mocker).run_filter(block=block, context={})
-
-    _, _, restricted = block.get_transcripts_for_student(
-        transcripts={"sub": "", "transcripts": {"pt": "pt.srt"}},
-        dest_lang="pt-BR",
-    )
-
-    assert restricted == {"pt": "Português"}
 
 
 def test_real_video_block_is_not_dirtied(mocker, settings):
@@ -429,25 +390,6 @@ def test_real_video_block_is_not_dirtied(mocker, settings):
     # XBlock marks mutable Dict fields dirty on read, so the invariant that
     # matters is that the step adds nothing of its own.
     assert dict(block._dirty_fields) == dirty_before  # noqa: SLF001
-
-
-def test_no_restriction_when_course_language_has_no_transcript(mocker, settings):
-    """An es course whose video has only en and fr keeps both options."""
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    _patch_course_language(mocker, "es")
-    languages = OrderedDict([("en", "English"), ("fr", "Français")])
-    # AddDestLangForVideoBlock falls back to "en" because the video has no
-    # Spanish transcript, so dest_lang alone cannot tell us the course language.
-    block = _make_video_block(mocker, language="en", languages=languages)
-
-    _make_restrict_step(mocker).run_filter(block=block, context={})
-
-    _, _, result = block.get_transcripts_for_student(
-        transcripts={"sub": "en.srt", "transcripts": {"fr": "fr.srt"}},
-        dest_lang="en",
-    )
-
-    assert result == languages
 
 
 def test_resolves_with_course_language_not_shared_dest_lang(mocker, settings):
