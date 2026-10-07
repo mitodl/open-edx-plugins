@@ -487,7 +487,7 @@ def _log_benchmark_failure(error: Exception, context: str) -> str:
 
 
 def _benchmark_task(name):
-    """Benchmark stage decorator: retries as TRANSIENT_RETRY, with backoff."""
+    """Benchmark stage decorator: retries the same errors as TRANSIENT_RETRY."""
     return shared_task(
         bind=True,
         name=name,
@@ -563,8 +563,8 @@ def benchmark_translate_task(_self, candidate_id, translator, target_language, r
         translated = provider.translate_text(
             benchmark.content, target_language, tag_handling=BENCHMARK_TAG_HANDLING
         )
-        # translate_text swallows failures and hands back the source, so an
-        # unchanged document means the translation did not happen.
+        # translate_text hands back the source when parsing or reinsertion
+        # fails, so an unchanged document means the translation did not happen.
         if not translated:
             msg = "provider returned nothing"
             raise RuntimeError(msg)  # noqa: TRY301

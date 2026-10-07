@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import srt
+from celery.exceptions import SoftTimeLimitExceeded
 from litellm import RateLimitError, Timeout
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,7 @@ class TranslationProvider(ABC):
         Raises:
             ValueError: If translation fails validation after all retries
             RateLimitError, Timeout: Propagated for the task retry
+            SoftTimeLimitExceeded: Propagated, not reported as a failed validation
         """
         log = logger.getChild("TranslationProvider")
         path_str = str(input_file_path) if input_file_path else "file"
@@ -87,7 +89,7 @@ class TranslationProvider(ABC):
 
                 log.warning("  ❌ Validation failed for %s, retrying...", path_str)
 
-            except TRANSIENT_PROVIDER_ERRORS:
+            except (*TRANSIENT_PROVIDER_ERRORS, SoftTimeLimitExceeded):
                 raise
             except Exception as e:  # noqa: BLE001
                 log.warning(

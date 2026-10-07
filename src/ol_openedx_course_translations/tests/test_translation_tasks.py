@@ -7,7 +7,7 @@ from unittest import mock
 import pytest
 import srt
 from celery.exceptions import SoftTimeLimitExceeded
-from litellm import RateLimitError, Timeout
+from litellm import AuthenticationError, RateLimitError, Timeout
 from ol_openedx_course_translations.providers import llm_providers
 from ol_openedx_course_translations.providers.base import TRANSIENT_PROVIDER_ERRORS
 from ol_openedx_course_translations.providers.llm_providers import OpenAIProvider
@@ -131,16 +131,23 @@ def test_a_throttle_that_outlasts_the_retries_fails_the_task(tmp_path, run, make
     )
 
 
-@pytest.mark.parametrize("error_class", TRANSIENT_PROVIDER_ERRORS)
-def test_a_throttled_subtitle_is_not_reported_as_failed_validation(error_class):
-    """The subtitle wrapper's catch-all used to turn a 429 into a ValueError."""
+@pytest.mark.parametrize(
+    "error",
+    [
+        *(
+            pytest.param(_transient(c), id=c.__name__)
+            for c in TRANSIENT_PROVIDER_ERRORS
+        ),
+        pytest.param(SoftTimeLimitExceeded(), id="time-limit"),
+    ],
+)
+def test_a_throttled_subtitle_is_not_reported_as_failed_validation(error):
+    """The subtitle wrapper's catch-all used to relabel these "validation failed"."""
     provider = OpenAIProvider("key", "gpt-test")
 
     with (
-        mock.patch.object(
-            provider, "translate_subtitles", side_effect=_transient(error_class)
-        ),
-        pytest.raises(error_class),
+        mock.patch.object(provider, "translate_subtitles", side_effect=error),
+        pytest.raises(type(error)),
     ):
         provider.translate_srt_with_validation([_cue()], "hi")
 
@@ -166,17 +173,23 @@ def test_only_a_timeout_retries_a_subtitle_batch_smaller(error, shrinks):
     assert (completion.call_count > 1) is shrinks
 
 
-def test_any_other_failure_is_still_reported_without_a_retry(tmp_path):
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(ValueError("bad markup"), id="bug"),
+        pytest.param(
+            AuthenticationError(message="bad key", model="m", llm_provider="openai"),
+            id="provider-error",
+        ),
+    ],
+)
+def test_any_other_failure_is_still_reported_without_a_retry(tmp_path, error):
     path = _html_file(tmp_path)
     provider = mock.Mock()
-    provider.translate_text.side_effect = ValueError("bad markup")
+    provider.translate_text.side_effect = error
 
     with mock.patch.object(tasks, "get_translation_provider", return_value=provider):
         result = _translate_file(path)
 
-    assert result.get() == {
-        "status": "error",
-        "file": str(path),
-        "error": "bad markup",
-    }
+    assert result.get() == {"status": "error", "file": str(path), "error": str(error)}
     assert provider.translate_text.call_count == 1
