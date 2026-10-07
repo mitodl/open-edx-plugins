@@ -77,6 +77,11 @@ edx-platform configuration
 
   Pass ``--course-id`` (repeatable) to limit the backfill to specific courses.
 
+  The command reports what it **queued**, not what was delivered: each role is
+  handed to Celery, and a task that exhausts its retries is logged rather than
+  reported back. It is safe to re-run, because the consumer is expected to
+  upsert on the user, run and role, so re-run it if the logs show failures.
+
 - Set the username of the service worker that the external system uses to create
   enrollments through the Open edX enrollment REST API. Enrollments created by
   this user are not sent back to it:

@@ -17,6 +17,9 @@ Version 0.5.0 (2026-10-01)
   key. ``OrgStaffRole`` and ``OrgInstructorRole`` resolve to ``staff`` and
   ``instructor``, so ``ENROLLMENT_COURSE_ACCESS_ROLES`` let them through, but
   they carry no course key and there is no run to send them against.
+* The course access role webhook task no longer retries on ``4xx`` responses,
+  except the transient ``408`` and ``429`` — matching the enrollment webhook
+  task, which both now share one predicate so they cannot drift apart.
 
 Version 0.3.0 (2026-08-11)
 ---------------------------
