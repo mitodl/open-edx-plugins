@@ -11,8 +11,8 @@ from defusedxml import ElementTree
 from django.conf import settings
 
 from ol_openedx_course_translations.models import (
-    TranslationQualityCandidate,
-    TranslationQualityRun,
+    TranslationBenchmark,
+    TranslationBenchmarkCandidate,
 )
 from ol_openedx_course_translations.providers.llm_providers import (
     NO_CLIENT_RETRIES,
@@ -538,10 +538,10 @@ def cached_benchmark(run_id: int) -> Benchmark:
     retried rather than remembered, at one attempt per remaining task.
     """
     try:
-        block_id = TranslationQualityRun.objects.values_list(
+        block_id = TranslationBenchmark.objects.values_list(
             "benchmark_block_id", flat=True
         ).get(pk=run_id)
-    except TranslationQualityRun.DoesNotExist as error:
+    except TranslationBenchmark.DoesNotExist as error:
         # Django's own message names neither the run nor the model usefully,
         # and this failure would otherwise be recorded as the judge's.
         msg = f"Run {run_id} has no row; it was deleted."
@@ -564,7 +564,9 @@ def benchmark_translate_task(_self, candidate_id, translator, target_language, r
     # Scoped to the run so a hand-built or mis-paired call cannot reach
     # another run's row. Dispatch always pairs the two, and a redelivered
     # task carries its own run, so this is not what stops a replay.
-    candidate = TranslationQualityCandidate.objects.get(pk=candidate_id, run_id=run_id)
+    candidate = TranslationBenchmarkCandidate.objects.get(
+        pk=candidate_id, run_id=run_id
+    )
     # Outside the handler: a bad benchmark is the run's problem, not this
     # arm's, and recording it on the row would blame the translator for it
     # once per candidate.
@@ -619,8 +621,10 @@ def benchmark_validate_task(
 ):
     """Review one translation and store the result as its own arm."""
 
-    candidate = TranslationQualityCandidate.objects.get(pk=candidate_id, run_id=run_id)
-    source_arm = TranslationQualityCandidate.objects.get(
+    candidate = TranslationBenchmarkCandidate.objects.get(
+        pk=candidate_id, run_id=run_id
+    )
+    source_arm = TranslationBenchmarkCandidate.objects.get(
         pk=source_candidate_id, run_id=run_id
     )
     benchmark = cached_benchmark(run_id)
@@ -677,7 +681,7 @@ def benchmark_score_task(_self, candidate_id, judge, target_language, run_id):
 
     benchmark = cached_benchmark(run_id)
     try:
-        candidate = TranslationQualityCandidate.objects.get(
+        candidate = TranslationBenchmarkCandidate.objects.get(
             pk=candidate_id, run_id=run_id
         )
         rating = get_translation_provider(*judge.split("/", 1)).rate_translation(
@@ -708,7 +712,7 @@ def benchmark_rank_task(_self, judge, label_map, target_language, run_id):
 
     benchmark = cached_benchmark(run_id)
     try:
-        rows = TranslationQualityCandidate.objects.filter(run_id=run_id).in_bulk(
+        rows = TranslationBenchmarkCandidate.objects.filter(run_id=run_id).in_bulk(
             label_map.values()
         )
         missing = sorted(set(label_map.values()) - rows.keys())

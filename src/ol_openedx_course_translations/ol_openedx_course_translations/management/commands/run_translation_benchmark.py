@@ -11,9 +11,9 @@ from django.db import transaction
 from django.utils import timezone
 
 from ol_openedx_course_translations.models import (
-    TranslationQualityCandidate,
-    TranslationQualityRun,
-    TranslationQualityScore,
+    TranslationBenchmark,
+    TranslationBenchmarkCandidate,
+    TranslationBenchmarkScore,
 )
 from ol_openedx_course_translations.providers.llm_providers import COMPARATIVE_LABELS
 from ol_openedx_course_translations.tasks import (
@@ -289,7 +289,7 @@ class Command(BaseCommand):
         still reaches them and the diagnostic can be measured against
         different text than the arms.
         """
-        run = TranslationQualityRun.objects.create(
+        run = TranslationBenchmark.objects.create(
             target_language=target_language,
             benchmark_block_id=benchmark.block_id,
             translators_arg=",".join(translators),
@@ -480,8 +480,8 @@ class Command(BaseCommand):
         return True, ""
 
     def _create_rows(
-        self, run: TranslationQualityRun, translators: list[str]
-    ) -> dict[Candidate, TranslationQualityCandidate]:
+        self, run: TranslationBenchmark, translators: list[str]
+    ) -> dict[Candidate, TranslationBenchmarkCandidate]:
         """
         Create every arm up front, so tasks can address rows by id.
 
@@ -492,7 +492,7 @@ class Command(BaseCommand):
         return {
             Candidate(
                 translator, validator
-            ): TranslationQualityCandidate.objects.create(
+            ): TranslationBenchmarkCandidate.objects.create(
                 run=run, translator=translator, validator=validator
             )
             for translator in translators
@@ -501,7 +501,7 @@ class Command(BaseCommand):
 
     def _translate(
         self,
-        rows: dict[Candidate, TranslationQualityCandidate],
+        rows: dict[Candidate, TranslationBenchmarkCandidate],
         translators: list[str],
         target_language: str,
         run_id: int,
@@ -546,7 +546,7 @@ class Command(BaseCommand):
 
     def _validate(
         self,
-        rows: dict[Candidate, TranslationQualityCandidate],
+        rows: dict[Candidate, TranslationBenchmarkCandidate],
         translators: list[str],
         failed_translators: set[str],
         target_language: str,
@@ -587,12 +587,12 @@ class Command(BaseCommand):
                 # missing, raising here would cost the run its scoring pass
                 # and its report, leaving the translations stranded on rows
                 # nothing has ranked.
-                TranslationQualityCandidate.objects.filter(
+                TranslationBenchmarkCandidate.objects.filter(
                     pk=signature.args[0], run_id=run_id
                 ).update(error=reason)
 
     def _load_arms(
-        self, run: TranslationQualityRun, benchmark: Benchmark
+        self, run: TranslationBenchmark, benchmark: Benchmark
     ) -> dict[Candidate, Arm]:
         """
         Read back what the tasks wrote, with the diagnostic recomputed."""
@@ -610,7 +610,7 @@ class Command(BaseCommand):
 
     def _score(
         self,
-        rows: dict[Candidate, TranslationQualityCandidate],
+        rows: dict[Candidate, TranslationBenchmarkCandidate],
         arms: dict[Candidate, Arm],
         judges: list[str],
         target_language: str,
@@ -669,7 +669,7 @@ class Command(BaseCommand):
     def _rank(  # noqa: PLR0913, PLR0917 — one parameter per stage input
         self,
         contenders: list[Candidate],
-        rows: dict[Candidate, TranslationQualityCandidate],
+        rows: dict[Candidate, TranslationBenchmarkCandidate],
         judges: list[str],
         excluded_judges: dict[str, str],
         target_language: str,
@@ -745,7 +745,7 @@ class Command(BaseCommand):
     # ------------------------------------------------------------- outputs
 
     @staticmethod
-    def _record_exclusions(run: TranslationQualityRun, reasons: dict[str, str]) -> None:
+    def _record_exclusions(run: TranslationBenchmark, reasons: dict[str, str]) -> None:
         """
         Store one line per judge that dropped out, so a run records why.
 
@@ -760,8 +760,8 @@ class Command(BaseCommand):
 
     def _persist_scores(
         self,
-        run: TranslationQualityRun,
-        rows: dict[Candidate, TranslationQualityCandidate],
+        run: TranslationBenchmark,
+        rows: dict[Candidate, TranslationBenchmarkCandidate],
         scoring: ScoringPass,
         ranking: RankingPass,
     ) -> None:
@@ -785,7 +785,7 @@ class Command(BaseCommand):
         for judge, key in sorted(judged, key=lambda pair: (pair[0], str(pair[1]))):
             rating = scoring.ratings.get((judge, key))
             scores.append(
-                TranslationQualityScore(
+                TranslationBenchmarkScore(
                     candidate=rows[key],
                     judge=judge,
                     accuracy=rating.scores["accuracy"] if rating else None,
@@ -796,7 +796,7 @@ class Command(BaseCommand):
                     comparative_label=ranking.labels.get((judge, key), ""),
                 )
             )
-        TranslationQualityScore.objects.bulk_create(scores)
+        TranslationBenchmarkScore.objects.bulk_create(scores)
 
     def _report_broken_arms(self, arms: dict[Candidate, Arm]) -> None:
         """Print why arms dropped out, so a short table is never a silent one."""

@@ -327,7 +327,7 @@ If subtitle translation fails after all attempts:
 Benchmarking Translation Quality
 ================================
 
-``rate_translation_quality`` answers "which provider should translate this
+``run_translation_benchmark`` answers "which provider should translate this
 language, and is it worth running a validator over the result?" with evidence
 rather than opinion. It translates a chosen benchmark with every
 translator, edits each translation with every validator, has every judge score
@@ -335,7 +335,7 @@ the results, and reports a winner.
 
 .. code-block:: bash
 
-    ./manage.py cms rate_translation_quality \
+    ./manage.py cms run_translation_benchmark \
         --benchmark-block block-v1:Org+Course+Run+type@html+block@abc123 \
         --target-language hi \
         --translators "openai/gpt-5.2,gemini/gemini-3-pro-preview,mistral/mistral-large-latest" \
@@ -424,8 +424,8 @@ The run records whether the scoring pass was skipped, so the admin renders
 the standings as what the run actually was rather than inferring it from the
 absence of scores.
 
-Results are stored in ``TranslationQualityRun``, ``TranslationQualityCandidate``
-and ``TranslationQualityScore``, and shown in the Django admin. A run can't be
+Results are stored in ``TranslationBenchmark``, ``TranslationBenchmarkCandidate``
+and ``TranslationBenchmarkScore``, and shown in the Django admin. A run can't be
 edited there, only deleted as a whole. The run page lists every candidate, its judge scores and the standings, with a column
 per judge showing that judge's position, its raw scores and its comparative
 rank, and the verdict above the table. A ``--comparative-only`` run recorded

@@ -57,8 +57,8 @@ class CourseTranslationLog(models.Model):
         )
 
 
-class TranslationQualityRun(models.Model):
-    """One invocation of the rate_translation_quality command for a language."""
+class TranslationBenchmark(models.Model):
+    """One invocation of the run_translation_benchmark command for a language."""
 
     target_language = models.CharField(
         max_length=10,
@@ -95,21 +95,21 @@ class TranslationQualityRun(models.Model):
     )
 
     class Meta:
-        """Meta options for TranslationQualityRun."""
+        """Meta options for TranslationBenchmark."""
 
         app_label = "ol_openedx_course_translations"
 
     def __str__(self):
         """Return a string representation of the run."""
         state = "" if self.completed_at else ", incomplete"
-        return f"Translation quality run {self.pk} ({self.target_language}{state})"
+        return f"Translation benchmark {self.pk} ({self.target_language}{state})"
 
 
-class TranslationQualityCandidate(models.Model):
+class TranslationBenchmarkCandidate(models.Model):
     """One translator/validator pairing under test within a run."""
 
     run = models.ForeignKey(
-        TranslationQualityRun,
+        TranslationBenchmark,
         on_delete=models.CASCADE,
         related_name="candidates",
     )
@@ -132,7 +132,7 @@ class TranslationQualityCandidate(models.Model):
     )
 
     class Meta:
-        """Meta options for TranslationQualityCandidate."""
+        """Meta options for TranslationBenchmarkCandidate."""
 
         app_label = "ol_openedx_course_translations"
         constraints = [
@@ -153,11 +153,11 @@ class TranslationQualityCandidate(models.Model):
         return str(Candidate(self.translator, self.validator))
 
 
-class TranslationQualityScore(models.Model):
+class TranslationBenchmarkScore(models.Model):
     """One judge's assessment of one candidate."""
 
     candidate = models.ForeignKey(
-        TranslationQualityCandidate,
+        TranslationBenchmarkCandidate,
         on_delete=models.CASCADE,
         related_name="scores",
     )
@@ -199,7 +199,7 @@ class TranslationQualityScore(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        """Meta options for TranslationQualityScore."""
+        """Meta options for TranslationBenchmarkScore."""
 
         app_label = "ol_openedx_course_translations"
         constraints = [

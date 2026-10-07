@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="TranslationQualityRun",
+            name="TranslationBenchmark",
             fields=[
                 (
                     "id",
@@ -77,7 +77,7 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
-            name="TranslationQualityCandidate",
+            name="TranslationBenchmarkCandidate",
             fields=[
                 (
                     "id",
@@ -121,13 +121,13 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="candidates",
-                        to="ol_openedx_course_translations.translationqualityrun",
+                        to="ol_openedx_course_translations.translationbenchmark",
                     ),
                 ),
             ],
         ),
         migrations.CreateModel(
-            name="TranslationQualityScore",
+            name="TranslationBenchmarkScore",
             fields=[
                 (
                     "id",
@@ -195,20 +195,20 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="scores",
-                        to="ol_openedx_course_translations.translationqualitycandidate",
+                        to="ol_openedx_course_translations.translationbenchmarkcandidate",
                     ),
                 ),
             ],
         ),
         migrations.AddConstraint(
-            model_name="translationqualitycandidate",
+            model_name="translationbenchmarkcandidate",
             constraint=models.UniqueConstraint(
                 fields=("run", "translator", "validator"),
                 name="unique_candidate_per_run",
             ),
         ),
         migrations.AddConstraint(
-            model_name="translationqualityscore",
+            model_name="translationbenchmarkscore",
             constraint=models.UniqueConstraint(
                 fields=("candidate", "judge"),
                 name="unique_score_per_candidate_and_judge",

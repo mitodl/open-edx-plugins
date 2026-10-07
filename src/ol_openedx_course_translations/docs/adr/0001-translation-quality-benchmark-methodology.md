@@ -7,7 +7,7 @@ date: 2026-09-25
 
 Choosing the best translator/validator pairing for a language was a manual ritual — translate a
 unit with each model, paste the results into chat UIs for an opinion, average the answers by eye.
-The `rate_translation_quality` command replaces it.
+The `run_translation_benchmark` command replaces it.
 
 A **candidate** is a (translator, validator) pairing; a run covers every combination of the roster
 with itself, `translators × translators` of them. Every candidate is scored **absolutely** by every
@@ -145,7 +145,7 @@ no root at all for a document with no element node — a lone comment or DOCTYPE
 no translatable text rather than raising. A block is therefore rejected for being the wrong type,
 having no markup body, or having no translatable text.
 
-`TranslationQualityScore.accuracy`, `.fluency` and `.terminology` are nullable, so a
+`TranslationBenchmarkScore.accuracy`, `.fluency` and `.terminology` are nullable, so a
 comparative-only run writes one row per (candidate, judge) carrying only the rank, and the admin
 reads one shape whichever mode produced the run. Any average taken over mixed runs must exclude
 nulls rather than treat them as zero.

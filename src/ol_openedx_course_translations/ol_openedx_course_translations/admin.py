@@ -7,8 +7,8 @@ from django.utils.html import format_html, format_html_join
 
 from ol_openedx_course_translations.models import (
     CourseTranslationLog,
-    TranslationQualityCandidate,
-    TranslationQualityRun,
+    TranslationBenchmark,
+    TranslationBenchmarkCandidate,
 )
 from ol_openedx_course_translations.utils.quality_report import (
     Candidate,
@@ -79,10 +79,10 @@ class CourseTranslationLogAdmin(admin.ModelAdmin):
     search_fields = ("source_course_id",)
 
 
-class TranslationQualityCandidateInline(admin.TabularInline):
+class TranslationBenchmarkCandidateInline(admin.TabularInline):
     """Candidates of a run, with each one's judge scores rendered in place."""
 
-    model = TranslationQualityCandidate
+    model = TranslationBenchmarkCandidate
     extra = 0
     can_delete = False
     # No candidate ModelAdmin is registered, so a change link would lead nowhere.
@@ -140,8 +140,8 @@ class TranslationQualityCandidateInline(admin.TabularInline):
         )
 
 
-@admin.register(TranslationQualityRun)
-class TranslationQualityRunAdmin(admin.ModelAdmin):
+@admin.register(TranslationBenchmark)
+class TranslationBenchmarkAdmin(admin.ModelAdmin):
     """Read-only view of one benchmark run and how its candidates placed."""
 
     list_display = (
@@ -164,7 +164,7 @@ class TranslationQualityRunAdmin(admin.ModelAdmin):
         "completed_at",
         "report",
     )
-    inlines = (TranslationQualityCandidateInline,)
+    inlines = (TranslationBenchmarkCandidateInline,)
 
     def has_add_permission(self, request):  # noqa: ARG002
         """Deny adding rows, as on the inline."""

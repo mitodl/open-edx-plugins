@@ -48,9 +48,9 @@ Changed
   a single translator, which leaves nothing to compare. If fewer than two
   candidates survive translation and validation, the run says so, rather than
   reporting that no judge ranked anything.
-- ``TranslationQualityScore`` allows null accuracy/fluency/terminology, for
+- ``TranslationBenchmarkScore`` allows null accuracy/fluency/terminology, for
   runs that never scored on the 1-10 scale.
-- ``TranslationQualityRun`` records ``comparative_only``, so the console
+- ``TranslationBenchmark`` records ``comparative_only``, so the console
   report states which passes ran instead of guessing from whether any row
   happened to carry a score. The admin still reads the rows, because it
   renders what a run produced rather than what it intended.
@@ -76,15 +76,15 @@ Changed
 - The subtitle system prompt lives on ``LLMProvider`` instead of being copied
   into all four providers. Mistral's extra rule is an override; the prompt each
   provider sends is unchanged, verified byte for byte against the copies.
-- ``rate_translation_quality`` dispatches its work as Celery tasks on the CMS
+- ``run_translation_benchmark`` dispatches its work as Celery tasks on the CMS
   workers instead of an in-process thread pool. A 10-translator, 4-judge run is
   ~550 calls, which one process serialises into hours; the CMS workers run many
   of them at once. Tasks go to ``edx.cms.core.low``, retry only on ``Timeout``
   and ``RateLimitError``, and each stage is awaited before the next begins.
-- ``TranslationQualityRun`` records ``completed_at``. Arms are written as their
+- ``TranslationBenchmark`` records ``completed_at``. Arms are written as their
   tasks finish, so without it an interrupted run is indistinguishable from a
   finished one in the table it is meant to make comparable over time.
-- ``TranslationQualityCandidate`` keeps the content each arm was scored on, so
+- ``TranslationBenchmarkCandidate`` keeps the content each arm was scored on, so
   tasks address rows by id rather than passing documents through the broker,
   and a stored verdict can be checked against the text behind it.
 
@@ -144,14 +144,14 @@ Fixed
 
 Added
 -----
-- ``rate_translation_quality`` management command. Translates the chosen benchmark
+- ``run_translation_benchmark`` management command. Translates the chosen benchmark
   with every configured translator, reviews each translation with every
   validator, has every judge score the results, and reports which
   translator/validator pairing wins. Candidates are ordered by mean rank,
   which picks the shortlist for the comparative pass; that pass names the
   winner, by lowest mean comparative rank. Results are stored in
-  ``TranslationQualityRun``, ``TranslationQualityCandidate`` and
-  ``TranslationQualityScore``, and readable in the Django admin, where a run
+  ``TranslationBenchmark``, ``TranslationBenchmarkCandidate`` and
+  ``TranslationBenchmarkScore``, and readable in the Django admin, where a run
   can be deleted but not edited. A judge
   dropped from the scoring pass is recorded on the run with the reason, so a
   stored run says why it rests on fewer judges rather than leaving it to be

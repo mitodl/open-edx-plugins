@@ -25,16 +25,16 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from litellm import BadRequestError, RateLimitError, Timeout
 from ol_openedx_course_translations.admin import (
-    TranslationQualityCandidateInline,
-    TranslationQualityRunAdmin,
+    TranslationBenchmarkAdmin,
+    TranslationBenchmarkCandidateInline,
 )
 from ol_openedx_course_translations.management.commands import (
-    rate_translation_quality as benchmark_command,
+    run_translation_benchmark as benchmark_command,
 )
 from ol_openedx_course_translations.models import (
-    TranslationQualityCandidate,
-    TranslationQualityRun,
-    TranslationQualityScore,
+    TranslationBenchmark,
+    TranslationBenchmarkCandidate,
+    TranslationBenchmarkScore,
 )
 from ol_openedx_course_translations.providers import llm_providers
 from ol_openedx_course_translations.providers.llm_providers import (
@@ -688,16 +688,16 @@ BENCHMARK_STAGES = {
 @pytest.fixture
 def benchmark_arms(db):  # noqa: ARG001
     """One empty arm and one already holding content, for the stage tasks."""
-    run = TranslationQualityRun.objects.create(
+    run = TranslationBenchmark.objects.create(
         target_language="hi",
         benchmark_block_id=BLOCK_ID,
         translators_arg=SPEC,
         judges_arg=SPEC,
     )
-    source = TranslationQualityCandidate.objects.create(
+    source = TranslationBenchmarkCandidate.objects.create(
         run=run, translator=SPEC, validator="", translated_content=BENCHMARK
     )
-    arm = TranslationQualityCandidate.objects.create(
+    arm = TranslationBenchmarkCandidate.objects.create(
         run=run, translator=SPEC, validator=SPEC
     )
     return arm, source
@@ -718,7 +718,7 @@ def _run(modes=None, *, confirm=True, **options):
         side_effect=build,
     ) as factory:
         call_command(
-            "rate_translation_quality",
+            "run_translation_benchmark",
             target_language="hi",
             yes=confirm,
             stdout=out,
@@ -732,14 +732,14 @@ def _run(modes=None, *, confirm=True, **options):
 def test_a_run_records_every_candidate_and_score():
     _run(translators="openai,gemini", judges="openai,gemini")
 
-    run = TranslationQualityRun.objects.get()
-    candidates = TranslationQualityCandidate.objects.filter(run=run)
+    run = TranslationBenchmark.objects.get()
+    candidates = TranslationBenchmarkCandidate.objects.filter(run=run)
 
     # 2 translators x 2 validators; the unvalidated arms are scaffolding and
     # are deleted once the validators have read them.
     assert candidates.count() == 4  # noqa: PLR2004
     assert not candidates.filter(validator="").exists()
-    assert TranslationQualityScore.objects.count() == 8  # noqa: PLR2004
+    assert TranslationBenchmarkScore.objects.count() == 8  # noqa: PLR2004
     assert run.target_language == "hi"
     assert run.judges_arg == "openai/gpt-test,gemini/gemini-test"
 
@@ -756,7 +756,7 @@ def test_the_first_place_rank_lands_on_the_candidate_the_judge_chose():
     """
     _run(translators="openai,gemini", judges="openai,gemini")
 
-    firsts = TranslationQualityScore.objects.filter(comparative_rank=1)
+    firsts = TranslationBenchmarkScore.objects.filter(comparative_rank=1)
 
     assert firsts.count() == 2  # one per judge  # noqa: PLR2004
     assert {score.candidate.translator for score in firsts} == {WINNER}
@@ -767,7 +767,7 @@ def test_the_first_place_rank_lands_on_the_candidate_the_judge_chose():
 def test_each_judge_labels_the_shortlist_bijectively():
     _run(translators="openai,gemini", judges="openai,gemini")
 
-    ranked = TranslationQualityScore.objects.exclude(comparative_rank=None)
+    ranked = TranslationBenchmarkScore.objects.exclude(comparative_rank=None)
     per_judge: dict[str, list[str]] = {}
     for score in ranked:
         per_judge.setdefault(score.judge, []).append(score.comparative_label)
@@ -793,10 +793,10 @@ def test_an_untranslated_document_is_excluded_rather_than_scored():
         judges="openai",
     )
 
-    broken = TranslationQualityCandidate.objects.exclude(error="")
+    broken = TranslationBenchmarkCandidate.objects.exclude(error="")
     assert broken.count() == 2  # every arm of that translator  # noqa: PLR2004
     assert {candidate.translator for candidate in broken} == {"gemini/gemini-test"}
-    assert not TranslationQualityScore.objects.filter(
+    assert not TranslationBenchmarkScore.objects.filter(
         candidate__translator="gemini/gemini-test"
     ).exists()
     assert "source unchanged" in output
@@ -819,9 +819,9 @@ def test_a_reserialized_but_untranslated_document_is_excluded():
         judges="openai",
     )
 
-    broken = TranslationQualityCandidate.objects.exclude(error="")
+    broken = TranslationBenchmarkCandidate.objects.exclude(error="")
     assert {candidate.translator for candidate in broken} == {"gemini/gemini-test"}
-    assert not TranslationQualityScore.objects.filter(
+    assert not TranslationBenchmarkScore.objects.filter(
         candidate__translator="gemini/gemini-test"
     ).exists()
     assert "source unchanged" in output
@@ -836,7 +836,7 @@ def test_a_translator_failure_still_records_all_of_its_arms():
         judges="openai",
     )
 
-    arms = TranslationQualityCandidate.objects.filter(translator="gemini/gemini-test")
+    arms = TranslationBenchmarkCandidate.objects.filter(translator="gemini/gemini-test")
 
     assert arms.count() == 2  # noqa: PLR2004
     # The source row that carried the provider's message is gone, so each arm
@@ -858,11 +858,11 @@ def test_unusable_validator_output_is_excluded_rather_than_scored(mode, expected
         judges="openai",
     )
 
-    broken = TranslationQualityCandidate.objects.exclude(error="")
+    broken = TranslationBenchmarkCandidate.objects.exclude(error="")
 
     assert {candidate.validator for candidate in broken} == {"gemini/gemini-test"}
     assert expected in output
-    assert not TranslationQualityScore.objects.filter(
+    assert not TranslationBenchmarkScore.objects.filter(
         candidate__validator="gemini/gemini-test"
     ).exists()
 
@@ -881,7 +881,7 @@ def test_a_judge_that_fails_anywhere_is_dropped_from_scoring_and_announced():
         judges="openai,gemini",
     )
 
-    scores = TranslationQualityScore.objects.all()
+    scores = TranslationBenchmarkScore.objects.all()
 
     assert {score.judge for score in scores} == {WINNER}
     assert "gemini/gemini-test dropped" in output
@@ -902,7 +902,7 @@ def test_a_ranking_failure_costs_only_the_comparative_pass():
         judges="openai,gemini",
     )
 
-    scores = TranslationQualityScore.objects.all()
+    scores = TranslationBenchmarkScore.objects.all()
     ranked_judges = {score.judge for score in scores.exclude(comparative_rank=None)}
 
     assert {score.judge for score in scores} == {WINNER, "gemini/gemini-test"}
@@ -927,12 +927,12 @@ def test_a_repeated_roster_entry_is_collapsed():
     """'openai' and 'openai/gpt-test' are the same spec once resolved."""
     _run(translators="openai,openai/gpt-test", judges="openai")
 
-    candidates = TranslationQualityCandidate.objects.all()
+    candidates = TranslationBenchmarkCandidate.objects.all()
 
     assert candidates.count() == 1
     assert {candidate.translator for candidate in candidates} == {WINNER}
     # The dedupe is only observable here and in the pre-flight estimate.
-    assert TranslationQualityRun.objects.get().translators_arg == WINNER
+    assert TranslationBenchmark.objects.get().translators_arg == WINNER
 
 
 @pytest.mark.django_db
@@ -940,7 +940,7 @@ def test_a_repeated_roster_entry_is_collapsed():
 def test_the_default_roster_skips_providers_without_a_key():
     output, _ = _run()
 
-    run = TranslationQualityRun.objects.get()
+    run = TranslationBenchmark.objects.get()
 
     assert run.translators_arg == "openai/gpt-test,gemini/gemini-test"
     assert run.judges_arg == "openai/gpt-test,gemini/gemini-test"
@@ -977,7 +977,7 @@ def test_declining_the_prompt_spends_nothing(answer):
         _run(confirm=False, translators="openai", judges="openai")
 
     assert prompt.called
-    assert not TranslationQualityRun.objects.exists()
+    assert not TranslationBenchmark.objects.exists()
 
 
 @pytest.mark.django_db
@@ -988,7 +988,7 @@ def test_an_explicit_yes_proceeds(answer):
     with mock.patch("builtins.input", return_value=answer):
         _run(confirm=False, translators="openai", judges="openai")
 
-    assert TranslationQualityRun.objects.exists()
+    assert TranslationBenchmark.objects.exists()
 
 
 @pytest.mark.django_db
@@ -1001,7 +1001,7 @@ def test_a_non_interactive_prompt_aborts_rather_than_assuming_yes():
     ):
         _run(confirm=False, translators="openai", judges="openai")
 
-    assert not TranslationQualityRun.objects.exists()
+    assert not TranslationBenchmark.objects.exists()
 
 
 @pytest.mark.django_db
@@ -1018,7 +1018,7 @@ def test_the_estimated_candidate_count_matches_what_the_run_produces():
         )
     )
 
-    assert estimated == TranslationQualityCandidate.objects.count()
+    assert estimated == TranslationBenchmarkCandidate.objects.count()
 
 
 @pytest.mark.django_db
@@ -1031,10 +1031,10 @@ def test_the_admin_report_ranks_the_same_way_the_command_does():
     judges-as-candidates, which only an assertion on the leader catches.
     """
     _run(translators="openai,gemini", judges="openai,gemini")
-    run = TranslationQualityRun.objects.get()
+    run = TranslationBenchmark.objects.get()
     assert not run.comparative_only
 
-    html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
     rendered = [row for row in html.split("<tr>") if "<td>" in row]
 
     expected = build_rows(
@@ -1043,9 +1043,9 @@ def test_the_admin_report_ranks_the_same_way_the_command_does():
                 Candidate(other.candidate.translator, other.candidate.validator): fmean(
                     (other.accuracy, other.fluency, other.terminology)
                 )
-                for other in TranslationQualityScore.objects.filter(judge=score.judge)
+                for other in TranslationBenchmarkScore.objects.filter(judge=score.judge)
             }
-            for score in TranslationQualityScore.objects.all()
+            for score in TranslationBenchmarkScore.objects.all()
         }
     )
 
@@ -1068,10 +1068,10 @@ def test_the_admin_report_shows_each_judge_and_the_verdict():
     and the verdict are what make that visible in the stored record.
     """
     _run(translators="openai,gemini", judges="openai,gemini")
-    run = TranslationQualityRun.objects.get()
+    run = TranslationBenchmark.objects.get()
     assert not run.comparative_only
 
-    html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     for judge in ("openai/gpt-test", "gemini/gemini-test"):
         assert f"<th>{judge}</th>" in html
@@ -1112,7 +1112,7 @@ def test_the_printed_standings_are_ordered_and_per_judge():
     output, _ = _run(translators="openai,gemini", judges="openai,gemini")
     rows = _standings(output)
 
-    assert len(rows) == TranslationQualityCandidate.objects.count()
+    assert len(rows) == TranslationBenchmarkCandidate.objects.count()
     # Best first.
     assert [row[1] for row in rows] == sorted(row[1] for row in rows)
     # Every candidate was scored by both judges, not by one merged pseudo-judge.
@@ -1153,13 +1153,13 @@ def test_a_judge_that_fails_on_one_candidate_keeps_none_of_its_rows():
         judges="openai,gemini",
     )
 
-    assert not TranslationQualityScore.objects.filter(
+    assert not TranslationBenchmarkScore.objects.filter(
         judge="gemini/gemini-test"
     ).exists()
-    assert TranslationQualityScore.objects.filter(judge=WINNER).exists()
+    assert TranslationBenchmarkScore.objects.filter(judge=WINNER).exists()
     assert "gemini/gemini-test dropped" in output
     # The stored run records why, not merely the absence of its scores.
-    stored = TranslationQualityRun.objects.get().excluded_judges
+    stored = TranslationBenchmark.objects.get().excluded_judges
     assert stored.startswith("gemini/gemini-test:")
     assert "unparseable on this candidate" in stored
 
@@ -1176,7 +1176,7 @@ def test_a_judge_dropped_from_scoring_is_not_asked_to_rank():
 
     ranked_judges = {
         score.judge
-        for score in TranslationQualityScore.objects.exclude(comparative_rank=None)
+        for score in TranslationBenchmarkScore.objects.exclude(comparative_rank=None)
     }
 
     assert ranked_judges <= {WINNER}
@@ -1218,7 +1218,7 @@ def test_an_unusable_block_is_named_as_the_cause(block, message):
     ):
         _run(translators="openai", judges="openai")
 
-    assert not TranslationQualityRun.objects.exists()
+    assert not TranslationBenchmark.objects.exists()
 
 
 @pytest.mark.django_db
@@ -1348,7 +1348,7 @@ def test_a_translator_that_dies_outside_its_handler_records_why():
     ):
         _run(translators="openai", judges="openai")
 
-    errors = {c.error for c in TranslationQualityCandidate.objects.all()}
+    errors = {c.error for c in TranslationBenchmarkCandidate.objects.all()}
     assert errors
     assert all("worker went away" in error for error in errors)
     assert not any(error.endswith(": ") for error in errors)
@@ -1377,8 +1377,8 @@ def test_an_unreadable_block_stops_the_run_instead_of_blaming_the_providers():
     ):
         _run(translators="openai", judges="openai")
 
-    assert not TranslationQualityCandidate.objects.exclude(error="").exists()
-    assert TranslationQualityRun.objects.get().excluded_judges == ""
+    assert not TranslationBenchmarkCandidate.objects.exclude(error="").exists()
+    assert TranslationBenchmark.objects.get().excluded_judges == ""
 
 
 @pytest.mark.django_db
@@ -1403,7 +1403,7 @@ def test_the_published_revision_is_what_is_read(benchmark_block):
         call.kwargs["revision"] for call in benchmark_block.get_item.call_args_list
     }
     assert revisions == {ModuleStoreEnum.RevisionOption.published_only}
-    assert TranslationQualityRun.objects.get().benchmark_block_id == BLOCK_ID
+    assert TranslationBenchmark.objects.get().benchmark_block_id == BLOCK_ID
 
 
 @pytest.mark.django_db
@@ -1423,7 +1423,7 @@ def test_every_arm_failing_reports_the_reasons_before_giving_up():
         pytest.raises(CommandError, match="No candidate was scored"),
     ):
         call_command(
-            "rate_translation_quality",
+            "run_translation_benchmark",
             target_language="hi",
             benchmark_block=BLOCK_ID,
             yes=True,
@@ -1553,7 +1553,7 @@ def test_the_benchmark_argument_is_required():
     """
     with pytest.raises(CommandError, match=r"required.*--benchmark-block"):
         call_command(
-            "rate_translation_quality",
+            "run_translation_benchmark",
             target_language="hi",
             yes=True,
             translators="openai",
@@ -1901,7 +1901,7 @@ def test_an_interrupted_run_is_not_marked_complete():
     finished, in the very table that is meant to stay comparable over time.
     """
     _run(translators="openai", judges="openai")
-    assert TranslationQualityRun.objects.get().completed_at is not None
+    assert TranslationBenchmark.objects.get().completed_at is not None
 
     with pytest.raises(CommandError):
         _run(
@@ -1909,7 +1909,7 @@ def test_an_interrupted_run_is_not_marked_complete():
             translators="openai",
             judges="openai",
         )
-    abandoned = TranslationQualityRun.objects.latest("pk")
+    abandoned = TranslationBenchmark.objects.latest("pk")
     assert abandoned.completed_at is None
     assert "incomplete" in str(abandoned)
 
@@ -1934,7 +1934,7 @@ def test_only_the_shortlist_reaches_the_comparative_pass(settings):
     with mock.patch.object(FakeProvider, "rank_translations", record):
         _run(translators="openai,gemini,mistral", judges="openai")
 
-    assert TranslationQualityCandidate.objects.count() == 9  # noqa: PLR2004
+    assert TranslationBenchmarkCandidate.objects.count() == 9  # noqa: PLR2004
     assert sent
     assert all(len(labels) <= SHORTLIST_CAP for labels in sent)
 
@@ -1971,7 +1971,7 @@ def test_comparative_only_skips_scoring_and_still_names_a_winner():
         translators="openai,gemini", judges="openai", comparative_only=True
     )
 
-    scores = TranslationQualityScore.objects.all()
+    scores = TranslationBenchmarkScore.objects.all()
     assert scores.count() == 4  # 4 candidates x 1 judge  # noqa: PLR2004
     # Ranked, never scored.
     assert all(score.accuracy is None for score in scores)
@@ -2047,7 +2047,7 @@ def test_comparative_only_refuses_more_candidates_than_labels(settings):
     with pytest.raises(CommandError, match="anonymous labels"):
         _run(translators=roster, judges="openai", comparative_only=True)
 
-    assert not TranslationQualityRun.objects.exists()
+    assert not TranslationBenchmark.objects.exists()
 
 
 @pytest.mark.django_db
@@ -2059,13 +2059,13 @@ def test_the_admin_renders_a_comparative_only_run():
     mode and the page that displays it disagreed.
     """
     _run(translators="openai,gemini", judges="openai", comparative_only=True)
-    run = TranslationQualityRun.objects.get()
+    run = TranslationBenchmark.objects.get()
 
     # The run records which passes it ran; the page reads that rather than
     # guessing from the absence of scores.
     assert run.comparative_only
 
-    html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     assert "Verdict:" in html
     # Whole cell, not a fragment: the missing scores must read as an em dash,
@@ -2074,7 +2074,9 @@ def test_the_admin_renders_a_comparative_only_run():
     # The two-pass legend describes a shortlist and scores this run has not.
     assert "ranked comparatively only" in html
 
-    inline = TranslationQualityCandidateInline(TranslationQualityCandidate, admin.site)
+    inline = TranslationBenchmarkCandidateInline(
+        TranslationBenchmarkCandidate, admin.site
+    )
     for candidate in run.candidates.all():
         # The same null criteria reach the inline on the same page, where
         # they used to render as "None/None/None".
@@ -2088,9 +2090,11 @@ def test_the_run_admin_is_read_only_but_a_run_can_be_deleted():
     Smoke tests and interrupted runs need to be cleared out somehow. Deleting
     one candidate would quietly change the standings, so the inline still can't.
     """
-    admin_view = TranslationQualityRunAdmin(TranslationQualityRun, admin.site)
-    inline = TranslationQualityCandidateInline(TranslationQualityCandidate, admin.site)
-    opts = TranslationQualityRun._meta  # noqa: SLF001
+    admin_view = TranslationBenchmarkAdmin(TranslationBenchmark, admin.site)
+    inline = TranslationBenchmarkCandidateInline(
+        TranslationBenchmarkCandidate, admin.site
+    )
+    opts = TranslationBenchmark._meta  # noqa: SLF001
     delete_perm = f"{opts.app_label}.{get_permission_codename('delete', opts)}"
     request = mock.Mock()
     request.user.has_perm = lambda perm: perm == delete_perm
@@ -2116,9 +2120,9 @@ def test_each_arm_stores_the_content_it_was_scored_on():
 
     # The unvalidated arm held the translation the validators read, and is
     # gone once they have: only validated pairings are under test.
-    assert not TranslationQualityCandidate.objects.filter(validator="").exists()
+    assert not TranslationBenchmarkCandidate.objects.filter(validator="").exists()
 
-    validated = TranslationQualityCandidate.objects.get()
+    validated = TranslationBenchmarkCandidate.objects.get()
     # The validator's edit is visible, so the stored arm is its output and not
     # a copy of the translation it was given.
     assert "CONDUCCION!" in validated.translated_content
@@ -2126,7 +2130,7 @@ def test_each_arm_stores_the_content_it_was_scored_on():
 
 def _stored_run():
     """A run row to hang hand-built candidates and scores on."""
-    return TranslationQualityRun.objects.create(
+    return TranslationBenchmark.objects.create(
         target_language="hi",
         benchmark_block_id=BLOCK_ID,
         translators_arg="",
@@ -2145,7 +2149,7 @@ def test_the_standings_render_a_partly_judged_run():
     """
     run = _stored_run()
     rows = {
-        name: TranslationQualityCandidate.objects.create(
+        name: TranslationBenchmarkCandidate.objects.create(
             run=run, translator=name, validator="v"
         )
         for name in ("a", "b", "c")
@@ -2154,7 +2158,7 @@ def test_the_standings_render_a_partly_judged_run():
     # This judge scored all three and ranked only the leader. Its criteria
     # differ from each other, so the order they render in is observable.
     for name, (score, rank) in {"a": (9, 1), "b": (7, None), "c": (6, None)}.items():
-        TranslationQualityScore.objects.create(
+        TranslationBenchmarkScore.objects.create(
             candidate=rows[name],
             judge="zeta",
             accuracy=score,
@@ -2164,11 +2168,11 @@ def test_the_standings_render_a_partly_judged_run():
         )
     # The other scored two of them and ranked none.
     for name in ("a", "b"):
-        TranslationQualityScore.objects.create(
+        TranslationBenchmarkScore.objects.create(
             candidate=rows[name], judge="alpha", accuracy=8, fluency=8, terminology=8
         )
 
-    html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     # Rendered accuracy/fluency/terminology, the order the legend promises.
     assert "9/7/6" in html
@@ -2185,9 +2189,9 @@ def test_the_standings_render_a_partly_judged_run():
 def test_a_run_with_candidates_and_no_scores_says_so():
     """The state an operator opens the admin to diagnose: a run that died."""
     run = _stored_run()
-    TranslationQualityCandidate.objects.create(run=run, translator="a", validator="v")
+    TranslationBenchmarkCandidate.objects.create(run=run, translator="a", validator="v")
 
-    report = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    report = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     assert report == "No scores recorded."
 
@@ -2208,9 +2212,9 @@ def test_comparative_only_ranks_no_failed_arm():
         modes={WINNER: "translate_raises"},
     )
 
-    failed = TranslationQualityCandidate.objects.exclude(error="")
+    failed = TranslationBenchmarkCandidate.objects.exclude(error="")
     assert failed.exists()
-    assert not TranslationQualityScore.objects.filter(candidate__in=failed).exists()
+    assert not TranslationBenchmarkScore.objects.filter(candidate__in=failed).exists()
 
 
 @pytest.mark.django_db
@@ -2253,7 +2257,7 @@ def test_comparative_only_refuses_one_translator_before_spending():
         _run(translators="openai", judges="openai", comparative_only=True)
 
     assert not FakeProvider.all_providers
-    assert not TranslationQualityRun.objects.exists()
+    assert not TranslationBenchmark.objects.exists()
 
 
 @pytest.mark.django_db
@@ -2290,7 +2294,7 @@ def test_a_translator_that_returned_nothing_usable_says_which(mode, message):
     with pytest.raises(CommandError):
         _run(translators="openai", judges="openai", modes={WINNER: mode})
 
-    errors = {c.error for c in TranslationQualityCandidate.objects.all()}
+    errors = {c.error for c in TranslationBenchmarkCandidate.objects.all()}
     assert errors
     assert all(message in error for error in errors)
 
@@ -2321,7 +2325,7 @@ def test_a_validator_that_dies_outside_its_handler_records_why():
     ):
         _run(translators="openai", judges="openai")
 
-    arm = TranslationQualityCandidate.objects.get(validator=WINNER)
+    arm = TranslationBenchmarkCandidate.objects.get(validator=WINNER)
     assert "worker went away" in arm.error
 
 
@@ -2335,7 +2339,7 @@ def test_an_arm_with_neither_content_nor_error_is_not_scored():
     content as present would send blank text to the judges as a candidate.
     """
     run = _stored_run()
-    TranslationQualityCandidate.objects.create(run=run, translator="a", validator="b")
+    TranslationBenchmarkCandidate.objects.create(run=run, translator="a", validator="b")
 
     arms = benchmark_command.Command()._load_arms(run, BENCHMARK_BLOCK)  # noqa: SLF001
 
@@ -2368,15 +2372,17 @@ def test_a_run_whose_judges_never_ranked_names_no_winner():
     name failed to load.
     """
     run = _stored_run()
-    candidate = TranslationQualityCandidate.objects.create(
+    candidate = TranslationBenchmarkCandidate.objects.create(
         run=run, translator="a", validator=""
     )
-    TranslationQualityScore.objects.create(
+    TranslationBenchmarkScore.objects.create(
         candidate=candidate, judge="j1", accuracy=9, fluency=9, terminology=9
     )
-    inline = TranslationQualityCandidateInline(TranslationQualityCandidate, admin.site)
+    inline = TranslationBenchmarkCandidateInline(
+        TranslationBenchmarkCandidate, admin.site
+    )
 
-    html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     assert "no clear winner" in html
     # A run made before validated-only candidates still has to read.
@@ -2387,10 +2393,12 @@ def test_a_run_whose_judges_never_ranked_names_no_winner():
 def test_a_candidate_no_judge_reached_renders_as_a_dash():
     """A blank cell would read as a score of nothing rather than no score."""
     run = _stored_run()
-    candidate = TranslationQualityCandidate.objects.create(
+    candidate = TranslationBenchmarkCandidate.objects.create(
         run=run, translator="a", validator="v"
     )
-    inline = TranslationQualityCandidateInline(TranslationQualityCandidate, admin.site)
+    inline = TranslationBenchmarkCandidateInline(
+        TranslationBenchmarkCandidate, admin.site
+    )
 
     assert inline.judge_scores(candidate) == "—"
 
@@ -2442,15 +2450,15 @@ def test_a_run_with_only_ranks_still_renders_its_standings():
     """
     run = _stored_run()
     for name, rank in (("a", 1), ("b", 2)):
-        TranslationQualityScore.objects.create(
-            candidate=TranslationQualityCandidate.objects.create(
+        TranslationBenchmarkScore.objects.create(
+            candidate=TranslationBenchmarkCandidate.objects.create(
                 run=run, translator=name, validator="v"
             ),
             judge="j1",
             comparative_rank=rank,
         )
 
-    html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     assert "No scores recorded." not in html
     assert "<th>j1</th>" in html
@@ -2464,8 +2472,8 @@ def test_the_standings_do_not_query_once_per_candidate(django_assert_num_queries
     """
     run = _stored_run()
     for name in ("a", "b", "c"):
-        TranslationQualityScore.objects.create(
-            candidate=TranslationQualityCandidate.objects.create(
+        TranslationBenchmarkScore.objects.create(
+            candidate=TranslationBenchmarkCandidate.objects.create(
                 run=run, translator=name, validator="v"
             ),
             judge="j1",
@@ -2475,7 +2483,7 @@ def test_the_standings_do_not_query_once_per_candidate(django_assert_num_queries
         )
 
     with django_assert_num_queries(2):
-        TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+        TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
 
 @pytest.mark.django_db
@@ -2487,15 +2495,17 @@ def test_a_half_scored_row_is_read_the_same_way_everywhere():
     inline and vanishes from the standings without a word.
     """
     run = _stored_run()
-    candidate = TranslationQualityCandidate.objects.create(
+    candidate = TranslationBenchmarkCandidate.objects.create(
         run=run, translator="a", validator="v"
     )
-    TranslationQualityScore.objects.create(
+    TranslationBenchmarkScore.objects.create(
         candidate=candidate, judge="j1", accuracy=7, comparative_rank=1
     )
-    inline = TranslationQualityCandidateInline(TranslationQualityCandidate, admin.site)
+    inline = TranslationBenchmarkCandidateInline(
+        TranslationBenchmarkCandidate, admin.site
+    )
 
-    html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     # Pinned exactly rather than by absence of "None". The inline goes
     # through _criteria; the standings fall back to the ratings default,
@@ -2540,8 +2550,8 @@ def test_stored_scores_are_rendered_whatever_the_run_s_mode_says():
     run.comparative_only = True
     run.save(update_fields=["comparative_only"])
     for name, score, rank in (("a", 9, 2), ("b", 5, 1)):
-        TranslationQualityScore.objects.create(
-            candidate=TranslationQualityCandidate.objects.create(
+        TranslationBenchmarkScore.objects.create(
+            candidate=TranslationBenchmarkCandidate.objects.create(
                 run=run, translator=name, validator="v"
             ),
             judge="j1",
@@ -2551,7 +2561,7 @@ def test_stored_scores_are_rendered_whatever_the_run_s_mode_says():
             comparative_rank=rank,
         )
 
-    html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     assert "9.00" in html
     # Ordered by the scores, not by the comparative ranks: a leads the table
@@ -2572,21 +2582,21 @@ def test_a_task_will_not_write_to_a_row_from_another_run():
     change a finished run's stored content without touching its standings.
     """
     owning_run, other_run = _stored_run(), _stored_run()
-    candidate = TranslationQualityCandidate.objects.create(
+    candidate = TranslationBenchmarkCandidate.objects.create(
         run=owning_run, translator="a", validator="", translated_content=BENCHMARK
     )
-    native = TranslationQualityCandidate.objects.create(
+    native = TranslationBenchmarkCandidate.objects.create(
         run=other_run, translator="a", validator="", translated_content=BENCHMARK
     )
 
-    with pytest.raises(TranslationQualityCandidate.DoesNotExist):
+    with pytest.raises(TranslationBenchmarkCandidate.DoesNotExist):
         tasks.benchmark_translate_task(candidate.pk, SPEC, "hi", other_run.pk)
 
     # Both of the validate task's rows are scoped, and each is separately
     # able to be the foreign one.
-    with pytest.raises(TranslationQualityCandidate.DoesNotExist):
+    with pytest.raises(TranslationBenchmarkCandidate.DoesNotExist):
         tasks.benchmark_validate_task(candidate.pk, native.pk, SPEC, "hi", other_run.pk)
-    with pytest.raises(TranslationQualityCandidate.DoesNotExist):
+    with pytest.raises(TranslationBenchmarkCandidate.DoesNotExist):
         tasks.benchmark_validate_task(native.pk, candidate.pk, SPEC, "hi", other_run.pk)
 
     # The scoring task looks its row up inside its handler, so it reports
@@ -2633,7 +2643,7 @@ def test_each_run_is_benchmarked_on_the_block_it_names():
         _run(translators="openai", judges="openai")
         _run(translators="openai", judges="openai", benchmark_block=other_id)
 
-    second = TranslationQualityRun.objects.order_by("-pk").first()
+    second = TranslationBenchmark.objects.order_by("-pk").first()
     assert second.benchmark_block_id == other_id
     sources = {
         kwargs["source_content"]
@@ -2662,7 +2672,7 @@ def test_a_ranking_failure_is_recorded_on_the_run():
         judges="openai,gemini",
     )
 
-    stored = TranslationQualityRun.objects.get().excluded_judges
+    stored = TranslationBenchmark.objects.get().excluded_judges
 
     assert "gemini/gemini-test: ranking:" in stored
     assert "unparseable ranking" in stored
@@ -2676,17 +2686,17 @@ def test_a_judge_that_only_ranked_still_gets_a_column():
     ranking ones would name a winner no column on the page accounts for.
     """
     run = _stored_run()
-    candidate = TranslationQualityCandidate.objects.create(
+    candidate = TranslationBenchmarkCandidate.objects.create(
         run=run, translator="a", validator="v"
     )
-    TranslationQualityScore.objects.create(
+    TranslationBenchmarkScore.objects.create(
         candidate=candidate, judge="scorer", accuracy=8, fluency=8, terminology=8
     )
-    TranslationQualityScore.objects.create(
+    TranslationBenchmarkScore.objects.create(
         candidate=candidate, judge="ranker", comparative_rank=1
     )
 
-    html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     assert "<th>scorer</th>" in html
     assert "<th>ranker</th>" in html
@@ -2718,8 +2728,8 @@ def test_a_block_that_goes_missing_mid_run_keeps_what_the_run_produced():
         output, _ = _run(translators="openai", judges="openai,gemini")
 
     assert "mean rank" in output
-    stored = TranslationQualityRun.objects.get()
-    assert TranslationQualityScore.objects.exists()
+    stored = TranslationBenchmark.objects.get()
+    assert TranslationBenchmarkScore.objects.exists()
     # Named as the block's fault, not the judge's: the reason can only be
     # keyed by the judge that hit it, so it has to say so itself.
     assert "benchmark unreadable: No published block at gone" in stored.excluded_judges
@@ -2744,7 +2754,7 @@ def test_every_judge_failing_to_rank_is_recorded_before_the_run_gives_up():
             comparative_only=True,
         )
 
-    stored = TranslationQualityRun.objects.get().excluded_judges
+    stored = TranslationBenchmark.objects.get().excluded_judges
 
     assert stored.count("ranking:") == 2  # noqa: PLR2004
     assert "unparseable ranking" in stored
@@ -2763,7 +2773,7 @@ def test_two_ranking_failures_are_one_stable_line_each():
         judges="openai,gemini",
     )
 
-    stored = TranslationQualityRun.objects.get().excluded_judges
+    stored = TranslationBenchmark.objects.get().excluded_judges
 
     assert stored.splitlines() == [
         "gemini/gemini-test: ranking: ValueError: unparseable ranking",
@@ -2791,11 +2801,11 @@ def test_an_overall_is_the_mean_of_a_judge_s_criteria():
     """
     output, _ = _run(translators="openai", judges="openai")
 
-    score = TranslationQualityScore.objects.get()
-    run = TranslationQualityRun.objects.get()
+    score = TranslationBenchmarkScore.objects.get()
+    run = TranslationBenchmark.objects.get()
     criteria = (score.accuracy, score.fluency, score.terminology)
 
-    html = TranslationQualityRunAdmin(TranslationQualityRun, mock.Mock()).report(run)
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     assert len(set(criteria)) > 1, "criteria must differ for this to discriminate"
     # Both readers collapse the criteria, and both have to agree with the
@@ -2828,9 +2838,9 @@ def test_one_cold_worker_at_the_validate_stage_does_not_end_the_run():
         output, _ = _run(translators="openai,gemini", judges="openai")
 
     assert "mean rank" in output
-    assert TranslationQualityScore.objects.exists()
+    assert TranslationBenchmarkScore.objects.exists()
     # The arm that hit it says so, and the rest were scored.
-    assert TranslationQualityCandidate.objects.filter(
+    assert TranslationBenchmarkCandidate.objects.filter(
         error__contains="No published block at gone"
     ).exists()
 
@@ -2851,7 +2861,7 @@ def test_exclusions_from_both_passes_are_one_sorted_list():
         judges="openai,gemini",
     )
 
-    stored = TranslationQualityRun.objects.get().excluded_judges
+    stored = TranslationBenchmark.objects.get().excluded_judges
 
     assert stored.splitlines() == [
         "gemini/gemini-test: ranking: ValueError: unparseable ranking",
@@ -2877,7 +2887,7 @@ def test_a_judge_failing_on_several_arms_stores_the_same_reason_every_run():
             judges="gemini",
         )
 
-    stored = TranslationQualityRun.objects.get().excluded_judges
+    stored = TranslationBenchmark.objects.get().excluded_judges
 
     # gemini → gemini sorts first, so its arm's text is the one kept.
     assert "CALOR[gemini/gemini-test]" in stored
