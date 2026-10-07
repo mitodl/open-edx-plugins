@@ -51,6 +51,21 @@ def handle_course_access_role_added(
         )
         return
 
+    # A role granted across a whole org (OrgStaffRole, OrgInstructorRole) carries
+    # no course_key, and both resolve to a role name the allow-list above lets
+    # through. The consumer keys its records on a single course run, so there is
+    # nothing to send such a role against — and str(None) would send the literal
+    # "None" as the course key. Drop it here, before the email lookup, the same
+    # way the sync_course_access_roles backfill does.
+    if not course_access_role_data.course_key:
+        log.info(
+            "Ignoring org-wide role '%s' in org '%s' — no course run to send "
+            "it against.",
+            role,
+            course_access_role_data.org_key,
+        )
+        return
+
     user_email = course_access_role_data.user.pii.email
     if not user_email:
         from django.contrib.auth import get_user_model  # noqa: PLC0415

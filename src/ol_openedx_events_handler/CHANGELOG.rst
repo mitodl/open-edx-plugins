@@ -1,6 +1,31 @@
 Change Log
 ==========
 
+.. There should always be an "Unreleased" section for changes pending release.
+
+Unreleased
+----------
+
+Version 0.5.0 (2026-10-01)
+---------------------------
+
+* Added the ``sync_course_access_roles`` management command, which sends the
+  enrollment webhook for course access roles that already exist. The webhook
+  only fires on ``COURSE_ACCESS_ROLE_ADDED``, so a consumer that records those
+  roles has no way to learn about the course teams already in place.
+* Org-wide roles no longer send the literal string ``"None"`` as the course
+  key. ``OrgStaffRole`` and ``OrgInstructorRole`` resolve to ``staff`` and
+  ``instructor``, so ``ENROLLMENT_COURSE_ACCESS_ROLES`` let them through, but
+  they carry no course key and there is no run to send them against.
+* The course access role webhook task no longer retries on ``4xx`` responses,
+  except the transient ``408`` and ``429`` — matching the enrollment webhook
+  task, which both now share one predicate so they cannot drift apart.
+* ``sync_course_access_roles`` pages through roles by primary key instead of
+  using ``.iterator()``. Celery closes the database connection when a task
+  finishes, so on a deployment that runs tasks eagerly that happened inside the
+  loop and broke the open cursor with "MySQL server has gone away", ending the
+  backfill partway after it had reported what it queued.
+
 Version 0.3.0 (2026-08-11)
 ---------------------------
 

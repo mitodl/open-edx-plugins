@@ -20,6 +20,26 @@ HTTP_SERVER_ERROR = 500
 RETRYABLE_CLIENT_ERRORS = frozenset({HTTP_REQUEST_TIMEOUT, HTTP_TOO_MANY_REQUESTS})
 
 
+def _is_unretryable_client_error(status_code):
+    """
+    Return whether a response status means retrying can never help.
+
+    A 4xx says the request is wrong, not that the server was briefly
+    unavailable, so resending it unchanged just burns retries. The exceptions
+    are the transient codes in ``RETRYABLE_CLIENT_ERRORS``.
+
+    Shared by the webhook tasks so they cannot drift apart on this.
+
+    Args:
+        status_code (int): The HTTP status of the webhook response.
+
+    Returns:
+        bool: True when the request should be dropped rather than retried.
+    """
+    is_client_error = HTTP_BAD_REQUEST <= status_code < HTTP_SERVER_ERROR
+    return is_client_error and status_code not in RETRYABLE_CLIENT_ERRORS
+
+
 def _post_webhook(webhook_url, access_token, payload):
     """
     Send a webhook payload and return the response.
@@ -60,6 +80,13 @@ def notify_course_access_role_addition(user_email, course_key, role):
     Sends a POST request to the configured webhook endpoint so the
     external system can decide on whatever it wants to do with this event.
 
+    A 4xx response is logged and not retried, for the same reason as in
+    ``notify_course_enrollment_created``: the request will never succeed as-is.
+    The transient client errors in ``RETRYABLE_CLIENT_ERRORS`` are retried like
+    a 5xx. Only two retries are attempted, so a sustained 429 or 5xx can still
+    exhaust them; ``sync_course_access_roles`` is safe to re-run to pick up
+    whatever did not land.
+
     Args:
         user_email (str): The email address of the user.
         course_key (str): The string representation of the course key.
@@ -83,6 +110,21 @@ def notify_course_access_role_addition(user_email, course_key, role):
     )
 
     response = _post_webhook(webhook_url, access_token, payload)
+
+    if _is_unretryable_client_error(response.status_code):
+        log.error(
+            "Course access role webhook rejected for user '%s' in course '%s' "
+            "(role: %s). Response status: %s, body: %s. Not retrying, because "
+            "the request cannot succeed unchanged; this role stays unrecorded "
+            "until the external system reconciles it or the backfill is re-run.",
+            user_email,
+            course_key,
+            role,
+            response.status_code,
+            response.text,
+        )
+        return
+
     response.raise_for_status()
 
     log.info(
@@ -136,8 +178,7 @@ def notify_course_enrollment_created(user_email, course_key, mode):
 
     response = _post_webhook(webhook_url, access_token, payload)
 
-    is_client_error = HTTP_BAD_REQUEST <= response.status_code < HTTP_SERVER_ERROR
-    if is_client_error and response.status_code not in RETRYABLE_CLIENT_ERRORS:
+    if _is_unretryable_client_error(response.status_code):
         log.error(
             "Enrollment webhook rejected for user '%s' in course '%s'. "
             "Response status: %s, body: %s. Not retrying, because the request "
