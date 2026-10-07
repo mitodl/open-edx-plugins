@@ -14,9 +14,9 @@ from ol_openedx_course_translations.models import (
     TranslationBenchmark,
     TranslationBenchmarkCandidate,
 )
+from ol_openedx_course_translations.providers.base import TRANSIENT_PROVIDER_ERRORS
 from ol_openedx_course_translations.providers.llm_providers import (
     NO_CLIENT_RETRIES,
-    TRANSIENT_PROVIDER_ERRORS,
     TRANSLATION_MARKER_END,
     TRANSLATION_MARKER_START,
 )
@@ -53,9 +53,8 @@ TRANSLATE_FILE_TASK_LIMITS = getattr(
     },
 )
 
-# Course tasks retry only a throttle: any other failure comes back as an error
-# dict. Each re-raises TRANSIENT_PROVIDER_ERRORS ahead of its catch-all, or
-# autoretry_for never sees them and one throttled call fails the whole course.
+# Only a rate limit or timeout is retried. Each task re-raises these ahead of
+# its catch-all, or autoretry_for never sees them.
 TRANSIENT_RETRY = {
     "autoretry_for": TRANSIENT_PROVIDER_ERRORS,
     "retry_kwargs": {
@@ -488,7 +487,7 @@ def _log_benchmark_failure(error: Exception, context: str) -> str:
 
 
 def _benchmark_task(name):
-    """Shared decorator for the benchmark's stage tasks; see TRANSIENT_RETRY."""
+    """Benchmark stage decorator: retries as TRANSIENT_RETRY, with backoff."""
     return shared_task(
         bind=True,
         name=name,

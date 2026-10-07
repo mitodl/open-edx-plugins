@@ -6,7 +6,8 @@ from unittest import mock
 
 import pytest
 import srt
-from litellm import RateLimitError
+from celery.exceptions import SoftTimeLimitExceeded
+from litellm import RateLimitError, Timeout
 from ol_openedx_course_translations.providers import llm_providers
 from ol_openedx_course_translations.providers.base import TRANSIENT_PROVIDER_ERRORS
 from ol_openedx_course_translations.providers.llm_providers import OpenAIProvider
@@ -144,19 +145,25 @@ def test_a_throttled_subtitle_is_not_reported_as_failed_validation(error_class):
         provider.translate_srt_with_validation([_cue()], "hi")
 
 
-def test_a_rate_limited_subtitle_batch_is_not_retried_smaller():
-    """Halving the batch does nothing for a 429; the task retry waits instead."""
+@pytest.mark.parametrize(
+    ("error", "shrinks"),
+    [
+        pytest.param(_transient(RateLimitError), False, id="rate-limit"),
+        pytest.param(SoftTimeLimitExceeded(), False, id="time-limit"),
+        pytest.param(_transient(Timeout), True, id="timeout"),
+    ],
+)
+def test_only_a_timeout_retries_a_subtitle_batch_smaller(error, shrinks):
+    """All three match the keywords, but only a timeout can be a size problem."""
     provider = OpenAIProvider("key", "gpt-test")
 
     with (
-        mock.patch.object(
-            llm_providers, "completion", side_effect=_transient(RateLimitError)
-        ) as completion,
-        pytest.raises(RateLimitError),
+        mock.patch.object(llm_providers, "completion", side_effect=error) as completion,
+        pytest.raises(type(error)),
     ):
-        provider.translate_subtitles([_cue()], "hi")
+        provider.translate_subtitles([_cue(), _cue()], "hi")
 
-    assert completion.call_count == 1
+    assert (completion.call_count > 1) is shrinks
 
 
 def test_any_other_failure_is_still_reported_without_a_retry(tmp_path):

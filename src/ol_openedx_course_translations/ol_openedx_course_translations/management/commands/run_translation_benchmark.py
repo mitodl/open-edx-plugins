@@ -304,7 +304,7 @@ class Command(BaseCommand):
     def _validate_language(self, target_language: str) -> None:
         supported = settings.COURSE_TRANSLATIONS_SUPPORTED_LANGUAGES
         if target_language == ENGLISH_LANGUAGE_CODE:
-            # The prompts translate from English, so there is nothing to do.
+            # The prompts hard-code English as the source.
             msg = "The benchmark translates from English; pick another target."
             raise CommandError(msg)
         if target_language not in supported:

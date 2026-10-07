@@ -12,13 +12,15 @@ from typing import Any
 
 import srt
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from litellm import BadRequestError, RateLimitError, completion
 from litellm.utils import UnsupportedParamsError
+from openai import APIError
 
 from ol_openedx_course_translations.utils.quality_report import Rating
 
-from .base import TRANSIENT_PROVIDER_ERRORS, TranslationProvider
+from .base import TranslationProvider
 
 logger = logging.getLogger(__name__)
 
@@ -1004,9 +1006,10 @@ class LLMProvider(TranslationProvider):
                     )
                     return translated_subtitle_list
 
-            except RateLimitError:
-                # "limit" is a keyword below, but a smaller batch won't help a
-                # 429. Leave the wait to the task retry.
+            except (RateLimitError, SoftTimeLimitExceeded):
+                # Both would match "limit" below, but a smaller batch helps
+                # neither: leave a 429 to the task retry, and stop at the time
+                # limit. A Timeout still halves: a smaller batch may finish.
                 raise
             except Exception as llm_error:
                 error_message = str(llm_error).lower()
@@ -1069,9 +1072,9 @@ class LLMProvider(TranslationProvider):
                 )
                 root = helper.apply_translations(root, refs, translated_units)
                 return helper.serialize(root)
-            except TRANSIENT_PROVIDER_ERRORS:
-                # The fallback below is for parsing and reinsertion. A
-                # throttled call produced no markup, and the tasks retry it.
+            except (APIError, SoftTimeLimitExceeded):
+                # The fallback below is for parsing; a failed call must not ship
+                # the English source.
                 raise
             except Exception as e:  # noqa: BLE001
                 # Safety first: if parsing/reinsertion fails, return original

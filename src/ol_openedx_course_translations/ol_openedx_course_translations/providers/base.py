@@ -11,10 +11,8 @@ logger = logging.getLogger(__name__)
 
 MAX_SUBTITLE_TRANSLATION_RETRIES = 1
 
-# A rate limit or a timeout says nothing about the content. It must not be
-# swallowed into "the provider returned the source" or "validation failed":
-# the course and benchmark tasks retry these, and a benchmark run would
-# otherwise score a throttled provider as one that refused to translate.
+# Says nothing about the content: must reach the task retry, not read as a
+# failed translation.
 TRANSIENT_PROVIDER_ERRORS = (RateLimitError, Timeout)
 
 
@@ -54,6 +52,7 @@ class TranslationProvider(ABC):
 
         Raises:
             ValueError: If translation fails validation after all retries
+            RateLimitError, Timeout: Propagated for the task retry
         """
         log = logger.getChild("TranslationProvider")
         path_str = str(input_file_path) if input_file_path else "file"

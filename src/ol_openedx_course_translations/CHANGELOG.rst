@@ -116,6 +116,11 @@ Fixed
   skipped, keeping the unvalidated translation, as before.
   A rate-limited subtitle batch is no longer retried straight away at half
   size, which only sent more requests to a provider already throttling.
+- Any other provider error (an overloaded Anthropic model, a 500, a bad key)
+  or the Celery soft time limit during HTML/XML translation now fails the file.
+  ``translate_text`` used to return the English source, which the task wrote
+  and reported as a success. The soft time limit also no longer starts another
+  subtitle batch, since its name matched the ``"limit"`` keyword.
 - A translator whose batch protocol broke is now reported as failed rather
   than scored as bad. ``translate_text`` keeps the original unit whenever a
   reply arrives without its ``:::N:::`` markers and then reserializes, so a
