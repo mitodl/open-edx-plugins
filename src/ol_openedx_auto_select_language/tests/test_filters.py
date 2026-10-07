@@ -1,4 +1,6 @@
-"""Tests for AddDestLangForVideoBlock filter pipeline step."""
+"""Tests for the auto-select-language filter pipeline steps."""
+
+from collections import OrderedDict
 
 import pytest
 from ol_openedx_auto_select_language.constants import (
@@ -6,9 +8,12 @@ from ol_openedx_auto_select_language.constants import (
 )
 from ol_openedx_auto_select_language.filters import (
     AddDestLangForVideoBlock,
+    RestrictVideoTranscriptLanguages,
 )
 
 MODULE = "ol_openedx_auto_select_language.filters"
+
+ALL_LANGUAGES = OrderedDict([("en", "English"), ("es", "Español"), ("fr", "Français")])
 
 
 def _make_step(mocker):
@@ -225,3 +230,107 @@ def test_returns_context_and_student_view_context(mocker):
     assert "context" in result
     assert "student_view_context" in result
     assert result["student_view_context"]["existing_key"] == "value"
+
+
+def _make_restrict_step(mocker):
+    """Create a RestrictVideoTranscriptLanguages step with mock args."""
+    return RestrictVideoTranscriptLanguages(
+        filter_type=mocker.Mock(),
+        running_pipeline=mocker.Mock(),
+    )
+
+
+def _make_video_block(mocker, language="es", languages=None):
+    """Build a mock video block whose transcript method returns known values."""
+    block = mocker.Mock()
+    block.scope_ids.block_type = "video"
+    block.ol_transcripts_restricted = False
+    block.get_transcripts_for_student = mocker.Mock(
+        return_value=(
+            "http://example.com/transcript",
+            language,
+            ALL_LANGUAGES if languages is None else languages,
+        )
+    )
+    return block
+
+
+def test_restricts_to_resolved_language(mocker, settings):
+    """Only the resolved language is offered to the player."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    block = _make_video_block(mocker)
+
+    _make_restrict_step(mocker).run_filter(block=block, context={})
+
+    track_url, language, languages = block.get_transcripts_for_student(
+        transcripts={"sub": "", "transcripts": {"es": "es.srt"}},
+        dest_lang="es",
+    )
+
+    assert track_url == "http://example.com/transcript"
+    assert language == "es"
+    assert languages == {"es": "Espa\u00f1ol"}
+
+
+def test_keeps_full_list_when_resolved_language_has_no_label(mocker, settings):
+    """An unlabeled resolved language leaves the menu usable."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    block = _make_video_block(mocker, language="de")
+
+    _make_restrict_step(mocker).run_filter(block=block, context={})
+
+    _, _, languages = block.get_transcripts_for_student(
+        transcripts={"sub": "", "transcripts": {}},
+        dest_lang="de",
+    )
+
+    assert languages == ALL_LANGUAGES
+
+
+def test_non_video_block_is_untouched(mocker, settings):
+    """Non-video children are returned unmodified."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    block = mocker.Mock()
+    block.scope_ids.block_type = "problem"
+    original = block.get_transcripts_for_student
+
+    result = _make_restrict_step(mocker).run_filter(block=block, context={})
+
+    assert result == {"block": block, "context": {}}
+    assert block.get_transcripts_for_student is original
+
+
+def test_noop_when_flag_disabled(mocker, settings):
+    """The step does nothing unless auto language selection is enabled."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
+    block = _make_video_block(mocker)
+    original = block.get_transcripts_for_student
+
+    _make_restrict_step(mocker).run_filter(block=block, context={})
+
+    assert block.get_transcripts_for_student is original
+
+
+def test_noop_when_flag_undefined(mocker, settings):
+    """A deployment that never set the flag must not raise."""
+    if hasattr(settings, "ENABLE_AUTO_LANGUAGE_SELECTION"):
+        del settings.ENABLE_AUTO_LANGUAGE_SELECTION
+    block = _make_video_block(mocker)
+    original = block.get_transcripts_for_student
+
+    _make_restrict_step(mocker).run_filter(block=block, context={})
+
+    assert block.get_transcripts_for_student is original
+
+
+def test_applying_twice_does_not_stack_wrappers(mocker, settings):
+    """Re-running the step on the same instance rewraps nothing."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    block = _make_video_block(mocker)
+    step = _make_restrict_step(mocker)
+
+    step.run_filter(block=block, context={})
+    wrapped_once = block.get_transcripts_for_student
+    step.run_filter(block=block, context={})
+
+    assert block.get_transcripts_for_student is wrapped_once
