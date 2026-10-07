@@ -181,3 +181,60 @@ def test_refuses_when_misconfigured(mock_task, overrides):
         _run()
 
     mock_task.delay.assert_not_called()
+
+
+# transaction=True because the point of this test is a real connection close.
+# Under the default django_db the test body runs inside an atomic block, so
+# closing the connection poisons that transaction instead of reproducing what
+# happens in production, where no such block is held.
+@pytest.mark.django_db(transaction=True)
+@mock.patch(TASK_PATH)
+def test_survives_the_connection_closing_between_dispatches(mock_task):
+    """
+    A task that closes the database connection does not abort the backfill.
+
+    Celery closes Django's connection when a task finishes, so on a deployment
+    that runs tasks eagerly that happens inside this loop. Holding a cursor
+    across the dispatch - what .iterator() does - makes the next read fail with
+    "MySQL server has gone away", ending the backfill partway while the command
+    has already claimed it queued everything.
+    """
+    from django.db import connection  # noqa: PLC0415
+
+    total = 5
+    for n in range(total):
+        _make_role(f"staff{n}@example.com", "staff", COURSE, username=f"closer-{n}")
+
+    # On an install where the plugin's receiver is active, creating the rows
+    # above already called this mock. Only the command's dispatches matter here.
+    mock_task.reset_mock()
+    mock_task.delay.side_effect = lambda **_kwargs: connection.close()
+
+    with override_settings(**WEBHOOK_SETTINGS):
+        output = _run()
+
+    assert mock_task.delay.call_count == total
+    assert f"Queued {total} role(s)" in output
+
+
+@pytest.mark.django_db
+@mock.patch(TASK_PATH)
+def test_pages_through_roles_beyond_one_batch(mock_task):
+    """Every role is sent when there are more of them than fit in one page."""
+    from ol_openedx_events_handler.management.commands import (  # noqa: PLC0415
+        sync_course_access_roles as cmd,
+    )
+
+    total = 7
+    for n in range(total):
+        _make_role(f"paged{n}@example.com", "staff", COURSE, username=f"paged-{n}")
+
+    mock_task.reset_mock()
+
+    with mock.patch.object(cmd, "BATCH_SIZE", 2), override_settings(**WEBHOOK_SETTINGS):
+        output = _run()
+
+    assert mock_task.delay.call_count == total
+    assert f"Queued {total} role(s)" in output
+    emailed = sorted(c.kwargs["user_email"] for c in mock_task.delay.call_args_list)
+    assert emailed == sorted(f"paged{n}@example.com" for n in range(total))

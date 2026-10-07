@@ -3,6 +3,13 @@
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+# Rows are walked a page at a time rather than through .iterator(). Both keep
+# memory bounded, but .iterator() holds a server-side cursor open across the
+# dispatch below, and a deployment running tasks eagerly closes the database
+# connection when a task finishes -- which breaks that cursor mid-backfill with
+# "MySQL server has gone away". Paging by primary key keeps no cursor open.
+BATCH_SIZE = 500
+
 
 class Command(BaseCommand):
     """
@@ -66,32 +73,39 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         sent = skipped_org_wide = skipped_no_email = 0
 
-        for access_role in roles.order_by("id").iterator():
-            # A blank course_id reads back as None, so an org-wide role has no
-            # run to send against.
-            course_key = str(access_role.course_id or "")
-            if not course_key:
-                skipped_org_wide += 1
-                continue
+        last_id = 0
+        while True:
+            batch = list(roles.filter(id__gt=last_id).order_by("id")[:BATCH_SIZE])
+            if not batch:
+                break
+            last_id = batch[-1].id
 
-            email = access_role.user.email
-            if not email:
-                self.stderr.write(
-                    self.style.WARNING(
-                        f"Skipping user {access_role.user.username}: no email."
+            for access_role in batch:
+                # A blank course_id reads back as None, so an org-wide role has
+                # no run to send against.
+                course_key = str(access_role.course_id or "")
+                if not course_key:
+                    skipped_org_wide += 1
+                    continue
+
+                email = access_role.user.email
+                if not email:
+                    self.stderr.write(
+                        self.style.WARNING(
+                            f"Skipping user {access_role.user.username}: no email."
+                        )
                     )
-                )
-                skipped_no_email += 1
-                continue
+                    skipped_no_email += 1
+                    continue
 
-            self.stdout.write(f"{email} — {access_role.role} in {course_key}")
-            if not dry_run:
-                notify_course_access_role_addition.delay(
-                    user_email=email,
-                    course_key=course_key,
-                    role=access_role.role,
-                )
-            sent += 1
+                self.stdout.write(f"{email} — {access_role.role} in {course_key}")
+                if not dry_run:
+                    notify_course_access_role_addition.delay(
+                        user_email=email,
+                        course_key=course_key,
+                        role=access_role.role,
+                    )
+                sent += 1
 
         verb = "Would send" if dry_run else "Queued"
         # Broken out by reason: an org-wide skip is expected, a missing email is

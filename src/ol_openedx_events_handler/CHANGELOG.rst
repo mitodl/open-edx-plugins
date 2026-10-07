@@ -20,6 +20,11 @@ Version 0.5.0 (2026-10-01)
 * The course access role webhook task no longer retries on ``4xx`` responses,
   except the transient ``408`` and ``429`` — matching the enrollment webhook
   task, which both now share one predicate so they cannot drift apart.
+* ``sync_course_access_roles`` pages through roles by primary key instead of
+  using ``.iterator()``. Celery closes the database connection when a task
+  finishes, so on a deployment that runs tasks eagerly that happened inside the
+  loop and broke the open cursor with "MySQL server has gone away", ending the
+  backfill partway after it had reported what it queued.
 
 Version 0.3.0 (2026-08-11)
 ---------------------------
