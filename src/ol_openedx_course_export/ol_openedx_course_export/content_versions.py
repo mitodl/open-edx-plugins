@@ -11,20 +11,29 @@ can tell when an export has gone stale.
 
 Everything here is a lookup against an index or an aggregate, never a walk of the
 course tree, because it is meant to be polled for every course on an instance.
+The one read of course structure, to find a course's videos, is a single
+aggregation per batch, cached per published version.
 """
 
 from datetime import UTC, datetime
 
+from bson import ObjectId
 from common.djangoapps.split_modulestore_django.models import (
     SplitModulestoreCourseIndex,
 )
+from django.core.cache import cache
 from django.db.models import Count, Max
-from edxval.models import CourseVideo
+from edxval.models import VideoTranscript
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import CourseLocator
 from pymongo import DESCENDING
 from xmodule.contentstore.django import contentstore
+from xmodule.modulestore import ModuleStoreEnum
+from xmodule.modulestore.django import modulestore
+
+ONE_WEEK_SECONDS = 7 * 24 * 60 * 60
+VIDEO_IDS_CACHE_KEY = "ol_openedx_course_export.video_ids.{}"
 
 
 def _isoformat(value: datetime | None) -> str | None:
@@ -57,27 +66,106 @@ def _static_assets(course_key: CourseKey) -> dict:
     }
 
 
-def _transcripts(course_ids: list[str]) -> dict[str, dict]:
+def _video_ids(published_versions: set[str]) -> dict[str, list[str]]:
+    """List the VAL video ids the video blocks of each published structure name.
+
+    A structure never changes once written, so its video ids are cached under its
+    id and Mongo is only asked about versions published since the last poll. The
+    aggregation filters to video blocks on the server, so no course structure
+    crosses the wire.
+    """
+    keys = {
+        VIDEO_IDS_CACHE_KEY.format(version): version for version in published_versions
+    }
+    video_ids = {keys[key]: ids for key, ids in cache.get_many(keys).items()}
+    uncached = published_versions - video_ids.keys()
+    if uncached:
+        split = modulestore()._get_modulestore_by_type(  # noqa: SLF001
+            ModuleStoreEnum.Type.split
+        )
+        video_blocks = {
+            "$filter": {
+                "input": "$blocks",
+                "cond": {"$eq": ["$$this.block_type", "video"]},
+            }
+        }
+        structures = split.db_connection.structures.aggregate(
+            [
+                {"$match": {"_id": {"$in": [ObjectId(v) for v in uncached]}}},
+                {
+                    "$project": {
+                        "video_ids": {
+                            "$map": {
+                                "input": video_blocks,
+                                "in": "$$this.fields.edx_video_id",
+                            }
+                        }
+                    }
+                },
+            ]
+        )
+        fresh = {
+            str(structure["_id"]): sorted(
+                {
+                    video_id.strip()
+                    for video_id in structure["video_ids"]
+                    if video_id and video_id.strip()
+                }
+            )
+            for structure in structures
+        }
+        cache.set_many(
+            {
+                VIDEO_IDS_CACHE_KEY.format(version): ids
+                for version, ids in fresh.items()
+            },
+            ONE_WEEK_SECONDS,
+        )
+        video_ids.update(fresh)
+    return video_ids
+
+
+def _transcripts(published: dict[str, str]) -> dict[str, dict]:
     """Count each course's VAL transcripts and find the latest change to any.
 
     Replacing a transcript updates its row, which moves ``modified``; removing
-    one moves the count. One query for the whole batch.
+    one moves the count. The transcripts are those of the videos the course's
+    published video blocks name, which is how an export finds them. VAL's own
+    course-to-video link is not used: a video created by uploading a transcript
+    in the Studio video editor (an "external" video) is linked to no course.
+
+    A video that only an unpublished block names is not counted until the block
+    is published, though an export writes draft blocks too. The published
+    version has the same blind spot for all draft content.
+
+    ``published`` maps course id to published version. One Mongo aggregation
+    and one query for the whole batch.
     """
+    video_ids = _video_ids({version for version in published.values() if version})
     rows = (
-        CourseVideo.objects.filter(course_id__in=course_ids)
-        .values("course_id")
-        .annotate(
-            transcript_count=Count("video__video_transcripts"),
-            latest_modified=Max("video__video_transcripts__modified"),
+        VideoTranscript.objects.filter(
+            video__edx_video_id__in={
+                video_id for ids in video_ids.values() for video_id in ids
+            }
         )
+        .values("video__edx_video_id")
+        .annotate(transcript_count=Count("id"), latest_modified=Max("modified"))
     )
-    return {
-        row["course_id"]: {
-            "count": row["transcript_count"],
-            "latest_modified": _isoformat(row["latest_modified"]),
+    by_video = {row["video__edx_video_id"]: row for row in rows}
+    transcripts = {}
+    for course_id, version in published.items():
+        course_rows = [
+            by_video[video_id]
+            for video_id in video_ids.get(version, [])
+            if video_id in by_video
+        ]
+        transcripts[course_id] = {
+            "count": sum(row["transcript_count"] for row in course_rows),
+            "latest_modified": _isoformat(
+                max((row["latest_modified"] for row in course_rows), default=None)
+            ),
         }
-        for row in rows
-    }
+    return transcripts
 
 
 def course_content_versions(course_ids: list[str]) -> tuple[dict[str, dict], list[str]]:
@@ -109,13 +197,14 @@ def course_content_versions(course_ids: list[str]) -> tuple[dict[str, dict], lis
     found = {course_id: key for course_id, key in keys.items() if key in published}
     missing.extend(course_id for course_id in keys if course_id not in found)
 
-    transcripts = _transcripts(list(found))
-    no_transcripts = {"count": 0, "latest_modified": None}
+    transcripts = _transcripts(
+        {course_id: published[key] for course_id, key in found.items()}
+    )
     versions = {
         course_id: {
             "published_version": published[key],
             "static_assets": _static_assets(key),
-            "transcripts": transcripts.get(course_id, no_transcripts),
+            "transcripts": transcripts[course_id],
         }
         for course_id, key in found.items()
     }

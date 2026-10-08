@@ -107,6 +107,14 @@ any last changed. Ids that name no course on the instance are listed under
 an aggregate, never by walking the course, so it is cheap enough to poll for
 every course on an instance.
 
+A course's videos are the ones its published video blocks name in
+``edx_video_id``, which is how an export finds their transcripts. They are read
+from the published structure once per published version and cached for a week.
+A video that only an unpublished block names is not counted until the block is
+published.
+VAL's own course-to-video link is not used, because a video created by uploading
+a transcript in the Studio video editor is linked to no course.
+
 .. code-block::
 
     {
