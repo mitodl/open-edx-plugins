@@ -260,13 +260,16 @@ def test_gemini_asks_for_its_own_temperature_and_probes_once():
     assert "temperature" not in completion.call_args.kwargs
 
 
+@pytest.mark.parametrize("content", [None, "", " \n"])
 @pytest.mark.parametrize(
     "source", ["<p>Conduction moves heat.</p>", "Conduction moves heat."]
 )
-def test_an_empty_reply_fails_instead_of_returning_the_source(provider, source):
+def test_an_empty_reply_fails_instead_of_returning_the_source(
+    provider, source, content
+):
     """A refusal is not a translation, on the markup path or the plain one."""
     with (
-        mock.patch.object(llm_providers, "completion", return_value=_response(None)),
+        mock.patch.object(llm_providers, "completion", return_value=_response(content)),
         pytest.raises(llm_providers.EmptyCompletionError),
     ):
         provider.translate_text(source, "hi", tag_handling="html")

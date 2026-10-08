@@ -108,7 +108,7 @@ _TEMPERATURE_REJECTION_ERRORS = (UnsupportedParamsError, BadRequestError)
 
 class EmptyCompletionError(RuntimeError):
     """
-    A reply with no content: a refusal or a length cut-off.
+    A reply with no content, or only whitespace: a refusal or a length cut-off.
 
     Not a ValueError, which the plain-text path turns into the English source.
     """
@@ -670,11 +670,11 @@ class LLMProvider(TranslationProvider):
                 continue
 
             _MODEL_TEMPERATURES[cache_key] = temperature
-            content = llm_response.choices[0].message.content
-            if content is None:
+            content = (llm_response.choices[0].message.content or "").strip()
+            if not content:
                 msg = f"{self.model_name} returned no content"
                 raise EmptyCompletionError(msg)
-            return content.strip()
+            return content
 
         # Unreachable: the final attempt either returns or re-raises.
         msg = f"temperature negotiation exhausted for {self.model_name}"
