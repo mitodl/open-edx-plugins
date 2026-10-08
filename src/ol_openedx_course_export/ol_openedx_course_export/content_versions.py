@@ -34,6 +34,7 @@ from xmodule.modulestore.django import modulestore
 
 ONE_WEEK_SECONDS = 7 * 24 * 60 * 60
 VIDEO_IDS_CACHE_KEY = "ol_openedx_course_export.video_ids.{}"
+VIDEO_IDS_PER_QUERY = 5000
 
 
 def _isoformat(value: datetime | None) -> str | None:
@@ -138,25 +139,29 @@ def _transcripts(published: dict[str, str]) -> dict[str, dict]:
     is published, though an export writes draft blocks too. The published
     version has the same blind spot for all draft content.
 
+    Ids are compared in lower case, because an export looks a video up with an
+    equality MySQL's default collation answers without regard to case.
+
     ``published`` maps course id to published version. One Mongo aggregation
-    and one query for the whole batch.
+    for the whole batch, and one query per ``VIDEO_IDS_PER_QUERY`` videos.
     """
     video_ids = _video_ids({version for version in published.values() if version})
-    rows = (
-        VideoTranscript.objects.filter(
-            video__edx_video_id__in={
-                video_id for ids in video_ids.values() for video_id in ids
-            }
+    wanted = sorted({video_id for ids in video_ids.values() for video_id in ids})
+    by_video = {}
+    for start in range(0, len(wanted), VIDEO_IDS_PER_QUERY):
+        rows = (
+            VideoTranscript.objects.filter(
+                video__edx_video_id__in=wanted[start : start + VIDEO_IDS_PER_QUERY]
+            )
+            .values("video__edx_video_id")
+            .annotate(transcript_count=Count("id"), latest_modified=Max("modified"))
         )
-        .values("video__edx_video_id")
-        .annotate(transcript_count=Count("id"), latest_modified=Max("modified"))
-    )
-    by_video = {row["video__edx_video_id"]: row for row in rows}
+        by_video.update({row["video__edx_video_id"].lower(): row for row in rows})
     transcripts = {}
     for course_id, version in published.items():
         course_rows = [
             by_video[video_id]
-            for video_id in video_ids.get(version, [])
+            for video_id in {v.lower() for v in video_ids.get(version, [])}
             if video_id in by_video
         ]
         transcripts[course_id] = {

@@ -3,6 +3,7 @@ Tests for the course content versions endpoint.
 """
 
 from http import HTTPStatus
+from unittest.mock import patch
 
 from common.djangoapps.split_modulestore_django.models import (
     SplitModulestoreCourseIndex,
@@ -161,6 +162,22 @@ class CourseContentVersionsViewTests(ModuleStoreTestCase):
         assert after["transcripts"]["count"] == 1
         assert after["transcripts"]["latest_modified"].startswith("2026-09-03T12:00:00")
         assert after["published_version"] == before["published_version"]
+
+    def test_a_large_batch_of_videos_is_queried_in_chunks(self):
+        """Videos beyond one query's worth are still counted."""
+        video_ids = [
+            create_external_video(display_name="external video") for _ in range(3)
+        ]
+        for video_id in video_ids:
+            self._add_video_block(video_id)
+            self._add_transcript(
+                video_id, "en", b"1\n00:00:00,000 --> 00:00:01,000\nhi\n"
+            )
+
+        with patch("ol_openedx_course_export.content_versions.VIDEO_IDS_PER_QUERY", 2):
+            version = self._versions(self.course_id)["versions"][self.course_id]
+
+        assert version["transcripts"]["count"] == len(video_ids)
 
     def test_transcripts_of_an_unpublished_video_block_are_not_counted(self):
         """A draft-only video counts once published, like other draft content."""
