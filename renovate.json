@@ -5,10 +5,9 @@
   ],
   "packageRules": [
     {
-      "description": "Bump versions in plugin pyproject.toml (only non-breaking)",
+      "description": "Bump version floors in plugin pyproject.toml",
       "matchFileNames": ["src/*/pyproject.toml"],
-      "rangeStrategy": "bump",
-      "matchUpdateTypes": ["minor", "patch"]
+      "rangeStrategy": "bump"
     }
   ]
 }
