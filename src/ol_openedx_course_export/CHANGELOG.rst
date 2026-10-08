@@ -13,6 +13,19 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.4.3]
+~~~~~~~
+
+Fixed
+_____
+
+* The content versions endpoint counts the transcripts of the videos a course's
+  published video blocks name, where it used to count those of the videos VAL
+  links to the course. A video created by uploading a transcript in the Studio
+  video editor is linked to no course, so a transcript added to one never moved
+  the reported facts. The count can change for any course with transcripts, so
+  a caller that re-exports on any change may re-export each of them once.
+
 [0.4.2]
 ~~~~~~~
 
