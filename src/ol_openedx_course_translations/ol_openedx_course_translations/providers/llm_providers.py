@@ -105,6 +105,15 @@ _MODEL_TEMPERATURES: dict[tuple[str, float], float | None] = {}
 # maintaining a list of which models have a temperature floor.
 _TEMPERATURE_REJECTION_ERRORS = (UnsupportedParamsError, BadRequestError)
 
+
+class EmptyCompletionError(RuntimeError):
+    """
+    A reply with no content: a refusal or a length cut-off.
+
+    Not a ValueError, which the plain-text path turns into the English source.
+    """
+
+
 AZURE_COGNITIVE_SERVICES_SCOPE = "https://cognitiveservices.azure.com/.default"
 
 
@@ -663,10 +672,8 @@ class LLMProvider(TranslationProvider):
             _MODEL_TEMPERATURES[cache_key] = temperature
             content = llm_response.choices[0].message.content
             if content is None:
-                # A refusal or a length cut-off returns no content at all;
-                # without this the caller sees an opaque AttributeError.
                 msg = f"{self.model_name} returned no content"
-                raise ValueError(msg)
+                raise EmptyCompletionError(msg)
             return content.strip()
 
         # Unreachable: the final attempt either returns or re-raises.
@@ -1072,7 +1079,7 @@ class LLMProvider(TranslationProvider):
                 )
                 root = helper.apply_translations(root, refs, translated_units)
                 return helper.serialize(root)
-            except (APIError, SoftTimeLimitExceeded):
+            except (APIError, EmptyCompletionError, SoftTimeLimitExceeded):
                 # The fallback below is for parsing; a failed call must not ship
                 # the English source.
                 raise

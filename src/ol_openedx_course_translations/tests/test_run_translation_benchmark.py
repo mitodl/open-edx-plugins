@@ -258,7 +258,7 @@ def test_an_empty_completion_is_rejected(judge):
     """A refusal or a length cut-off returns no content at all."""
     with (
         mock.patch.object(llm_providers, "completion", return_value=_response(None)),
-        pytest.raises(ValueError, match="no content"),
+        pytest.raises(llm_providers.EmptyCompletionError, match="no content"),
     ):
         judge._call_llm("system", "user")  # noqa: SLF001
 

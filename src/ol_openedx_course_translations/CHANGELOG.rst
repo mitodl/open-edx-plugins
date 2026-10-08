@@ -119,8 +119,8 @@ Fixed
 - Any other API error (an overloaded Anthropic model, a 500, a bad key) or the
   Celery soft time limit during HTML/XML translation now fails the file, and so
   the ``translate_course`` run, instead of shipping that page in English. That
-  includes a content-filter rejection on one page. A reply with no content (a
-  refusal or a length cut-off) still falls back to the source.
+  includes a content-filter rejection on one page, and a reply with no content
+  (a refusal or a length cut-off) on any path.
   ``translate_text`` used to return the English source, which the task wrote
   and reported as a success. The soft time limit also no longer starts another
   subtitle batch, since its name matched the ``"limit"`` keyword.
