@@ -13,6 +13,16 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.12.1] - 2026-10-09
+~~~~~~~~~~~~~~~~~~~~~
+Changed
+-------
+* Pin ``litellm==1.103.1`` (was 1.83.0) for its security fixes. The
+  advisories reviewed against 1.83.0 are in the LiteLLM Proxy server, which
+  this plugin does not run. 1.103.1 requires
+  ``boto3>=1.43.1``, ``aiohttp>=3.14.2`` and ``importlib-metadata<9.0``, which
+  conflict with edx-platform's pins on ulmo, verawood and master.
+
 [0.12.0] - 2026-10-06
 ~~~~~~~~~~~~~~~~~~~~~
 Changed
