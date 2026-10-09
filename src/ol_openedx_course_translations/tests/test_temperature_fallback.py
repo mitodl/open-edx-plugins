@@ -5,12 +5,17 @@ Translation wants the lowest temperature a model will accept. Some models
 (OpenAI o-series, some gpt-5 configurations) allow only their default of 1 and
 reject anything else — litellm raises locally for some of them and lets others
 through to the provider, which returns a 400. Both are treated the same way.
+
+Newer Claude models (Opus 5, Sonnet 5, Opus 4.8/4.7) removed the parameter
+outright, so they reject every value including the fallback; those need the
+request sent with no temperature at all.
 """
 
 from unittest import mock
 
 import pytest
-from litellm import BadRequestError
+from celery.exceptions import SoftTimeLimitExceeded
+from litellm import BadRequestError, InternalServerError, RateLimitError, Timeout
 from litellm.utils import UnsupportedParamsError
 from ol_openedx_course_translations.providers import llm_providers
 from ol_openedx_course_translations.providers.llm_providers import (
@@ -18,13 +23,6 @@ from ol_openedx_course_translations.providers.llm_providers import (
     TRANSLATION_TEMPERATURE,
     OpenAIProvider,
 )
-
-
-@pytest.fixture(autouse=True)
-def _clear_temperature_cache():
-    llm_providers._MODEL_TEMPERATURES.clear()  # noqa: SLF001
-    yield
-    llm_providers._MODEL_TEMPERATURES.clear()  # noqa: SLF001
 
 
 @pytest.fixture
@@ -150,3 +148,160 @@ def test_validation_uses_a_longer_timeout_without_mutating_the_provider(provider
         assert completion.call_args.kwargs["timeout"] == original_timeout
 
     assert provider.litellm_timeout == original_timeout
+
+
+def _param_removed_rejection():
+    """A model that dropped the parameter rejects the fallback value too."""
+    return BadRequestError(
+        message="temperature: Extra inputs are not permitted",
+        model="claude-opus-5",
+        llm_provider="anthropic",
+    )
+
+
+def test_omits_temperature_when_model_rejects_every_value(provider):
+    """Models that removed the parameter need the request sent without it."""
+    with mock.patch.object(
+        llm_providers,
+        "completion",
+        side_effect=[
+            _param_removed_rejection(),
+            _param_removed_rejection(),
+            _response(),
+        ],
+    ) as completion:
+        assert provider._call_llm("system", "user") == "ok"  # noqa: SLF001
+
+    assert completion.call_count == 3  # noqa: PLR2004
+    attempts = completion.call_args_list
+    assert attempts[0].kwargs["temperature"] == TRANSLATION_TEMPERATURE
+    assert attempts[1].kwargs["temperature"] == FALLBACK_TEMPERATURE
+    assert "temperature" not in attempts[2].kwargs
+
+
+def test_omission_is_remembered_for_later_calls(provider):
+    """The two rejected probes are paid once per model, not once per request."""
+    with mock.patch.object(
+        llm_providers,
+        "completion",
+        side_effect=[
+            _param_removed_rejection(),
+            _param_removed_rejection(),
+            _response(),
+        ],
+    ):
+        provider._call_llm("system", "user")  # noqa: SLF001
+
+    other = OpenAIProvider("test-key", "gpt-test")
+    with mock.patch.object(
+        llm_providers, "completion", return_value=_response()
+    ) as completion:
+        other._call_llm("system", "user")  # noqa: SLF001
+
+    assert completion.call_count == 1
+    assert "temperature" not in completion.call_args.kwargs
+
+
+def test_rejection_without_temperature_is_raised(provider):
+    """Nothing is left to try once the parameter has already been dropped."""
+    with (
+        mock.patch.object(
+            llm_providers,
+            "completion",
+            side_effect=[
+                _param_removed_rejection(),
+                _param_removed_rejection(),
+                _param_removed_rejection(),
+            ],
+        ) as completion,
+        pytest.raises(BadRequestError),
+    ):
+        provider._call_llm("system", "user")  # noqa: SLF001
+
+    assert completion.call_count == 3  # noqa: PLR2004
+
+
+def test_gemini_asks_for_its_own_temperature_and_probes_once():
+    """
+    Gemini 3 accepts a low temperature and then hangs on hard calls.
+
+    litellm warns that below 1.0 it "can cause infinite loops, degraded
+    reasoning performance, and failure on complex tasks", so the provider asks
+    for 1.0 up front. Probing 1.0 twice would be the bug the dedupe prevents.
+    """
+    provider = llm_providers.GeminiProvider("test-key", "gemini-3.1-pro-preview")
+
+    with mock.patch.object(
+        llm_providers, "completion", return_value=_response()
+    ) as completion:
+        provider._call_llm("system", "user")  # noqa: SLF001
+
+    assert completion.call_count == 1
+    assert completion.call_args.kwargs["temperature"] == FALLBACK_TEMPERATURE
+
+    # And when it is rejected outright, the next rung omits the parameter
+    # rather than resending the same value.
+    llm_providers._MODEL_TEMPERATURES.clear()  # noqa: SLF001
+    with mock.patch.object(
+        llm_providers,
+        "completion",
+        side_effect=[
+            BadRequestError(
+                message="temperature: Extra inputs are not permitted",
+                model="gemini-3.1-pro-preview",
+                llm_provider="gemini",
+            ),
+            _response(),
+        ],
+    ) as completion:
+        provider._call_llm("system", "user")  # noqa: SLF001
+
+    assert completion.call_count == 2  # noqa: PLR2004
+    assert "temperature" not in completion.call_args.kwargs
+
+
+@pytest.mark.parametrize("content", [None, "", " \n"])
+@pytest.mark.parametrize(
+    "source", ["<p>Conduction moves heat.</p>", "Conduction moves heat."]
+)
+def test_an_empty_reply_fails_instead_of_returning_the_source(
+    provider, source, content
+):
+    """A refusal is not a translation, on the markup path or the plain one."""
+    with (
+        mock.patch.object(llm_providers, "completion", return_value=_response(content)),
+        pytest.raises(llm_providers.EmptyCompletionError),
+    ):
+        provider.translate_text(source, "hi", tag_handling="html")
+
+
+def test_a_failed_markup_call_is_raised_not_swallowed(provider):
+    """
+    The DOM path's safety net is for parsing and reinsertion, not for the network.
+
+    Swallowing a failed call returns the source, which the course task wrote and
+    reported as a success, and a benchmark scored as a provider that refused.
+    """
+    html = "<p>Conduction moves heat.</p>"
+    failures = [
+        Timeout(message="t", model="gpt-test", llm_provider="openai"),
+        RateLimitError(message="r", model="gpt-test", llm_provider="openai"),
+        InternalServerError(message="o", model="m", llm_provider="anthropic"),
+        SoftTimeLimitExceeded(),
+    ]
+
+    for error in failures:
+        with (
+            mock.patch.object(
+                type(provider), "_batch_translate_units", side_effect=error
+            ),
+            pytest.raises(type(error)),
+        ):
+            provider.translate_text(html, "hi", tag_handling="html")
+
+    # A parse or reinsertion failure still returns the source rather than
+    # risk broken markup.
+    with mock.patch.object(
+        type(provider), "_batch_translate_units", side_effect=ValueError("reinsert")
+    ):
+        assert provider.translate_text(html, "hi", tag_handling="html") == html

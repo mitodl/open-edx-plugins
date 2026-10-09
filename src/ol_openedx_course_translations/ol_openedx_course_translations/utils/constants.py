@@ -1,6 +1,7 @@
 """Constants for course translation utilities."""
 
 # LLM Provider names
+PROVIDER_ANTHROPIC = "anthropic"
 PROVIDER_AZURE = "azure"
 PROVIDER_GEMINI = "gemini"
 PROVIDER_MISTRAL = "mistral"
