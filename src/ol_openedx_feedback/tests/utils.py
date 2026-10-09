@@ -69,6 +69,7 @@ class OLFeedbackTestCase(ModuleStoreTestCase):
         self.aside_name = "ol_openedx_feedback"
         self.video_aside_instance = self.create_aside("video")
         self.problem_aside_instance = self.create_aside("problem")
+        self.html_aside_instance = self.create_aside("html")
 
     def create_aside(self, block_type):
         """

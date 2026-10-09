@@ -20,7 +20,7 @@ from xmodule.x_module import STUDENT_VIEW
 
 from ol_openedx_feedback.compat import get_feedback_enabled_flag
 from ol_openedx_feedback.constants import DEFAULT_SHOW_LABEL
-from ol_openedx_feedback.utils import is_aside_applicable_to_block
+from ol_openedx_feedback.utils import get_visible_title, is_aside_applicable_to_block
 
 log = logging.getLogger(__name__)
 
@@ -79,7 +79,10 @@ class FeedbackAside(XBlockAside):
                     "courseId": str(block_usage_key.course_key),
                     "blockUsageKey": str(block_usage_key),
                     "blockType": block_type,
+                    # Studio name: recorded on the submission, never shown to
+                    # the learner. Only visibleTitle reaches the panel.
                     "blockDisplayName": block.display_name or "",
+                    "visibleTitle": get_visible_title(block),
                 },
             },
         )
