@@ -13,6 +13,15 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.12.1] - 2026-10-09
+~~~~~~~~~~~~~~~~~~~~~
+Changed
+-------
+- ``litellm`` is pinned to 1.88.6 (from 1.83.0), which clears the published
+  LiteLLM advisories. They all affect the LiteLLM Proxy server, which this
+  plugin does not run; it only calls ``completion()`` in-process. 1.88.6
+  requires ``aiohttp>=3.14.2`` and ``importlib-metadata<9``.
+
 [0.12.0] - 2026-10-06
 ~~~~~~~~~~~~~~~~~~~~~
 Changed
