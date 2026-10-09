@@ -43,7 +43,7 @@ jobs:
     outputs:
       edx_branches: ${{ steps.branches.outputs.edx_branches }}
     steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         persist-credentials: false
     - id: branches
@@ -66,7 +66,7 @@ jobs:
     # This job only reads the checkout to run the composite action below; it
     # performs no authenticated git operations, so the token has no reason to
     # stay behind in .git/config where later steps could leak it.
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         persist-credentials: false
 
