@@ -8,8 +8,9 @@ from unittest import mock
 
 import pytest
 from django.contrib.admin.sites import AdminSite
+from django.contrib.auth.models import Permission, User
 from django.core.management import CommandError, call_command
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from ol_openedx_git_auto_export.admin import ContentGitRepositoryAdmin
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
@@ -181,3 +182,20 @@ class TestExportToGitAdminAction(TestCase):
             "Skipped 2: 1 export disabled, 1 auto-export disabled in settings.",
             f"Failed to queue 1: {failing_course}: broker down",
         ]
+
+    def test_action_requires_change_permission(self):
+        model_admin = ContentGitRepositoryAdmin(ContentGitRepository, AdminSite())
+
+        def actions_for(*codenames):
+            user = User.objects.create_user(f"user-{'-'.join(codenames)}")
+            user.is_staff = True
+            user.save()
+            user.user_permissions.set(Permission.objects.filter(codename__in=codenames))
+            request = RequestFactory().get("/")
+            request.user = User.objects.get(pk=user.pk)  # drop the perm cache
+            return model_admin.get_actions(request)
+
+        assert "export_to_git" not in actions_for("view_contentgitrepository")
+        assert "export_to_git" in actions_for(
+            "view_contentgitrepository", "change_contentgitrepository"
+        )

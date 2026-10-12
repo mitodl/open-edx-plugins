@@ -73,7 +73,8 @@ class ContentGitRepositoryAdmin(admin.ModelAdmin):
             return ContentType.LIBRARY.display_name
         return ContentType.COURSE.display_name
 
-    @admin.action(description="Export selected content to git")
+    # Without permissions, view-only staff would get the action too.
+    @admin.action(description="Export selected content to git", permissions=["change"])
     def export_to_git(self, request, queryset):
         """Queue a git export for each selected row with export enabled."""
         keys = queryset.values_list("content_key", flat=True)
