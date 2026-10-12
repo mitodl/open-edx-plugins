@@ -2,7 +2,9 @@
 Django admin pages for git-auto-export plugin
 """
 
-from django.contrib import admin
+from collections import Counter
+
+from django.contrib import admin, messages
 from django.contrib.admin import SimpleListFilter
 from django.db.models import Q
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
@@ -13,6 +15,7 @@ from ol_openedx_git_auto_export.constants import (
     ContentType,
 )
 from ol_openedx_git_auto_export.models import ContentGitRepository
+from ol_openedx_git_auto_export.utils import queue_git_exports
 
 
 class ContentTypeFilter(SimpleListFilter):
@@ -61,6 +64,7 @@ class ContentGitRepositoryAdmin(admin.ModelAdmin):
     search_fields = ("content_key", "git_url")
     list_filter = ("is_export_enabled", ContentTypeFilter)
     list_per_page = 50
+    actions = ("export_to_git",)
 
     @admin.display(description="Content Type")
     def content_type_display(self, obj):
@@ -68,6 +72,24 @@ class ContentGitRepositoryAdmin(admin.ModelAdmin):
         if isinstance(obj.content_key, (LibraryLocator, LibraryLocatorV2)):
             return ContentType.LIBRARY.display_name
         return ContentType.COURSE.display_name
+
+    @admin.action(description="Export selected content to git")
+    def export_to_git(self, request, queryset):
+        """Queue a git export for each selected row with export enabled."""
+        keys = queryset.values_list("content_key", flat=True)
+        queued, skipped, errored = queue_git_exports(map(str, keys))
+        self.message_user(request, f"Queued {len(queued)} git export(s).")
+        if skipped:
+            reasons = Counter(reason for _, reason in skipped)
+            summary = ", ".join(f"{n} {reason}" for reason, n in reasons.items())
+            self.message_user(
+                request, f"Skipped {len(skipped)}: {summary}.", messages.WARNING
+            )
+        if errored:
+            details = "; ".join(f"{key}: {reason}" for key, reason in errored)
+            self.message_user(
+                request, f"Failed to queue {len(errored)}: {details}", messages.ERROR
+            )
 
     def has_delete_permission(self, request, obj=None):  # noqa: ARG002
         """

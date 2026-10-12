@@ -4,6 +4,7 @@ Tests for the git export debounce logic in utils.py.
 
 from unittest import mock
 
+import pytest
 from django.core.cache import cache
 from django.test import TestCase
 from ol_openedx_git_auto_export.constants import (
@@ -16,6 +17,7 @@ from ol_openedx_git_auto_export.utils import (
     claim_export_slot,
     current_export_token,
     debounce_cache_key,
+    export_content_to_git,
     export_course_to_git,
     export_library_to_git,
     pending_cache_key,
@@ -346,3 +348,94 @@ class TestExportDebounce(TestCase):
             export_library_to_git(library_key)
 
         assert mock_apply_async.call_args.kwargs["args"] == [str(library_key), None]
+
+
+@pytest.mark.parametrize(
+    ("content_key", "is_library", "publisher_lookup"),
+    [
+        (
+            CourseKey.from_string("course-v1:org+course+run"),
+            False,
+            "_get_course_publisher",
+        ),
+        (LibraryLocator(org="org", library="lib"), True, "_get_library_publisher"),
+        (LibraryLocatorV2(org="org", slug="lib"), True, "_get_library_publisher"),
+    ],
+)
+@pytest.mark.parametrize("enabled", [True, False])
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_export_content_to_git_queues_by_content_type(
+    content_key, is_library, publisher_lookup, enabled, dry_run
+):
+    with (
+        mock.patch(
+            "ol_openedx_git_auto_export.utils.is_auto_export_enabled",
+            return_value=enabled,
+        ) as mock_enabled,
+        mock.patch(
+            f"ol_openedx_git_auto_export.utils.{publisher_lookup}",
+            return_value="publisher",
+        ),
+        mock.patch(
+            "ol_openedx_git_auto_export.utils._queue_debounced_export"
+        ) as mock_queue,
+    ):
+        assert export_content_to_git(content_key, dry_run=dry_run) is enabled
+
+    mock_enabled.assert_called_once_with(is_library=is_library)
+    if enabled and not dry_run:
+        queued_key, resolve_user = mock_queue.call_args.args
+        assert queued_key == content_key
+        assert resolve_user() == "publisher"
+    else:
+        mock_queue.assert_not_called()
+
+
+class TestExportContentToGitFailures(TestCase):
+    """On-demand exports must surface queue failures, not swallow them."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_failed_queue_raises_and_releases_the_slot(self):
+        course_key = CourseKey.from_string("course-v1:org+course+run")
+
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.is_auto_export_enabled",
+                return_value=True,
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch("ol_openedx_git_auto_export.utils.modulestore"),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async",
+                side_effect=RuntimeError("broker down"),
+            ),
+            pytest.raises(RuntimeError, match="broker down"),
+        ):
+            export_content_to_git(course_key)
+
+        assert cache.get(pending_cache_key(course_key)) is None
+
+    def test_failed_repo_dir_setup_raises(self):
+        course_key = CourseKey.from_string("course-v1:org+course+run")
+
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.is_auto_export_enabled",
+                return_value=True,
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir",
+                side_effect=RuntimeError("bad mount"),
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ) as mock_apply_async,
+            pytest.raises(RuntimeError, match="bad mount"),
+        ):
+            export_content_to_git(course_key)
+
+        mock_apply_async.assert_not_called()
