@@ -139,10 +139,12 @@ an export on demand, fix whatever made the export fail, then use either:
     # Every repository with export enabled; --dry-run lists without queueing
     ./manage.py cms export_to_git --all --dry-run
 
-Both skip rows with ``is_export_enabled`` off, content that no longer exists,
-and content whose auto-export settings (``ENABLE_EXPORT_GIT`` plus the course or
-library flag) are off, and report content whose export could not be queued.
-The command also reports keys with no repository, and exits non-zero if any
+Both skip, and report, content that no longer exists and content whose
+auto-export settings (``ENABLE_EXPORT_GIT`` plus the course or library flag)
+are off, and report content whose export could not be queued. The admin action
+and ``--content-keys`` also skip rows with ``is_export_enabled`` off, while
+``--all`` only considers rows with it on. The command also reports keys with
+no repository, and exits non-zero if any
 key errored or, with ``--content-keys``, if any named key was skipped. Exports
 go through the same debounce as publish-triggered ones, so content that
 already has an export pending is reported as queued but gets that pending
