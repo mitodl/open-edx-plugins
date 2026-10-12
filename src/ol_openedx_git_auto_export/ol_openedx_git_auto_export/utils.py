@@ -311,7 +311,8 @@ def export_course_to_git(course_key):
             course_key,
         )
         schedule_export_with_debounce(
-            course_key, lambda: _get_course_publisher(course_key)
+            course_key,
+            lambda: get_publisher_username(modulestore().get_course(course_key)),
         )
 
 
@@ -331,11 +332,6 @@ def clear_stale_git_lock(git_url):
             "Removing stale .git/index.lock for repo %s at %s", git_url, index_lock
         )
         index_lock.unlink()
-
-
-def _get_course_publisher(course_key):
-    """Return the username that last published the course, if any."""
-    return get_publisher_username(modulestore().get_course(course_key))
 
 
 def _get_library_publisher(library_key):
@@ -388,16 +384,26 @@ def export_content_to_git(content_key, dry_run=False):  # noqa: FBT002
             also covers content whose pending export absorbs this one.
 
     Raises:
+        ContentNotFoundError: If the content no longer exists.
         Exception: If the export could not be queued.
     """
     is_library = isinstance(content_key, (LibraryLocator, LibraryLocatorV2))
     if not is_auto_export_enabled(is_library=is_library):
         return False
-    if not dry_run:
-        resolve_user = _get_library_publisher if is_library else _get_course_publisher
-        # Not via on_commit: robust hooks log and swallow a failed queue, and
-        # there is no pending write here to wait for.
-        _queue_debounced_export(content_key, lambda: resolve_user(content_key))
+    # Rows outlive deleted content; the task would only log and drop it.
+    content_module = get_content_info(content_key)["content_module"]
+    if dry_run:
+        return True
+    # Not via on_commit: robust hooks log and swallow a failed queue, and
+    # there is no pending write here to wait for.
+    _queue_debounced_export(
+        content_key,
+        lambda: (
+            _get_library_publisher(content_key)
+            if is_library
+            else get_publisher_username(content_module)
+        ),
+    )
     return True
 
 
@@ -433,15 +439,14 @@ def queue_git_exports(key_strings, dry_run=False):  # noqa: FBT002
             skipped.append((key, "export disabled"))
             continue
         try:
-            # Rows outlive deleted content; the task would only log and drop it.
-            get_content_info(key)
             if export_content_to_git(key, dry_run=dry_run):
                 queued.append(key)
             else:
                 skipped.append((key, "auto-export disabled in settings"))
         except ContentNotFoundError:
             skipped.append((key, "content not found"))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
+            log.exception("On-demand git export failed for %s", key)
             errored.append((key, str(exc) or repr(exc)))
     return queued, skipped, errored
 

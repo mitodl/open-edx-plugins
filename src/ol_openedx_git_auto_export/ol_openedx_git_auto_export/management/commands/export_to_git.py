@@ -54,7 +54,7 @@ class Command(BaseCommand):
         self._report(f"Skipped {len(skipped)}:", skipped, self.style.WARNING)
         self._report(f"Errored {len(errored)}:", errored, self.style.ERROR)
         # Named keys are the operator's intent, so skipping one is a failure;
-        # under --all, disabled rows are expected.
+        # under --all, rows left behind by deleted content are expected.
         if errored or (options["content_keys"] and skipped):
             msg = f"{len(errored)} key(s) errored, {len(skipped)} skipped"
             raise CommandError(msg)

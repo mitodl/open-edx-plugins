@@ -143,6 +143,7 @@ Both skip rows with ``is_export_enabled`` off, content that no longer exists,
 and content whose auto-export settings (``ENABLE_EXPORT_GIT`` plus the course or
 library flag) are off, and report content whose export could not be queued.
 The command also reports keys with no repository, and exits non-zero if any
-key errored or, with ``--content-keys``, if any named key was skipped. Exports go through the same debounce as publish-triggered ones,
-so content that already has an export pending is reported as queued but gets
-that pending export, not a second one.
+key errored or, with ``--content-keys``, if any named key was skipped. Exports
+go through the same debounce as publish-triggered ones, so content that
+already has an export pending is reported as queued but gets that pending
+export, not a second one.

@@ -44,9 +44,6 @@ class TestExportToGitCommand(TestCase):
         )
         self.mock_export = patcher.start()
         self.addCleanup(patcher.stop)
-        patcher = mock.patch("ol_openedx_git_auto_export.utils.get_content_info")
-        self.mock_content_info = patcher.start()
-        self.addCleanup(patcher.stop)
 
     def run_command(self, *args, expect_error=False):
         out = StringIO()
@@ -127,11 +124,10 @@ class TestExportToGitCommand(TestCase):
         assert f"{ENABLED_LIBRARY}: broker down" in out
 
     def test_skips_content_that_no_longer_exists(self):
-        self.mock_content_info.side_effect = ContentNotFoundError
+        self.mock_export.side_effect = ContentNotFoundError
 
         out = self.run_command("--content-keys", str(ENABLED_COURSE), expect_error=True)
 
-        self.mock_export.assert_not_called()
         assert f"{ENABLED_COURSE}: content not found" in out
 
     def test_requires_exactly_one_target(self):
@@ -167,7 +163,6 @@ class TestExportToGitAdminAction(TestCase):
 
         model_admin = ContentGitRepositoryAdmin(ContentGitRepository, AdminSite())
         with (
-            mock.patch("ol_openedx_git_auto_export.utils.get_content_info"),
             mock.patch(
                 "ol_openedx_git_auto_export.utils.export_content_to_git",
                 side_effect=fake_export,

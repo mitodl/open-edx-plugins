@@ -12,6 +12,7 @@ from ol_openedx_git_auto_export.constants import (
     EXPORT_DEBOUNCE_PENDING_TTL,
     EXPORT_DEBOUNCE_TOKEN_TTL,
 )
+from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.utils import (
     _get_library_publisher,
     claim_export_slot,
@@ -356,7 +357,7 @@ class TestExportDebounce(TestCase):
         (
             CourseKey.from_string("course-v1:org+course+run"),
             False,
-            "_get_course_publisher",
+            "get_publisher_username",
         ),
         (LibraryLocator(org="org", library="lib"), True, "_get_library_publisher"),
         (LibraryLocatorV2(org="org", slug="lib"), True, "_get_library_publisher"),
@@ -377,18 +378,22 @@ def test_export_content_to_git_queues_by_content_type(
             return_value="publisher",
         ),
         mock.patch(
+            "ol_openedx_git_auto_export.utils.get_content_info"
+        ) as mock_content_info,
+        mock.patch(
             "ol_openedx_git_auto_export.utils._queue_debounced_export"
         ) as mock_queue,
     ):
         assert export_content_to_git(content_key, dry_run=dry_run) is enabled
 
-    mock_enabled.assert_called_once_with(is_library=is_library)
-    if enabled and not dry_run:
-        queued_key, resolve_user = mock_queue.call_args.args
-        assert queued_key == content_key
-        assert resolve_user() == "publisher"
-    else:
-        mock_queue.assert_not_called()
+        mock_enabled.assert_called_once_with(is_library=is_library)
+        assert mock_content_info.called is enabled
+        if enabled and not dry_run:
+            queued_key, resolve_user = mock_queue.call_args.args
+            assert queued_key == content_key
+            assert resolve_user() == "publisher"
+        else:
+            mock_queue.assert_not_called()
 
 
 class TestExportContentToGitFailures(TestCase):
@@ -408,7 +413,8 @@ class TestExportContentToGitFailures(TestCase):
             mock.patch(
                 "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
             ),
-            mock.patch("ol_openedx_git_auto_export.utils.modulestore"),
+            mock.patch("ol_openedx_git_auto_export.utils.get_content_info"),
+            mock.patch("ol_openedx_git_auto_export.utils.get_publisher_username"),
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async",
                 side_effect=RuntimeError("broker down"),
@@ -431,6 +437,7 @@ class TestExportContentToGitFailures(TestCase):
                 "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir",
                 side_effect=RuntimeError("bad mount"),
             ),
+            mock.patch("ol_openedx_git_auto_export.utils.get_content_info"),
             mock.patch(
                 "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
             ) as mock_apply_async,
@@ -439,3 +446,23 @@ class TestExportContentToGitFailures(TestCase):
             export_content_to_git(course_key)
 
         mock_apply_async.assert_not_called()
+
+
+def test_export_content_to_git_raises_for_missing_content():
+    with (
+        mock.patch(
+            "ol_openedx_git_auto_export.utils.is_auto_export_enabled",
+            return_value=True,
+        ),
+        mock.patch(
+            "ol_openedx_git_auto_export.utils.get_content_info",
+            side_effect=ContentNotFoundError,
+        ),
+        mock.patch(
+            "ol_openedx_git_auto_export.utils._queue_debounced_export"
+        ) as mock_queue,
+        pytest.raises(ContentNotFoundError),
+    ):
+        export_content_to_git(CourseKey.from_string("course-v1:org+course+run"))
+
+    mock_queue.assert_not_called()
