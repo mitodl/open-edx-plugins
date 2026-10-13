@@ -24,7 +24,8 @@ class Command(BaseCommand):
         target.add_argument(
             "--content-keys",
             nargs="+",
-            help="Course or library keys to export",
+            metavar="KEY",
+            help="Space-separated course or library keys to export",
         )
         target.add_argument(
             "--all",
