@@ -12,6 +12,8 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import LearningContextKey
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
 from openedx.core.djangoapps.content_libraries.api import (
     ContentLibraryNotFound,
@@ -33,6 +35,7 @@ from ol_openedx_git_auto_export.constants import (
     ContentType,
 )
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
+from ol_openedx_git_auto_export.models import ContentGitRepository
 
 log = logging.getLogger(__name__)
 
@@ -255,7 +258,11 @@ def schedule_export_with_debounce(content_key, resolve_user):
 
 
 def _queue_debounced_export(content_key, resolve_user):
-    """Record this signal's token and queue a task if none is queued already."""
+    """
+    Record a fresh token and queue a task if none is queued already.
+
+    Raises if the task cannot be queued.
+    """
     # An unrecorded token costs the queued task one extra hop, not an export.
     token = uuid.uuid4().hex
     cache_op(
@@ -278,7 +285,7 @@ def _queue_debounced_export(content_key, resolve_user):
     except Exception:
         log.exception("Failed to prepare git export directory for %s", content_key)
         release_export_slot(content_key)
-        return
+        raise
 
     try:
         user = resolve_user()
@@ -362,6 +369,86 @@ def export_library_to_git(library_key):
             "Library auto-export is disabled. Skipping export for library: %s",
             library_key,
         )
+
+
+def export_content_to_git(content_key, dry_run=False):  # noqa: FBT002
+    """
+    Queue a git export for a course or library, outside any publish event.
+
+    Args:
+        content_key (LearningContextKey): The course or library key to export.
+        dry_run (bool): Only report whether the export would be queued.
+
+    Returns:
+        bool: False if auto-export is disabled for this content type. True
+            also covers content whose pending export absorbs this one.
+
+    Raises:
+        ContentNotFoundError: If the content no longer exists.
+        Exception: If the export could not be queued.
+    """
+    is_library = isinstance(content_key, (LibraryLocator, LibraryLocatorV2))
+    if not is_auto_export_enabled(is_library=is_library):
+        return False
+    # Rows outlive deleted content; the task would only log and drop it.
+    content_module = get_content_info(content_key)["content_module"]
+    if dry_run:
+        return True
+    # Not via on_commit: robust hooks log and swallow a failed queue, and
+    # there is no pending write here to wait for.
+    _queue_debounced_export(
+        content_key,
+        lambda: (
+            _get_library_publisher(content_key)
+            if is_library
+            else get_publisher_username(content_module)
+        ),
+    )
+    return True
+
+
+def queue_git_exports(key_strings, dry_run=False):  # noqa: FBT002
+    """
+    Queue on-demand git exports for courses and libraries with export enabled.
+
+    Args:
+        key_strings (iterable[str]): Course or library keys.
+        dry_run (bool): Only report what would be queued.
+
+    Returns:
+        tuple: Queued keys, then skipped and errored (key, reason) pairs.
+    """
+    queued, skipped, errored = [], [], []
+    parsed = []
+    for key_str in dict.fromkeys(key_strings):
+        try:
+            parsed.append(LearningContextKey.from_string(key_str))
+        except InvalidKeyError:
+            errored.append((key_str, "invalid key"))
+
+    export_enabled = dict(
+        ContentGitRepository.objects.filter(content_key__in=parsed).values_list(
+            "content_key", "is_export_enabled"
+        )
+    )
+    for key in parsed:
+        if key not in export_enabled:
+            skipped.append((key, "no ContentGitRepository"))
+            continue
+        if not export_enabled[key]:
+            skipped.append((key, "export disabled"))
+            continue
+        try:
+            if export_content_to_git(key, dry_run=dry_run):
+                queued.append(key)
+            else:
+                skipped.append((key, "auto-export disabled in settings"))
+        except ContentNotFoundError:
+            skipped.append((key, "content not found"))
+        except Exception as exc:
+            log.exception("On-demand git export failed for %s", key)
+            errored.append((key, str(exc) or repr(exc)))
+    return queued, skipped, errored
 
 
 def is_auto_export_enabled(is_library=False):  # noqa: FBT002

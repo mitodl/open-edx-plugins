@@ -79,8 +79,9 @@ def async_export_to_git(context_key_string, user=None, token=None):
         context_key = LearningContextKey.from_string(context_key_string)
         content_info = get_content_info(context_key)
     except ContentNotFoundError:
-        # Queued from on_commit, so not the old pre-commit race: the content
-        # was most likely deleted during the countdown. Nothing re-queues.
+        # Publishes queue from on_commit and on-demand exports write nothing, so
+        # not the old pre-commit race: the content was most likely deleted
+        # during the countdown. Nothing re-queues.
         LOGGER.warning(
             "Content %s not found; abandoning this export (no retry)",
             context_key_string,

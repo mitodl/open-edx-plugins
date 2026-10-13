@@ -119,3 +119,33 @@ Library v2 (Content Libraries)
 - Library v1 does not emit a creation signal, so the GitHub repository is automatically created on the first library update
 - Library v2 uses the new event architecture and supports both creation and update signals for immediate repository creation
 - Both library types support automatic git export on updates once configured
+
+Re-exporting Without a Publish
+==============================
+
+Courses are exported only when published and libraries only when updated, so
+content whose export failed stays stale in git until its next change. To queue
+an export on demand, fix whatever made the export fail, then use either:
+
+- The ``Export selected content to git`` action on the Content Git Repositories
+  page in Django admin.
+- The ``export_to_git`` management command:
+
+  .. code-block::
+
+    # Specific courses or libraries
+    ./manage.py cms export_to_git --content-keys course-v1:MITx+6.00x+2T2024 lib:MITx:mylib
+
+    # Every repository with export enabled; --dry-run lists without queueing
+    ./manage.py cms export_to_git --all --dry-run
+
+Both skip, and report, content that no longer exists and content whose
+auto-export settings (``ENABLE_EXPORT_GIT`` plus the course or library flag)
+are off, and report content whose export could not be queued. The admin action
+and ``--content-keys`` also skip rows with ``is_export_enabled`` off, while
+``--all`` only considers rows with it on. The command also reports keys with
+no repository, and exits non-zero if any
+key errored or, with ``--content-keys``, if any named key was skipped. Exports
+go through the same debounce as publish-triggered ones: a request made during
+a pending export's 5-second countdown is merged into it, but one made after
+that export has started queues another.
