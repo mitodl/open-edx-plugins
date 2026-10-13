@@ -146,6 +146,6 @@ and ``--content-keys`` also skip rows with ``is_export_enabled`` off, while
 ``--all`` only considers rows with it on. The command also reports keys with
 no repository, and exits non-zero if any
 key errored or, with ``--content-keys``, if any named key was skipped. Exports
-go through the same debounce as publish-triggered ones, so content that
-already has an export pending is reported as queued but gets that pending
-export, not a second one.
+go through the same debounce as publish-triggered ones: a request made during
+a pending export's 5-second countdown is merged into it, but one made after
+that export has started queues another.
