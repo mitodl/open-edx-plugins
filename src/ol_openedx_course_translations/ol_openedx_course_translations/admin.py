@@ -6,6 +6,7 @@ from django.contrib import admin
 from django.utils.html import format_html, format_html_join
 
 from ol_openedx_course_translations.models import (
+    BlockTranslation,
     CourseTranslationLog,
     TranslationBenchmark,
     TranslationBenchmarkCandidate,
@@ -296,3 +297,27 @@ class TranslationBenchmarkAdmin(admin.ModelAdmin):
             format_html_join("", "<th>{}</th>", ((judge,) for judge in judges)),
             body,
         )
+
+
+@admin.register(BlockTranslation)
+class BlockTranslationAdmin(admin.ModelAdmin):
+    """Admin interface for reviewing and fixing in-place translations."""
+
+    list_display = ("usage_key", "field", "language", "status", "updated_at")
+    list_filter = ("status", "language", "field")
+    search_fields = ("course_key", "usage_key")
+    readonly_fields = (
+        "course_key",
+        "usage_key",
+        "field",
+        "language",
+        "source_hash",
+        "created_at",
+        "updated_at",
+    )
+
+    def save_model(self, request, obj, form, change):
+        """Mark a hand-edited translation reviewed so syncs never overwrite it."""
+        if "translated_value" in form.changed_data:
+            obj.status = BlockTranslation.Status.REVIEWED
+        super().save_model(request, obj, form, change)

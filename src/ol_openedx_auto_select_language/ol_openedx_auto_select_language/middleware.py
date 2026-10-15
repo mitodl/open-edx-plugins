@@ -15,17 +15,22 @@ from openedx.core.djangoapps.lang_pref import helpers as lang_pref_helpers
 from openedx.core.djangoapps.user_api.preferences.api import set_user_preference
 
 from ol_openedx_auto_select_language.constants import ENGLISH_LANGUAGE_CODE
+from ol_openedx_auto_select_language.toggles import learner_language_enabled
 from ol_openedx_auto_select_language.utils import LanguageCode
 
 
 def should_process_request(request):
     """
     Return True if language auto-selection should run for this request.
+
+    When the learner's own language wins, nothing is switched or saved, so a
+    choice made in the header dropdown survives course, staff and Studio pages.
     """
     return (
         settings.ENABLE_AUTO_LANGUAGE_SELECTION
         and hasattr(request, "user")
         and request.user.is_authenticated
+        and not learner_language_enabled()
     )
 
 
