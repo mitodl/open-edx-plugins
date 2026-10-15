@@ -393,3 +393,15 @@ def test_no_change_when_cookie_is_english_or_empty(
 
     assert result is response
     mock_helpers.set_language_cookie.assert_not_called()
+
+
+def test_learner_language_skips_all_switching(
+    request_factory, mock_user, settings, learner_language_disabled
+):
+    """With the learner's choice winning, no page switches or saves a language."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    learner_language_disabled.return_value = True
+    request = request_factory.get("/")
+    request.user = mock_user
+
+    assert should_process_request(request) is False

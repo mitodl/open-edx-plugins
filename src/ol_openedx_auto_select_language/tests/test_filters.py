@@ -419,3 +419,43 @@ def test_resolves_with_course_language_not_shared_dest_lang(mocker, settings):
 
     assert language == "es"
     assert result == {"es": "Español"}
+
+
+@pytest.mark.parametrize(
+    ("learner_language", "resolved_by_dest", "expected"),
+    [
+        # The learner's language has a transcript: it wins over the course's.
+        ("fr", {"fr": "fr", "es": "es"}, {"fr": "Français"}),
+        # No transcript in the learner's language: the course language is next.
+        ("de", {"de": "en", "es": "es"}, {"es": "Español"}),
+    ],
+    ids=["learner_first", "course_fallback"],
+)
+def test_learner_language_wins(  # noqa: PLR0913, PLR0917
+    mocker,
+    settings,
+    learner_language_disabled,
+    learner_language,
+    resolved_by_dest,
+    expected,
+):
+    """With the learner's choice winning, subtitles follow it before the course."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    learner_language_disabled.return_value = True
+    mocker.patch(f"{MODULE}.get_language", return_value=learner_language)
+    _patch_course_language(mocker, "es")
+    block = _make_video_block(mocker)
+    block.get_transcripts_for_student.side_effect = (
+        lambda _transcripts=None, dest_lang=None, **_: (
+            "url",
+            resolved_by_dest[dest_lang],
+            ALL_LANGUAGES,
+        )
+    )
+
+    _make_restrict_step(mocker).run_filter(block=block, context={})
+    _, _, result = block.get_transcripts_for_student(
+        transcripts={"sub": "", "transcripts": {}}, dest_lang="en"
+    )
+
+    assert result == expected
