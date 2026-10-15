@@ -2,6 +2,8 @@
 
 import logging
 
+import pytest
+
 from tests.fixtures import mock_user, request_factory  # noqa: F401
 
 
@@ -27,3 +29,12 @@ def pytest_configure(config):
         logging.disable(logging.CRITICAL)
     elif config.getoption("--error-log-only"):
         logging.disable(logging.WARNING)
+
+
+@pytest.fixture(autouse=True)
+def learner_language_disabled(mocker):
+    """Keep today's course-language behaviour unless a test turns it on."""
+    return mocker.patch(
+        "ol_openedx_auto_select_language.toggles.LEARNER_LANGUAGE.is_enabled",
+        return_value=False,
+    )
