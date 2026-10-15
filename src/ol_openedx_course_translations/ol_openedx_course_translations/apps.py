@@ -26,7 +26,7 @@ class OLOpenedXCourseTranslationsConfig(AppConfig):
             ProjectType.LMS: {
                 SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.lms"},
                 SettingsType.PRODUCTION: {
-                    PluginSettings.RELATIVE_PATH: "settings.production"
+                    PluginSettings.RELATIVE_PATH: "settings.lms_production"
                 },
             },
         },

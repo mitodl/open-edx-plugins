@@ -1,7 +1,7 @@
 """Models for course translations plugin"""
 
 from django.db import models
-from opaque_keys.edx.django.models import CourseKeyField
+from opaque_keys.edx.django.models import CourseKeyField, UsageKeyField
 
 
 class CourseTranslationLog(models.Model):
@@ -212,3 +212,47 @@ class TranslationBenchmarkScore(models.Model):
     def __str__(self):
         """Return a string representation of the score."""
         return f"{self.judge} on {self.candidate}"
+
+
+class BlockTranslation(models.Model):
+    """A translated value of one field of one course block, served in place."""
+
+    class Status(models.TextChoices):
+        """Review state; only auto and reviewed rows are shown to learners."""
+
+        AUTO = "auto", "Auto"
+        REVIEWED = "reviewed", "Reviewed"
+        STALE = "stale", "Stale"
+
+    course_key = CourseKeyField(max_length=255, db_index=True)
+    usage_key = UsageKeyField(max_length=255)
+    field = models.CharField(max_length=64)
+    language = models.CharField(
+        max_length=16,
+        help_text="Django language code, lowercase (e.g. 'fr', 'es-419')",
+    )
+    source_hash = models.CharField(
+        max_length=64,
+        help_text="sha256 of the source value this row was translated from",
+    )
+    translated_value = models.TextField()
+    status = models.CharField(
+        max_length=16, choices=Status.choices, default=Status.AUTO
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        """Meta options for BlockTranslation."""
+
+        app_label = "ol_openedx_course_translations"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["usage_key", "field", "language"],
+                name="unique_translation_per_block_field_language",
+            )
+        ]
+
+    def __str__(self):
+        """Return a string representation of the block translation."""
+        return f"{self.usage_key} {self.field} ({self.language})"

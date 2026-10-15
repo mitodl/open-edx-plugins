@@ -961,14 +961,14 @@ wheels = [
 
 [[package]]
 name = "djangorestframework"
-version = "3.18.3"
+version = "3.18.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/8d/b2/1cee76b188301f7d03169ca77fab2b3d3ec5d01b3469189f944af2d7f11a/djangorestframework-3.18.3.tar.gz", hash = "sha256:446a9b352e7eff630421ab3f2328bd2401b109a9470afa4a31189994911ed030", size = 923563, upload-time = "2026-10-06T21:33:51.521Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/2e/b3ce9d449b1ed9f9dd74fb7dfbc5f20860d5f40c2b4b10a2c3eabd8ff579/djangorestframework-3.18.1.tar.gz", hash = "sha256:605d79fa2ec2f02905492e5ea13d903c2d842d0b4c915a57f7bf02ab9f3c91dd", size = 915653, upload-time = "2026-09-07T18:04:08.288Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/dd/de5f4543765bec94e036a5e9593a42f8fa7efec8de78eb56b9ca834385f3/djangorestframework-3.18.3-py3-none-any.whl", hash = "sha256:8544bb674846731b1e3c9b309236ee1dc412905a0aa725be2ec193ca950a7d12", size = 903986, upload-time = "2026-10-06T21:33:49.917Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/83/5ed615e47339d8e65f62eb1a8133f8f046492eb3a25ad40d90acb9a208b3/djangorestframework-3.18.1-py3-none-any.whl", hash = "sha256:f1409d698967aaf82d5d98d76b549c8fba8bd92ebd0d83d24454508f72168dc2", size = 901373, upload-time = "2026-09-07T18:04:06.237Z" },
 ]
 
 [[package]]
@@ -1104,7 +1104,7 @@ wheels = [
 
 [[package]]
 name = "edx-organizations"
-version = "9.0.0"
+version = "9.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "django" },
@@ -1116,9 +1116,9 @@ dependencies = [
     { name = "pillow" },
     { name = "setuptools" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/12/e3/75a44d2e7af060a0af551b55b77e6b0b3462f84f7f5ed43c4d287825f401/edx_organizations-9.0.0.tar.gz", hash = "sha256:cc5c5a7f85cdbaa815bdb2b7a17ed9699c3bbb4b88ba404a0db9b23f373d3b1e", size = 43496, upload-time = "2026-08-10T20:16:44.01Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2d/6e/e1bc8be4d10c817b6420df0cf00053004d77d132ae73582f72adae5819e7/edx_organizations-9.1.0.tar.gz", hash = "sha256:fb37eb9eebf67c70865d867b8da9906e26474a0ed2ee8c5a4f026e90f70af50e", size = 40699, upload-time = "2026-10-29T19:47:00.244Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/98/ed4dd52dc59cd62995f41085d6cb329fa98cfdda612ca969d0c25c82d5fe/edx_organizations-9.0.0-py3-none-any.whl", hash = "sha256:6ac6038eb9afe4c6f12eaa0a82ba02dcdafe26245a97dd30701981d3b2e55317", size = 53188, upload-time = "2026-08-10T20:16:42.837Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/11/7022b8099d65bdbd2998140a856e12d6044b47e31f729b7291160135b905/edx_organizations-9.1.0-py3-none-any.whl", hash = "sha256:cebd220e67fecdece3eb16710b7a6c58302df33ab31307d8ba7d4dd011cbc092", size = 53213, upload-time = "2026-10-29T19:46:58.764Z" },
 ]
 
 [[package]]
@@ -2384,7 +2384,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-auto-select-language"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "src/ol_openedx_auto_select_language" }
 dependencies = [
     { name = "django" },
@@ -2587,7 +2587,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-translations"
-version = "0.12.3"
+version = "0.13.0"
 source = { editable = "src/ol_openedx_course_translations" }
 dependencies = [
     { name = "azure-identity" },
@@ -2622,7 +2622,7 @@ dependencies = [
     { name = "edx-django-utils" },
     { name = "edx-opaque-keys" },
     { name = "openedx-authz", version = "0.23.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "openedx-authz", version = "1.34.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "openedx-authz", version = "2.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "openedx-events", version = "10.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "openedx-events", version = "11.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "requests" },
@@ -2955,7 +2955,7 @@ wheels = [
 
 [[package]]
 name = "openedx-authz"
-version = "1.34.1"
+version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -2974,14 +2974,15 @@ dependencies = [
     { name = "edx-drf-extensions" },
     { name = "edx-opaque-keys" },
     { name = "edx-organizations" },
+    { name = "jsonschema" },
     { name = "openedx-atlas" },
     { name = "openedx-events", version = "11.2.0", source = { registry = "https://pypi.org/simple" } },
     { name = "openedx-filters" },
     { name = "pycasbin" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f1/b0/97c94ddac94d484632e53394f265c7f0b2c281b4c4d0630a5539b1454125/openedx_authz-1.34.1.tar.gz", hash = "sha256:3db8ece49fa916d3fab282a98d29809ddb6af4d28878d6f83644634231562768", size = 830700, upload-time = "2026-10-22T21:59:57.111Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/fe/c27067d42c10b1e92b90abcb5c616bccb2ba8651cf54231ef99a7f0777bc/openedx_authz-2.2.0.tar.gz", hash = "sha256:9d9c17d3fb0f9cdcd5fd9842194e187efe75e05edd2fa564a0cb2121318c88af", size = 874014, upload-time = "2026-10-28T17:39:47.443Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/03/7f/b83ef3302a967a1a4d0183622851d7c74e059f9caca640ff36277e6f1b1b/openedx_authz-1.34.1-py3-none-any.whl", hash = "sha256:2ca9bcaed021a76ec08466638e16355144df002a6e184b5814a93f2e721663d6", size = 213821, upload-time = "2026-10-22T21:59:55.463Z" },
+    { url = "https://files.pythonhosted.org/packages/50/9c/ec5d5912b0ef0104335e72cdcdb4fa8fe8d05ef705ee0e1942e450e29e78/openedx_authz-2.2.0-py3-none-any.whl", hash = "sha256:5fe21525761303713bce7f77c7f9be60ea2a70ec80ffd853d623d566f2fca621", size = 225687, upload-time = "2026-10-28T17:39:45.921Z" },
 ]
 
 [[package]]
@@ -4529,7 +4530,7 @@ wheels = [
 
 [[package]]
 name = "social-auth-core"
-version = "6.2.0"
+version = "5.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
@@ -4540,9 +4541,9 @@ dependencies = [
     { name = "requests" },
     { name = "requests-oauthlib" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/72/fc/c0545b9a6a8bed1fec5eb1195999b278f5345c7f1b09ef835b0886092ea0/social_auth_core-6.2.0.tar.gz", hash = "sha256:93daa49e5cb11e7ac06838690679fc6e2901d9add2ba8316651ee19aca26a340", size = 474536, upload-time = "2026-10-20T13:15:02.045Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/ba/354ef233c637e072867e891425692c758f9599ae5f58dea734e73d635208/social_auth_core-5.1.1.tar.gz", hash = "sha256:a1763474d8bb7300effc7a934bbae74a8eb24d9c968e0d50fcddc8a38cc13a39", size = 284317, upload-time = "2026-09-18T12:27:00.487Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0f/0c/413127509bc8fbe5dace05ebc09c692096f152ecde65210152b680d8ffd7/social_auth_core-6.2.0-py3-none-any.whl", hash = "sha256:385771345372b9e87b448fe23b1ca4909fcbb0b752d1206600ab3c18342cd321", size = 308148, upload-time = "2026-10-20T13:15:00.267Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/42/35618713f6d556ac9b5aaf4da1930c0778f24bad7a9497e9afaecaf23d61/social_auth_core-5.1.1-py3-none-any.whl", hash = "sha256:fa320931bcfdb0d65f9d01c46f9fbf0c273b72184712ccb9ecdef8de71c75a24", size = 482408, upload-time = "2026-09-18T12:26:58.994Z" },
 ]
 
 [[package]]

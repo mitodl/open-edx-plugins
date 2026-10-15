@@ -6,6 +6,7 @@ from ol_openedx_auto_select_language.views import (
     CourseLanguageAnonRateThrottle,
     CourseLanguageUserRateThrottle,
     CourseLanguageView,
+    ReleasedLanguagesView,
 )
 from opaque_keys import InvalidKeyError
 from rest_framework import status
@@ -144,3 +145,32 @@ def test_returns_error_responses(
 
     assert response.status_code == scenario["expected_status"]
     assert response.data == scenario["expected_data"]
+
+
+def test_course_language_echoes_cookie_when_learner_language_wins(
+    request_factory, mock_user, mocker, learner_language_disabled
+):
+    """The Footer compares this with the cookie, so it must not switch."""
+    learner_language_disabled.return_value = True
+    mocker.patch(f"{MODULE}.CourseOverview").get_from_id.return_value.language = "es"
+    mocker.patch(f"{MODULE}.lang_pref_helpers.get_language_cookie", return_value="fr")
+    request = request_factory.get("/")
+    request.user = mock_user
+
+    response = CourseLanguageView().get(request, course_key_string="course-v1:a+b+c")
+
+    assert response.data == {"language": "fr"}
+
+
+def test_released_languages(request_factory, mocker):
+    """The dropdown gets the DarkLang released languages."""
+    language = mocker.Mock(code="fr", name="Français")
+    language.name = "Français"
+    mocker.patch(f"{MODULE}.released_languages", return_value=[language])
+
+    response = ReleasedLanguagesView().get(request_factory.get("/"))
+
+    assert response.data == {
+        "enabled": False,
+        "languages": [{"code": "fr", "name": "Français"}],
+    }
