@@ -37,6 +37,27 @@ class Command(BaseCommand):
             help="List what would be sent without queueing anything.",
         )
 
+    @staticmethod
+    def _parse_course_ids(course_ids):
+        """
+        Turn --course-id values into course keys, rejecting bad ones up front.
+
+        Without this the queryset raises InvalidKeyError the first time it is
+        evaluated, which reaches the operator as a traceback rather than as a
+        message about the argument they mistyped.
+        """
+        from opaque_keys import InvalidKeyError  # noqa: PLC0415
+        from opaque_keys.edx.keys import CourseKey  # noqa: PLC0415
+
+        parsed = []
+        for course_id in course_ids or []:
+            try:
+                parsed.append(CourseKey.from_string(course_id))
+            except InvalidKeyError:
+                msg = f"Not a course key: {course_id}"
+                raise CommandError(msg) from None
+        return parsed
+
     def handle(self, *_args, **options):
         from common.djangoapps.student.models import (  # noqa: PLC0415
             CourseAccessRole,
@@ -64,11 +85,16 @@ class Command(BaseCommand):
             msg = "ENROLLMENT_COURSE_ACCESS_ROLES is empty, so no role would be sent."
             raise CommandError(msg)
 
-        roles = CourseAccessRole.objects.filter(role__in=allowed_roles).select_related(
-            "user"
-        )
-        if options["course_ids"]:
-            roles = roles.filter(course_id__in=options["course_ids"])
+        course_ids = self._parse_course_ids(options["course_ids"])
+
+        # is_active mirrors the live path: RoleBase.add_users only writes a row
+        # for an active user, so a deactivated or retired account with a
+        # leftover role row is not something the webhook would ever have seen.
+        roles = CourseAccessRole.objects.filter(
+            role__in=allowed_roles, user__is_active=True
+        ).select_related("user")
+        if course_ids:
+            roles = roles.filter(course_id__in=course_ids)
 
         dry_run = options["dry_run"]
         sent = skipped_org_wide = skipped_no_email = 0

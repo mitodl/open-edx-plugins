@@ -1,5 +1,6 @@
 """Tests for the course access role webhook Celery task."""
 
+import logging
 from unittest import mock
 
 import pytest
@@ -88,24 +89,34 @@ def test_raises_on_http_error(mock_post):
     ENROLLMENT_WEBHOOK_ACCESS_TOKEN=TEST_TOKEN,
 )
 @mock.patch("ol_openedx_events_handler.tasks.requests.post")
-def test_does_not_retry_on_client_error(mock_post, status_code):
+def test_does_not_retry_on_client_error(mock_post, status_code, caplog):
     """
     A 4xx is logged and dropped rather than retried.
 
     Resending it unchanged can never succeed, and the two retries are better
     spent on a webhook that might still land.
+
+    The log line is asserted because it is the only signal that a role was
+    dropped: the task returns normally, so Celery records it as succeeded.
     """
     mock_response = mock.MagicMock()
     mock_response.status_code = status_code
+    mock_response.text = "rejected"
     mock_post.return_value = mock_response
 
-    notify_course_access_role_addition(
-        user_email=USER_EMAIL,
-        course_key=COURSE_KEY,
-        role=ROLE,
-    )
+    with caplog.at_level(logging.ERROR, logger="ol_openedx_events_handler.tasks"):
+        notify_course_access_role_addition(
+            user_email=USER_EMAIL,
+            course_key=COURSE_KEY,
+            role=ROLE,
+        )
 
     mock_response.raise_for_status.assert_not_called()
+    assert USER_EMAIL in caplog.text
+    assert COURSE_KEY in caplog.text
+    assert "Not retrying" in caplog.text
+    # The recovery is named, so the line is actionable on its own.
+    assert "sync_course_access_roles" in caplog.text
 
 
 @pytest.mark.parametrize(

@@ -115,13 +115,17 @@ def notify_course_access_role_addition(user_email, course_key, role):
         log.error(
             "Course access role webhook rejected for user '%s' in course '%s' "
             "(role: %s). Response status: %s, body: %s. Not retrying, because "
-            "the request cannot succeed unchanged; this role stays unrecorded "
-            "until the external system reconciles it or the backfill is re-run.",
+            "resending it unchanged cannot succeed. Nothing reconciles this on "
+            "its own, so the role stays unrecorded until someone re-runs "
+            "./manage.py lms sync_course_access_roles --course-id %s. A 404 "
+            "here usually means the run does not exist in the consumer yet, "
+            "which is expected for a run just created in Studio.",
             user_email,
             course_key,
             role,
             response.status_code,
             response.text,
+            course_key,
         )
         return
 

@@ -247,3 +247,37 @@ def test_pages_through_roles_beyond_one_batch(mock_task):
     assert f"Queued {total} role(s)" in output
     emailed = sorted(c.kwargs["user_email"] for c in mock_task.delay.call_args_list)
     assert emailed == sorted(f"paged{n}@example.com" for n in range(total))
+
+
+@pytest.mark.django_db
+@mock.patch(TASK_PATH)
+def test_rejects_a_malformed_course_id(mock_task):
+    """A bad --course-id is reported as an argument error, not a traceback."""
+    with override_settings(**WEBHOOK_SETTINGS), pytest.raises(CommandError) as err:
+        _run("--course-id", "not-a-key")
+
+    assert "not-a-key" in str(err.value)
+    mock_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@mock.patch(TASK_PATH)
+def test_skips_roles_held_by_inactive_users(mock_task):
+    """
+    A deactivated account's leftover role row is not sent.
+
+    RoleBase.add_users only writes a row for an active user, so the live
+    webhook would never have seen these; the backfill should match.
+    """
+    from django.contrib.auth import get_user_model  # noqa: PLC0415
+
+    _make_role("active@example.com", "staff", COURSE, username="still-active")
+    inactive = _make_role("gone@example.com", "staff", COURSE, username="deactivated")
+    get_user_model().objects.filter(pk=inactive.user_id).update(is_active=False)
+
+    with override_settings(**WEBHOOK_SETTINGS):
+        output = _run()
+
+    assert mock_task.delay.call_count == 1
+    assert mock_task.delay.call_args.kwargs["user_email"] == "active@example.com"
+    assert "gone@example.com" not in output

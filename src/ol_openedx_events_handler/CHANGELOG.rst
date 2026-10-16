@@ -20,6 +20,14 @@ Version 0.5.0 (2026-10-01)
 * The course access role webhook task no longer retries on ``4xx`` responses,
   except the transient ``408`` and ``429`` — matching the enrollment webhook
   task, which both now share one predicate so they cannot drift apart.
+* ``sync_course_access_roles`` skips roles held by inactive users, matching
+  ``RoleBase.add_users``, and rejects a malformed ``--course-id`` with a
+  ``CommandError`` instead of letting ``InvalidKeyError`` reach the operator.
+* The dropped-role log line names ``sync_course_access_roles --course-id`` as
+  the recovery, and the README covers two cases a backfill cannot reach: roles
+  granted while ``authz.enable_course_authoring`` is on, which write no
+  ``CourseAccessRole`` row, and roles granted in Studio before the consumer has
+  the run.
 * ``sync_course_access_roles`` pages through roles by primary key instead of
   using ``.iterator()``. Celery closes the database connection when a task
   finishes, so on a deployment that runs tasks eagerly that happened inside the
