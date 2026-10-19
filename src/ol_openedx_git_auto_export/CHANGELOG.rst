@@ -1,6 +1,16 @@
 Change Log
 ==========
 
+Version 0.10.0 (2026-10-12)
+----------------------------
+
+* Added the ``export_to_git`` management command and an ``Export
+  selected content to git`` admin action on ``ContentGitRepository``, to queue
+  exports on demand when a publish-triggered export failed. The command takes
+  ``--content-keys`` or ``--all``, supports ``--dry-run``, reports keys it
+  queued, skipped, or failed to queue, and exits non-zero if any key errored or
+  a key named with ``--content-keys`` was skipped.
+
 Version 0.9.1 (2026-09-22)
 ---------------------------
 

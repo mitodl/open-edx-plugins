@@ -77,6 +77,28 @@ To make auto language selection work with Micro-Frontends (MFEs), you need to us
 
 **Note:** The custom Footer is required because MFEs run as separate applications and need their own mechanism to detect and respond to course language settings. The environment variable must be set in each MFE's configuration for the feature to work properly.
 
+Video Transcript Languages
+==========================
+
+When ``ENABLE_AUTO_LANGUAGE_SELECTION`` is true, the LMS video player offers
+only the course-language transcript; its language menu is not rendered.
+
+This is implemented as a ``VerticalBlockChildRenderStarted`` pipeline step
+(``org.openedx.learning.vertical_block_child.render.started.v1``) that narrows
+the language list each video block hands to the player. Transcript downloads,
+the ``available_translations`` handler, the mobile ``student_view_data``
+payload and Studio are unaffected, so course teams continue to manage every
+uploaded language.
+
+The course language is read from the course, not from the transcript the
+player resolved. If a video has no transcript in the course language, the
+player keeps its full language menu rather than being pinned to whichever
+transcript the platform happened to fall back to.
+
+Videos rendered outside a vertical -- a direct ``render_xblock`` on a video
+usage key, or the public video sharing page -- are not covered, because the
+filter only fires for children of a vertical block.
+
 License
 *******
 

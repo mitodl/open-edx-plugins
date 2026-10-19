@@ -3,13 +3,18 @@ Tests for the course content versions endpoint.
 """
 
 from http import HTTPStatus
+from unittest.mock import patch
 
 from common.djangoapps.split_modulestore_django.models import (
     SplitModulestoreCourseIndex,
 )
 from common.djangoapps.student.tests.factories import UserFactory
 from django.core.files.base import ContentFile
-from edxval.api import create_or_update_video_transcript, create_video
+from edxval.api import (
+    create_external_video,
+    create_or_update_video_transcript,
+    create_video,
+)
 from freezegun import freeze_time
 from ol_openedx_course_export.views import MAX_COURSES_PER_VERSIONS_REQUEST
 from rest_framework.test import APIClient
@@ -54,6 +59,15 @@ class CourseContentVersionsViewTests(ModuleStoreTestCase):
             language,
             metadata={"provider": "Custom", "file_format": "srt"},
             file_data=ContentFile(data),
+        )
+
+    def _add_video_block(self, video_id, *, publish=True):
+        return BlockFactory.create(
+            parent_location=self.course.location,
+            category="video",
+            edx_video_id=video_id,
+            publish_item=publish,
+            user_id=self.user.id,
         )
 
     def test_reports_the_course_index_published_version(self):
@@ -113,6 +127,7 @@ class CourseContentVersionsViewTests(ModuleStoreTestCase):
                 "courses": [self.course_id],
             }
         )
+        self._add_video_block("video-1")
         with freeze_time("2026-09-01T12:00:00Z"):
             self._add_transcript(
                 "video-1", "en", b"1\n00:00:00,000 --> 00:00:01,000\nhi\n"
@@ -130,6 +145,49 @@ class CourseContentVersionsViewTests(ModuleStoreTestCase):
         assert before["transcripts"]["count"] == 2  # noqa: PLR2004
         assert after["transcripts"]["count"] == 2  # noqa: PLR2004
         assert after["transcripts"]["latest_modified"].startswith("2026-09-05T12:00:00")
+
+    def test_transcripts_of_a_video_linked_to_no_course_are_counted(self):
+        """An external video has no VAL course link; its block still names it."""
+        video_id = create_external_video(display_name="external video")
+        self._add_video_block(video_id)
+        before = self._versions(self.course_id)["versions"][self.course_id]
+
+        with freeze_time("2026-09-03T12:00:00Z"):
+            self._add_transcript(
+                video_id, "ja", b"1\n00:00:00,000 --> 00:00:01,000\nkonnichiwa\n"
+            )
+        after = self._versions(self.course_id)["versions"][self.course_id]
+
+        assert before["transcripts"] == {"count": 0, "latest_modified": None}
+        assert after["transcripts"]["count"] == 1
+        assert after["transcripts"]["latest_modified"].startswith("2026-09-03T12:00:00")
+        assert after["published_version"] == before["published_version"]
+
+    def test_a_large_batch_of_videos_is_queried_in_chunks(self):
+        """Videos beyond one query's worth are still counted."""
+        video_ids = [
+            create_external_video(display_name="external video") for _ in range(3)
+        ]
+        for video_id in video_ids:
+            self._add_video_block(video_id)
+            self._add_transcript(
+                video_id, "en", b"1\n00:00:00,000 --> 00:00:01,000\nhi\n"
+            )
+
+        with patch("ol_openedx_course_export.content_versions.VIDEO_IDS_PER_QUERY", 2):
+            version = self._versions(self.course_id)["versions"][self.course_id]
+
+        assert version["transcripts"]["count"] == len(video_ids)
+
+    def test_transcripts_of_an_unpublished_video_block_are_not_counted(self):
+        """A draft-only video counts once published, like other draft content."""
+        video_id = create_external_video(display_name="external video")
+        self._add_transcript(video_id, "en", b"1\n00:00:00,000 --> 00:00:01,000\nhi\n")
+        self._add_video_block(video_id, publish=False)
+
+        version = self._versions(self.course_id)["versions"][self.course_id]
+
+        assert version["transcripts"] == {"count": 0, "latest_modified": None}
 
     def test_unknown_and_unparseable_ids_are_missing_not_fatal(self):
         """Ids with no course are listed as missing; the rest are still reported."""
