@@ -459,3 +459,21 @@ def test_learner_language_wins(  # noqa: PLR0913, PLR0917
     )
 
     assert result == expected
+
+
+def test_learner_language_without_course_language(
+    mocker, settings, learner_language_disabled
+):
+    """A course with no language set still follows the learner's language."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    learner_language_disabled.return_value = True
+    mocker.patch(f"{MODULE}.get_language", return_value="fr")
+    _patch_course_language(mocker, None)
+    block = _make_video_block(mocker, language="fr")
+
+    _make_restrict_step(mocker).run_filter(block=block, context={})
+    _, _, result = block.get_transcripts_for_student(
+        transcripts={"sub": "", "transcripts": {}}, dest_lang="en"
+    )
+
+    assert result == {"fr": "Français"}
