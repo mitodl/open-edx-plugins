@@ -12,10 +12,11 @@ from django.db import connection
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 
-from ol_openedx_course_translations.api import (
+from ol_openedx_course_translations.api import source_hash
+from ol_openedx_course_translations.blocks import (
     TRANSLATABLE_BLOCK_FIELDS,
-    restore_graded_parts,
-    source_hash,
+    restore_kept_parts,
+    serialize,
 )
 from ol_openedx_course_translations.models import BlockTranslation, CourseTranslationLog
 
@@ -26,8 +27,8 @@ def build_rows(source_blocks, get_target_block, language, translated_at):
 
     A source block edited after ``translated_at`` may have changed since the
     target was made, so its rows are stored as stale for a person to check.
-    Problem XML keeps every graded part from the source, and is skipped when
-    the two documents cannot be matched up.
+    Answers, grading code, ids and keys are copied back from the source, and a
+    field is skipped when the two values cannot be matched up.
     """
     rows = []
     for block in source_blocks:
@@ -44,14 +45,15 @@ def build_rows(source_blocks, get_target_block, language, translated_at):
         for field in TRANSLATABLE_BLOCK_FIELDS[location.block_type]:
             source_value = getattr(block, field, None)
             translated_value = getattr(target, field, None)
+            # Compared before restoring: re-serialising XML or JSON changes its
+            # text even when nothing was translated.
             if not translated_value or translated_value == source_value:
                 continue
-            # Compared before restoring: re-serialising the XML changes its text
-            # even when nothing was translated.
-            if (location.block_type, field) == ("problem", "data"):
-                translated_value = restore_graded_parts(source_value, translated_value)
-                if not translated_value:
-                    continue
+            translated_value = restore_kept_parts(
+                location.block_type, field, source_value, serialize(translated_value)
+            )
+            if translated_value is None:
+                continue
             rows.append(
                 BlockTranslation(
                     course_key=location.course_key,
@@ -59,7 +61,7 @@ def build_rows(source_blocks, get_target_block, language, translated_at):
                     field=field,
                     language=language,
                     source_hash=source_hash(source_value),
-                    translated_value=translated_value,
+                    translated_value=serialize(translated_value),
                     status=status,
                 )
             )

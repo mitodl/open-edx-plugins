@@ -15,7 +15,10 @@ from openedx.core.djangoapps.lang_pref import helpers as lang_pref_helpers
 from openedx.core.djangoapps.user_api.preferences.api import set_user_preference
 
 from ol_openedx_auto_select_language.constants import ENGLISH_LANGUAGE_CODE
-from ol_openedx_auto_select_language.toggles import learner_language_enabled
+from ol_openedx_auto_select_language.toggles import (
+    course_key_from_path,
+    learner_language_enabled,
+)
 from ol_openedx_auto_select_language.utils import LanguageCode
 
 
@@ -30,7 +33,9 @@ def should_process_request(request):
         settings.ENABLE_AUTO_LANGUAGE_SELECTION
         and hasattr(request, "user")
         and request.user.is_authenticated
-        and not learner_language_enabled()
+        and not learner_language_enabled(
+            course_key_from_path(getattr(request, "path_info", request.path))
+        )
     )
 
 
