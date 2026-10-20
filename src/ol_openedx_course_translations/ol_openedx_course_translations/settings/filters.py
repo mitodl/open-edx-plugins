@@ -5,6 +5,9 @@
 Called from both the common and production LMS settings, because
 ``lms/envs/production.py`` replaces ``OPEN_EDX_FILTERS_CONFIG`` wholesale from
 the deployment YAML and drops entries added by common settings.
+
+Steps fail silently: on an error the platform logs it and the learner sees the
+source text, rather than a broken page.
 """
 
 TRANSLATION_PIPELINE_STEPS = {
@@ -31,7 +34,7 @@ def register_translate_content_filter(settings):
     filters_config = getattr(settings, "OPEN_EDX_FILTERS_CONFIG", {}) or {}
     for filter_type, step in TRANSLATION_PIPELINE_STEPS.items():
         filter_entry = filters_config.setdefault(
-            filter_type, {"fail_silently": False, "pipeline": []}
+            filter_type, {"fail_silently": True, "pipeline": []}
         )
         filter_entry.setdefault("pipeline", [])
         if step not in filter_entry["pipeline"]:

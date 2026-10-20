@@ -3,7 +3,7 @@
 import re
 
 from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import CourseKey
+from opaque_keys.edx.keys import CourseKey, UsageKey
 from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
 
 # .. toggle_name: ol_openedx_auto_select_language.learner_language
@@ -20,7 +20,8 @@ LEARNER_LANGUAGE = CourseWaffleFlag(
 
 
 # Only new-style keys: the generic course key regex also matches paths like /a/b/c.
-COURSE_KEY_IN_PATH = re.compile(r"course-v1:[^/+]+\+[^/+]+\+[^/?]+")
+# Unit, sequence and Studio container URLs carry a usage key instead.
+COURSE_KEY_IN_PATH = re.compile(r"(course|block)-v1:[^/?]+")
 
 
 def course_key_from_path(path):
@@ -28,8 +29,11 @@ def course_key_from_path(path):
     match = COURSE_KEY_IN_PATH.search(path or "")
     if not match:
         return None
+    key = match.group(0)
     try:
-        return CourseKey.from_string(match.group(0))
+        if key.startswith("block-v1:"):
+            return UsageKey.from_string(key).course_key
+        return CourseKey.from_string(key)
     except InvalidKeyError:
         return None
 
