@@ -7,6 +7,7 @@ by id or key are translated, since the saved answer does not change.
 """
 
 import copy
+import hashlib
 import json
 
 from lxml import etree
@@ -174,6 +175,11 @@ CAPA_KEEP_SUBTREES = {
 }
 # Only the element's own text kept: dropdown options are saved as their text.
 CAPA_KEEP_TEXT = {"additional_answer", "option"}
+
+
+def source_hash(value):
+    """Return the fingerprint a translation row is checked against."""
+    return hashlib.sha256(serialize(value).encode()).hexdigest()
 
 
 def serialize(value):

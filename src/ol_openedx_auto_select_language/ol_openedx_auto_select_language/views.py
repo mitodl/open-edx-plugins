@@ -18,6 +18,7 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 from ol_openedx_auto_select_language.toggles import learner_language_enabled
+from ol_openedx_auto_select_language.translations import course_language_codes
 from ol_openedx_auto_select_language.utils import LanguageCode
 
 log = logging.getLogger(__name__)
@@ -109,7 +110,9 @@ class ReleasedLanguagesView(APIView):
 
     ``enabled`` mirrors the learner-language flag for ``course_id`` (or its
     global value without one), so frontends show the dropdown and stop forcing
-    a language only when the flag is on.
+    a language only when the flag is on. With a ``course_id``, ``languages`` is
+    limited to the course's own language, the languages it has translations
+    for, and the learner's current language (so the dropdown can show it).
 
     Sample Request:
         GET /auto-select-language/api/languages/?course_id={course_key}
@@ -134,12 +137,16 @@ class ReleasedLanguagesView(APIView):
             course_key = CourseKey.from_string(request.GET["course_id"])
         except (KeyError, InvalidKeyError):
             course_key = None
+        languages = released_languages()
+        if course_key:
+            codes = course_language_codes(course_key) | {get_language()}
+            languages = [language for language in languages if language.code in codes]
         return Response(
             {
                 "enabled": learner_language_enabled(course_key),
                 "languages": [
                     {"code": language.code, "name": language.name}
-                    for language in released_languages()
+                    for language in languages
                 ],
             }
         )
