@@ -1,0 +1,215 @@
+{% load i18n %}
+
+<div class="sga-block" data-state="{{ student_state }}"
+     data-max-size="{{ max_file_size }}" data-support-email="{{ support_email }}"
+     data-staff="{{ is_course_staff }}">
+  <script type="text/template" id="sga-tmpl">
+    <% if (display_name) { %>
+      <p>
+        <b><%= display_name %></b>
+      </p>
+    <% } %>
+    <% if (upload_allowed) { %>
+      <p class="upload">
+        <label>
+          <% if (uploaded) { %>
+            {% trans "Upload a different file" %}
+          <% } else { %>
+            {% trans "Upload your assignment" %}
+          <% } %>
+          <input class="fileupload" type="file" name="assignment" />
+        </label>
+      </p>
+    <% } %>
+    <% if (uploaded) { %>
+      <div class="sequential-status-message">
+        <p>
+          <b>{% trans "File uploaded" %}</b>
+          <a href="<%= downloadUrl %>"><%= uploaded.filename %></a>
+        </p>
+        <p>
+          <% if (graded) { %>
+            {% blocktrans with score="<%= graded.score %>"|safe max_score="<%= max_score %>"|safe %}Your score is {{ score }} / {{ max_score }}{% endblocktrans %}<br/>
+            <% if (graded.comment) { %>
+              <b>{% trans "Instructor comment" %}</b> <%= graded.comment %><br/>
+            <% } %>
+            <% if (annotated) { %>
+              <b>{% trans "Annotated file from instructor" %}</b>
+              <a href="<%= annotatedUrl %>"><%= annotated.filename %></a><br/>
+            <% } %>
+          <% } else if (uploaded) { %>
+            {% trans "This assignment has not yet been graded." %}
+          <% } %>
+        </p>
+        <% if (upload_allowed) { %>
+          <p>
+            <a class="button finalize-upload">{% trans "Submit" %}</a>
+          </p>
+        <% } %>
+      </div>
+    <% } %>
+    <% if (solution) { %>
+      <div class="solution">
+        <%= solution %>
+      </div>
+    <% } %>
+    <% if (error) { %>
+      <p class="error" tabindex="-1" aria-live="polite"><%= error %></p>
+    <% } %>
+  </script>
+
+  <div id="sga-content">
+  </div>
+
+  {% if is_course_staff %}
+  <script type="text/template" id="sga-grading-tmpl">
+    <table class="gridtable tablesorter" id="submissions">
+      <thead>
+      <tr>
+        <th class="header">{% trans "Username" %} <i class="icon fa fa-sort"/></th>
+        <th class="header">{% trans "Name" %} <i class="icon fa fa-sort"/></th>
+        <th class="header">{% trans "Filename" %} <i class="icon fa fa-sort"/></th>
+        <th class="header">{% trans "Uploaded" %} <i class="icon fa fa-sort"/></th>
+        <th class="header">{% trans "Submitted" %} <i class="icon fa fa-sort"/></th>
+        <th class="header">{% trans "Grade" %} <i class="icon fa fa-sort"/></th>
+        <th class="header">{% trans "Instructor's comments" %} <i class="icon fa fa-sort"/></th>
+        <th class="header">{% trans "Annotated" %} <i class="icon fa fa-sort"/></th>
+        <th class="header" colspan="2">{% trans "Actions" %}</th>
+      </tr>
+      </thead>
+      <tbody>
+      <% for (var i = 0; i < assignments.length; i++) { %>
+      <%     var assignment = assignments[i]; %>
+        <tr id="row-<%= assignment.module_id %>"<% if (!assignment.finalized) { %> class="not-finalized"<% } %>>
+          <td><%= assignment.username %></td>
+          <td><%= assignment.fullname %></td>
+          <td>
+            <% if (assignment.filename) { %>
+              <a href="<%= downloadUrl %>?student_id=<%= assignment.student_id %>">
+                <%= assignment.filename %>
+              </a>
+            <% } %>
+          </td>
+          <td><%= assignment.timestamp %></td>
+          <td>
+            <% if (assignment.finalized) { %>
+              {% trans "Yes" %}
+            <% } else { %>
+              {% trans "No" %}
+            <% } %>
+          </td>
+          <td>
+            <% if (assignment.score !== null) { %>
+              <%= assignment.score %> /
+              <%= max_score %>
+              <% if (! assignment.approved) { %>
+                ({% trans "Awaiting instructor approval" %})
+              <% } %>
+            <% } %>
+          </td>
+          <td><%= assignment.comment %></td>
+          <td>
+            <% if (assignment.annotated && assignment.annotated != "None") { %>
+              <a href="<%= annotatedUrl %>?module_id=<%= assignment.module_id %>">
+                <%= assignment.annotated %>
+              </a>
+            <% } %>
+          </td>
+          <td>
+            <% if (assignment.may_grade) { %>
+              <a class="enter-grade-button button" href="#enter-grade-{{ id }}">
+                <% if (assignment.needs_approval) { %>
+                  {% trans "Approve grade" %}
+                <% } else { %>
+                  {% trans "Enter grade" %}
+                <% } %>
+              </a>
+           <% } %>
+          </td>
+          <td>
+            <div class="upload">
+              <label>{% trans "Upload annotated file" %}
+                <input class="fileupload" type="file" name="annotated"/>
+              </label>
+            </div>
+          </td>
+        </tr>
+      <% } %>
+      </tbody>
+    </table>
+  </script>
+
+  <div aria-hidden="true" class="wrap-instructor-info">
+    <a class="instructor-info-action" id="grade-submissions-button"
+       href="#grade-{{ id }}">{% trans "Grade Submissions" %}</a>
+  </div>
+
+  <section aria-hidden="true" class="modal staff-modal grade-submission" id="grade-{{ id }}" style="height: 75%" tabindex="-1">
+    <div class="inner-wrapper" style="color: black; overflow: auto;">
+      <header><h2><span class="display_name">{{ display_name }}</span> - {% trans "Staff Graded Assignment" %}</h2></header>
+      <br/>
+      <div>
+        <a class="instructor-info-action button btn-download-all" href="#" id="download-init-button">{% trans "Download All Submissions" %}</a>
+      </div>
+      <p class="task-message"></p>
+      <div id="grade-info" style="display: block;">
+        {% trans "Loading..." %}
+      </div>
+    </div>
+  </section>
+
+  <section aria-hidden="true" class="modal staff-modal"
+           style="height: 80%" id="debug-{{ id }}" tabindex="-1">
+    <div class="inner-wrapper" style="color: black">
+      <header><h2>{% trans "Staff Debug" %}</h2></header>
+      <br/>
+      <div class="staff_info" style="display: block; white-space: normal">
+        {% trans "is_released" %} = {{ is_released }}<br/>
+        {% trans "location" %} = {{ location }}<br/>
+        <br/>
+        <table summary="${_('Module Fields')}">
+          <tr><th>{% trans "Module Fields" %}</th></tr>
+          {% for name, field in fields %}
+          <tr>
+            <td>{{name}}</td>
+            <td>
+              <pre style="display:inline-block; margin: 0;">{{field}}</pre>
+            </td>
+          </tr>
+          {% endfor %}
+        </table><br/>
+        {% trans "category" %} = {{category}}
+      </div>
+    </div>
+  </section>
+
+  <section aria-hidden="true" class="modal grade-modal" id="enter-grade-{{ id }}" tabindex="-1">
+    <div class="inner-wrapper" style="color: black">
+      <header><h2>
+        {% trans "Enter Grade" %}
+      </h2></header>
+      <br/>
+      <div style="display: block;">
+        <form id="enter-grade-form">
+          <input id="module_id-input" type="hidden" name="module_id"/>
+          <input id="submission_id-input" type="hidden" name="submission_id"/>
+          <div>{% blocktrans with student_name='<span id="student-name"></span>'|safe %}Grade for {{ student_name }}{% endblocktrans %}</div>
+          <div>{% trans "Grade:" %} <input id="grade-input" name="grade"/>
+            <span class="error"></span></div>
+          <div>{% trans "Comment:" %} <textarea id="comment-input" name="comment" rows="4"></textarea></div>
+          <div>
+            <button type="submit">{% trans "Submit" %}</button>
+            <button type="button" id="enter-grade-cancel">
+              {% trans "Cancel" %}
+            </button>
+            <button type="button" id="remove-grade">
+              {% trans "Remove grade" %}
+            </button>
+            <i class="fa fa-spinner fa-pulse ccx-enter-grade-spinner"></i>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+</div>

@@ -1,0 +1,21 @@
+*.pyc
+.*.swp
+*.egg-info
+.coverage
+coverage.xml
+dist/
+.tox/
+.idea/
+.cache/
+build/
+
+### Internationalization artifacts
+*.mo
+*.po
+*.prob
+*.dup
+!django.po
+!django.mo
+!djangojs.po
+!djangojs.mo
+
