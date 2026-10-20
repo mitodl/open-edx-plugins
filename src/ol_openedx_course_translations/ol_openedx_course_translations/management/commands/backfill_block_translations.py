@@ -8,6 +8,7 @@ source block is the block with the same id in the target course.
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from django.db import connection
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 
@@ -43,10 +44,14 @@ def build_rows(source_blocks, get_target_block, language, translated_at):
         for field in TRANSLATABLE_BLOCK_FIELDS[location.block_type]:
             source_value = getattr(block, field, None)
             translated_value = getattr(target, field, None)
-            if translated_value and (location.block_type, field) == ("problem", "data"):
-                translated_value = restore_graded_parts(source_value, translated_value)
             if not translated_value or translated_value == source_value:
                 continue
+            # Compared before restoring: re-serialising the XML changes its text
+            # even when nothing was translated.
+            if (location.block_type, field) == ("problem", "data"):
+                translated_value = restore_graded_parts(source_value, translated_value)
+                if not translated_value:
+                    continue
             rows.append(
                 BlockTranslation(
                     course_key=location.course_key,
@@ -75,10 +80,16 @@ def save_rows(rows):
     rows = [
         row for row in rows if (row.usage_key, row.field, row.language) not in reviewed
     ]
+    # MySQL upserts on any unique key and rejects naming the conflict target.
+    unique_fields = (
+        ["usage_key", "field", "language"]
+        if connection.features.supports_update_conflicts_with_target
+        else None
+    )
     BlockTranslation.objects.bulk_create(
         rows,
         update_conflicts=True,
-        unique_fields=["usage_key", "field", "language"],
+        unique_fields=unique_fields,
         update_fields=["source_hash", "translated_value", "status", "updated_at"],
     )
     return len(rows)
