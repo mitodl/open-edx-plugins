@@ -174,3 +174,27 @@ def test_released_languages(request_factory, mocker):
         "enabled": False,
         "languages": [{"code": "fr", "name": "Français"}],
     }
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ({}, ["en", "fr", "hi"]),
+        ({"course_id": "course-v1:MITx+T101+2026"}, ["en", "fr"]),
+    ],
+    ids=["no_course_all_released", "course_own_and_translated_only"],
+)
+def test_released_languages_for_course(request_factory, mocker, query, expected):
+    """In a course, only its own, translated and current languages are listed."""
+    languages = []
+    for code in ("en", "fr", "hi"):
+        language = mocker.Mock(code=code)
+        language.name = code
+        languages.append(language)
+    mocker.patch(f"{MODULE}.released_languages", return_value=languages)
+    mocker.patch(f"{MODULE}.course_language_codes", return_value={"en", "fr"})
+    mocker.patch(f"{MODULE}.get_language", return_value="en")
+
+    response = ReleasedLanguagesView().get(request_factory.get("/", query))
+
+    assert [language["code"] for language in response.data["languages"]] == expected

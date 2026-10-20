@@ -6,7 +6,7 @@ from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
 from openedx_filters import PipelineStep
 
-from ol_openedx_course_translations.api import (
+from ol_openedx_auto_select_language.translations import (
     course_translations,
     translate_block,
     translated_text,
