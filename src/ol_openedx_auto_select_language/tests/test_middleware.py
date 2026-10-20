@@ -405,3 +405,24 @@ def test_learner_language_skips_all_switching(
     request.user = mock_user
 
     assert should_process_request(request) is False
+
+
+@pytest.mark.parametrize(
+    ("path", "expected_key"),
+    [
+        ("/courses/course-v1:MITx+T101+2026/instructor", "course-v1:MITx+T101+2026"),
+        ("/admin/waffle/flag/", None),
+    ],
+)
+def test_learner_language_flag_checked_for_path_course(  # noqa: PLR0913, PLR0917
+    request_factory, mock_user, settings, learner_language_disabled, path, expected_key
+):
+    """The flag is checked for the course in the path, or globally without one."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    request = request_factory.get(path)
+    request.user = mock_user
+
+    should_process_request(request)
+
+    (course_key,), _ = learner_language_disabled.call_args
+    assert (str(course_key) if course_key else None) == expected_key

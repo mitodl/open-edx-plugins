@@ -125,7 +125,10 @@ class RestrictVideoTranscriptLanguages(PipelineStep):
 
         course_language = _course_language(block)
         preferred = [course_language] if course_language else []
-        if learner_language_enabled() and get_language():
+        if (
+            learner_language_enabled(block.scope_ids.usage_id.course_key)
+            and get_language()
+        ):
             preferred.insert(0, get_language())
         if not preferred:
             return {"block": block, "context": context}
