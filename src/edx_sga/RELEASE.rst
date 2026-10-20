@@ -10,108 +10,108 @@ Version 0.30.0
 - chore: tests no longer ship inside the package
 
 Version 0.29.0 (Released June 19, 2026)
---------------
+---------------------------------------
 
 - chore: remove web-fragments as a dependency (#383)
 
 Version 0.28.0 (Released April 17, 2026)
---------------
+----------------------------------------
 
 - fix: python 3.12 compatibility (#380)
 
 Version 0.27.1 (Released April 09, 2026)
---------------
+----------------------------------------
 
 - fix: check actual storage instance instead of removed DEFAULT_FILE_STORAGE setting
 
 Version 0.27.0 (Released November 24, 2025)
---------------
+-------------------------------------------
 
 - feat: wait load js for lms (#1) (#375)
 - chore: test CI on teak branch of Open edX (#369)
 
 Version 0.26.0 (Released June 03, 2025)
---------------
+---------------------------------------
 
 - feat!: Adding django52 support. (#368)
 - fix: reduce project coverage threshold (#371)
 - fix: CI breaking on an external package (fancycompleter) (#370)
 
 Version 0.25.3 (Released March 17, 2025)
---------------
+----------------------------------------
 
 - fix: Update GH Actions runner OS to latest
 
 Version 0.25.2 (Released March 04, 2025)
---------------
+----------------------------------------
 
 - build: replace Devstack with Tutor (#365)
 
 Version 0.25.0 (Released April 29, 2024)
---------------
+----------------------------------------
 
 - Python312 upgrade (#357)
 
 Version 0.24.1 (Released April 01, 2024)
---------------
+----------------------------------------
 
 - fix: add xblock 2.0 support (#359)
 
 Version 0.24.0 (Released March 28, 2024)
---------------
+----------------------------------------
 
 - chore: enabling integration tests (#355)
 - feat: add support for django4.2 & update lint (#347)
 
 Version 0.24.0 (Released March 28, 2024)
---------------
+----------------------------------------
 
 - feat: add support for Django 4.2
 
 Version 0.23.1 (Released January 26, 2024)
---------------
+------------------------------------------
 
 - fix: use block_id in place of name attribute (#350)
 
 Version 0.23.0 (Released September 15, 2023)
---------------
+--------------------------------------------
 
 - feat: add support for picking storage config from settings (#344)
 
 Version 0.22.0 (Released June 14, 2023)
---------------
+---------------------------------------
 
 - refactor!: remove deprecated runtime attributes [FC-0026] (#339)
 - test: rename descriptor to block (#334)
 - fix: remove codecov usage (#340)
 
 Version 0.21.1 (Released February 27, 2023)
---------------
+-------------------------------------------
 
 - test: import block_render instead of module_render (#333)
 
 Version 0.21.0 (Released February 23, 2023)
---------------
+-------------------------------------------
 
 - test: rename ItemFactory to BlockFactory in integration_tests (#332)
 
 Version 0.20.0 (Released September 08, 2022)
---------------
+--------------------------------------------
 
 - fix!: use full import path to safe_lxml (#324)
 
 Version 0.19.0 (Released September 02, 2022)
---------------
+--------------------------------------------
 
 - fix: update pylint configurations (#326)
 
 Version 0.18.0 (Released February 14, 2022)
---------------
+-------------------------------------------
 
 - Fix loadjs to use window.baseUrl provided by LMS resolves #318 (#319)
 
 Version 0.17.3 (Released January 27, 2022)
---------------
+------------------------------------------
 
 - added resize to 600
 - fixed indentation
@@ -119,74 +119,74 @@ Version 0.17.3 (Released January 27, 2022)
 - fixed iframe opening
 
 Version 0.17.2 (Released October 14, 2021)
---------------
+------------------------------------------
 
 - Update license classifier (#312)
 
 Version 0.17.1 (Released October 14, 2021)
---------------
+------------------------------------------
 
 - Update license text to match pypi's acceptable list (#310)
 
 Version 0.17.0 (Released October 14, 2021)
---------------
+------------------------------------------
 
 - Upgrade django to 3.2 LTS (#304)
 
 Version 0.16.0 (Released February 16, 2021)
---------------
+-------------------------------------------
 
 - Compare Only Final Submissions When Report Downloading (#300)
 
 Version 0.15.0 (Released February 01, 2021)
---------------
+-------------------------------------------
 
 - fixes utc time assignment to download all submissions (#298)
 - upgrading celery==5.0.5 (#293)
 
 Version 0.14.0 (Released January 19, 2021)
---------------
+------------------------------------------
 
 - switch from travis to github actions
 - BOM-2175 : Upgrade To Python 3.8 (#290)
 
 Version 0.13.1 (Released December 10, 2020)
---------------
+-------------------------------------------
 
 - Pulling the APP from LMS breaks if we're running in CMS
 - Fix DeprecatedEdxPlatformImportWarning (#286)
 
 Version 0.13.0 (Released October 13, 2020)
---------------
+------------------------------------------
 
 - Fix the release failure over openEdx
 
 Version 0.12.0 (Released October 07, 2020)
---------------
+------------------------------------------
 
 - Allow a grade of zero
 - removed deprecated usage of xblock fragment (#270)
 - Fix mismatch version (#272)
 
 Version 0.11.1 (Released August 12, 2020)
---------------
+-----------------------------------------
 
 - Fix mismatch version (#272)
 
 Version 0.11.0 (Released May 19, 2020)
---------------
+--------------------------------------
 
 - Temporarily disable integration and Python 2 tests (#267)
 - Added missing decode to resource loading
 - Fixed build error involving jsonfield import in edx-submissions
 
 Version 0.10.0 (Released October 28, 2019)
---------------
+------------------------------------------
 
 - Ran python-modernizer on repo (#256)
 
 Version 0.9.0 (Released October 01, 2019)
--------------
+-----------------------------------------
 
 - Possible fix for copying units with SGA (#254)
 - Correct the courseware imports
@@ -195,12 +195,12 @@ Version 0.9.0 (Released October 01, 2019)
 - Fixed race condition when removing grades SGA (#117)
 
 Version 0.8.3 (Released August 22, 2018)
--------------
+----------------------------------------
 
 - Fix integration tests under Django 1.11 (#247)
 
 Version 0.8.2 (Released April 30, 2018)
--------------
+---------------------------------------
 
 - Release 0.8.1
 - Added tests to validate all student submissions (#235)
@@ -214,7 +214,7 @@ Version 0.8.2 (Released April 30, 2018)
 - Update README.md
 
 Version 0.8.1 (Released March 20, 2018)
--------------
+---------------------------------------
 
 - Added tests to validate all student submissions (#235)
 - Added url encoding in file name (#236)
@@ -227,7 +227,7 @@ Version 0.8.1 (Released March 20, 2018)
 - Update README.md
 
 Version 0.8.0 (Released February 13, 2018)
--------------
+------------------------------------------
 
 - Cleaned up zip file creation and retrieval code
 - Update README.md
@@ -258,7 +258,7 @@ Version 0.8.0 (Released February 13, 2018)
 - Add travis.yml (#188)
 
 Version 0.7.1 (Released November 07, 2017)
--------------
+------------------------------------------
 
 - Reference __init__ version (#180)
 - Release 0.7.0
@@ -270,7 +270,7 @@ Version 0.7.1 (Released November 07, 2017)
 - Increase the height of the &quot;Select a File&quot; element (#165)
 
 Version 0.7.0 (Released November 07, 2017)
--------------
+------------------------------------------
 
 - Added new tests with mocking data (#174)
 - Changed ugettext to ugettext_lazy (#178)
@@ -280,23 +280,23 @@ Version 0.7.0 (Released November 07, 2017)
 - Increase the height of the &quot;Select a File&quot; element (#165)
 
 Version 0.6.4 (Released July 27, 2017)
--------------
+--------------------------------------
 
 - Serialize block/course locators before sending to submissions API. (#166)
 
 Version 0.6.3 (Released May 03, 2017)
--------------
+-------------------------------------
 
 - preface id refs with strings, add tabindex to modals (#163)
 
 Version 0.6.1 (Released February 13, 2017)
--------------
+------------------------------------------
 
 - Fixed error "ValueError: invalid literal for int() with base 10: 'undefined'" (#160)
 - Fixed typo in README (#158)
 
 Version 0.6.0 (Released November 16, 2016)
--------------
+------------------------------------------
 
 - adding version number so this will work with our release-script
 - Fixed test failure issues on sga (#146)
@@ -321,16 +321,16 @@ Version 0.6.0 (Released November 16, 2016)
 Migrations
 ----------
 
-0.5.0 uses the edX Submissions API to submit grades. If you are upgrading from an 
-version before 0.4.0 and you have student submissions and grades that need to be migrated, 
-you should run the migration script. 
+0.5.0 uses the edX Submissions API to submit grades. If you are upgrading from an
+version before 0.4.0 and you have student submissions and grades that need to be migrated,
+you should run the migration script.
 
 .. code-block:: bash
 
   python manage.py lms --settings=aws sga_migrate_submissions DevOps/0.001/2015_Summer
-  
-NOTE: After applying this update, you may need to change max_score on SGA 
-problems to an integer.   
+
+NOTE: After applying this update, you may need to change max_score on SGA
+problems to an integer.
 
 Additions
 ---------

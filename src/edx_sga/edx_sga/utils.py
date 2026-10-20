@@ -1,6 +1,7 @@
 """
 Utility functions for the SGA XBlock
 """
+
 import datetime
 import hashlib
 import os
@@ -9,10 +10,10 @@ from functools import partial
 
 import pytz
 from django.conf import settings
-from django.core.files.storage import FileSystemStorage
+from django.core.files.storage import FileSystemStorage, storages
 from django.core.files.storage import default_storage as django_default_storage
-from django.core.files.storage import storages
 from django.utils.module_loading import import_string
+
 from edx_sga.constants import BLOCK_SIZE
 
 
@@ -46,21 +47,23 @@ def get_default_storage():
     #        STORAGE_KWARGS: {}
     #    }
     # Priority 1: Django 5's STORAGES config
-    storages_config = getattr(settings, 'STORAGES', {})
+    storages_config = getattr(settings, "STORAGES", {})
     if "sga_storage" in storages_config:
         return storages["sga_storage"]
 
     # Priority 2: Legacy config (backward compatibility)
-    sga_storage_settings = getattr(settings, 'SGA_STORAGE_SETTINGS', None)
+    sga_storage_settings = getattr(settings, "SGA_STORAGE_SETTINGS", None)
     if sga_storage_settings:
-        return import_string(
-            sga_storage_settings['STORAGE_CLASS']
-        )(**sga_storage_settings['STORAGE_KWARGS'])
+        return import_string(sga_storage_settings["STORAGE_CLASS"])(
+            **sga_storage_settings["STORAGE_KWARGS"]
+        )
 
     # If settings not defined, use default_storage from Django
     return django_default_storage
 
+
 default_storage = get_default_storage()
+
 
 def utcnow():
     """
@@ -113,9 +116,7 @@ def get_file_storage_path(locator, file_hash, original_filename):
     """
     Returns the file path for an uploaded SGA submission file
     """
-    return "{loc.org}/{loc.course}/{loc.block_type}/{loc.block_id}/{file_hash}{ext}".format(
-        loc=locator, file_hash=file_hash, ext=os.path.splitext(original_filename)[1]
-    )
+    return f"{locator.org}/{locator.course}/{locator.block_type}/{locator.block_id}/{file_hash}{os.path.splitext(original_filename)[1]}"
 
 
 def file_contents_iter(file_path):

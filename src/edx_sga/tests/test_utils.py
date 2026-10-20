@@ -1,14 +1,15 @@
 """
 Tests for SGA utility functions
 """
-from django.test import override_settings
-from django.core.files.storage import default_storage
+
 import pytest
 import pytz
+from django.core.files.storage import default_storage
+from django.test import override_settings
+from edx_sga.utils import get_default_storage, is_finalized_submission, utcnow
 from storages.backends.s3boto3 import S3Boto3Storage
 
 from tests.common import is_near_now
-from edx_sga.utils import get_default_storage, is_finalized_submission, utcnow
 
 
 @pytest.mark.parametrize(
@@ -35,11 +36,13 @@ def test_utcnow():
     assert is_near_now(now)
     assert now.tzinfo.zone == pytz.utc.zone
 
-@override_settings(SGA_STORAGE_SETTINGS={
-        'STORAGE_CLASS': 'storages.backends.s3boto3.S3Boto3Storage',
-        'STORAGE_KWARGS':
-            {'bucket_name': 'test', 'location': 'abc/def'}
-    })
+
+@override_settings(
+    SGA_STORAGE_SETTINGS={
+        "STORAGE_CLASS": "storages.backends.s3boto3.S3Boto3Storage",
+        "STORAGE_KWARGS": {"bucket_name": "test", "location": "abc/def"},
+    }
+)
 def test_get_default_storage_with_settings_override():
     """
     get_default_storage should return an S3Boto3Storage object
@@ -47,7 +50,8 @@ def test_get_default_storage_with_settings_override():
     storage = get_default_storage()
     assert storage.__class__ == S3Boto3Storage
     # make sure kwargs are passed through constructor
-    assert storage.bucket.name == 'test'
+    assert storage.bucket.name == "test"
+
 
 def test_get_default_storage_without_settings_override():
     """
@@ -56,31 +60,31 @@ def test_get_default_storage_without_settings_override():
     storage = get_default_storage()
     assert storage == default_storage
 
-@override_settings(
-    SGA_STORAGE_SETTINGS=None
-)
+
+@override_settings(SGA_STORAGE_SETTINGS=None)
 def test_sga_backend_with_default():
-    """ verify the storage in case of STORAGES"""
+    """verify the storage in case of STORAGES"""
     storage = get_default_storage()
     assert storage.__class__ == default_storage.__class__
+
 
 @override_settings(
     SGA_STORAGE_SETTINGS=None,
     STORAGES={
-        'sga_storage': {
-            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
-            'OPTIONS': {
-                'bucket_name': 'sga',
-                'default_acl': 'public',
-                'location': 'sga/images',
-            }
+        "sga_storage": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "OPTIONS": {
+                "bucket_name": "sga",
+                "default_acl": "public",
+                "location": "sga/images",
+            },
         }
-    }
+    },
 )
 def test_sga_backend_with_new_sga_settings():
-    """ verify the sga-storage in case of STORAGES dict"""
+    """verify the sga-storage in case of STORAGES dict"""
     storage = get_default_storage()
     assert storage.__class__ == S3Boto3Storage
     assert storage.bucket_name, "sga"
-    assert storage.default_acl, 'public'
+    assert storage.default_acl, "public"
     assert storage.location, "sga/images"

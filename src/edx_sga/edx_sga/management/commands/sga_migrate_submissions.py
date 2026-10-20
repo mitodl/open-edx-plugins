@@ -3,13 +3,14 @@ Django command which migrates existing SGA submissions for a course from all
 old SGA implementation before v0.4.0 to newer version that uses the
 'submissions' application.
 """
+
 import json
 
+from common.djangoapps.student.models import anonymous_id_for_user
 from django.core.management.base import BaseCommand, CommandError
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.courseware.models import StudentModule
 from opaque_keys.edx.keys import CourseKey
-from common.djangoapps.student.models import anonymous_id_for_user
 from submissions import api as submissions_api
 from xmodule.modulestore.django import modulestore
 

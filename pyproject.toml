@@ -150,3 +150,12 @@ inline-quotes = "double"
 "tests/**" = ["S101", "D"]
 "test_*.py" = ["S101", "D"]
 "src/ol_openedx_rapid_response_reports/docs/conf.py" = ["ERA"]
+# Inherited from mitodl/edx-sga, which was linted with pylint, not this rule set.
+# Burn these down separately; new edx_sga code should not add to the list.
+"src/edx_sga/**" = [
+    "ARG002", "B904", "C901", "D401", "DTZ003", "DTZ005", "E501", "E722", "EM101",
+    "ERA001", "FBT002", "FBT003", "N813", "PERF401", "PLC0415", "PLR0911", "PLR0913",
+    "PLR0917", "PLR1714", "PLR2004", "PLW1641", "PT006", "PT009", "PT027", "PTH100",
+    "PTH118", "PTH119", "PTH120", "PTH122", "PTH123", "RET504", "RUF002", "S101",
+    "S106", "S110", "S324", "SIM105", "SIM108", "SIM117", "SLF001", "TRY003", "TRY300",
+]

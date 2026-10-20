@@ -1,6 +1,8 @@
 ---
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
+# Vendored third-party JavaScript shipped as-is by edx-sga.
+exclude: ^src/edx_sga/edx_sga/static/js/(bower/|src/jquery\.tablesorter\.min\.js$)
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v6.0.0

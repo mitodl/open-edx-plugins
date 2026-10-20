@@ -15,10 +15,10 @@ STORAGES = {
         "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
     },
 }
-SECRET_KEY = "k(g$9p*x^a=t_lf$%=b*3$$ipg1g0tm!^pws0@g)u+v@&$657n"
+SECRET_KEY = "k(g$9p*x^a=t_lf$%=b*3$$ipg1g0tm!^pws0@g)u+v@&$657n"  # noqa: S105  # pragma: allowlist secret
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS: list[str] = []
 INSTALLED_APPS = (
     "django.contrib.admin",
     "django.contrib.auth",
@@ -76,4 +76,4 @@ USE_TZ = True
 STATIC_URL = "/static/"
 TECH_SUPPORT_EMAIL = "support@example.com"
 # For xblock-sdk workbench
-WORKBENCH = {}
+WORKBENCH: dict[str, object] = {}

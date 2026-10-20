@@ -8,12 +8,11 @@ from datetime import datetime
 from tempfile import mkdtemp
 from unittest.mock import Mock
 
-from lxml import etree
-
 import pytz
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from lxml import etree
 from xblock.fields import DateTime
 
 
@@ -37,7 +36,9 @@ class TempfileMixin(unittest.TestCase):
         cls._original_storages_default = settings.STORAGES.get("default", {}).copy()
         cls.temp_directory = mkdtemp()
         settings.MEDIA_ROOT = cls.temp_directory
-        settings.STORAGES["default"] = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+        settings.STORAGES["default"] = {
+            "BACKEND": "django.core.files.storage.FileSystemStorage"
+        }
         cls.default_storage = default_storage
 
     @classmethod

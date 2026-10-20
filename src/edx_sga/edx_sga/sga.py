@@ -2,6 +2,7 @@
 This block defines a Staff Graded Assignment.  Students are shown a rubric
 and invited to upload a file which is then graded by staff.
 """
+
 import json
 import logging
 import mimetypes
@@ -10,12 +11,12 @@ from contextlib import closing
 from importlib.resources import files
 from zipfile import ZipFile
 
+import pytz
+import six
 import six.moves.urllib.error
 import six.moves.urllib.parse
 import six.moves.urllib.request
-import six
-
-import pytz
+from common.djangoapps.student.models import user_by_anonymous_id
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
@@ -24,7 +25,6 @@ from django.utils.timezone import now as django_now
 from django.utils.translation import gettext as _
 from lms.djangoapps.courseware.models import StudentModule
 from openedx.core.lib.safe_lxml import etree
-from common.djangoapps.student.models import user_by_anonymous_id
 from submissions import api as submissions_api
 from submissions.models import StudentItem as SubmissionsStudent
 from submissions.models import Submission
@@ -32,6 +32,7 @@ from webob.response import Response
 from xblock.core import XBlock
 from xblock.exceptions import JsonHandlerError
 from xblock.fields import DateTime, Float, Integer, Scope, String
+
 try:
     from xblock.utils.resources import ResourceLoader
 except ImportError:  # pragma: no cover - compatibility with older XBlock releases
@@ -41,7 +42,12 @@ from xblock.utils.studio_editable import StudioEditableXBlockMixin
 from xmodule.contentstore.content import StaticContent
 from xmodule.util.duedate import get_extended_due_date
 
-from edx_sga.constants import ATTR_KEY_ANONYMOUS_USER_ID, ATTR_KEY_USER_IS_STAFF, ATTR_KEY_USER_ROLE, ITEM_TYPE
+from edx_sga.constants import (
+    ATTR_KEY_ANONYMOUS_USER_ID,
+    ATTR_KEY_USER_IS_STAFF,
+    ATTR_KEY_USER_ROLE,
+    ITEM_TYPE,
+)
 from edx_sga.showanswer import ShowAnswerXBlockMixin
 from edx_sga.tasks import get_zip_file_name, get_zip_file_path, zip_student_submissions
 from edx_sga.utils import (
@@ -125,9 +131,7 @@ class StaffGradedAssignmentXBlock(
 
     staff_score = Integer(
         display_name=_("Score assigned by non-instructor staff"),
-        help=_(
-            "Score will need to be approved by instructor before being published."
-        ),
+        help=_("Score will need to be approved by instructor before being published."),
         default=None,
         scope=Scope.settings,
     )
@@ -144,8 +148,7 @@ class StaffGradedAssignmentXBlock(
         scope=Scope.user_state,
         default=None,
         help=_(
-            "sha1 of the annotated file uploaded by the instructor for "
-            "this assignment."
+            "sha1 of the annotated file uploaded by the instructor for this assignment."
         ),
     )
 
@@ -173,7 +176,7 @@ class StaffGradedAssignmentXBlock(
     @classmethod
     def student_upload_max_size(cls):
         """
-        returns max file size limit in system
+        Returns max file size limit in system
         """
         return getattr(
             settings, "STUDENT_FILEUPLOAD_MAX_SIZE", cls.STUDENT_FILEUPLOAD_MAX_SIZE
@@ -182,7 +185,7 @@ class StaffGradedAssignmentXBlock(
     @classmethod
     def file_size_over_limit(cls, file_obj):
         """
-        checks if file size is under limit.
+        Checks if file size is under limit.
         """
         file_obj.seek(0, os.SEEK_END)
         return file_obj.tell() > cls.student_upload_max_size()
@@ -198,7 +201,9 @@ class StaffGradedAssignmentXBlock(
         for child in node:
             if child.tag == "solution":
                 # convert child elements of <solution> into HTML for display
-                block.solution = "".join(etree.tostring(subchild, encoding=str) for subchild in child)
+                block.solution = "".join(
+                    etree.tostring(subchild, encoding=str) for subchild in child
+                )
 
         # Attributes become fields.
         # Note that a solution attribute here will override any solution XML element
@@ -271,10 +276,9 @@ class StaffGradedAssignmentXBlock(
         upload = request.params["assignment"]
         sha1 = get_sha1(upload.file)
         if self.file_size_over_limit(upload.file):
-            size=self.student_upload_max_size()
+            size = self.student_upload_max_size()
             raise JsonHandlerError(
-                413,
-                f"Unable to upload file. Max size limit is {size}"
+                413, f"Unable to upload file. Max size limit is {size}"
             )
         # Uploading an assignment represents a change of state with this user in this block,
         # so we need to ensure that the user has a StudentModule record, which represents that state.
@@ -327,10 +331,9 @@ class StaffGradedAssignmentXBlock(
         upload = request.params["annotated"]
         sha1 = get_sha1(upload.file)
         if self.file_size_over_limit(upload.file):
-            size=self.student_upload_max_size()
+            size = self.student_upload_max_size()
             raise JsonHandlerError(
-                413,
-                f"Unable to upload file. Max size limit is {size}"
+                413, f"Unable to upload file. Max size limit is {size}"
             )
         module = self.get_student_module(request.params["module_id"])
         state = json.loads(module.state)
@@ -486,9 +489,7 @@ class StaffGradedAssignmentXBlock(
         return Response(json_body=self.staff_grading_data())
 
     @XBlock.handler
-    def prepare_download_submissions(
-        self, request, suffix=""
-    ):  # pylint: disable=unused-argument
+    def prepare_download_submissions(self, request, suffix=""):  # pylint: disable=unused-argument
         """
         Runs a async task that collects submissions in background and zip them.
         """
@@ -540,9 +541,7 @@ class StaffGradedAssignmentXBlock(
         return Response(json_body={"downloadable": zip_file_ready})
 
     @XBlock.handler
-    def download_submissions(
-        self, request, suffix=""
-    ):  # pylint: disable=unused-argument
+    def download_submissions(self, request, suffix=""):  # pylint: disable=unused-argument
         """
         Api for downloading zip file which consist of all students submissions.
         """
@@ -569,11 +568,9 @@ class StaffGradedAssignmentXBlock(
             )
 
     @XBlock.handler
-    def download_submissions_status(
-        self, request, suffix=""
-    ):  # pylint: disable=unused-argument
+    def download_submissions_status(self, request, suffix=""):  # pylint: disable=unused-argument
         """
-        returns True if zip file is available for download
+        Returns True if zip file is available for download
         """
         require(self.is_course_staff())
         user = self.get_real_user()
@@ -626,9 +623,7 @@ class StaffGradedAssignmentXBlock(
 
     def _get_statici18n_js_url(self, i18n_service):
         """Return the JavaScript catalogue served by the XBlock i18n service."""
-        url_getter = getattr(
-            i18n_service, "get_javascript_i18n_catalog_url", None
-        )
+        url_getter = getattr(i18n_service, "get_javascript_i18n_catalog_url", None)
         if url_getter:
             return url_getter(self)
         return None
@@ -682,8 +677,10 @@ class StaffGradedAssignmentXBlock(
         Returns dict required by the submissions app for creating and
         retrieving submissions for a particular student.
         """
-        if student_id is None and (user_service := self.runtime.service(self, 'user')):
-            student_id = user_service.get_current_user().opt_attrs.get(ATTR_KEY_ANONYMOUS_USER_ID)
+        if student_id is None and (user_service := self.runtime.service(self, "user")):
+            student_id = user_service.get_current_user().opt_attrs.get(
+                ATTR_KEY_ANONYMOUS_USER_ID
+            )
             assert student_id != ("MOCK", "Forgot to call 'personalize' in test.")
         return {
             "student_id": student_id,
@@ -728,7 +725,7 @@ class StaffGradedAssignmentXBlock(
         """
         Add context info for the Staff Debug interface.
         """
-        published = getattr(self, 'start', None)
+        published = getattr(self, "start", None)
         context["is_released"] = published and published < utcnow()
         context["location"] = self.location
         context["category"] = type(self).__name__
@@ -800,7 +797,9 @@ class StaffGradedAssignmentXBlock(
         else:
             graded = None
 
-        if self.answer_available() and (replace_urls_service := self.runtime.service(self, 'replace_urls')):
+        if self.answer_available() and (
+            replace_urls_service := self.runtime.service(self, "replace_urls")
+        ):
             solution = replace_urls_service.replace_urls(force_str(self.solution))
         else:
             solution = ""
@@ -874,7 +873,7 @@ class StaffGradedAssignmentXBlock(
         }
 
     def get_sorted_submissions(self):
-        """returns student recent assignments sorted on date"""
+        """Returns student recent assignments sorted on date"""
         assignments = []
         submissions = submissions_api.get_all_submissions(
             self.course_id, self.block_id, ITEM_TYPE
@@ -938,7 +937,7 @@ class StaffGradedAssignmentXBlock(
         """
         Check if user is course staff.
         """
-        if user_service := self.runtime.service(self, 'user'):
+        if user_service := self.runtime.service(self, "user"):
             return user_service.get_current_user().opt_attrs.get(ATTR_KEY_USER_IS_STAFF)
         return False
 
@@ -946,8 +945,11 @@ class StaffGradedAssignmentXBlock(
         """
         Check if user role is instructor.
         """
-        if user_service := self.runtime.service(self, 'user'):
-            return user_service.get_current_user().opt_attrs.get(ATTR_KEY_USER_ROLE) == "instructor"
+        if user_service := self.runtime.service(self, "user"):
+            return (
+                user_service.get_current_user().opt_attrs.get(ATTR_KEY_USER_ROLE)
+                == "instructor"
+            )
         return False
 
     def show_staff_grading_interface(self):
@@ -999,7 +1001,7 @@ class StaffGradedAssignmentXBlock(
 
     def is_zip_file_available(self, user):
         """
-        returns True if zip file exists.
+        Returns True if zip file exists.
         """
         zip_file_path = get_zip_file_path(
             user.username, self.block_course_id, self.block_id, self.location
@@ -1008,7 +1010,7 @@ class StaffGradedAssignmentXBlock(
 
     def count_archive_files(self, user):
         """
-        returns number of files archive in zip.
+        Returns number of files archive in zip.
         """
         zip_file_path = get_zip_file_path(
             user.username, self.block_course_id, self.block_id, self.location
@@ -1018,8 +1020,8 @@ class StaffGradedAssignmentXBlock(
                 return len(archive.infolist())
 
     def get_real_user(self):
-        """returns session user"""
-        if user_service := self.runtime.service(self, 'user'):
+        """Returns session user"""
+        if user_service := self.runtime.service(self, "user"):
             return user_service.get_user_by_anonymous_id()
         return None
 

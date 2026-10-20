@@ -1,6 +1,7 @@
 """
 Tests for SGA
 """
+
 # pylint: disable=imported-auth-user
 import builtins
 import datetime
@@ -18,18 +19,17 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils import translation
 from django.utils.timezone import now as django_now
+from edx_sga.constants import ATTR_KEY_USER_IS_STAFF
 from opaque_keys.edx.locations import Location
 from opaque_keys.edx.locator import CourseLocator
 from workbench.runtime import WorkbenchRuntime
 from xblock.field_data import DictFieldData
 from xblock.fields import DateTime
 
-from edx_sga.constants import ATTR_KEY_USER_IS_STAFF
 from tests.common import DummyResource, TempfileMixin
 
-
-SHA1 = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-UUID = "8c4b765745f746f7a128470842211601"
+SHA1 = "da39a3ee5e6b4b0d3255bfef95601890afd80709"  # pragma: allowlist secret
+UUID = "8c4b765745f746f7a128470842211601"  # pragma: allowlist secret
 
 
 pytestmark = pytest.mark.django_db
@@ -47,7 +47,7 @@ def fake_get_submission(**kwargs):
     return {
         "answer": answer,
         "uuid": UUID,
-        "submitted_at": kwargs.get("submitted_at", None),
+        "submitted_at": kwargs.get("submitted_at"),
     }
 
 
@@ -76,8 +76,8 @@ class FakeWorkbenchRuntime(WorkbenchRuntime):
         super().__init__(*args, **kwargs)
 
         user = User.objects.create(username="MOCK")
-        self._services['user'].get_user_by_anonymous_id = lambda: user
-        self._services['user']._user.opt_attrs[ATTR_KEY_USER_IS_STAFF] = True
+        self._services["user"].get_user_by_anonymous_id = lambda: user
+        self._services["user"]._user.opt_attrs[ATTR_KEY_USER_IS_STAFF] = True
 
 
 @ddt
@@ -130,7 +130,11 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         self.runtime = FakeWorkbenchRuntime()
         self.scope_ids = mock.Mock()
         self.staff = mock.Mock(
-            return_value={"password": "test", "username": "tester", "is_staff": True}
+            return_value={
+                "password": "test",  # pragma: allowlist secret
+                "username": "tester",
+                "is_staff": True,
+            }
         )
 
     def make_xblock(self, display_name=None, **kwargs):
@@ -159,7 +163,9 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
     @mock.patch("edx_sga.sga.loader.render_django_template")
     def test_render_template_uses_xblock_i18n_service(self, render_django_template):
         """Templates must be rendered through ResourceLoader for Atlas i18n."""
-        from edx_sga.sga import render_template  # pylint: disable=import-outside-toplevel
+        from edx_sga.sga import (
+            render_template,  # pylint: disable=import-outside-toplevel
+        )
 
         context = {"value": "example"}
         i18n_service = mock.Mock()
@@ -177,7 +183,9 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
 
     def test_show_template_renders_translatable_markup_end_to_end(self):
         """Render show.html through ResourceLoader and the Django template engine."""
-        from edx_sga.sga import render_template  # pylint: disable=import-outside-toplevel
+        from edx_sga.sga import (
+            render_template,  # pylint: disable=import-outside-toplevel
+        )
 
         with translation.override("en"):
             rendered = render_template(
@@ -207,8 +215,8 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         assert (
             '{% blocktrans with score="<%= graded.score %>"|safe '
             'max_score="<%= max_score %>"|safe %}'
-            'Your score is {{ score }} / {{ max_score }}'
-            '{% endblocktrans %}'
+            "Your score is {{ score }} / {{ max_score }}"
+            "{% endblocktrans %}"
         ) in template
         assert (
             "{% blocktrans with student_name='<span id=\"student-name\"></span>'|safe %}"
@@ -218,10 +226,20 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
 
     def test_grade_modal_falls_back_to_username_when_full_name_is_empty(self):
         """The grade modal must show an identifier even when profile.name is empty."""
-        js_path = Path(__file__).resolve().parents[1] / "edx_sga" / "static" / "js" / "src" / "edx_sga.js"
+        js_path = (
+            Path(__file__).resolve().parents[1]
+            / "edx_sga"
+            / "static"
+            / "js"
+            / "src"
+            / "edx_sga.js"
+        )
         script = js_path.read_text(encoding="utf-8")
 
-        assert "var studentName = row.data('fullname') || row.data('username') || '';" in script
+        assert (
+            "var studentName = row.data('fullname') || row.data('username') || '';"
+            in script
+        )
         assert "$(element).find('#student-name').text(studentName);" in script
 
     def test_i18n_service_is_requested_from_runtime(self):
@@ -301,17 +319,21 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         """
         block = self.make_xblock("Custom name")
 
-        with mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission", return_value={}
-        ), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.student_state",
-            return_value={
-                "uploaded": None,
-                "annotated": None,
-                "upload_allowed": True,
-                "max_score": 100,
-                "graded": None,
-            },
+        with (
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
+                return_value={},
+            ),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.student_state",
+                return_value={
+                    "uploaded": None,
+                    "annotated": None,
+                    "upload_allowed": True,
+                    "max_score": 100,
+                    "graded": None,
+                },
+            ),
         ):
             fragment = block.student_view()
             assert render_template.called is True
@@ -351,27 +373,35 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         block.comment = "ok"
 
         with self.dummy_upload("foo.txt") as (upload, _):
-            with mock.patch(
-                "submissions.api.create_submission",
-            ) as mocked_create_submission, mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.student_state", return_value={}
-            ), mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.get_or_create_student_module",
-                return_value=fake_student_module(),
+            with (
+                mock.patch(
+                    "submissions.api.create_submission",
+                ) as mocked_create_submission,
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.student_state",
+                    return_value={},
+                ),
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.get_or_create_student_module",
+                    return_value=fake_student_module(),
+                ),
             ):
                 block.upload_assignment(mock.Mock(params={"assignment": upload}))
             assert mocked_create_submission.called is True
 
-            with mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
-                return_value=fake_upload_submission(upload),
-            ), mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.student_state",
-                return_value={
-                    "graded": {"comment": "ok", "score": 10},
-                    "uploaded": {"filename": "foo.txt"},
-                    "max_score": 100,
-                },
+            with (
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
+                    return_value=fake_upload_submission(upload),
+                ),
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.student_state",
+                    return_value={
+                        "graded": {"comment": "ok", "score": 10},
+                        "uploaded": {"filename": "foo.txt"},
+                        "max_score": 100,
+                    },
+                ),
             ):
                 fragment = block.student_view()
                 assert render_template.called is True
@@ -503,37 +533,49 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         upload_allowed.return_value = True
 
         with self.dummy_upload(file_name) as (upload, expected):
-            with mock.patch(
-                "submissions.api.create_submission"
-            ) as mocked_create_submission, mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.file_storage_path",
-                return_value=block.file_storage_path(SHA1, file_name),
-            ), mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.student_state", return_value={}
-            ), mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.get_or_create_student_module",
-                return_value=fake_student_module(),
-            ) as mocked_create_student_module:
+            with (
+                mock.patch(
+                    "submissions.api.create_submission"
+                ) as mocked_create_submission,
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.file_storage_path",
+                    return_value=block.file_storage_path(SHA1, file_name),
+                ),
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.student_state",
+                    return_value={},
+                ),
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.get_or_create_student_module",
+                    return_value=fake_student_module(),
+                ) as mocked_create_student_module,
+            ):
                 block.upload_assignment(mock.Mock(params={"assignment": upload}))
             assert mocked_create_submission.called is True
             assert mocked_create_student_module.called is True
 
-            with mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
-                return_value=fake_upload_submission(upload),
-            ), mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.file_storage_path",
-                return_value=block.file_storage_path(SHA1, file_name),
+            with (
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
+                    return_value=fake_upload_submission(upload),
+                ),
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.file_storage_path",
+                    return_value=block.file_storage_path(SHA1, file_name),
+                ),
             ):
                 response = block.download_assignment(None)
                 assert response.body == expected
 
-            with mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.file_storage_path",
-                return_value=block.file_storage_path("", "test_notfound.txt"),
-            ), mock.patch(
-                "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
-                return_value=fake_upload_submission(upload),
+            with (
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.file_storage_path",
+                    return_value=block.file_storage_path("", "test_notfound.txt"),
+                ),
+                mock.patch(
+                    "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
+                    return_value=fake_upload_submission(upload),
+                ),
             ):
                 response = block.download_assignment(None)
                 assert response.status_code == 404
@@ -567,13 +609,18 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
             answer=fake_submission_data["answer"],
         )
 
-        with mock.patch(
-            "edx_sga.sga.Submission.objects.get", return_value=fake_submission_object
-        ), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
-            return_value=fake_submission_data,
-        ), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.student_state", return_value={}
+        with (
+            mock.patch(
+                "edx_sga.sga.Submission.objects.get",
+                return_value=fake_submission_object,
+            ),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
+                return_value=fake_submission_data,
+            ),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.student_state", return_value={}
+            ),
         ):
             block.finalize_uploaded_assignment(mock.Mock())
 
@@ -598,10 +645,13 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         file_name = "test.txt"
         block = self.make_xblock()
 
-        with self.dummy_upload(file_name) as (upload, expected), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.staff_grading_data",
-            return_value={},
-        ) as staff_grading_data:
+        with (
+            self.dummy_upload(file_name) as (upload, expected),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.staff_grading_data",
+                return_value={},
+            ) as staff_grading_data,
+        ):
             block.staff_upload_annotated(
                 mock.Mock(params={"annotated": upload, "module_id": 1})
             )
@@ -679,14 +729,17 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         get_sha1.return_value = SHA1
         block = self.make_xblock()
 
-        with self.dummy_upload("test.txt") as (upload, expected), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.student_state", return_value={}
-        ), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.get_or_create_student_module",
-            return_value=fake_student_module(),
-        ), mock.patch(
-            "submissions.api.create_submission"
-        ) as mocked_create_submission:
+        with (
+            self.dummy_upload("test.txt") as (upload, expected),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.student_state", return_value={}
+            ),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.get_or_create_student_module",
+                return_value=fake_student_module(),
+            ),
+            mock.patch("submissions.api.create_submission") as mocked_create_submission,
+        ):
             block.upload_assignment(mock.Mock(params={"assignment": upload}))
         assert mocked_create_submission.called is True
         self.personalize_upload(block, upload)
@@ -698,12 +751,15 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
             response = block.staff_download(mock.Mock(params={"student_id": 1}))
             assert response.body == expected
 
-        with mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.file_storage_path",
-            return_value=block.file_storage_path("", "test_notfound.txt"),
-        ), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
-            return_value=fake_upload_submission(upload),
+        with (
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.file_storage_path",
+                return_value=block.file_storage_path("", "test_notfound.txt"),
+            ),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.get_submission",
+                return_value=fake_upload_submission(upload),
+            ),
         ):
             response = block.staff_download(mock.Mock(params={"student_id": 1}))
             assert response.status_code == 404
@@ -742,12 +798,18 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         Tests that upload_allowed returns the right value under certain conditions
         """
         block = self.make_xblock()
-        with mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.past_due", return_value=past_due
-        ), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.get_score", return_value=score
-        ), mock.patch(
-            "edx_sga.sga.is_finalized_submission", return_value=is_finalized_submission
+        with (
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.past_due",
+                return_value=past_due,
+            ),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.get_score", return_value=score
+            ),
+            mock.patch(
+                "edx_sga.sga.is_finalized_submission",
+                return_value=is_finalized_submission,
+            ),
         ):
             assert block.upload_allowed(submission_data={}) is expected_value
 
@@ -778,15 +840,19 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
             for __ in range(2)
         ]
         zip_student_submissions.delay = mock.Mock()
-        with mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.is_zip_file_available",
-            return_value=is_zip_file_available,
-        ), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user",
-            return_value=self.staff,
-        ), mock.patch(
-            "edx_sga.utils.default_storage.get_modified_time",
-            return_value=datetime.datetime.now(),
+        with (
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.is_zip_file_available",
+                return_value=is_zip_file_available,
+            ),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user",
+                return_value=self.staff,
+            ),
+            mock.patch(
+                "edx_sga.utils.default_storage.get_modified_time",
+                return_value=datetime.datetime.now(),
+            ),
         ):
             response = block.prepare_download_submissions(None)
             response_body = json.loads(response.body.decode("utf-8"))
@@ -824,15 +890,19 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         ]
         get_file_modified_time_utc.return_value = now
         zip_student_submissions.delay = mock.Mock()
-        with mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.is_zip_file_available",
-            return_value=True,
-        ), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user",
-            return_value=self.staff,
-        ), mock.patch(
-            "edx_sga.utils.default_storage.get_modified_time",
-            return_value=datetime.datetime.now(),
+        with (
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.is_zip_file_available",
+                return_value=True,
+            ),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user",
+                return_value=self.staff,
+            ),
+            mock.patch(
+                "edx_sga.utils.default_storage.get_modified_time",
+                return_value=datetime.datetime.now(),
+            ),
         ):
             response = block.prepare_download_submissions(None)
             response_body = json.loads(response.body.decode("utf-8"))
@@ -861,15 +931,19 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
             for __ in range(2)
         ]
         zip_student_submissions.delay = mock.Mock()
-        with mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.is_zip_file_available",
-            return_value=False,
-        ), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user",
-            return_value=self.staff,
-        ), mock.patch(
-            "edx_sga.sga.default_storage.get_modified_time",
-            return_value=datetime.datetime.now(),
+        with (
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.is_zip_file_available",
+                return_value=False,
+            ),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user",
+                return_value=self.staff,
+            ),
+            mock.patch(
+                "edx_sga.sga.default_storage.get_modified_time",
+                return_value=datetime.datetime.now(),
+            ),
         ):
             response = block.prepare_download_submissions(None)
             response_body = json.loads(response.body.decode("utf-8"))
@@ -907,10 +981,14 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         with open(path, "wb") as temp_file:
             temp_file.write(expected)
 
-        with mock.patch("edx_sga.sga.get_zip_file_path", return_value=path), mock.patch(
-            "edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user",
-            return_value=self.staff,
-        ), mock.patch("edx_sga.sga.get_zip_file_name", return_value=filename):
+        with (
+            mock.patch("edx_sga.sga.get_zip_file_path", return_value=path),
+            mock.patch(
+                "edx_sga.sga.StaffGradedAssignmentXBlock.get_real_user",
+                return_value=self.staff,
+            ),
+            mock.patch("edx_sga.sga.get_zip_file_name", return_value=filename),
+        ):
             response = block.download_submissions(None)
             assert response.status_code == 200
             assert response.body == expected
@@ -923,12 +1001,15 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         uploaded_file_path = block.file_storage_path(SHA1, orig_file_name)
 
         with self.dummy_file_in_storage(uploaded_file_path) as file_path:
-            with mock.patch(
-                "edx_sga.sga.submissions_api.get_submissions",
-                return_value=[fake_submission],
-            ) as mocked_get_submissions, mock.patch(
-                "edx_sga.sga.submissions_api.reset_score"
-            ) as mocked_reset_score:
+            with (
+                mock.patch(
+                    "edx_sga.sga.submissions_api.get_submissions",
+                    return_value=[fake_submission],
+                ) as mocked_get_submissions,
+                mock.patch(
+                    "edx_sga.sga.submissions_api.reset_score"
+                ) as mocked_reset_score,
+            ):
                 assert self.default_storage.exists(file_path) is True
                 block.clear_student_state(user_id=123)
                 assert mocked_get_submissions.called is True

@@ -53,9 +53,7 @@ class ShowAnswerXBlockMixin:
         if not self.correctness_available():
             # If correctness is being withheld, then don't show answers either.
             return False
-        elif self.showanswer == "":
-            return False
-        elif self.showanswer == ShowAnswer.NEVER:
+        elif self.showanswer == "" or self.showanswer == ShowAnswer.NEVER:
             return False
         elif self.runtime_user_is_staff():
             # This is after the 'never' check because admins can see the answer

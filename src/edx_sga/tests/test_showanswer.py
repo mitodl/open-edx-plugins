@@ -3,24 +3,20 @@
 import datetime
 from unittest import TestCase, mock
 
-import pytest
 import ddt
+import pytest
 import pytz
+from edx_sga.constants import ShowAnswer
+from edx_sga.showanswer import ShowAnswerXBlockMixin
 from web_fragments.fragment import Fragment
 from workbench.runtime import WorkbenchRuntime
 from xblock.core import XBlock
 from xblock.fields import DateTime, Integer, String
 
-
-from edx_sga.constants import ShowAnswer
-from edx_sga.showanswer import ShowAnswerXBlockMixin
-
 pytestmark = pytest.mark.django_db
 
 
-class ShowAnswerXBlock(
-    ShowAnswerXBlockMixin, XBlock
-):  # pylint: disable=abstract-method
+class ShowAnswerXBlock(ShowAnswerXBlockMixin, XBlock):  # pylint: disable=abstract-method
     """
     A basic ShowAnswer XBlock implementation (for use in tests)
     """
@@ -70,14 +66,17 @@ class TestShowAnswerXBlock(TestCase):
         Assert possible values for closed()
         """
         block = self.get_root()
-        with mock.patch.object(
-            ShowAnswerXBlock,
-            "can_attempt",
-            return_value=can_attempt,
-        ), mock.patch.object(
-            ShowAnswerXBlock,
-            "is_past_due",
-            return_value=past_due,
+        with (
+            mock.patch.object(
+                ShowAnswerXBlock,
+                "can_attempt",
+                return_value=can_attempt,
+            ),
+            mock.patch.object(
+                ShowAnswerXBlock,
+                "is_past_due",
+                return_value=past_due,
+            ),
         ):
             self.assertEqual(block.closed(), expected)
 
@@ -99,12 +98,15 @@ class TestShowAnswerXBlock(TestCase):
         """
         block = self.get_root()
         self.runtime.user_is_staff = True
-        with mock.patch.object(
-            ShowAnswerXBlock, "correctness_available", return_value=True
-        ), mock.patch.object(
-            ShowAnswerXBlock,
-            "runtime_user_is_staff",
-            return_value=True,
+        with (
+            mock.patch.object(
+                ShowAnswerXBlock, "correctness_available", return_value=True
+            ),
+            mock.patch.object(
+                ShowAnswerXBlock,
+                "runtime_user_is_staff",
+                return_value=True,
+            ),
         ):
             self.assertTrue(block.answer_available())
 
@@ -144,29 +146,36 @@ class TestShowAnswerXBlock(TestCase):
         """
         block = self.get_root()
         block.showanswer = showanswer
-        with mock.patch.object(
-            ShowAnswerXBlock,
-            "correctness_available",
-            return_value=True,
-        ), mock.patch.object(
-            ShowAnswerXBlock,
-            "runtime_user_is_staff",
-            return_value=False,
-        ), mock.patch.object(
-            ShowAnswerXBlock,
-            "has_attempted",
-            return_value=properties.get("has_attempted", False),
-        ), mock.patch.object(
-            ShowAnswerXBlock,
-            "is_correct",
-            return_value=properties.get("is_correct", False),
-        ), mock.patch.object(
-            ShowAnswerXBlock,
-            "closed",
-            return_value=properties.get("closed", False),
-        ), mock.patch.object(
-            ShowAnswerXBlock,
-            "is_past_due",
-            return_value=properties.get("is_past_due", False),
+        with (
+            mock.patch.object(
+                ShowAnswerXBlock,
+                "correctness_available",
+                return_value=True,
+            ),
+            mock.patch.object(
+                ShowAnswerXBlock,
+                "runtime_user_is_staff",
+                return_value=False,
+            ),
+            mock.patch.object(
+                ShowAnswerXBlock,
+                "has_attempted",
+                return_value=properties.get("has_attempted", False),
+            ),
+            mock.patch.object(
+                ShowAnswerXBlock,
+                "is_correct",
+                return_value=properties.get("is_correct", False),
+            ),
+            mock.patch.object(
+                ShowAnswerXBlock,
+                "closed",
+                return_value=properties.get("closed", False),
+            ),
+            mock.patch.object(
+                ShowAnswerXBlock,
+                "is_past_due",
+                return_value=properties.get("is_past_due", False),
+            ),
         ):
             self.assertEqual(block.answer_available(), expected)

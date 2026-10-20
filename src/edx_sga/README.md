@@ -25,18 +25,18 @@ the SGA XBlock in devstack.**
 
     To configure SGA to use local storage, edit `lms/envs/private.py`
     to include these settings (and create the file if it doesn't exist yet):
-    
+
     Starting with Django 4.2, the `get_storage_class` function has been deprecated and is scheduled
-    for removal in Django 5.2. To ensure forward compatibility, Django has introduced a new 
+    for removal in Django 5.2. To ensure forward compatibility, Django has introduced a new
     storages system. You can now define all your custom or third-party storage backends using
-    the STORAGES dictionary in your settings. 
-    
+    the STORAGES dictionary in your settings.
+
     Do not use both DEFAULT_FILE_STORAGE and STORAGES in your settings.
     They are mutually exclusive, and you should use only one of these options.
 
     ```
     MEDIA_ROOT = "/edx/var/edxapp/uploads"
-   
+
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
     or
     STORAGES = {
@@ -44,12 +44,12 @@ the SGA XBlock in devstack.**
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
         },
-    
+
         # Static files storage (used by collectstatic etc.)
         "staticfiles": {
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
         },
-    
+
         # Your SGA-specific storage backend
         "sga_storage": {
             "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
@@ -63,13 +63,13 @@ the SGA XBlock in devstack.**
     ```
 
     You can also configure S3 to be used as the file storage backend. Ask a fellow developer or devops for the
-    correct settings to enable this. If you're using ansible to provision devstack, you may want to refer to 
+    correct settings to enable this. If you're using ansible to provision devstack, you may want to refer to
     [this edX article on configuring data storage](https://openedx.atlassian.net/wiki/spaces/OpenOPS/pages/112001105/Configuring+Data+Storage).
-    
+
 1. **Add SGA to the Advanced Module List for your course in Studio**
-   
-    Open Advanced Settings for your course in Studio ("Settings" drop down in the top nav > "Advanced Settings"), 
-    and add `"edx_sga"` to the "Advanced Module List" value (i.e.: the value for "Advanced Module List" should 
+
+    Open Advanced Settings for your course in Studio ("Settings" drop down in the top nav > "Advanced Settings"),
+    and add `"edx_sga"` to the "Advanced Module List" value (i.e.: the value for "Advanced Module List" should
     be a JSON list, and that list should include `"edx_sga"`).
 
 1. **If necessary, add SGA to installed Django apps**
@@ -79,7 +79,7 @@ the SGA XBlock in devstack.**
     to do is grep your edx-platform branch for 'edx_sga' and see if it appears in `INSTALLED_APPS`/`OPTIONAL_APPS`/etc.
     **All releases of edx-platform since Dogwood already include `edx_sga`, so this step is likely unnecessary.**
 
-    If SGA is not already an installed app, add this as a top-level setting in `/edx/app/edxapp/lms.env.json` and 
+    If SGA is not already an installed app, add this as a top-level setting in `/edx/app/edxapp/lms.env.json` and
     `/edx/app/edxapp/cms.env.json`:
 
     ```
@@ -94,14 +94,14 @@ the SGA XBlock in devstack.**
 
 1. **Add the package as a dependency (or install manually)**
 
-    If you want devstack to install a local branch of `edx-sga` and use any local changes that you make, you'll need 
+    If you want devstack to install a local branch of `edx-sga` and use any local changes that you make, you'll need
     to do the following:
-    
-    1. Find any requirements files that list an `edx-sga` dependency and comment out those lines (there are many 
+
+    1. Find any requirements files that list an `edx-sga` dependency and comment out those lines (there are many
     requirements files in the `edx-platform` repo, and they're all `.txt` files, as is convention with pip). Note that
     the app as it's recognized by Django is `edx_sga` with an underscore, but the repo is `edx-sga` with a dash.
-    
-    1. Sync/mount your `edx-sga` repo directory to the Docker container or Vagrant VM (depending on which method you 
+
+    1. Sync/mount your `edx-sga` repo directory to the Docker container or Vagrant VM (depending on which method you
     use to run devstack on your machine).
         - In Vagrant, you can add this to the `Vagrantfile` within the `Vagrant.configure` block (after running
         `vagrant up` or `vagrant reload`, the directory will be mounted).:
@@ -109,18 +109,18 @@ the SGA XBlock in devstack.**
             ```
             config.vm.synced_folder '/path/to/your/edx-sga', '/edx/app/edxapp/venvs/edxapp/src/edx-sga/', create: true, owner: 'edxapp', group: 'edxapp'
             ```
-            
-    1. Add the mounted `edx-sga` repo directory as a dependency in `requirements/private.txt` 
+
+    1. Add the mounted `edx-sga` repo directory as a dependency in `requirements/private.txt`
     (creating the file if necessary):
 
         ```
         -e /edx/app/edxapp/venvs/edxapp/src/edx-sga
         ```
-    
-    You should now be able to work with SGA blocks when you run LMS or Studio, and any local changes you make to SGA 
+
+    You should now be able to work with SGA blocks when you run LMS or Studio, and any local changes you make to SGA
     should be seen if you restart the server.
-        
-    If the steps above don't suit your purposes (or they simply don't work), you may also try installing SGA manually 
+
+    If the steps above don't suit your purposes (or they simply don't work), you may also try installing SGA manually
     (*NOTE: These are old instructions*):
 
     ```sh
@@ -143,7 +143,7 @@ Create a branch of edx-platform to commit a few minor changes:
 
 1. **Add appropriate `edx_sga` settings**
 
-    - In both `cms/envs/common.py` and `lms/envs/common.py`, 
+    - In both `cms/envs/common.py` and `lms/envs/common.py`,
     add `'edx_sga'` to `OPTIONAL_APPS`
     - In `cms/envs/common.py`, add `'edx_sga'` to `ADVANCED_COMPONENT_TYPES`
 
@@ -158,7 +158,7 @@ Create a branch of edx-platform to commit a few minor changes:
 
     ```
     "AWS_ACCESS_KEY_ID": "your bucket AWS access key ID",
-    "AWS_SECRET_ACCESS_KEY": "Your bucket AWS access key secret",
+    "AWS_SECRET_ACCESS_KEY": "<your bucket AWS access key secret>",
     "AWS_STORAGE_BUCKET_NAME": "Your upload bucket name",
     ```
 
@@ -213,8 +213,8 @@ Create a branch of edx-platform to commit a few minor changes:
   - **Maximum Score**: Maximum grade score given to assignment by staff
   - **Problem Weight**: Defines the number of points each problem is worth.
   - **Show Answer**: Specifies if and when the student will see the correct answer to the problem.
-  - **Solution**: The solution that is shown to the student if Show Answer is enabled for the problem. 
-  
+  - **Solution**: The solution that is shown to the student if Show Answer is enabled for the problem.
+
     ![sga settings](https://user-images.githubusercontent.com/8322892/36798686-48c41bc6-1c79-11e8-9ffb-d90a0169e69d.png)
 
 5. Grading Policy
