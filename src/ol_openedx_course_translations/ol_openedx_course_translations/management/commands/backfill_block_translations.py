@@ -93,6 +93,7 @@ def save_rows(rows):
         update_conflicts=True,
         unique_fields=unique_fields,
         update_fields=["source_hash", "translated_value", "status", "updated_at"],
+        batch_size=500,
     )
     return len(rows)
 
@@ -147,7 +148,8 @@ class Command(BaseCommand):
         latest_log = (
             CourseTranslationLog.objects.filter(
                 source_course_id=source_key,
-                target_course_language__iexact=language,
+                # translate_course logs codes like "es_419"; --language is "es-419".
+                target_course_language__iregex=f"^{language.replace('-', '[-_]')}$",
             )
             .order_by("-created_at")
             .first()
