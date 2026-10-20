@@ -91,12 +91,23 @@ edx-platform configuration
     ./manage.py lms sync_course_access_roles --course-id <course key>
 
   Two kinds of grant are invisible to this command. Org-wide roles are skipped
-  deliberately, as above. Grants made while ``authz.enable_course_authoring``
-  is on for a course are a different matter: ``RoleBase.add_users`` then routes
-  through openedx-authz and writes no ``CourseAccessRole`` row at all, so there
-  is nothing here to read. The live webhook still fires for those, so only a
-  backfill is affected -- but a deployment that has had the flag on cannot rely
-  on this command to reconstruct the roles granted during that time.
+  deliberately, as above. The other is a consequence of openedx-authz: once
+  ``authz.enable_course_authoring`` is on for a course, ``RoleBase.add_users``
+  routes through authz and writes no ``CourseAccessRole`` row, so a role
+  granted from then on is not something this command can read.
+
+  Roles granted *before* that are still readable. ``authz_migrate_course_authoring``
+  copies them into authz but keeps the legacy rows unless it is run with
+  ``--delete``, so the course teams this command exists to catch up remain in
+  ``CourseAccessRole``.
+
+  The live webhook is unaffected either way: Open edX emits
+  ``COURSE_ACCESS_ROLE_ADDED`` for an authz grant too, so the receiver still
+  fires and the consumer still records the role. Only catching up after the
+  fact is affected -- which matters for the 404 case above, because re-running
+  this command will not recover a role granted on an authz-enabled course.
+  Covering those needs the command to read role assignments from authz as well,
+  which it does not do yet.
 
 - Set the username of the service worker that the external system uses to create
   enrollments through the Open edX enrollment REST API. Enrollments created by
