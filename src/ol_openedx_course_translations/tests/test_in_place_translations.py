@@ -1,10 +1,14 @@
 """Tests for the in-place translation filter steps, block rules and backfill."""
 
+# ruff: noqa: SLF001
+
 from datetime import UTC, datetime
 
 import pytest
 from ol_openedx_course_translations.api import (
     add_problem_answer_note,
+    add_prompt_answer_note,
+    plain_key,
     source_hash,
     translate_block,
 )
@@ -221,3 +225,82 @@ def test_build_rows_maps_by_block_id_and_flags_stale(mocker):
         ("data", "<p>Pareil</p>", BlockTranslation.Status.AUTO),
     ]
     assert rows[0].source_hash == source_hash("<p>Hi</p>")
+
+
+def test_translate_block_serves_list_fields_without_dirtying(mocker):
+    """A List field is served as a list and is not left dirty for save()."""
+    answers = [["R", {"label": "Red"}]]
+    block = _block(mocker, block_type="poll", answers=answers)
+    field = mocker.Mock()
+    block.fields = {"answers": field}
+    block._dirty_fields = {field: answers}
+    translated = '[["R", {"label": "Rouge"}]]'
+    mocker.patch(
+        f"{API}.course_translations",
+        return_value=_translations(block, answers=(source_hash(answers), translated)),
+    )
+    mocker.patch(f"{API}.TRANSLATABLE_BLOCK_FIELDS", {"poll": ("answers",)})
+    mocker.patch(f"{API}.get_current_request", return_value=None)
+
+    translate_block(block)
+
+    field._set_cached_value.assert_called_once_with(block, [["R", {"label": "Rouge"}]])
+    assert block._dirty_fields == {}
+
+
+def test_translate_block_skips_invalid_json(mocker):
+    """A malformed stored value is logged and skipped, not raised."""
+    answers = [["R", {"label": "Red"}]]
+    block = _block(mocker, block_type="poll", answers=answers)
+    block.fields = {"answers": mocker.Mock()}
+    mocker.patch(
+        f"{API}.course_translations",
+        return_value=_translations(block, answers=(source_hash(answers), "[oops")),
+    )
+    mocker.patch(f"{API}.TRANSLATABLE_BLOCK_FIELDS", {"poll": ("answers",)})
+    mocker.patch(f"{API}.get_current_request", return_value=None)
+
+    translate_block(block)
+
+    block.fields["answers"]._set_cached_value.assert_not_called()
+
+
+def test_restore_capa_drops_added_grading_attributes():
+    source = (
+        '<problem><choicegroup><choice correct="true">Yes</choice>'
+        "<choice>No</choice></choicegroup></problem>"
+    )
+    translated = (
+        '<problem><choicegroup><choice correct="true">Oui</choice>'
+        '<choice correct="true">Non</choice></choicegroup></problem>'
+    )
+
+    assert restore_capa(source, translated) == (
+        '<problem><choicegroup><choice correct="true">Oui</choice>'
+        "<choice>Non</choice></choicegroup></problem>"
+    )
+
+
+@pytest.mark.parametrize(
+    ("prompt", "check"),
+    [
+        ("<p>Q</p>", lambda result: result == "NOTE<p>Q</p>"),
+        (
+            '[{"description": "Q"}]',
+            lambda result: result == '[{"description": "NOTEQ"}]',
+        ),
+        ('[{"description": null}]', lambda result: "NOTE" in result),
+        ('"x"', lambda result: result == 'NOTE"x"'),
+    ],
+    ids=["html", "json_list", "json_null_description", "json_non_list"],
+)
+def test_prompt_answer_note(mocker, prompt, check):
+    mocker.patch(f"{API}.answer_language_note", return_value="NOTE")
+
+    assert check(add_prompt_answer_note(prompt, COURSE_KEY))
+
+
+def test_plain_key_drops_branch():
+    usage_key = COURSE_KEY.for_branch("published-branch").make_usage_key("html", "a")
+
+    assert plain_key(usage_key) == COURSE_KEY.make_usage_key("html", "a")

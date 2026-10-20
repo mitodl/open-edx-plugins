@@ -3,6 +3,7 @@
 import hashlib
 import html
 import json
+import logging
 import re
 
 from crum import get_current_request
@@ -21,6 +22,8 @@ from ol_openedx_course_translations.blocks import (
     serialize,
 )
 from ol_openedx_course_translations.models import BlockTranslation
+
+log = logging.getLogger(__name__)
 
 # .. toggle_name: ol_openedx_course_translations.in_place_translations
 # .. toggle_implementation: CourseWaffleFlag
@@ -110,8 +113,9 @@ def translate_block(block):
 
     Writing the field normally would mark it dirty, and a later ``save()`` would
     raise ``InvalidScopeError`` because the LMS keeps authored scopes read-only.
-    Seeding the cache is never saved. The block is bound to one learner for one
-    request, so nothing carries over to another learner.
+    Seeding the cache is not saved; mutable (List/Dict) fields are also marked
+    dirty when read, so they are dropped from the dirty set. The block is bound
+    to one learner for one request, so nothing carries over to another learner.
 
     A row whose ``source_hash`` no longer matches the live value was made from
     older source text, so the source value is kept instead.
@@ -129,19 +133,25 @@ def translate_block(block):
         source_value = getattr(block, name, None)
         if row_hash is None or row_hash != source_hash(source_value):
             continue
-        value = deserialize(source_value, value)
+        try:
+            value = deserialize(source_value, value)
+        except ValueError:
+            log.exception("Invalid BlockTranslation %s %s", usage_key, name)
+            continue
         if block_type == "problem" and name == "data":
             value = add_problem_answer_note(value, usage_key.course_key)
         elif ANSWER_NOTE_FIELDS.get(block_type) == name:
             value = add_prompt_answer_note(value, usage_key.course_key)
-        block.fields[name]._set_cached_value(block, value)  # noqa: SLF001
+        field = block.fields[name]
+        field._set_cached_value(block, value)  # noqa: SLF001
+        block._dirty_fields.pop(field, None)  # noqa: SLF001
 
 
 def answer_language_note(course_key):
     """Return the note telling learners which language answers are graded in."""
     notes = getattr(settings, "IN_PLACE_TRANSLATION_ANSWER_LANGUAGE_NOTES", {})
     text = notes.get(get_language(), DEFAULT_ANSWER_LANGUAGE_NOTE)
-    note = text.format(language=course_language_name(course_key))
+    note = text.replace("{language}", course_language_name(course_key))
     return f'<p class="ol-answer-language-note">{html.escape(note)}</p>'
 
 
@@ -164,6 +174,6 @@ def add_prompt_answer_note(prompt, course_key):
     except (TypeError, ValueError):
         return note + prompt
     if isinstance(prompts, list) and prompts and isinstance(prompts[0], dict):
-        prompts[0]["description"] = note + prompts[0].get("description", "")
+        prompts[0]["description"] = note + (prompts[0].get("description") or "")
         return json.dumps(prompts)
     return note + prompt

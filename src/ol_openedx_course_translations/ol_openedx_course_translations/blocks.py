@@ -283,6 +283,9 @@ def restore_capa(source_xml, translated_xml):
             if source_node.getparent() in kept:
                 translated_node.tail = source_node.tail
             continue
+        for attribute in CAPA_KEEP_ATTRIBUTES & set(translated_node.attrib):
+            if attribute not in source_node.attrib:
+                del translated_node.attrib[attribute]
         for attribute in CAPA_KEEP_ATTRIBUTES & set(source_node.attrib):
             translated_node.set(attribute, source_node.get(attribute))
         if source_node.tag in CAPA_KEEP_TEXT:
