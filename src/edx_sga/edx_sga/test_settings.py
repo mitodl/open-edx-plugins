@@ -27,7 +27,8 @@ INSTALLED_APPS = (
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "statici18n",
-    # edx-submissions 4.x adds a model without an explicit app_label.
+    # edx-submissions 4.x adds models (ExternalGraderDetail, SubmissionFile)
+    # that declare no app_label, so the app has to be installed.
     "submissions",
     "edx_sga",
     "workbench",

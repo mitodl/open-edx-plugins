@@ -36,7 +36,7 @@ edx_sga = "edx_sga.sga:StaffGradedAssignmentXBlock"
 
 # The workbench unit tests run outside Open edX (sga.py's edx-platform imports
 # are faked in tests/test_sga.py), so they need these instead of edx-platform.
-# The integration tests run in the Tutor harness and use none of them.
+# The integration tests run in the Tutor harness, which does not install this group.
 [dependency-groups]
 unit-test = [
   "celery",
