@@ -66,6 +66,49 @@ edx-platform configuration
 
     ENROLLMENT_COURSE_ACCESS_ROLES: ["instructor", "staff"]
 
+- A consumer that records these roles only hears about new ones, because the
+  webhook fires on role addition. Backfill the roles that already exist once,
+  after deploying such a consumer:
+
+  .. code-block:: shell
+
+    ./manage.py lms sync_course_access_roles --dry-run
+    ./manage.py lms sync_course_access_roles
+
+  Pass ``--course-id`` (repeatable) to limit the backfill to specific courses.
+
+  The command reports what it **queued**, not what was delivered: each role is
+  handed to Celery, and a task that exhausts its retries is logged rather than
+  reported back. It is safe to re-run, because the consumer is expected to
+  upsert on the user, run and role, so re-run it if the logs show failures.
+
+  Re-running is also the fix for a role granted before the consumer knew about
+  the run. Studio emits ``COURSE_ACCESS_ROLE_ADDED`` for the creator as soon as
+  a run is created or rerun, which is usually before the consumer has a record
+  of that run, so the webhook is rejected with a 404 and the role is dropped
+  rather than retried. Once the run exists there, run::
+
+    ./manage.py lms sync_course_access_roles --course-id <course key>
+
+  Two kinds of grant are invisible to this command. Org-wide roles are skipped
+  deliberately, as above. The other is a consequence of openedx-authz: once
+  ``authz.enable_course_authoring`` is on for a course, ``RoleBase.add_users``
+  routes through authz and writes no ``CourseAccessRole`` row, so a role
+  granted from then on is not something this command can read.
+
+  Roles granted *before* that are still readable. ``authz_migrate_course_authoring``
+  copies them into authz but keeps the legacy rows unless it is run with
+  ``--delete``, so the course teams this command exists to catch up remain in
+  ``CourseAccessRole``.
+
+  The live webhook is unaffected either way: Open edX emits
+  ``COURSE_ACCESS_ROLE_ADDED`` for an authz grant too, so the receiver still
+  fires and the consumer still records the role. Only catching up after the
+  fact is affected -- which matters for the 404 case above, because re-running
+  this command will not recover a role granted on an authz-enabled course.
+  Covering those needs the command to read role assignments from authz as well,
+  which it does not do yet.
+
 - Set the username of the service worker that the external system uses to create
   enrollments through the Open edX enrollment REST API. Enrollments created by
   this user are not sent back to it:

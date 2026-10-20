@@ -182,3 +182,51 @@ def test_skips_when_webhook_not_configured(
     )
 
     mock_task.delay.assert_not_called()
+
+
+@pytest.mark.parametrize("role", ["staff", "instructor"])
+@VALID_WEBHOOK_PATCH
+@TASK_PATCH
+def test_skips_org_wide_roles(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+    role,
+):
+    """
+    An org-wide role carries no course key, so nothing is dispatched.
+
+    OrgStaffRole and OrgInstructorRole resolve to 'staff' and 'instructor',
+    which are in the allowed roles, so the role filter alone lets them through.
+    Without the course_key check the handler would send the literal "None".
+    """
+    role_data = _make_role_data(course_key=None, role=role)
+
+    with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
+        handle_course_access_role_added(
+            sender=None,
+            course_access_role_data=role_data,
+        )
+
+    mock_task.delay.assert_not_called()
+
+
+@VALID_WEBHOOK_PATCH
+@mock.patch("django.contrib.auth.get_user_model")
+@TASK_PATCH
+def test_org_wide_role_skipped_before_the_email_lookup(
+    mock_task,
+    mock_get_model,
+    _mock_validate,  # noqa: PT019
+):
+    """An org-wide role is dropped without paying for a user query."""
+    role_data = _make_role_data(email="", username="orgstaff", role="staff")
+    role_data.course_key = None
+
+    with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
+        handle_course_access_role_added(
+            sender=None,
+            course_access_role_data=role_data,
+        )
+
+    mock_get_model.return_value.objects.get.assert_not_called()
+    mock_task.delay.assert_not_called()
