@@ -1,0 +1,80 @@
+[project]
+name = "edx-sga"
+version = "0.30.0"
+description = "edx-sga Staff Graded Assignment XBlock"
+authors = [
+  {name = "MITx"}
+]
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+readme = "README.md"
+requires-python = ">=3.11"
+keywords = ["Python", "edx", "xblock"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Natural Language :: English",
+  "Environment :: Web Environment",
+  "Framework :: Django",
+  "Framework :: Django :: 5.2",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Internet :: WWW/HTTP",
+  "Topic :: Education",
+]
+dependencies = [
+  "Django>=5.2",
+  "XBlock",
+]
+
+[project.urls]
+Homepage = "https://github.com/mitodl/open-edx-plugins/tree/main/src/edx_sga"
+
+[project.entry-points."xblock.v1"]
+edx_sga = "edx_sga.sga:StaffGradedAssignmentXBlock"
+
+# The workbench unit tests run outside Open edX (sga.py's edx-platform imports
+# are faked in tests/test_sga.py), so they need these instead of edx-platform.
+# The integration tests run in the Tutor harness and use none of them.
+[dependency-groups]
+unit-test = [
+  "celery",
+  "ddt",
+  "django-statici18n",
+  "django-storages",
+  "edx-opaque-keys",
+  "edx-submissions",
+  "lxml",
+  "pytest",
+  "pytest-cov",
+  "pytest-django",
+  "pytz",
+  "six",
+  "xblock-sdk; python_version >= '3.12'",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+include = [
+  "edx_sga/**/*",
+]
+# edx_sga/locale and edx_sga/translations are symlinks to edx_sga/conf/locale,
+# which hatchling does not follow. Ship the catalogues at edx_sga/locale, where
+# the setuptools builds up to 0.29.0 put them.
+exclude = ["edx_sga/conf"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"edx_sga/conf/locale" = "edx_sga/locale"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "edx_sga/**/*",
+  "LICENSE",
+  "README.md",
+  "RELEASE.rst",
+  "pyproject.toml",
+]

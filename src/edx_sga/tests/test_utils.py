@@ -7,7 +7,7 @@ import pytest
 import pytz
 from storages.backends.s3boto3 import S3Boto3Storage
 
-from edx_sga.tests.common import is_near_now
+from tests.common import is_near_now
 from edx_sga.utils import get_default_storage, is_finalized_submission, utcnow
 
 

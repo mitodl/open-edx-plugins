@@ -1,6 +1,14 @@
 Release Notes
 =============
 
+Version 0.30.0
+--------------
+
+- chore: move edx-sga into mitodl/open-edx-plugins, with its history; it now publishes from there
+- feat: Atlas i18n support for SGA translations (https://github.com/mitodl/edx-sga/pull/388), merged after 0.29.0 and first released here
+- chore!: require Django>=5.2 and Python>=3.11 (Ulmo and later); use 0.29.0 on Teak and earlier
+- chore: tests no longer ship inside the package
+
 Version 0.29.0 (Released June 19, 2026)
 --------------
 

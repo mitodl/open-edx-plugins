@@ -61,6 +61,30 @@ jobs:
         name: dist
         path: dist/
 
+  edx-sga-unit-tests:
+    # edx-sga's workbench unit tests run against xblock-sdk with edx-platform's
+    # imports faked (src/edx_sga/tests/test_sga.py), not inside Tutor, so they
+    # get their own job. Its integration tests run in integration-tests below.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        enable-cache: true
+
+    - name: Run edx-sga unit tests
+      working-directory: src/edx_sga
+      run: >-
+        uv run --python 3.12 --package edx-sga --group unit-test --isolated
+        pytest tests -o python_files='test_*.py' --ds=edx_sga.test_settings
+        -p no:cacheprovider
+
   integration-tests:
     needs: [resolve-matrix, build-packages]
     runs-on: ubuntu-latest
@@ -239,7 +263,7 @@ jobs:
   # anywhere. ci-image-cache.yml is a separate workflow and not PR CI, so it is not
   # named here -- `needs` cannot cross workflows.
   ci-gate:
-    needs: [resolve-matrix, build-packages, integration-tests]
+    needs: [resolve-matrix, build-packages, edx-sga-unit-tests, integration-tests]
     # Without this the gate is skipped when a dependency fails, and GitHub treats a
     # skipped required job as successful, allowing the PR to merge despite the failure.
     if: always()

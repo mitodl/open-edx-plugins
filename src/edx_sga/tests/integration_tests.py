@@ -41,7 +41,7 @@ from xmodule.modulestore.xml_importer import import_course_from_xml
 
 from edx_sga.constants import ShowAnswer
 from edx_sga.sga import StaffGradedAssignmentXBlock
-from edx_sga.tests.common import (
+from tests.common import (
     DummyResource,
     TempfileMixin,
     get_sha1,
@@ -977,7 +977,7 @@ class StaffGradedAssignmentXblockTests(TempfileMixin, ModuleStoreTestCase):
         Import the test course with the sga unit
         """
         # adapted from edx-platform/cms/djangoapps/contentstore/management/commands/tests/test_cleanup_assets.py
-        root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        root = os.path.dirname(os.path.dirname(__file__))
         input_dir = os.path.join(root, "test_data")
 
         temp_dir = tempfile.mkdtemp()

@@ -126,7 +126,7 @@ the SGA XBlock in devstack.**
     ```sh
     sudo su - edxapp -s /bin/bash
     . edxapp_env
-    pip install -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sga
+    pip install edx-sga
     ```
 
 ### Production Installation
@@ -138,7 +138,7 @@ Create a branch of edx-platform to commit a few minor changes:
     In `requirements/edx/github.txt`, add:
 
     ```
-    -e git+https://github.com/mitodl/edx-sga@release#egg=edx-sga
+    edx-sga
     ```
 
 1. **Add appropriate `edx_sga` settings**
@@ -325,24 +325,17 @@ validation.
 
 ## Testing
 
-Assuming `edx-sga` is installed as above, integration tests can be run in devstack with this command:
+This package lives in the [open-edx-plugins](https://github.com/mitodl/open-edx-plugins) monorepo; it moved there from `mitodl/edx-sga` with its history. It has two suites, both run by that repository's CI.
+
+The integration tests (`tests/integration_tests.py`) run inside an Open edX environment with the repository's harness. See [docs/README.rst](https://github.com/mitodl/open-edx-plugins/blob/main/docs/README.rst) for the Tutor setup, then, from the repository root inside the LMS container:
 
 ```sh
-python manage.py lms --settings=test test edx_sga.tests.integration_tests
+./run_edx_integration_tests.sh --plugin edx_sga
 ```
 
-To run tests on your host machine (with a mocked edX platform):
-    
-```sh
-# Run tests using different versions of Django
-tox
-# Run tests using a specific version of Django
-tox -e py27-django111
-```
-
-To get statement coverage (in devstack):
+The unit tests (`tests/test_*.py`) run on the host against xblock-sdk, with the edx-platform imports faked. From `src/edx_sga`:
 
 ```sh
-coverage run --source edx_sga manage.py lms --settings=test test edx_sga.tests.integration_tests
-coverage report -m
+uv run --python 3.12 --package edx-sga --group unit-test --isolated \
+  pytest tests -o python_files='test_*.py' --ds=edx_sga.test_settings -p no:cacheprovider
 ```

@@ -20,6 +20,7 @@ section) - the table below only tracks the Django 5.2 floor.
 ========================================  ========================================  ===================================
 Plugin                                    Max version for Teak and earlier          Min version for Ulmo / Verawood+
 ========================================  ========================================  ===================================
+edx-sga                                   0.29.0                                    0.30.0
 edx-sysadmin                              0.4.2                                     0.5.0
 edx-username-changer                      0.5.0                                     0.6.0
 ol-openedx-ai-static-translations         0.1.1                                     0.2.0

@@ -25,7 +25,7 @@ from xblock.field_data import DictFieldData
 from xblock.fields import DateTime
 
 from edx_sga.constants import ATTR_KEY_USER_IS_STAFF
-from edx_sga.tests.common import DummyResource, TempfileMixin
+from tests.common import DummyResource, TempfileMixin
 
 
 SHA1 = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
@@ -196,6 +196,7 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
         """Student-facing Underscore template text must remain translatable."""
         template_path = (
             Path(__file__).resolve().parents[1]
+            / "edx_sga"
             / "templates"
             / "staff_graded_assignment"
             / "show.html"
@@ -217,7 +218,7 @@ class StaffGradedAssignmentMockedTests(TempfileMixin):
 
     def test_grade_modal_falls_back_to_username_when_full_name_is_empty(self):
         """The grade modal must show an identifier even when profile.name is empty."""
-        js_path = Path(__file__).resolve().parents[1] / "static" / "js" / "src" / "edx_sga.js"
+        js_path = Path(__file__).resolve().parents[1] / "edx_sga" / "static" / "js" / "src" / "edx_sga.js"
         script = js_path.read_text(encoding="utf-8")
 
         assert "var studentName = row.data('fullname') || row.data('username') || '';" in script

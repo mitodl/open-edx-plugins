@@ -27,6 +27,8 @@ INSTALLED_APPS = (
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "statici18n",
+    # edx-submissions 4.x adds a model without an explicit app_label.
+    "submissions",
     "edx_sga",
     "workbench",
 )
