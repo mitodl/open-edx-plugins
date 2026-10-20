@@ -93,7 +93,7 @@ class CourseLanguageView(APIView):
                 {"error": "An unexpected error occurred."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if learner_language_enabled():
+        if learner_language_enabled(course_key):
             # The MIT Footer switches the site to this language whenever it
             # differs from the cookie, so echoing the cookie keeps the
             # learner's own choice.
@@ -107,11 +107,12 @@ class ReleasedLanguagesView(APIView):
     """
     API View for the header language dropdown.
 
-    ``enabled`` mirrors the learner-language flag, so frontends show the
-    dropdown and stop forcing a language only when the flag is on.
+    ``enabled`` mirrors the learner-language flag for ``course_id`` (or its
+    global value without one), so frontends show the dropdown and stop forcing
+    a language only when the flag is on.
 
     Sample Request:
-        GET /auto-select-language/api/languages/
+        GET /auto-select-language/api/languages/?course_id={course_key}
 
     Sample Response:
         200 OK
@@ -127,11 +128,15 @@ class ReleasedLanguagesView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [CourseLanguageAnonRateThrottle, CourseLanguageUserRateThrottle]
 
-    def get(self, request):  # noqa: ARG002
+    def get(self, request):
         """Return the flag state and the DarkLang released languages."""
+        try:
+            course_key = CourseKey.from_string(request.GET["course_id"])
+        except (KeyError, InvalidKeyError):
+            course_key = None
         return Response(
             {
-                "enabled": learner_language_enabled(),
+                "enabled": learner_language_enabled(course_key),
                 "languages": [
                     {"code": language.code, "name": language.name}
                     for language in released_languages()

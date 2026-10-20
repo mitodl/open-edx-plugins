@@ -8,11 +8,20 @@ the deployment YAML and drops entries added by common settings.
 """
 
 TRANSLATION_PIPELINE_STEPS = {
-    "org.openedx.learning.vertical_block_child.render.started.v1": (
-        "ol_openedx_course_translations.filters.TranslateVerticalChildContent"
+    "org.openedx.learning.xblock.bound.v1": (
+        "ol_openedx_course_translations.filters.TranslateBoundBlock"
     ),
-    "org.openedx.learning.xblock.handler.started.v1": (
-        "ol_openedx_course_translations.filters.TranslateBlockBeforeHandler"
+    "org.openedx.learning.course_blocks.transform.completed.v1": (
+        "ol_openedx_course_translations.filters.TranslateCourseBlockNames"
+    ),
+    "org.openedx.learning.course_outline.api.render.started.v1": (
+        "ol_openedx_course_translations.filters.TranslateCourseOutline"
+    ),
+    "org.openedx.learning.course_home_metadata.api.render.started.v1": (
+        "ol_openedx_course_translations.filters.TranslateCourseHomeMetadata"
+    ),
+    "org.openedx.learning.courseware_metadata.api.render.started.v1": (
+        "ol_openedx_course_translations.filters.TranslateCoursewareMetadata"
     ),
 }
 
