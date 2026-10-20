@@ -2300,6 +2300,7 @@ dependencies = [
     { name = "django", version = "6.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-opaque-keys" },
+    { name = "ol-openedx-course-translations" },
 ]
 
 [package.metadata]
@@ -2307,6 +2308,7 @@ requires-dist = [
     { name = "django", specifier = ">=5.2" },
     { name = "djangorestframework", specifier = ">=3.16.0" },
     { name = "edx-opaque-keys" },
+    { name = "ol-openedx-course-translations", editable = "src/ol_openedx_course_translations" },
 ]
 
 [[package]]

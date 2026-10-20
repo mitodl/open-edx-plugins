@@ -9,11 +9,12 @@ from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
 # .. toggle_name: ol_openedx_auto_select_language.learner_language
 # .. toggle_implementation: CourseWaffleFlag
 # .. toggle_default: False
-# .. toggle_description: The learner's own language choice wins everywhere.
-#   Course pages, staff pages and Studio stop switching or saving the language,
-#   course-language lookups report the learner's language, and video subtitles
-#   follow the learner's language before the course language. Pages outside a
-#   course follow the flag's global value.
+# .. toggle_description: Learner-language mode for a course: the learner's own
+#   language choice wins and the course is shown in it. Course pages, staff pages
+#   and Studio stop switching or saving the language, course-language lookups
+#   report the learner's language, video subtitles follow the learner's language
+#   before the course language, and the course's BlockTranslation rows are shown.
+#   Pages outside a course follow the flag's global value.
 LEARNER_LANGUAGE = CourseWaffleFlag(
     "ol_openedx_auto_select_language.learner_language", __name__
 )

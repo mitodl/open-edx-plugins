@@ -12,11 +12,11 @@ from django.db import connection
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 
-from ol_openedx_course_translations.api import source_hash
 from ol_openedx_course_translations.blocks import (
     TRANSLATABLE_BLOCK_FIELDS,
     restore_kept_parts,
     serialize,
+    source_hash,
 )
 from ol_openedx_course_translations.models import BlockTranslation, CourseTranslationLog
 

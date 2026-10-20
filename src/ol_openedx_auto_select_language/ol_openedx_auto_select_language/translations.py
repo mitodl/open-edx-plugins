@@ -1,6 +1,5 @@
-"""Read side of in-place course translations: which values a learner is served."""
+"""Show BlockTranslation rows to learners: which values a learner is served."""
 
-import hashlib
 import html
 import json
 import logging
@@ -10,29 +9,20 @@ from crum import get_current_request
 from django.conf import settings
 from django.utils.translation import get_language, get_language_info
 from edx_django_utils.cache import RequestCache
-from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
-from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
-
 from ol_openedx_course_translations.blocks import (
     ANSWER_NOTE_FIELDS,
     SOURCE_TEXT_HANDLERS,
     TRANSLATABLE_BLOCK_FIELDS,
     TYPED_ANSWER_TAGS,
     deserialize,
-    serialize,
+    source_hash,
 )
 from ol_openedx_course_translations.models import BlockTranslation
+from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
+
+from ol_openedx_auto_select_language.toggles import learner_language_enabled
 
 log = logging.getLogger(__name__)
-
-# .. toggle_name: ol_openedx_course_translations.in_place_translations
-# .. toggle_implementation: CourseWaffleFlag
-# .. toggle_default: False
-# .. toggle_description: Serve BlockTranslation rows in the learner's active
-#   language for this course's content, titles and pages.
-IN_PLACE_TRANSLATIONS = CourseWaffleFlag(
-    "ol_openedx_course_translations.in_place_translations", __name__
-)
 
 SERVABLE_STATUSES = (
     BlockTranslation.Status.AUTO,
@@ -41,11 +31,6 @@ SERVABLE_STATUSES = (
 
 DEFAULT_ANSWER_LANGUAGE_NOTE = "Please enter your answers in {language}."
 PROBLEM_OPEN_TAG = re.compile(r"<problem\b[^>]*>")
-
-
-def source_hash(value):
-    """Return the fingerprint a translation row is checked against."""
-    return hashlib.sha256(serialize(value).encode()).hexdigest()
 
 
 def plain_key(key):
@@ -61,13 +46,14 @@ def course_translations(course_key):
     """
     Return ``{usage_key: {field: (source_hash, value)}}`` for the learner's language.
 
-    Empty when the course flag is off. Loaded once per request, course and language.
+    Empty when the course is not in learner-language mode. Loaded once per
+    request, course and language.
     """
     language = get_language()
     course_key = plain_key(course_key)
-    if not language or not IN_PLACE_TRANSLATIONS.is_enabled(course_key):
+    if not language or not learner_language_enabled(course_key):
         return {}
-    cache = RequestCache("ol_openedx_course_translations")
+    cache = RequestCache("ol_openedx_auto_select_language.translations")
     cache_key = f"{course_key}:{language}"
     cached = cache.get_cached_response(cache_key)
     if cached.is_found:
@@ -80,6 +66,24 @@ def course_translations(course_key):
         translations.setdefault(usage_key, {})[field] = (row_hash, value)
     cache.set(cache_key, translations)
     return translations
+
+
+def course_language_codes(course_key):
+    """Return the codes a course can be shown in: its own language and translations."""
+    course_key = plain_key(course_key)
+    codes = set(
+        BlockTranslation.objects.filter(
+            course_key=course_key, status__in=SERVABLE_STATUSES
+        )
+        .values_list("language", flat=True)
+        .distinct()
+    )
+    try:
+        own_language = CourseOverview.get_from_id(course_key).language
+    except CourseOverview.DoesNotExist:
+        own_language = None
+    codes.add((own_language or settings.LANGUAGE_CODE).replace("_", "-").lower())
+    return codes
 
 
 def translated_text(translations, usage_key, field, source_value):

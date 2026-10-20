@@ -13,7 +13,11 @@ dependencies = [
   "Django>=5.2",
   "djangorestframework>=3.16.0",
   "edx-opaque-keys",
+  "ol-openedx-course-translations",
 ]
+
+[tool.uv.sources]
+ol-openedx-course-translations = { workspace = true }
 
 [project.entry-points."cms.djangoapp"]
 ol_openedx_auto_select_language = "ol_openedx_auto_select_language.apps:OLOpenEdxAutoSelectLanguageConfig"
