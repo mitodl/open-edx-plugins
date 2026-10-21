@@ -1,10 +1,30 @@
 """Signal handler for openedx-authz role assignments."""
 
 import logging
+from functools import cache
 
 from django.conf import settings
 
 log = logging.getLogger(__name__)
+
+
+@cache
+def _legacy_roles_by_authz_role():
+    """
+    Map each authz course role to the course access role name it replaced.
+
+    openedx-authz owns this mapping, and its comment states it is kept unique
+    in both directions precisely so it can be read as a reverse lookup. Reading
+    it here rather than calling edx-platform's
+    ``get_legacy_role_from_authz_role`` keeps the dependency on the package
+    that emits the event: if openedx-authz is absent there is no signal to
+    handle, whereas edx-platform's wrapper is an internal that could move.
+    """
+    from openedx_authz.constants.roles import (  # noqa: PLC0415
+        LEGACY_COURSE_ROLE_EQUIVALENCES,
+    )
+
+    return {authz: legacy for legacy, authz in LEGACY_COURSE_ROLE_EQUIVALENCES.items()}
 
 
 def _external_key(namespaced_key, namespace, separator):
@@ -74,13 +94,10 @@ def _legacy_role_for(role_key, course_key):
     vocabulary. Roles with no legacy equivalent are not mirrored, and neither is
     a key that does not carry the role namespace.
     """
-    from common.djangoapps.student.roles import (  # noqa: PLC0415
-        get_legacy_role_from_authz_role,
-    )
     from openedx_authz.api.data import RoleData  # noqa: PLC0415
 
     authz_role = _external_key(role_key, RoleData.NAMESPACE, RoleData.SEPARATOR)
-    legacy_role = get_legacy_role_from_authz_role(authz_role) if authz_role else None
+    legacy_role = _legacy_roles_by_authz_role().get(authz_role) if authz_role else None
     if not legacy_role:
         log.debug(
             "Ignoring role assignment %r in course '%s' - it has no equivalent "
