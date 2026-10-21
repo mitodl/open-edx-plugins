@@ -13,7 +13,7 @@ from xmodule.modulestore.django import modulestore
 from ol_openedx_auto_select_language.constants import (
     ENGLISH_LANGUAGE_CODE,
 )
-from ol_openedx_auto_select_language.toggles import learner_language_enabled
+from ol_openedx_auto_select_language.toggles import in_place_translations_enabled
 from ol_openedx_auto_select_language.utils import LanguageCode
 
 VIDEO_BLOCK_TYPE = "video"
@@ -126,7 +126,7 @@ class RestrictVideoTranscriptLanguages(PipelineStep):
         course_language = _course_language(block)
         preferred = [course_language] if course_language else []
         if (
-            learner_language_enabled(block.scope_ids.usage_id.course_key)
+            in_place_translations_enabled(block.scope_ids.usage_id.course_key)
             and get_language()
         ):
             preferred.insert(0, get_language())
