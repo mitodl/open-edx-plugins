@@ -372,3 +372,70 @@ def test_restore_capa_keeps_typed_answer_translated_by_mistake():
     )
 
     assert restore_capa(source, translated) == source
+
+
+def test_admin_saves_the_hash_of_the_source_it_validated(mocker):
+    from django.contrib import admin  # noqa: PLC0415
+    from ol_openedx_course_translations.admin import (  # noqa: PLC0415
+        BlockTranslationAdmin,
+        BlockTranslationForm,
+    )
+
+    usage_key = COURSE_KEY.make_usage_key("html", "a")
+    row = BlockTranslation(
+        course_key=COURSE_KEY, usage_key=usage_key, field="display_name", language="fr"
+    )
+    published = mocker.patch(
+        "ol_openedx_course_translations.admin.published_source_value",
+        side_effect=["Old title", "New title"],
+    )
+    mocker.patch.object(admin.ModelAdmin, "save_model")
+    form = BlockTranslationForm(instance=row)
+    form.cleaned_data = {"translated_value": "Titre"}
+    form.changed_data = ["translated_value"]
+
+    form.clean_translated_value()
+    # The course is published again before the row is saved.
+    BlockTranslationAdmin(BlockTranslation, admin.site).save_model(
+        None, row, form, change=True
+    )
+
+    assert row.source_hash == source_hash("Old title")
+    assert row.status == BlockTranslation.Status.REVIEWED
+    assert published.call_count == 1
+
+
+@pytest.mark.django_db
+def test_translate_blocks_in_place_saves_rows_before_a_provider_error(mocker):
+    from django.core.management import call_command  # noqa: PLC0415
+
+    command = (
+        "ol_openedx_course_translations.management.commands.translate_blocks_in_place"
+    )
+    blocks = [
+        _block(mocker, block_id=name, display_name=name.title()) for name in ("a", "b")
+    ]
+    for block in blocks:
+        block.location = block.scope_ids.usage_id
+    store = mocker.Mock()
+    store.get_items.side_effect = lambda _key, qualifiers, **_kw: (
+        blocks if qualifiers["category"] == "html" else []
+    )
+    mocker.patch("xmodule.modulestore.django.modulestore", return_value=store)
+    mocker.patch(f"{command}.parse_and_validate_provider_spec", return_value=("p", "m"))
+    mocker.patch(f"{command}.get_translation_provider")
+    first_row = mocker.Mock()
+    mocker.patch(
+        f"{command}.translated_row", side_effect=[first_row, RuntimeError("API error")]
+    )
+    save_rows = mocker.patch(f"{command}.save_rows", return_value=1)
+
+    with pytest.raises(RuntimeError):
+        call_command(
+            "translate_blocks_in_place",
+            course=str(COURSE_KEY),
+            language="fr",
+            provider="p/m",
+        )
+
+    save_rows.assert_called_once_with([first_row])

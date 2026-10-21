@@ -220,6 +220,7 @@ def _problem(mocker, responder, saved_msg="<p>Exact</p>"):
     block.scope_ids.block_type = "problem"
     block.scope_ids.usage_id = COURSE_KEY.make_usage_key("problem", "p")
     block.correct_map = {"p_2_1": {"msg": saved_msg}}
+    block.has_saved_answers = False
     block.lcp.student_answers = {"p_2_1": "choice_0"}
     block.lcp.responders = {"r": responder}
     block.lcp.correct_map = _correct_map(saved_msg)
@@ -284,4 +285,16 @@ def test_refresh_problem_feedback_keeps_saved_feedback_on_error(mocker):
 
     refresh_problem_feedback(block)
 
+    assert block.lcp.correct_map.get_msg("p_2_1") == "<p>Exact</p>"
+
+
+def test_refresh_problem_feedback_skips_saved_unsubmitted_answers(mocker):
+    mocker.patch(f"{API}.in_place_translations_enabled", return_value=True)
+    responder = _responder(mocker, responsetypes.MultipleChoiceResponse)
+    block = _problem(mocker, responder)
+    block.has_saved_answers = True
+
+    refresh_problem_feedback(block)
+
+    responder.evaluate_answers.assert_not_called()
     assert block.lcp.correct_map.get_msg("p_2_1") == "<p>Exact</p>"
