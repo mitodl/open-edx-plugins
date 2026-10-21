@@ -187,3 +187,21 @@ def test_answer_note_below_ora_title(mocker):
         f'<div data-id="{ora}">{title}<NOTE><p>Prompt</p></div>'
         f'<div data-id="{other}">{title}</div>'
     )
+
+
+def test_translate_block_restores_source_before_rebinding(mocker):
+    """A block bound again (another user, a source handler) starts from source."""
+    block = _block(mocker, data="<p>Hello</p>")
+    rows = {"data": (source_hash("<p>Hello</p>"), "<p>Bonjour</p>")}
+    patched = mocker.patch(
+        f"{API}.course_translations", return_value=_translations(block, **rows)
+    )
+    mocker.patch(f"{API}.get_current_request", return_value=None)
+    block.fields["data"]._set_cached_value = lambda b, v: setattr(b, "data", v)
+
+    translate_block(block)
+    assert block.data == "<p>Bonjour</p>"
+
+    patched.return_value = {}
+    translate_block(block)
+    assert block.data == "<p>Hello</p>"

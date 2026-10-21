@@ -22,6 +22,9 @@ from ol_openedx_auto_select_language.toggles import in_place_translations_enable
 
 log = logging.getLogger(__name__)
 
+# Source values of the fields translate_block replaced on a block instance.
+ORIGINAL_VALUES_ATTR = "_ol_translation_original_values"
+
 SERVABLE_STATUSES = (
     BlockTranslation.Status.AUTO,
     BlockTranslation.Status.REVIEWED,
@@ -124,12 +127,19 @@ def translate_block(block):
     Writing the field normally would mark it dirty, and a later ``save()`` would
     raise ``InvalidScopeError`` because the LMS keeps authored scopes read-only.
     Seeding the cache is not saved; mutable (List/Dict) fields are also marked
-    dirty when read, so they are dropped from the dirty set. The block is bound
-    to one learner for one request, so nothing carries over to another learner.
+    dirty when read, so they are dropped from the dirty set.
+
+    The same instance can be bound again in a request, to another user (for
+    example rescoring) or for a handler that needs the source text, so the
+    source values are put back before anything is applied.
 
     A row whose ``source_hash`` no longer matches the live value was made from
     older source text, so the source value is kept instead.
     """
+    originals = block.__dict__.setdefault(ORIGINAL_VALUES_ATTR, {})
+    for name, original in originals.items():
+        _set_in_memory(block, name, original)
+    originals.clear()
     usage_key = plain_key(block.scope_ids.usage_id)
     block_type = block.scope_ids.block_type
     fields = TRANSLATABLE_BLOCK_FIELDS.get(block_type)
@@ -150,9 +160,15 @@ def translate_block(block):
             continue
         if block_type == "problem" and name == "data":
             value = add_problem_answer_note(value, usage_key.course_key)
-        field = block.fields[name]
-        field._set_cached_value(block, value)  # noqa: SLF001
-        block._dirty_fields.pop(field, None)  # noqa: SLF001
+        originals[name] = source_value
+        _set_in_memory(block, name, value)
+
+
+def _set_in_memory(block, name, value):
+    """Set a field's cached value without marking it for saving."""
+    field = block.fields[name]
+    field._set_cached_value(block, value)  # noqa: SLF001
+    block._dirty_fields.pop(field, None)  # noqa: SLF001
 
 
 def answer_language_note(course_key):
