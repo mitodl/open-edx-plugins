@@ -22,9 +22,11 @@ def _authz_signals_available():
     """
     try:
         return find_spec("openedx_events.authz.signals") is not None
-    except ModuleNotFoundError:
+    except ImportError:
         # find_spec imports the parent package to look for the submodule, so an
-        # absent openedx_events.authz raises here rather than returning None.
+        # absent openedx_events.authz raises ModuleNotFoundError here rather
+        # than returning None, and a parent that fails to import raises plain
+        # ImportError. Either way the signal cannot be connected.
         return False
 
 

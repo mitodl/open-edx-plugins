@@ -168,6 +168,81 @@ def test_skips_a_subject_that_is_not_a_known_user(
 @pytest.mark.django_db
 @VALID_WEBHOOK_PATCH
 @TASK_PATCH
+def test_skips_a_group_named_after_an_existing_user(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+    team_member,  # noqa: ARG001
+):
+    """
+    A group assignment is skipped even when a user shares the group's name.
+
+    The subject namespace decides this, not whether the lookup finds someone.
+    Stripping the prefix and querying by the remainder would mirror a course
+    team role onto an unrelated individual who happens to be named after the
+    group.
+    """
+    with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
+        handle_role_assignment_created(
+            None, role_assignment=_event(subject=f"group^{USERNAME}")
+        )
+
+    mock_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@VALID_WEBHOOK_PATCH
+@TASK_PATCH
+def test_skips_a_role_key_in_the_wrong_namespace(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+    team_member,  # noqa: ARG001
+):
+    """
+    A role key that does not carry the role namespace is not translated.
+
+    Same reasoning as the group case: the name after the separator may well be
+    a real role, but a key arriving under another namespace is malformed rather
+    than a grant to act on.
+    """
+    with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
+        handle_role_assignment_created(
+            None, role_assignment=_event(role=f"user^{USERNAME}")
+        )
+
+    mock_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@VALID_WEBHOOK_PATCH
+@TASK_PATCH
+def test_skips_when_the_allowed_roles_setting_is_absent(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+    team_member,  # noqa: ARG001
+):
+    """
+    Nothing is mirrored when ENROLLMENT_COURSE_ACCESS_ROLES is not configured.
+
+    An operator who has not opted a role in gets no webhook rather than every
+    role. The settings object is replaced with one carrying no attributes at
+    all, so this exercises the ``getattr`` default itself rather than depending
+    on what the ambient test settings happen to define.
+    """
+    with (
+        override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES),
+        mock.patch(
+            "ol_openedx_events_handler.handlers.role_assignment.settings",
+            spec=[],
+        ),
+    ):
+        handle_role_assignment_created(None, role_assignment=_event())
+
+    mock_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@VALID_WEBHOOK_PATCH
+@TASK_PATCH
 def test_skips_a_user_with_no_email(
     mock_task,
     _mock_validate,  # noqa: PT019

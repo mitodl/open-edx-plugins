@@ -7,13 +7,32 @@ from django.conf import settings
 log = logging.getLogger(__name__)
 
 
-def _external_key(namespaced_key, separator):
+def _external_key(namespaced_key, namespace, separator):
     """
-    Return the value half of a namespaced key such as ``user^jdoe``.
+    Return the value half of a namespaced key, if it carries this namespace.
 
-    Returns None when the key carries no namespace, which would mean
-    openedx-authz changed the format rather than that this particular
-    assignment is uninteresting -- worth noticing rather than guessing at.
+    The namespace is checked rather than stripped. openedx-authz can assign a
+    role to something other than a user -- a group arrives as ``group^<name>``
+    -- and stripping whatever prefix happens to be there would turn that into a
+    username. A group whose name matches an existing user would then mirror a
+    course team role onto that individual, so the prefix has to match.
+
+    Returns None when it does not, which also covers a key carrying no
+    namespace at all.
+    """
+    prefix = f"{namespace}{separator}"
+    if not namespaced_key or not namespaced_key.startswith(prefix):
+        return None
+    return namespaced_key[len(prefix) :]
+
+
+def _namespaced_value(namespaced_key, separator):
+    """
+    Return the value half of a key whose namespace is not a fixed string.
+
+    A scope's namespace is the scope type, which for a course is the course
+    key's own version prefix, so there is no constant to compare against. The
+    caller validates the value instead.
     """
     if not namespaced_key or separator not in namespaced_key:
         return None
@@ -34,7 +53,7 @@ def _course_key_from_scope(scope_key):
     from opaque_keys.edx.keys import CourseKey  # noqa: PLC0415
     from openedx_authz.api.data import ScopeData  # noqa: PLC0415
 
-    scope = _external_key(scope_key, ScopeData.SEPARATOR)
+    scope = _namespaced_value(scope_key, ScopeData.SEPARATOR)
     if not scope:
         log.warning(
             "Role assignment carried an unparseable scope %r. Skipping.",
@@ -54,14 +73,15 @@ def _legacy_role_for(role_key, course_key):
 
     The consumer and ``ENROLLMENT_COURSE_ACCESS_ROLES`` both speak the legacy
     names, so an operator configuring this does not have to know openedx-authz's
-    vocabulary. Roles with no legacy equivalent are not mirrored.
+    vocabulary. Roles with no legacy equivalent are not mirrored, and neither is
+    a key that does not carry the role namespace.
     """
     from common.djangoapps.student.roles import (  # noqa: PLC0415
         get_legacy_role_from_authz_role,
     )
     from openedx_authz.api.data import RoleData  # noqa: PLC0415
 
-    authz_role = _external_key(role_key, RoleData.SEPARATOR)
+    authz_role = _external_key(role_key, RoleData.NAMESPACE, RoleData.SEPARATOR)
     legacy_role = get_legacy_role_from_authz_role(authz_role) if authz_role else None
     if not legacy_role:
         log.debug(
@@ -88,18 +108,19 @@ def _email_for_subject(subject_key, course_key):
     """
     Return the email of the user this assignment is for, or None.
 
-    openedx-authz can also assign a role to a group, which arrives with a
-    different namespace and no single learner for the consumer to record.
-    Those fall out here.
+    openedx-authz can also assign a role to a group, which arrives under a
+    different namespace and has no single learner for the consumer to record.
+    Those fall out here, on the namespace rather than on the lookup failing --
+    a group named after an existing user would otherwise resolve to them.
     """
     from django.contrib.auth import get_user_model  # noqa: PLC0415
     from openedx_authz.api.data import UserData  # noqa: PLC0415
 
-    username = _external_key(subject_key, UserData.SEPARATOR)
+    username = _external_key(subject_key, UserData.NAMESPACE, UserData.SEPARATOR)
     if not username:
-        log.warning(
-            "Role assignment carried an unparseable subject %r for course '%s'. "
-            "Skipping.",
+        log.debug(
+            "Ignoring role assignment for subject %r in course '%s' - only "
+            "assignments to a single user are mirrored.",
             subject_key,
             course_key,
         )
@@ -113,8 +134,7 @@ def _email_for_subject(subject_key, course_key):
     except user_model.DoesNotExist:
         log.warning(
             "Cannot resolve a user for '%s'. Skipping enrollment webhook for "
-            "course '%s'. A group assignment lands here too; only user "
-            "assignments are mirrored.",
+            "course '%s'.",
             username,
             course_key,
         )
