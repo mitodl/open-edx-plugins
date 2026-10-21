@@ -1,7 +1,6 @@
 """Show BlockTranslation rows to learners: which values a learner is served."""
 
 import html
-import json
 import logging
 import re
 
@@ -10,7 +9,6 @@ from django.conf import settings
 from django.utils.translation import get_language, get_language_info
 from edx_django_utils.cache import RequestCache
 from ol_openedx_course_translations.blocks import (
-    ANSWER_NOTE_FIELDS,
     SOURCE_TEXT_HANDLERS,
     TRANSLATABLE_BLOCK_FIELDS,
     TYPED_ANSWER_TAGS,
@@ -20,7 +18,7 @@ from ol_openedx_course_translations.blocks import (
 from ol_openedx_course_translations.models import BlockTranslation
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 
-from ol_openedx_auto_select_language.toggles import learner_language_enabled
+from ol_openedx_auto_select_language.toggles import in_place_translations_enabled
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +28,14 @@ SERVABLE_STATUSES = (
 )
 
 DEFAULT_ANSWER_LANGUAGE_NOTE = "Please enter your answers in {language}."
+ANSWER_LANGUAGE_NOTE_HTML = (
+    '<div class="ol-answer-language-note" role="note" style="display: flex; '
+    "gap: 10px; align-items: flex-start; margin: 0 0 16px; padding: 10px 14px; "
+    "border-left: 4px solid #b45309; border-radius: 4px; background: #fff7ed; "
+    'color: #7c2d12; font-size: 14px; line-height: 1.4;">'
+    '<span aria-hidden="true" style="font-size: 16px; line-height: 1.2;">&#9888;</span>'
+    "<span>{note}</span></div>"
+)
 PROBLEM_OPEN_TAG = re.compile(r"<problem\b[^>]*>")
 
 
@@ -46,12 +52,12 @@ def course_translations(course_key):
     """
     Return ``{usage_key: {field: (source_hash, value)}}`` for the learner's language.
 
-    Empty when the course is not in learner-language mode. Loaded once per
+    Empty when the course is not in in-place translations mode. Loaded once per
     request, course and language.
     """
     language = get_language()
     course_key = plain_key(course_key)
-    if not language or not learner_language_enabled(course_key):
+    if not language or not in_place_translations_enabled(course_key):
         return {}
     cache = RequestCache("ol_openedx_auto_select_language.translations")
     cache_key = f"{course_key}:{language}"
@@ -144,8 +150,6 @@ def translate_block(block):
             continue
         if block_type == "problem" and name == "data":
             value = add_problem_answer_note(value, usage_key.course_key)
-        elif ANSWER_NOTE_FIELDS.get(block_type) == name:
-            value = add_prompt_answer_note(value, usage_key.course_key)
         field = block.fields[name]
         field._set_cached_value(block, value)  # noqa: SLF001
         block._dirty_fields.pop(field, None)  # noqa: SLF001
@@ -156,7 +160,8 @@ def answer_language_note(course_key):
     notes = getattr(settings, "IN_PLACE_TRANSLATION_ANSWER_LANGUAGE_NOTES", {})
     text = notes.get(get_language(), DEFAULT_ANSWER_LANGUAGE_NOTE)
     note = text.replace("{language}", course_language_name(course_key))
-    return f'<p class="ol-answer-language-note">{html.escape(note)}</p>'
+    # Inline styles: the note renders in problem and ORA markup, outside any theme.
+    return ANSWER_LANGUAGE_NOTE_HTML.format(note=html.escape(note))
 
 
 def add_problem_answer_note(problem_xml, course_key):
@@ -168,16 +173,3 @@ def add_problem_answer_note(problem_xml, course_key):
         return problem_xml
     note = answer_language_note(course_key)
     return problem_xml[: match.end()] + note + problem_xml[match.end() :]
-
-
-def add_prompt_answer_note(prompt, course_key):
-    """Add the note to an ORA prompt, which is HTML or a JSON list of prompts."""
-    note = answer_language_note(course_key)
-    try:
-        prompts = json.loads(prompt)
-    except (TypeError, ValueError):
-        return note + prompt
-    if isinstance(prompts, list) and prompts and isinstance(prompts[0], dict):
-        prompts[0]["description"] = note + (prompts[0].get("description") or "")
-        return json.dumps(prompts)
-    return note + prompt

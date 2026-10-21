@@ -49,12 +49,14 @@ TRANSLATABLE_BLOCK_FIELDS = {
 }
 
 # Handlers that must see the source text. ORA hashes the whole rubric (labels and
-# prompts included) when an assessment is created; lti_consumer sends its
-# display_name to the external tool.
+# prompts included) and saves it when an assessment is created, and when the
+# student training step is first rendered (it stores its examples with the
+# rubric); lti_consumer sends its display_name to the external tool.
 SOURCE_TEXT_HANDLERS = {
     "openassessment": {
         "assessment",
         "peer_assess",
+        "render_student_training",
         "self_assess",
         "staff_assess",
         "submit",
@@ -64,7 +66,8 @@ SOURCE_TEXT_HANDLERS = {
 }
 
 # Blocks whose learners type free text, which is kept in the course language.
-ANSWER_NOTE_FIELDS = {"openassessment": "prompt"}
+# Their note goes below the block's title in the rendered unit.
+ANSWER_NOTE_BLOCK_TYPES = {"openassessment"}
 TYPED_ANSWER_TAGS = (
     "coderesponse",
     "customresponse",
@@ -217,6 +220,9 @@ class _MismatchError(Exception):
 
 
 def _restore_structure(source, translated, key=None):
+    # Poll and survey pairs are tuples, which JSON round-trips as lists.
+    if isinstance(source, tuple):
+        source = list(source)
     if type(source) is not type(translated):
         raise _MismatchError
     if isinstance(source, dict):

@@ -4,12 +4,12 @@
 
 import pytest
 from ol_openedx_auto_select_language.translation_filters import (
+    AddAnswerNoteBelowTitles,
     TranslateCourseBlockNames,
     TranslateCourseOutline,
 )
 from ol_openedx_auto_select_language.translations import (
     add_problem_answer_note,
-    add_prompt_answer_note,
     plain_key,
     translate_block,
 )
@@ -157,26 +157,33 @@ def test_translate_block_skips_invalid_json(mocker):
     block.fields["answers"]._set_cached_value.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    ("prompt", "check"),
-    [
-        ("<p>Q</p>", lambda result: result == "NOTE<p>Q</p>"),
-        (
-            '[{"description": "Q"}]',
-            lambda result: result == '[{"description": "NOTEQ"}]',
-        ),
-        ('[{"description": null}]', lambda result: "NOTE" in result),
-        ('"x"', lambda result: result == 'NOTE"x"'),
-    ],
-    ids=["html", "json_list", "json_null_description", "json_non_list"],
-)
-def test_prompt_answer_note(mocker, prompt, check):
-    mocker.patch(f"{API}.answer_language_note", return_value="NOTE")
-
-    assert check(add_prompt_answer_note(prompt, COURSE_KEY))
-
-
 def test_plain_key_drops_branch():
     usage_key = COURSE_KEY.for_branch("published-branch").make_usage_key("html", "a")
 
     assert plain_key(usage_key) == COURSE_KEY.make_usage_key("html", "a")
+
+
+def test_answer_note_below_ora_title(mocker):
+    """The note goes right after a translated ORA's title, not other blocks'."""
+    ora = COURSE_KEY.make_usage_key("openassessment", "o1")
+    other = COURSE_KEY.make_usage_key("openassessment", "o2")
+    mocker.patch(f"{FILTERS}.course_translations", return_value={ora: {"title": "x"}})
+    mocker.patch(f"{FILTERS}.answer_language_note", return_value="<NOTE>")
+    title = '<h3 class="openassessment__title problem__header">Essay</h3>'
+    unit = mocker.Mock()
+    unit.scope_ids.usage_id = COURSE_KEY.make_usage_key("vertical", "v")
+    unit.children = [ora, other]
+    fragment = mocker.Mock()
+    fragment.content = (
+        f'<div data-id="{ora}">{title}<p>Prompt</p></div>'
+        f'<div data-id="{other}">{title}</div>'
+    )
+
+    AddAnswerNoteBelowTitles(
+        filter_type=mocker.Mock(), running_pipeline=mocker.Mock()
+    ).run_filter(block=unit, fragment=fragment, context={}, view="student_view")
+
+    assert fragment.content == (
+        f'<div data-id="{ora}">{title}<NOTE><p>Prompt</p></div>'
+        f'<div data-id="{other}">{title}</div>'
+    )

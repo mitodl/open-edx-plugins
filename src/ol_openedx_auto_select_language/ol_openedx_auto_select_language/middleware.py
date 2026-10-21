@@ -17,7 +17,7 @@ from openedx.core.djangoapps.user_api.preferences.api import set_user_preference
 from ol_openedx_auto_select_language.constants import ENGLISH_LANGUAGE_CODE
 from ol_openedx_auto_select_language.toggles import (
     course_key_from_path,
-    learner_language_enabled,
+    in_place_translations_enabled,
 )
 from ol_openedx_auto_select_language.utils import LanguageCode
 
@@ -25,18 +25,22 @@ from ol_openedx_auto_select_language.utils import LanguageCode
 def should_process_request(request):
     """
     Return True if language auto-selection should run for this request.
-
-    When the learner's own language wins, nothing is switched or saved, so a
-    choice made in the header dropdown survives course, staff and Studio pages.
     """
     return (
         settings.ENABLE_AUTO_LANGUAGE_SELECTION
         and hasattr(request, "user")
         and request.user.is_authenticated
-        and not learner_language_enabled(
-            course_key_from_path(getattr(request, "path_info", request.path))
-        )
     )
+
+
+def learner_language_wins(path):
+    """
+    Return True when the course in the path is in in-place translations mode.
+
+    Then the learner's own language is kept on its course pages. Studio,
+    authoring requests and staff pages are always English, whatever the flag says.
+    """
+    return in_place_translations_enabled(course_key_from_path(path))
 
 
 def set_language(request, response, language):
@@ -75,8 +79,10 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
 
         path = getattr(request, "path_info", request.path)
 
-        if self._should_force_english(request, path):
+        if self._is_authoring_request(request) or self._is_exempt_path(path):
             return self._force_english_if_needed(request, response)
+        if learner_language_wins(path):
+            return response
 
         course_language = self._get_course_language(path)
         if not course_language:
@@ -84,13 +90,16 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
 
         return self._apply_course_language(request, response, course_language)
 
-    def _should_force_english(self, request, path):
-        """
-        Determine if English should be forced based on request origin or exempt paths.
-        """
-        return request.META.get(
-            "HTTP_ORIGIN"
-        ) == settings.COURSE_AUTHORING_MICROFRONTEND_URL or any(
+    def _is_authoring_request(self, request):
+        """Return True for requests made by the authoring MFE, always English."""
+        return (
+            request.META.get("HTTP_ORIGIN")
+            == settings.COURSE_AUTHORING_MICROFRONTEND_URL
+        )
+
+    def _is_exempt_path(self, path):
+        """Return True for staff paths (admin, instructor dashboard), always English."""
+        return any(
             exempt_path in path
             for exempt_path in settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS
         )

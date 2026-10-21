@@ -434,14 +434,14 @@ def test_resolves_with_course_language_not_shared_dest_lang(mocker, settings):
 def test_learner_language_wins(  # noqa: PLR0913, PLR0917
     mocker,
     settings,
-    learner_language_disabled,
+    in_place_translations_disabled,
     learner_language,
     resolved_by_dest,
     expected,
 ):
     """With the learner's choice winning, subtitles follow it before the course."""
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    learner_language_disabled.return_value = True
+    in_place_translations_disabled.return_value = True
     mocker.patch(f"{MODULE}.get_language", return_value=learner_language)
     _patch_course_language(mocker, "es")
     block = _make_video_block(mocker)
@@ -462,11 +462,11 @@ def test_learner_language_wins(  # noqa: PLR0913, PLR0917
 
 
 def test_learner_language_without_course_language(
-    mocker, settings, learner_language_disabled
+    mocker, settings, in_place_translations_disabled
 ):
     """A course with no language set still follows the learner's language."""
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    learner_language_disabled.return_value = True
+    in_place_translations_disabled.return_value = True
     mocker.patch(f"{MODULE}.get_language", return_value="fr")
     _patch_course_language(mocker, None)
     block = _make_video_block(mocker, language="fr")

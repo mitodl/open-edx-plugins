@@ -17,7 +17,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from ol_openedx_auto_select_language.toggles import learner_language_enabled
+from ol_openedx_auto_select_language.toggles import in_place_translations_enabled
 from ol_openedx_auto_select_language.translations import course_language_codes
 from ol_openedx_auto_select_language.utils import LanguageCode
 
@@ -94,7 +94,7 @@ class CourseLanguageView(APIView):
                 {"error": "An unexpected error occurred."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if learner_language_enabled(course_key):
+        if in_place_translations_enabled(course_key):
             # The MIT Footer switches the site to this language whenever it
             # differs from the cookie, so echoing the cookie keeps the
             # learner's own choice.
@@ -108,7 +108,7 @@ class ReleasedLanguagesView(APIView):
     """
     API View for the header language dropdown.
 
-    ``enabled`` mirrors the learner-language flag for ``course_id`` (or its
+    ``enabled`` mirrors the in-place translations flag for ``course_id`` (or its
     global value without one), so frontends show the dropdown and stop forcing
     a language only when the flag is on. With a ``course_id``, ``languages`` is
     limited to the course's own language, the languages it has translations
@@ -143,7 +143,7 @@ class ReleasedLanguagesView(APIView):
             languages = [language for language in languages if language.code in codes]
         return Response(
             {
-                "enabled": learner_language_enabled(course_key),
+                "enabled": in_place_translations_enabled(course_key),
                 "languages": [
                     {"code": language.code, "name": language.name}
                     for language in languages
