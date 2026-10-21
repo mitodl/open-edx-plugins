@@ -223,6 +223,8 @@ def _problem(mocker, responder, saved_msg="<p>Exact</p>"):
     block.lcp.student_answers = {"p_2_1": "choice_0"}
     block.lcp.responders = {"r": responder}
     block.lcp.correct_map = _correct_map(saved_msg)
+    block.fields = {"correct_map": mocker.Mock()}
+    block._dirty_fields = {}
     return block
 
 
@@ -267,6 +269,11 @@ def test_refresh_problem_feedback(
     assert block.lcp.correct_map.get_msg("p_2_1") == expected_msg
     # Only feedback is rebuilt; the saved grading is kept.
     assert block.lcp.correct_map.get_correctness("p_2_1") == "correct"
+    # The problem is built again from the state after a later bind.
+    if enabled:
+        set_cached = block.fields["correct_map"]._set_cached_value
+        set_cached.assert_called_once_with(block, block.lcp.correct_map.get_dict())
+        assert set_cached.call_args.args[1]["p_2_1"]["msg"] == expected_msg
 
 
 def test_refresh_problem_feedback_keeps_saved_feedback_on_error(mocker):
