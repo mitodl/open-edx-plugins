@@ -139,6 +139,28 @@ def test_restore_capa(translated, expected):
             [{"name": "c1", "label": "Idees", "feedback": "optional"}],
         ),
         ("poll", "answers", [["R", {"label": "Red"}]], "[]", None),
+        (
+            "poll",
+            "answers",
+            [["R", {"label": "Red"}], ["B", {"label": "Blue"}]],
+            '[["B", {"label": "Bleu"}], ["R", {"label": "Rouge"}]]',
+            None,
+        ),
+        (
+            "openassessment",
+            "prompt",
+            '[{"description": "One"}, {"description": "Two"}]',
+            '[{"description": "Un"}, {"description": "Deux"}]',
+            '[{"description": "Un"}, {"description": "Deux"}]',
+        ),
+        (
+            "openassessment",
+            "prompt",
+            '[{"description": "One"}, {"description": "Two"}]',
+            '[{"descripción": "Un"}, {"description": "Deux"}]',
+            None,
+        ),
+        ("openassessment", "prompt", "<p>One</p>", "<p>Un</p>", "<p>Un</p>"),
     ],
     ids=[
         "poll_keys_kept",
@@ -147,6 +169,10 @@ def test_restore_capa(translated, expected):
         "dnd_feedback_messages_translated",
         "ora_feedback_setting_kept",
         "shape_differs",
+        "reordered_pairs",
+        "ora_prompts_json",
+        "ora_prompts_key_changed",
+        "ora_single_prompt",
     ],
 )
 def test_restore_kept_parts(block_type, field, source, translated, expected):
@@ -240,8 +266,15 @@ class FakeProvider:
             [["R", {"label": "RED", "img": None}]],
             None,
         ),
+        (
+            "openassessment",
+            "prompt",
+            '[{"description": "One"}, {"description": "Two"}]',
+            '[{"description": "ONE"}, {"description": "TWO"}]',
+            None,
+        ),
     ],
-    ids=["html", "capa_xml", "plain", "nested_keys_restored"],
+    ids=["html", "capa_xml", "plain", "nested_keys_restored", "ora_prompts_json"],
 )
 def test_translate_value(block_type, field, source, expected, tag_handling):
     provider = FakeProvider()
