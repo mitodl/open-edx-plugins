@@ -94,6 +94,10 @@ def test_dispatches_for_a_course_team_role(
         ("a content library", "lib^lib:OpenedX:demo"),
         ("an organization", "org^OpenedX"),
         ("no namespace at all", "garbage"),
+        ("every course in an org", "course-v1^course-v1:OpenedX+DemoX+*"),
+        ("every course on the platform", "course-v1^course-v1:*+*+*"),
+        ("a course namespace that does not parse", "course-v1^not-a-course-key"),
+        ("an empty scope", ""),
     ],
 )
 @VALID_WEBHOOK_PATCH

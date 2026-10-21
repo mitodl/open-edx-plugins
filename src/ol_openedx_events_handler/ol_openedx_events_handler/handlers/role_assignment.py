@@ -26,45 +26,43 @@ def _external_key(namespaced_key, namespace, separator):
     return namespaced_key[len(prefix) :]
 
 
-def _namespaced_value(namespaced_key, separator):
-    """
-    Return the value half of a key whose namespace is not a fixed string.
-
-    A scope's namespace is the scope type, which for a course is the course
-    key's own version prefix, so there is no constant to compare against. The
-    caller validates the value instead.
-    """
-    if not namespaced_key or separator not in namespaced_key:
-        return None
-    return namespaced_key.split(separator, 1)[1]
-
-
 def _course_key_from_scope(scope_key):
     """
     Return the course this assignment is scoped to, or None if it is not one.
 
-    Parsing the scope as a course key is the test, rather than matching on the
-    namespace: the namespace carries the course key's own version prefix, so
-    matching it would quietly stop working on the next course key version.
-    Library and organization scopes land here and are not mirrored, because
-    the consumer keys its records on a single course run.
+    ``ScopeData`` resolves a namespaced key to the subclass for that scope
+    type, so the library decides what counts as a single course rather than
+    this plugin inferring it from the key. A library or organization scope
+    comes back as another subclass, and the wizard's "all courses in this
+    organization" and "all courses on the platform" options come back as glob
+    subclasses -- none of which are ``CourseOverviewData``, and none of which
+    the consumer can key a record on, since it records a single course run.
     """
     from opaque_keys import InvalidKeyError  # noqa: PLC0415
-    from opaque_keys.edx.keys import CourseKey  # noqa: PLC0415
-    from openedx_authz.api.data import ScopeData  # noqa: PLC0415
+    from openedx_authz.api.data import CourseOverviewData, ScopeData  # noqa: PLC0415
 
-    scope = _namespaced_value(scope_key, ScopeData.SEPARATOR)
-    if not scope:
+    if not scope_key:
+        log.warning("Role assignment carried no scope. Skipping.")
+        return None
+    try:
+        scope = ScopeData(namespaced_key=scope_key)
+        if not isinstance(scope, CourseOverviewData):
+            log.debug(
+                "Ignoring role assignment in scope '%s' - not a single course.",
+                scope_key,
+            )
+            return None
+        # course_key is a cached_property, so a course namespace carrying a key
+        # that does not parse raises on access rather than on construction --
+        # it has to be read inside the try, not returned from the else block.
+        course_key = scope.course_key
+    except (ValueError, InvalidKeyError):
         log.warning(
             "Role assignment carried an unparseable scope %r. Skipping.",
             scope_key,
         )
         return None
-    try:
-        return CourseKey.from_string(scope)
-    except InvalidKeyError:
-        log.debug("Ignoring role assignment in scope '%s' - not a course.", scope)
-        return None
+    return course_key
 
 
 def _legacy_role_for(role_key, course_key):
