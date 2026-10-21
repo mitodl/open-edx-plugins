@@ -190,6 +190,10 @@ def refresh_problem_feedback(block):
     labels such as "Correct:") in their state, in the language active then, and
     shows it as saved on later visits. The feedback is rebuilt from the problem
     text now being shown; the saved correctness and score are kept.
+
+    The block drops its problem every time it is bound, also again to the same
+    user (when this filter step does not run), and builds it again from the saved
+    state, so the rebuilt feedback is also put in the state, in memory only.
     """
     if block.scope_ids.block_type != "problem" or not block.correct_map:
         return
@@ -218,6 +222,7 @@ def refresh_problem_feedback(block):
                 continue
             for name in FEEDBACK_PROPERTIES:
                 lcp.correct_map.set_property(aid, name, rebuilt.get_property(aid, name))
+    _set_in_memory(block, "correct_map", lcp.correct_map.get_dict())
 
 
 def _set_in_memory(block, name, value):
