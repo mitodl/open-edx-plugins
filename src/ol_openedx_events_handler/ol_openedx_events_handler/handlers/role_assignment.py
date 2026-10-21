@@ -1,30 +1,10 @@
 """Signal handler for openedx-authz role assignments."""
 
 import logging
-from functools import cache
 
 from django.conf import settings
 
 log = logging.getLogger(__name__)
-
-
-@cache
-def _legacy_roles_by_authz_role():
-    """
-    Map each authz course role to the course access role name it replaced.
-
-    openedx-authz owns this mapping, and its comment states it is kept unique
-    in both directions precisely so it can be read as a reverse lookup. Reading
-    it here rather than calling edx-platform's
-    ``get_legacy_role_from_authz_role`` keeps the dependency on the package
-    that emits the event: if openedx-authz is absent there is no signal to
-    handle, whereas edx-platform's wrapper is an internal that could move.
-    """
-    from openedx_authz.constants.roles import (  # noqa: PLC0415
-        LEGACY_COURSE_ROLE_EQUIVALENCES,
-    )
-
-    return {authz: legacy for legacy, authz in LEGACY_COURSE_ROLE_EQUIVALENCES.items()}
 
 
 def _external_key(namespaced_key, namespace, separator):
@@ -40,10 +20,10 @@ def _external_key(namespaced_key, namespace, separator):
     Returns None when it does not, which also covers a key carrying no
     namespace at all.
     """
-    prefix = f"{namespace}{separator}"
-    if not namespaced_key or not namespaced_key.startswith(prefix):
+    if not namespaced_key:
         return None
-    return namespaced_key[len(prefix) :]
+    head, found, value = namespaced_key.partition(separator)
+    return value if found and head == namespace else None
 
 
 def _course_key_from_scope(scope_key):
@@ -61,9 +41,6 @@ def _course_key_from_scope(scope_key):
     from opaque_keys import InvalidKeyError  # noqa: PLC0415
     from openedx_authz.api.data import CourseOverviewData, ScopeData  # noqa: PLC0415
 
-    if not scope_key:
-        log.warning("Role assignment carried no scope. Skipping.")
-        return None
     try:
         scope = ScopeData(namespaced_key=scope_key)
         if not isinstance(scope, CourseOverviewData):
@@ -76,7 +53,8 @@ def _course_key_from_scope(scope_key):
         # that does not parse raises on access rather than on construction --
         # it has to be read inside the try, not returned from the else block.
         course_key = scope.course_key
-    except (ValueError, InvalidKeyError):
+    except (TypeError, ValueError, InvalidKeyError):
+        # TypeError covers a missing scope, which ScopeData regexes as a string.
         log.warning(
             "Role assignment carried an unparseable scope %r. Skipping.",
             scope_key,
@@ -95,9 +73,19 @@ def _legacy_role_for(role_key, course_key):
     a key that does not carry the role namespace.
     """
     from openedx_authz.api.data import RoleData  # noqa: PLC0415
+    from openedx_authz.constants.roles import (  # noqa: PLC0415
+        LEGACY_COURSE_ROLE_EQUIVALENCES,
+    )
 
+    # openedx-authz owns the mapping and documents it as unique in both
+    # directions so it can be read as a reverse lookup. Reading the constant
+    # rather than calling edx-platform's get_legacy_role_from_authz_role keeps
+    # the dependency on the package that emits the event.
+    legacy_by_authz = {
+        authz: legacy for legacy, authz in LEGACY_COURSE_ROLE_EQUIVALENCES.items()
+    }
     authz_role = _external_key(role_key, RoleData.NAMESPACE, RoleData.SEPARATOR)
-    legacy_role = _legacy_roles_by_authz_role().get(authz_role) if authz_role else None
+    legacy_role = legacy_by_authz.get(authz_role) if authz_role else None
     if not legacy_role:
         log.debug(
             "Ignoring role assignment %r in course '%s' - it has no equivalent "
@@ -186,11 +174,8 @@ def handle_role_assignment_created(
     wasted request rather than a wrong one, and missing a role outright is the
     worse failure.
 
-    Args:
-        sender: The sender of the signal.
-        role_assignment (RoleAssignmentData): operation, subject, role and
-            scope, each a namespaced key such as ``role^course_staff``.
-        **kwargs: Additional keyword arguments from the signal.
+    ``role_assignment`` is a ``RoleAssignmentData``, whose subject, role and
+    scope are each a namespaced key such as ``role^course_staff``.
     """
     from ol_openedx_events_handler.tasks import (  # noqa: PLC0415
         notify_course_access_role_addition,

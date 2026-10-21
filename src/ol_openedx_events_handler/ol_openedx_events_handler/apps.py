@@ -1,34 +1,8 @@
 """Django app configuration for the OL Open edX events handler plugin."""
 
-from importlib.util import find_spec
-
 from django.apps import AppConfig
 from edx_django_utils.plugins import PluginSettings, PluginSignals
 from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
-
-
-def _authz_signals_available():
-    """
-    Whether openedx-events ships the authz signals this plugin can listen for.
-
-    ``openedx_events.authz`` arrived in openedx-events 11.2.0, so it is absent
-    on releases that pin an earlier version (Ulmo is on 10.5.0). Registering a
-    receiver for a signal path that cannot be imported is not a soft failure:
-    ``connect_plugin_receivers`` resolves every ``SIGNAL_PATH`` with
-    ``import_string`` and nothing in that chain catches ImportError, so the
-    whole LMS or CMS fails to start. Skipping the receiver where the signal
-    does not exist keeps those releases working; they have no openedx-authz to
-    emit it in the first place.
-    """
-    try:
-        return find_spec("openedx_events.authz.signals") is not None
-    except ImportError:
-        # find_spec imports the parent package to look for the submodule, so an
-        # absent openedx_events.authz raises ModuleNotFoundError here rather
-        # than returning None, and a parent that fails to import raises plain
-        # ImportError. Either way the signal cannot be connected.
-        return False
-
 
 _COURSE_ACCESS_ROLE_ADDED_RECEIVER = {
     PluginSignals.RECEIVER_FUNC_NAME: "handle_course_access_role_added",
@@ -71,9 +45,18 @@ _COURSE_GRADE_NOW_PASSED_RECEIVER = {
     ),
 }
 
-_AUTHZ_RECEIVERS = (
-    [_ROLE_ASSIGNMENT_CREATED_RECEIVER] if _authz_signals_available() else []
-)
+# openedx_events.authz arrived in openedx-events 11.2.0, so it is absent on
+# releases pinning an earlier version (Ulmo is on 10.5.0). Registering a
+# receiver for a signal path that cannot be imported is not a soft failure:
+# connect_plugin_receivers resolves every SIGNAL_PATH with import_string and
+# nothing in that chain catches ImportError, so the whole LMS or CMS fails to
+# start. Those releases have no openedx-authz to emit the event anyway.
+try:
+    import openedx_events.authz.signals  # noqa: F401
+
+    _AUTHZ_RECEIVERS = [_ROLE_ASSIGNMENT_CREATED_RECEIVER]
+except ImportError:
+    _AUTHZ_RECEIVERS = []
 
 _SETTINGS_CONFIG = {
     SettingsType.COMMON: {
