@@ -144,7 +144,8 @@ run_plugin_tests() {
 
 	if [ -n "$tarball" ]; then
 		echo "Installing $plugin_name from dist/$tarball"
-		uv pip install "dist/$tarball"
+		# --find-links lets a plugin depend on an unreleased sibling built in dist/.
+		uv pip install --find-links dist "dist/$tarball"
 	else
 		echo "No built package found for $plugin_name, installing in development mode"
 		uv pip install -e "$plugin_dir"

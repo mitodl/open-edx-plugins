@@ -13,7 +13,7 @@ dependencies = [
   "Django>=5.2",
   "djangorestframework>=3.16.0",
   "edx-opaque-keys",
-  "ol-openedx-course-translations",
+  "ol-openedx-course-translations>=0.13.0",
 ]
 
 [tool.uv.sources]

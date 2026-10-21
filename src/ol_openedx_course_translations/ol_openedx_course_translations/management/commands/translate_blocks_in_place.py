@@ -80,8 +80,18 @@ def translate_value(provider, block_type, field, source_value, language):
     strings = _leaf_strings(source_value, [])
     if not strings:
         return source_value
-    # The provider's batch API translates plain strings by id in one request.
-    translated = provider._batch_translate_units(strings, language, None)  # noqa: SLF001
+    plain = [string for string in strings if not looks_like_markup(string)]
+    # The provider's batch API translates plain strings by id in one request;
+    # strings holding markup go through the markup-aware path one by one.
+    translated_plain = iter(
+        provider._batch_translate_units(plain, language, None) if plain else []  # noqa: SLF001
+    )
+    translated = [
+        provider.translate_text(string, language, tag_handling="html")
+        if looks_like_markup(string)
+        else next(translated_plain)
+        for string in strings
+    ]
     return _replace_leaf_strings(source_value, iter(translated))
 
 
@@ -176,8 +186,12 @@ class Command(BaseCommand):
                     row_hash, status = existing.get(
                         (block.location, field), (None, None)
                     )
+                    current = (
+                        status == BlockTranslation.Status.AUTO
+                        and row_hash == source_hash(source_value)
+                    )
                     if status == BlockTranslation.Status.REVIEWED or (
-                        row_hash == source_hash(source_value) and not options["force"]
+                        current and not options["force"]
                     ):
                         skipped += 1
                         continue
