@@ -20,7 +20,25 @@ from openedx.core.djangoapps.content.course_overviews.models import CourseOvervi
 
 from ol_openedx_auto_select_language.toggles import in_place_translations_enabled
 
+try:
+    from xblocks_contrib.problem.capa import responsetypes
+    from xblocks_contrib.problem.capa.util import convert_files_to_filenames
+except ImportError:  # Releases before the problem block moved to xblocks-contrib.
+    from xmodule.capa import responsetypes
+    from xmodule.capa.util import convert_files_to_filenames
+
 log = logging.getLogger(__name__)
+
+# Responses whose feedback comes only from the problem XML, so grading them again
+# runs no course code and calls no external grader.
+FEEDBACK_REBUILD_RESPONSES = (
+    responsetypes.ChoiceResponse,
+    responsetypes.MultipleChoiceResponse,
+    responsetypes.NumericalResponse,
+    responsetypes.OptionResponse,
+    responsetypes.StringResponse,
+)
+FEEDBACK_PROPERTIES = ("msg", "hint", "hintmode")
 
 # Source values of the fields translate_block replaced on a block instance.
 ORIGINAL_VALUES_ATTR = "_ol_translation_original_values"
@@ -162,6 +180,44 @@ def translate_block(block):
             value = add_problem_answer_note(value, usage_key.course_key)
         originals[name] = source_value
         _set_in_memory(block, name, value)
+
+
+def refresh_problem_feedback(block):
+    """
+    Rebuild a problem's saved feedback in the active language, in memory.
+
+    When a learner submits, the problem saves its feedback (choice hints and
+    labels such as "Correct:") in their state, in the language active then, and
+    shows it as saved on later visits. The feedback is rebuilt from the problem
+    text now being shown; the saved correctness and score are kept.
+    """
+    if block.scope_ids.block_type != "problem" or not block.correct_map:
+        return
+    if not in_place_translations_enabled(
+        plain_key(block.scope_ids.usage_id).course_key
+    ):
+        return
+    lcp = block.lcp
+    answers = convert_files_to_filenames(lcp.student_answers)
+    for responder in lcp.responders.values():
+        hintgroup = responder.xml.find("hintgroup")
+        if not isinstance(responder, FEEDBACK_REBUILD_RESPONSES) or (
+            hintgroup is not None and hintgroup.get("hintfn")
+        ):
+            continue
+        answer_ids = [aid for aid in responder.answer_ids if aid in lcp.correct_map]
+        if not answer_ids:
+            continue
+        try:
+            rebuilt = responder.evaluate_answers(answers, lcp.correct_map)
+        except Exception:  # noqa: BLE001 - keep the saved feedback if it cannot be rebuilt
+            log.warning("Could not rebuild feedback for %s", block.scope_ids.usage_id)
+            continue
+        for aid in answer_ids:
+            if aid not in rebuilt:
+                continue
+            for name in FEEDBACK_PROPERTIES:
+                lcp.correct_map.set_property(aid, name, rebuilt.get_property(aid, name))
 
 
 def _set_in_memory(block, name, value):

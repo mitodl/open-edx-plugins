@@ -11,6 +11,8 @@ from ol_openedx_auto_select_language.translation_filters import (
 from ol_openedx_auto_select_language.translations import (
     add_problem_answer_note,
     plain_key,
+    refresh_problem_feedback,
+    responsetypes,
     translate_block,
 )
 from ol_openedx_course_translations.blocks import source_hash
@@ -205,3 +207,74 @@ def test_translate_block_restores_source_before_rebinding(mocker):
     patched.return_value = {}
     translate_block(block)
     assert block.data == "<p>Hello</p>"
+
+
+def _correct_map(msg):
+    correct_map = responsetypes.CorrectMap()
+    correct_map.set("p_2_1", correctness="correct", npoints=1, msg=msg)
+    return correct_map
+
+
+def _problem(mocker, responder, saved_msg="<p>Exact</p>"):
+    block = mocker.Mock()
+    block.scope_ids.block_type = "problem"
+    block.scope_ids.usage_id = COURSE_KEY.make_usage_key("problem", "p")
+    block.correct_map = {"p_2_1": {"msg": saved_msg}}
+    block.lcp.student_answers = {"p_2_1": "choice_0"}
+    block.lcp.responders = {"r": responder}
+    block.lcp.correct_map = _correct_map(saved_msg)
+    return block
+
+
+def _responder(mocker, response_class, rebuilt_msg="<p>Right</p>", hintfn=None):
+    responder = mocker.Mock(spec=response_class)
+    responder.answer_ids = ["p_2_1"]
+    responder.xml = mocker.Mock()
+    responder.xml.find.return_value = (
+        mocker.Mock(get=lambda _name: hintfn) if hintfn else None
+    )
+    rebuilt = _correct_map(rebuilt_msg)
+    rebuilt.set_property("p_2_1", "correctness", "incorrect")
+    responder.evaluate_answers.return_value = rebuilt
+    return responder
+
+
+@pytest.mark.parametrize(
+    ("response_class", "hintfn", "enabled", "expected_msg"),
+    [
+        (responsetypes.MultipleChoiceResponse, None, True, "<p>Right</p>"),
+        (responsetypes.ChoiceResponse, None, True, "<p>Right</p>"),
+        (responsetypes.CustomResponse, None, True, "<p>Exact</p>"),
+        (responsetypes.OptionResponse, "hint_fn", True, "<p>Exact</p>"),
+        (responsetypes.MultipleChoiceResponse, None, False, "<p>Exact</p>"),
+    ],
+    ids=[
+        "choice_feedback_rebuilt",
+        "checkbox_feedback_rebuilt",
+        "course_code_response_kept",
+        "hint_function_kept",
+        "flag_off_kept",
+    ],
+)
+def test_refresh_problem_feedback(
+    mocker, response_class, hintfn, enabled, expected_msg
+):
+    mocker.patch(f"{API}.in_place_translations_enabled", return_value=enabled)
+    block = _problem(mocker, _responder(mocker, response_class, hintfn=hintfn))
+
+    refresh_problem_feedback(block)
+
+    assert block.lcp.correct_map.get_msg("p_2_1") == expected_msg
+    # Only feedback is rebuilt; the saved grading is kept.
+    assert block.lcp.correct_map.get_correctness("p_2_1") == "correct"
+
+
+def test_refresh_problem_feedback_keeps_saved_feedback_on_error(mocker):
+    mocker.patch(f"{API}.in_place_translations_enabled", return_value=True)
+    responder = _responder(mocker, responsetypes.StringResponse)
+    responder.evaluate_answers.side_effect = ValueError("bad answer")
+    block = _problem(mocker, responder)
+
+    refresh_problem_feedback(block)
+
+    assert block.lcp.correct_map.get_msg("p_2_1") == "<p>Exact</p>"
