@@ -12,6 +12,7 @@ from ol_openedx_auto_select_language.translations import (
     answer_language_note,
     course_translations,
     plain_key,
+    refresh_problem_feedback,
     translate_block,
     translated_text,
 )
@@ -43,6 +44,7 @@ class TranslateBoundBlock(PipelineStep):
     def run_filter(self, block, user, course_key):
         """Swap the block's authored text for the learner's language."""
         translate_block(block)
+        refresh_problem_feedback(block)
         return {"block": block, "user": user, "course_key": course_key}
 
 
