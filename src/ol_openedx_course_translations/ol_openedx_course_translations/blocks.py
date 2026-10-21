@@ -185,6 +185,10 @@ def source_hash(value):
     return hashlib.sha256(serialize(value).encode()).hexdigest()
 
 
+# Translations can come from an LLM or an admin edit, so no entities or network.
+SAFE_XML_PARSER = etree.XMLParser(resolve_entities=False, no_network=True)
+
+
 def serialize(value):
     """Return a field value as stored in ``BlockTranslation.translated_value``."""
     if value is None or isinstance(value, str):
@@ -273,8 +277,8 @@ def restore_capa(source_xml, translated_xml):
     structure, because then parts cannot be matched up safely.
     """
     try:
-        source = etree.fromstring(source_xml)
-        translated = etree.fromstring(translated_xml)
+        source = etree.fromstring(source_xml, SAFE_XML_PARSER)
+        translated = etree.fromstring(translated_xml, SAFE_XML_PARSER)
     except (etree.XMLSyntaxError, ValueError):
         return None
     source_nodes = list(source.iter())

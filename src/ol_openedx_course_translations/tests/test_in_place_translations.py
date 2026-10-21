@@ -77,12 +77,20 @@ LLM_PROBLEM = (
             None,
         ),
         ("<problem><p>broken", None),
+        (
+            (
+                '<!DOCTYPE p [<!ENTITY x SYSTEM "file:///etc/passwd">]>'
+                "<problem><p>&x;</p></problem>"
+            ),
+            None,
+        ),
     ],
     ids=[
         "keeps_answers_translates_choices",
         "structure_differs",
         "element_moved",
         "invalid_xml",
+        "external_entity_not_expanded",
     ],
 )
 def test_restore_capa(translated, expected):
