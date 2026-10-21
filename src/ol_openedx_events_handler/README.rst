@@ -101,13 +101,23 @@ edx-platform configuration
   ``--delete``, so the course teams this command exists to catch up remain in
   ``CourseAccessRole``.
 
-  The live webhook is unaffected either way: Open edX emits
-  ``COURSE_ACCESS_ROLE_ADDED`` for an authz grant too, so the receiver still
-  fires and the consumer still records the role. Only catching up after the
-  fact is affected -- which matters for the 404 case above, because re-running
-  this command will not recover a role granted on an authz-enabled course.
-  Covering those needs the command to read role assignments from authz as well,
-  which it does not do yet.
+  The live webhook covers both, through two receivers. A grant made through
+  edx-platform's own role classes emits ``COURSE_ACCESS_ROLE_ADDED`` even with
+  the flag on, because ``authz_add_role`` emits it alongside the authz write;
+  that covers Studio's course team page and the instructor dashboard. A grant
+  made through the openedx-authz API directly -- the Admin Console's *Assign
+  Role* wizard -- emits only ``ROLE_ASSIGNMENT_CREATED``, which the
+  ``role_assignment`` receiver listens for. Without it, a course team member
+  added from the Admin Console is never mirrored.
+
+  A grant that emits both sends the webhook twice. The consumer is expected to
+  upsert, so a duplicate is a wasted request rather than a wrong one, and
+  missing a role outright is the worse failure.
+
+  Only catching up after the fact is affected -- which matters for the 404 case
+  above, because re-running this command will not recover a role granted on an
+  authz-enabled course. Covering those needs the command to read role
+  assignments from authz as well, which it does not do yet.
 
 - Set the username of the service worker that the external system uses to create
   enrollments through the Open edX enrollment REST API. Enrollments created by

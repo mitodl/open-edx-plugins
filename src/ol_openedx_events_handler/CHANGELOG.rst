@@ -6,6 +6,28 @@ Change Log
 Unreleased
 ----------
 
+Version 0.6.0 (2026-10-21)
+---------------------------
+
+* Added a receiver for ``ROLE_ASSIGNMENT_CREATED``, the openedx-authz event. A
+  course team role granted through edx-platform's own role classes emits
+  ``COURSE_ACCESS_ROLE_ADDED`` even with ``authz.enable_course_authoring`` on,
+  because ``authz_add_role`` emits it alongside the authz write. A role granted
+  through the openedx-authz API directly — the Admin Console's *Assign Role*
+  wizard — emits only ``ROLE_ASSIGNMENT_CREATED``, so before this the consumer
+  never learned about a course team member added there.
+* A grant that emits both events now sends the webhook twice. The consumer
+  records the role with ``get_or_create``, so a duplicate is a wasted request
+  rather than a wrong one, and missing a role outright is the worse failure.
+* The receiver is registered only where ``openedx_events.authz`` exists
+  (openedx-events 11.2.0 and later). ``connect_plugin_receivers`` resolves
+  every signal path with ``import_string`` and catches nothing, so registering
+  it unconditionally would stop the LMS and CMS from starting on releases that
+  pin an earlier version, such as Ulmo.
+* The CMS signal module moved from ``handlers.course_access_role`` to
+  ``handlers.cms``, so it can export both receivers. ``RELATIVE_PATH`` names a
+  single module per project type, and the LMS already had ``handlers.lms``.
+
 Version 0.5.0 (2026-10-01)
 ---------------------------
 

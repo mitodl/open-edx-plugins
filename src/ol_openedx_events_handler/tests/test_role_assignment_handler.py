@@ -1,0 +1,199 @@
+"""Tests for the ROLE_ASSIGNMENT_CREATED signal handler."""
+
+from unittest import mock
+
+import pytest
+from django.test import override_settings
+from ol_openedx_events_handler.handlers.role_assignment import (
+    handle_role_assignment_created,
+)
+
+# The signal these tests exercise arrived in openedx-events 11.2.0, and the
+# handler reads its namespace separators from openedx-authz. Releases that pin
+# earlier versions have neither, and the receiver is not registered there --
+# so skip rather than fail, the same condition apps.py checks.
+pytest.importorskip("openedx_events.authz.data")
+pytest.importorskip("openedx_authz.api.data")
+
+VALID_WEBHOOK_PATCH = mock.patch(
+    "ol_openedx_events_handler.utils.validate_enrollment_webhook",
+    return_value=True,
+)
+TASK_PATCH = mock.patch(
+    "ol_openedx_events_handler.tasks.notify_course_access_role_addition"
+)
+COURSE_KEY = "course-v1:OpenedX+DemoX+DemoCourse"
+DEFAULT_ROLES = ["instructor", "staff"]
+USERNAME = "course-team-member"
+EMAIL = "course-team-member@example.com"
+
+
+def _event(
+    *,
+    subject=f"user^{USERNAME}",
+    role="role^course_staff",
+    scope=f"course-v1^{COURSE_KEY}",
+):
+    """Build a RoleAssignmentData as openedx-authz emits it."""
+    from openedx_events.authz.data import RoleAssignmentData  # noqa: PLC0415
+
+    return RoleAssignmentData(
+        operation="created",
+        subject=subject,
+        role=role,
+        scope=scope,
+        actor_id=None,
+    )
+
+
+@pytest.fixture
+def team_member(django_user_model):
+    """A user holding the course team role."""
+    return django_user_model.objects.create(username=USERNAME, email=EMAIL)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("authz_role", "expected_legacy_role"),
+    [
+        ("course_staff", "staff"),
+        ("course_admin", "instructor"),
+    ],
+)
+@VALID_WEBHOOK_PATCH
+@TASK_PATCH
+def test_dispatches_for_a_course_team_role(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+    authz_role,
+    expected_legacy_role,
+    team_member,  # noqa: ARG001
+):
+    """
+    An authz course team role is sent under its legacy name.
+
+    The consumer and ENROLLMENT_COURSE_ACCESS_ROLES both speak the legacy
+    names, so the authz name is translated rather than passed through.
+    """
+    with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
+        handle_role_assignment_created(
+            None, role_assignment=_event(role=f"role^{authz_role}")
+        )
+
+    mock_task.delay.assert_called_once_with(
+        user_email=EMAIL,
+        course_key=COURSE_KEY,
+        role=expected_legacy_role,
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("label", "scope"),
+    [
+        ("a content library", "lib^lib:OpenedX:demo"),
+        ("an organization", "org^OpenedX"),
+        ("no namespace at all", "garbage"),
+    ],
+)
+@VALID_WEBHOOK_PATCH
+@TASK_PATCH
+def test_ignores_assignments_that_are_not_on_a_course(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+    label,  # noqa: ARG001
+    scope,
+    team_member,  # noqa: ARG001
+):
+    """Only course scopes are mirrored; the consumer keys records on a run."""
+    with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
+        handle_role_assignment_created(None, role_assignment=_event(scope=scope))
+
+    mock_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@VALID_WEBHOOK_PATCH
+@TASK_PATCH
+def test_ignores_a_role_with_no_legacy_equivalent(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+    team_member,  # noqa: ARG001
+):
+    """A role that does not map to a course access role is not sent."""
+    with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
+        handle_role_assignment_created(
+            None, role_assignment=_event(role="role^library_admin")
+        )
+
+    mock_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@VALID_WEBHOOK_PATCH
+@TASK_PATCH
+def test_respects_the_allowed_roles_setting(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+    team_member,  # noqa: ARG001
+):
+    """The setting is matched on the legacy name, not the authz one."""
+    with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=["instructor"]):
+        handle_role_assignment_created(None, role_assignment=_event())
+
+    mock_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@VALID_WEBHOOK_PATCH
+@TASK_PATCH
+def test_skips_a_subject_that_is_not_a_known_user(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+):
+    """
+    An unresolvable subject is skipped rather than raising.
+
+    Group assignments land here too: openedx-authz can assign a role to a
+    group, and there is no single learner for the consumer to record.
+    """
+    with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
+        handle_role_assignment_created(
+            None, role_assignment=_event(subject="group^some-team")
+        )
+
+    mock_task.delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@VALID_WEBHOOK_PATCH
+@TASK_PATCH
+def test_skips_a_user_with_no_email(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+    django_user_model,
+):
+    """The consumer identifies people by email, so one is required."""
+    django_user_model.objects.create(username="no-email-user", email="")
+
+    with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
+        handle_role_assignment_created(
+            None, role_assignment=_event(subject="user^no-email-user")
+        )
+
+    mock_task.delay.assert_not_called()
+
+
+@mock.patch(
+    "ol_openedx_events_handler.utils.validate_enrollment_webhook",
+    return_value=False,
+)
+@TASK_PATCH
+def test_skips_when_the_webhook_is_not_configured(
+    mock_task,
+    _mock_validate,  # noqa: PT019
+):
+    """Nothing is attempted on an install that does not use the webhook."""
+    handle_role_assignment_created(None, role_assignment=_event())
+
+    mock_task.delay.assert_not_called()

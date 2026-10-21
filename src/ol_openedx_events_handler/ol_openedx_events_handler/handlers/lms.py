@@ -6,6 +6,9 @@ from ol_openedx_events_handler.handlers.course_access_role import (
 from ol_openedx_events_handler.handlers.enrollment import (
     handle_course_enrollment_created,
 )
+from ol_openedx_events_handler.handlers.role_assignment import (
+    handle_role_assignment_created,
+)
 from ol_openedx_events_handler.receivers.certificate_passing_receiver import (
     listen_for_passing_grade,
 )
@@ -13,5 +16,6 @@ from ol_openedx_events_handler.receivers.certificate_passing_receiver import (
 __all__ = [
     "handle_course_access_role_added",
     "handle_course_enrollment_created",
+    "handle_role_assignment_created",
     "listen_for_passing_grade",
 ]
