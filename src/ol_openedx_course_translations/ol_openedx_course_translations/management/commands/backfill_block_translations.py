@@ -18,15 +18,16 @@ from ol_openedx_course_translations.blocks import (
     serialize,
     source_hash,
 )
-from ol_openedx_course_translations.models import BlockTranslation, CourseTranslationLog
+from ol_openedx_course_translations.models import BlockTranslation
 
 
-def build_rows(source_blocks, get_target_block, language, translated_at):
+def build_rows(source_blocks, get_target_block, language):
     """
     Return unsaved rows for every field whose target value differs from source.
 
-    A source block edited after ``translated_at`` may have changed since the
-    target was made, so its rows are stored as stale for a person to check.
+    A source block edited after its counterpart in the target was last changed
+    (when ``translate_course`` imported it) may have changed since it was
+    translated, so its rows are stored as stale for a person to check.
     Answers, grading code, ids and keys are copied back from the source, and a
     field is skipped when the two values cannot be matched up.
     """
@@ -36,10 +37,11 @@ def build_rows(source_blocks, get_target_block, language, translated_at):
         target = get_target_block(location.block_type, location.block_id)
         if target is None:
             continue
-        edited_on = getattr(block, "edited_on", None)
+        source_edited = getattr(block, "edited_on", None)
+        target_edited = getattr(target, "edited_on", None)
         status = (
             BlockTranslation.Status.STALE
-            if translated_at and edited_on and edited_on > translated_at
+            if source_edited and target_edited and source_edited > target_edited
             else BlockTranslation.Status.AUTO
         )
         for field in TRANSLATABLE_BLOCK_FIELDS[location.block_type]:
@@ -145,15 +147,6 @@ class Command(BaseCommand):
             except ItemNotFoundError:
                 return None
 
-        latest_log = (
-            CourseTranslationLog.objects.filter(
-                source_course_id=source_key,
-                # translate_course logs codes like "es_419"; --language is "es-419".
-                target_course_language__iregex=f"^{language.replace('-', '[-_]')}$",
-            )
-            .order_by("-created_at")
-            .first()
-        )
         source_blocks = [
             block
             for block_type in TRANSLATABLE_BLOCK_FIELDS
@@ -161,12 +154,7 @@ class Command(BaseCommand):
                 source_key, qualifiers={"category": block_type}, revision=published
             )
         ]
-        rows = build_rows(
-            source_blocks,
-            get_target_block,
-            language,
-            latest_log.created_at if latest_log else None,
-        )
+        rows = build_rows(source_blocks, get_target_block, language)
         written = save_rows(rows)
         stale = sum(row.status == BlockTranslation.Status.STALE for row in rows)
         self.stdout.write(
