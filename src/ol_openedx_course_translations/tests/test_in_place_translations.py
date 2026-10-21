@@ -147,6 +147,39 @@ def test_restore_capa(translated, expected):
             None,
         ),
         (
+            "openassessment",
+            "rubric_criteria",
+            [
+                {"name": "ideas", "label": "Ideas", "options": []},
+                {"name": "grammar", "label": "Grammar", "options": []},
+            ],
+            (
+                '[{"name": "grammar", "label": "Grammaire", "options": []},'
+                ' {"name": "ideas", "label": "Idees", "options": []}]'
+            ),
+            None,
+        ),
+        (
+            "openassessment",
+            "rubric_criteria",
+            [
+                {
+                    "name": "ideas",
+                    "label": "Ideas",
+                    "options": [
+                        {"name": "poor", "label": "Poor", "points": 0},
+                        {"name": "good", "label": "Good", "points": 2},
+                    ],
+                }
+            ],
+            (
+                '[{"name": "ideas", "label": "Idees", "options": ['
+                '{"name": "good", "label": "Bien", "points": 2},'
+                ' {"name": "poor", "label": "Faible", "points": 0}]}]'
+            ),
+            None,
+        ),
+        (
             "poll_question",
             "answers",
             [{"id": "R", "text": "Red"}, {"id": "B", "text": "Blue"}],
@@ -177,6 +210,8 @@ def test_restore_capa(translated, expected):
         "ora_feedback_setting_kept",
         "shape_differs",
         "reordered_pairs",
+        "reordered_ora_criteria",
+        "reordered_ora_options",
         "reordered_id_entries",
         "ora_prompts_json",
         "ora_prompts_key_changed",
@@ -313,3 +348,27 @@ def test_translate_value_nested_markup_uses_markup_path():
         {"id": 1, "content": '<p><a href="/x">NOTE</a></p>', "date": "D"}
     ]
     assert provider.tag_handling == "html"
+
+
+def test_restore_capa_rejects_reordered_choices():
+    source = (
+        '<problem><choicegroup><choice correct="true" name="yes">Yes</choice>'
+        '<choice correct="false" name="no">No</choice></choicegroup></problem>'
+    )
+    translated = (
+        '<problem><choicegroup><choice correct="false" name="no">Non</choice>'
+        '<choice correct="true" name="yes">Oui</choice></choicegroup></problem>'
+    )
+
+    assert restore_capa(source, translated) is None
+
+
+def test_restore_capa_keeps_typed_answer_translated_by_mistake():
+    source = (
+        '<problem><stringresponse answer="dog"><textline/></stringresponse></problem>'
+    )
+    translated = (
+        '<problem><stringresponse answer="chien"><textline/></stringresponse></problem>'
+    )
+
+    assert restore_capa(source, translated) == source
