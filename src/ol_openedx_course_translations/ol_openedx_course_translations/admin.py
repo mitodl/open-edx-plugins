@@ -319,6 +319,9 @@ class BlockTranslationForm(forms.ModelForm):
         source_value = published_source_value(row.usage_key, row.field)
         if source_value is None:
             return value
+        # save_model stores the fingerprint of the source the value was checked
+        # against, not of a source published after this check.
+        self.validated_source_hash = source_hash(source_value)
         restored = restore_kept_parts(
             row.usage_key.block_type, row.field, source_value, value
         )
@@ -363,13 +366,13 @@ class BlockTranslationAdmin(admin.ModelAdmin):
         Mark a hand-edited translation reviewed so syncs never overwrite it.
 
         The editor reviews it against the current published source shown on the
-        form, so the fingerprint is refreshed to that source.
+        form, so the fingerprint is set to the source it was validated against.
         """
         if "translated_value" in form.changed_data:
             obj.status = BlockTranslation.Status.REVIEWED
-            value = published_source_value(obj.usage_key, obj.field)
-            if value is not None:
-                obj.source_hash = source_hash(value)
+            validated_hash = getattr(form, "validated_source_hash", None)
+            if validated_hash is not None:
+                obj.source_hash = validated_hash
         super().save_model(request, obj, form, change)
 
 

@@ -195,7 +195,13 @@ def refresh_problem_feedback(block):
     user (when this filter step does not run), and builds it again from the saved
     state, so the rebuilt feedback is also put in the state, in memory only.
     """
-    if block.scope_ids.block_type != "problem" or not block.correct_map:
+    # Saved but unsubmitted answers are not graded: rebuilding would show their
+    # hints without using an attempt.
+    if (
+        block.scope_ids.block_type != "problem"
+        or not block.correct_map
+        or block.has_saved_answers
+    ):
         return
     if not in_place_translations_enabled(
         plain_key(block.scope_ids.usage_id).course_key
