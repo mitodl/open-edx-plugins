@@ -277,7 +277,10 @@ def restore_capa(source_xml, translated_xml):
         return None
     source_nodes = list(source.iter())
     translated_nodes = list(translated.iter())
-    if [node.tag for node in source_nodes] != [node.tag for node in translated_nodes]:
+    # Tag order alone would accept moved or re-nested elements.
+    if [(node.tag, len(node)) for node in source_nodes] != [
+        (node.tag, len(node)) for node in translated_nodes
+    ]:
         return None
     kept = {
         node

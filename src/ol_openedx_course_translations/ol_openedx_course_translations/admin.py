@@ -2,10 +2,15 @@
 
 from statistics import fmean
 
+from django import forms
 from django.contrib import admin
 from django.utils.html import format_html, format_html_join
 
-from ol_openedx_course_translations.blocks import serialize, source_hash
+from ol_openedx_course_translations.blocks import (
+    restore_kept_parts,
+    serialize,
+    source_hash,
+)
 from ol_openedx_course_translations.models import (
     BlockTranslation,
     CourseTranslationLog,
@@ -300,9 +305,34 @@ class TranslationBenchmarkAdmin(admin.ModelAdmin):
         )
 
 
+class BlockTranslationForm(forms.ModelForm):
+    """Keep answers, grading code, ids and keys from the source in edited rows."""
+
+    class Meta:
+        model = BlockTranslation
+        fields = "__all__"  # noqa: DJ007
+
+    def clean_translated_value(self):
+        """Restore the source's kept parts, rejecting values that do not match it."""
+        value = self.cleaned_data["translated_value"]
+        row = self.instance
+        source_value = published_source_value(row.usage_key, row.field)
+        if source_value is None:
+            return value
+        restored = restore_kept_parts(
+            row.usage_key.block_type, row.field, source_value, value
+        )
+        if restored is None:
+            msg = "The translation does not have the same structure as the source."
+            raise forms.ValidationError(msg)
+        return serialize(restored)
+
+
 @admin.register(BlockTranslation)
 class BlockTranslationAdmin(admin.ModelAdmin):
     """Admin interface for reviewing and fixing in-place translations."""
+
+    form = BlockTranslationForm
 
     list_display = ("usage_key", "field", "language", "status", "updated_at")
     list_filter = ("status", "language", "field")
