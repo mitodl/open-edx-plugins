@@ -50,11 +50,13 @@ TRANSLATABLE_BLOCK_FIELDS = {
 
 # Handlers that must see the source text. ORA hashes the whole rubric (labels and
 # prompts included) and saves it when an assessment is created, and when the
-# student training step is first rendered (it stores its examples with the
-# rubric); lti_consumer sends its display_name to the external tool.
+# student training step is first rendered or its data is loaded by the ORA
+# frontend (it stores its examples with the rubric); lti_consumer sends its
+# display_name to the external tool.
 SOURCE_TEXT_HANDLERS = {
     "openassessment": {
         "assessment",
+        "get_learner_data",
         "peer_assess",
         "render_student_training",
         "self_assess",
@@ -203,6 +205,22 @@ def deserialize(source_value, stored):
     return json.loads(stored)
 
 
+def json_string_value(block_type, field, value):
+    """
+    Return the decoded value of a string field that holds JSON, else ``None``.
+
+    ORA saves several prompts as a JSON list of ``{"description": ...}`` in its
+    ``prompt`` string, and a single prompt as plain text.
+    """
+    if (block_type, field) != ("openassessment", "prompt") or not value:
+        return None
+    try:
+        decoded = json.loads(value)
+    except (TypeError, ValueError):
+        return None
+    return decoded if isinstance(decoded, list) else None
+
+
 def restore_kept_parts(block_type, field, source_value, translated_value):
     """
     Return the translated value with every kept part copied from the source.
@@ -211,9 +229,12 @@ def restore_kept_parts(block_type, field, source_value, translated_value):
     """
     if block_type == "problem" and field == "data":
         return restore_capa(source_value, translated_value)
-    if isinstance(source_value, str) or source_value is None:
-        return translated_value
+    decoded = json_string_value(block_type, field, source_value)
     try:
+        if decoded is not None:
+            return json.dumps(_restore_structure(decoded, json.loads(translated_value)))
+        if isinstance(source_value, str) or source_value is None:
+            return translated_value
         return _restore_structure(source_value, json.loads(translated_value))
     except (TypeError, ValueError, _MismatchError):
         return None
@@ -261,12 +282,27 @@ def _restore_dict(source, translated, key):
 def _restore_list(source, translated, key):
     if len(source) != len(translated):
         raise _MismatchError
+    # Pair keys are restored by position, so a list whose pairs were reordered
+    # would give labels the wrong keys.
+    source_keys = [_pair_key(item) for item in source]
+    if None not in source_keys:
+        for source_key, item in zip(source_keys, translated, strict=True):
+            other = _pair_key(item)
+            if other != source_key and other in source_keys:
+                raise _MismatchError
     # Poll and survey pairs are [key, label-or-details].
     pair = len(source) == 2 and isinstance(source[0], str)  # noqa: PLR2004
     return [
         value if pair and index == 0 else _restore_structure(value, other, key)
         for index, (value, other) in enumerate(zip(source, translated, strict=True))
     ]
+
+
+def _pair_key(value):
+    """Return the key of a poll or survey ``[key, details]`` pair, else ``None``."""
+    if isinstance(value, (list, tuple)) and len(value) == 2:  # noqa: PLR2004
+        return value[0] if isinstance(value[0], str) else None
+    return None
 
 
 def restore_capa(source_xml, translated_xml):

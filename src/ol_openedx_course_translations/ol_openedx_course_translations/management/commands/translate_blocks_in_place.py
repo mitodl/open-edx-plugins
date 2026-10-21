@@ -9,6 +9,8 @@ row (same source text) or a reviewed row are skipped, so running it again only
 translates what changed.
 """
 
+import json
+
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from opaque_keys import InvalidKeyError
@@ -16,6 +18,7 @@ from opaque_keys.edx.keys import CourseKey
 
 from ol_openedx_course_translations.blocks import (
     TRANSLATABLE_BLOCK_FIELDS,
+    json_string_value,
     restore_kept_parts,
     serialize,
     source_hash,
@@ -70,6 +73,9 @@ def translate_value(provider, block_type, field, source_value, language):
     fields have their strings translated in one batch. Ids and keys among those
     strings are translated too, and put back by ``restore_kept_parts``.
     """
+    decoded = json_string_value(block_type, field, source_value)
+    if decoded is not None:
+        return json.dumps(translate_value(provider, None, None, decoded, language))
     if isinstance(source_value, str):
         tag_handling = None
         if looks_like_markup(source_value):
