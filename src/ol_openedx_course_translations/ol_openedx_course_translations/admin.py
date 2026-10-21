@@ -348,6 +348,10 @@ class BlockTranslationAdmin(admin.ModelAdmin):
         "updated_at",
     )
 
+    def has_add_permission(self, request):  # noqa: ARG002
+        """Deny adding rows: they are made by the commands and reviewed here."""
+        return False
+
     @admin.display(description="Current published source")
     def current_source(self, obj):
         """Show the published source the translation is checked against."""

@@ -116,9 +116,30 @@ def test_restore_capa(translated, expected):
             '[["Y", "Oui"], ["N", "Non"]]',
             [["Y", "Oui"], ["N", "Non"]],
         ),
+        (
+            "drag-and-drop-v2",
+            "data",
+            {"feedback": {"start": "Drag", "finish": "Done"}},
+            '{"feedback": {"start": "Glissez", "finish": "Fini"}}',
+            {"feedback": {"start": "Glissez", "finish": "Fini"}},
+        ),
+        (
+            "openassessment",
+            "rubric_criteria",
+            [{"name": "c1", "label": "Ideas", "feedback": "optional"}],
+            '[{"name": "x", "label": "Idees", "feedback": "facultatif"}]',
+            [{"name": "c1", "label": "Idees", "feedback": "optional"}],
+        ),
         ("poll", "answers", [["R", {"label": "Red"}]], "[]", None),
     ],
-    ids=["poll_keys_kept", "dnd_v1_zone_title_kept", "tuple_pairs", "shape_differs"],
+    ids=[
+        "poll_keys_kept",
+        "dnd_v1_zone_title_kept",
+        "tuple_pairs",
+        "dnd_feedback_messages_translated",
+        "ora_feedback_setting_kept",
+        "shape_differs",
+    ],
 )
 def test_restore_kept_parts(block_type, field, source, translated, expected):
     assert restore_kept_parts(block_type, field, source, translated) == expected
