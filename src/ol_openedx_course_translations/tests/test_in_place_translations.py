@@ -147,6 +147,13 @@ def test_restore_capa(translated, expected):
             None,
         ),
         (
+            "poll_question",
+            "answers",
+            [{"id": "R", "text": "Red"}, {"id": "B", "text": "Blue"}],
+            '[{"id": "B", "text": "Bleu"}, {"id": "R", "text": "Rouge"}]',
+            None,
+        ),
+        (
             "openassessment",
             "prompt",
             '[{"description": "One"}, {"description": "Two"}]',
@@ -170,6 +177,7 @@ def test_restore_capa(translated, expected):
         "ora_feedback_setting_kept",
         "shape_differs",
         "reordered_pairs",
+        "reordered_id_entries",
         "ora_prompts_json",
         "ora_prompts_key_changed",
         "ora_single_prompt",
