@@ -8,7 +8,7 @@ source block is the block with the same id in the target course.
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection
+from django.db import connection, transaction
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 
@@ -74,13 +74,26 @@ def save_rows(rows):
     """Upsert rows, leaving reviewed rows untouched. Return the number written."""
     if not rows:
         return 0
-    reviewed = set(
-        BlockTranslation.objects.filter(
+    with transaction.atomic():
+        return _save_unreviewed_rows(rows)
+
+
+def _save_unreviewed_rows(rows):
+    # The existing rows stay locked until the upsert commits, so a review saved
+    # meanwhile waits and is not overwritten.
+    existing = (
+        BlockTranslation.objects.select_for_update()
+        .filter(
             usage_key__in={row.usage_key for row in rows},
             language__in={row.language for row in rows},
-            status=BlockTranslation.Status.REVIEWED,
-        ).values_list("usage_key", "field", "language")
+        )
+        .values_list("usage_key", "field", "language", "status")
     )
+    reviewed = {
+        (usage_key, field, language)
+        for usage_key, field, language, status in existing
+        if status == BlockTranslation.Status.REVIEWED
+    }
     rows = [
         row for row in rows if (row.usage_key, row.field, row.language) not in reviewed
     ]

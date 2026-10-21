@@ -238,7 +238,9 @@ def _restore_dict(source, translated, key):
     result = {}
     for name, value in source.items():
         keep = (
-            name in KEEP_KEYS
+            # Kept keys hold ids or settings; a dict under one (drag and drop
+            # "feedback") holds learner-facing messages, so it is translated.
+            (name in KEEP_KEYS and not isinstance(value, dict))
             # A drag item's allowed zones are uids; the course's zones are dicts.
             or (name == "zones" and all(isinstance(zone, str) for zone in value))
             # Drag and drop v1 data uses a zone's title as its uid.
