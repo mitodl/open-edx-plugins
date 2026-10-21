@@ -303,13 +303,62 @@ def _entry_key(value):
     Return the key of a list entry, else ``None``.
 
     Poll and survey entries are ``[key, details]`` pairs; poll_question answers,
-    course updates and drag and drop zones are dicts with an ``id`` or ``uid``.
+    course updates and drag and drop zones are dicts with an ``id`` or ``uid``,
+    and ORA rubric criteria and options are dicts with a ``name``.
     """
     if isinstance(value, (list, tuple)) and len(value) == 2:  # noqa: PLR2004
         return value[0] if isinstance(value[0], str) else None
     if isinstance(value, dict):
-        return value.get("id", value.get("uid"))
+        return next(
+            (value[name] for name in ("id", "uid", "name") if name in value), None
+        )
     return None
+
+
+def _moved_from_sibling(source_node, translated_node):
+    """
+    Return True when a kept attribute of the translated element holds the value a
+    same-tag sibling has in the source, as when choices were reordered.
+
+    Kept attributes are restored by position, so a reordered choice would get its
+    sibling's grading (``correct``). Other changed values (a translated typed
+    answer) are fine: they are restored from the source.
+    """
+    parent = source_node.getparent()
+    if parent is None:
+        return False
+    siblings = [
+        node
+        for node in parent
+        if node is not source_node and node.tag == source_node.tag
+    ]
+    for attribute in CAPA_KEEP_ATTRIBUTES & set(source_node.attrib):
+        value = translated_node.get(attribute)
+        if (
+            value is not None
+            and value != source_node.get(attribute)
+            and value in {node.get(attribute) for node in siblings}
+        ):
+            return True
+    return False
+
+
+def _restore_capa_node(source_node, translated_node, kept):
+    """Copy the kept parts of one source element onto its translated element."""
+    if source_node in kept:
+        translated_node.attrib.clear()
+        translated_node.attrib.update(source_node.attrib)
+        translated_node.text = source_node.text
+        if source_node.getparent() in kept:
+            translated_node.tail = source_node.tail
+        return
+    for attribute in CAPA_KEEP_ATTRIBUTES & set(translated_node.attrib):
+        if attribute not in source_node.attrib:
+            del translated_node.attrib[attribute]
+    for attribute in CAPA_KEEP_ATTRIBUTES & set(source_node.attrib):
+        translated_node.set(attribute, source_node.get(attribute))
+    if source_node.tag in CAPA_KEEP_TEXT:
+        translated_node.text = source_node.text
 
 
 def restore_capa(source_xml, translated_xml):
@@ -337,21 +386,9 @@ def restore_capa(source_xml, translated_xml):
         if root.tag in CAPA_KEEP_SUBTREES
         for node in root.iter()
     }
-    for source_node, translated_node in zip(
-        source_nodes, translated_nodes, strict=True
-    ):
-        if source_node in kept:
-            translated_node.attrib.clear()
-            translated_node.attrib.update(source_node.attrib)
-            translated_node.text = source_node.text
-            if source_node.getparent() in kept:
-                translated_node.tail = source_node.tail
-            continue
-        for attribute in CAPA_KEEP_ATTRIBUTES & set(translated_node.attrib):
-            if attribute not in source_node.attrib:
-                del translated_node.attrib[attribute]
-        for attribute in CAPA_KEEP_ATTRIBUTES & set(source_node.attrib):
-            translated_node.set(attribute, source_node.get(attribute))
-        if source_node.tag in CAPA_KEEP_TEXT:
-            translated_node.text = source_node.text
+    pairs = list(zip(source_nodes, translated_nodes, strict=True))
+    if any(_moved_from_sibling(source_node, node) for source_node, node in pairs):
+        return None
+    for source_node, translated_node in pairs:
+        _restore_capa_node(source_node, translated_node, kept)
     return etree.tostring(translated, encoding="unicode")
