@@ -1,18 +1,23 @@
 """Open edX filter steps that show course content in the learner's language."""
 
 import html
+import re
 
+from ol_openedx_course_translations.blocks import ANSWER_NOTE_BLOCK_TYPES
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
 from openedx_filters import PipelineStep
 
 from ol_openedx_auto_select_language.translations import (
+    answer_language_note,
     course_translations,
+    plain_key,
     translate_block,
     translated_text,
 )
 
 STATIC_TAB_ID_PREFIX = "static_tab_"
+BLOCK_TITLE = re.compile(r'<h3 class="openassessment__title[^"]*">.*?</h3>', re.DOTALL)
 
 
 def _usage_key(value):
@@ -136,3 +141,38 @@ class TranslateCoursewareMetadata(PipelineStep):
                 )
             )
         return {"course_key": course_key, "user": user, "data": data}
+
+
+class AddAnswerNoteBelowTitles(PipelineStep):
+    """
+    Put the answer-language note right below the title of translated ORA blocks.
+
+    Their prompt sits inside a collapsible step, where a note in the prompt is
+    easy to miss, and their title is plain text, so the note is added to the
+    unit's rendered HTML instead.
+    """
+
+    def run_filter(self, block, fragment, context, view):
+        """Insert the note after each translated ORA title in the unit."""
+        course_key = block.scope_ids.usage_id.course_key
+        translations = course_translations(course_key)
+        if translations:
+            content = fragment.content
+            for child_key in getattr(block, "children", []):
+                if child_key.block_type in ANSWER_NOTE_BLOCK_TYPES and (
+                    translations.get(plain_key(child_key))
+                ):
+                    content = _insert_after_title(
+                        content, str(child_key), answer_language_note(course_key)
+                    )
+            fragment.content = content
+        return {"block": block, "fragment": fragment, "context": context, "view": view}
+
+
+def _insert_after_title(content, usage_id, note):
+    """Insert ``note`` after the title of the child rendered with ``usage_id``."""
+    start = content.find(f'data-id="{usage_id}"')
+    match = BLOCK_TITLE.search(content, start) if start != -1 else None
+    if not match:
+        return content
+    return content[: match.end()] + note + content[match.end() :]

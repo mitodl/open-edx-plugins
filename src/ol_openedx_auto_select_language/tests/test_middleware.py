@@ -8,6 +8,7 @@ from ol_openedx_auto_select_language.constants import (
 from ol_openedx_auto_select_language.middleware import (
     CourseLanguageCookieMiddleware,
     CourseLanguageCookieResetMiddleware,
+    learner_language_wins,
     redirect_current_path,
     set_language,
     should_process_request,
@@ -395,16 +396,42 @@ def test_no_change_when_cookie_is_english_or_empty(
     mock_helpers.set_language_cookie.assert_not_called()
 
 
-def test_learner_language_skips_all_switching(
-    request_factory, mock_user, settings, learner_language_disabled
+@pytest.mark.parametrize(
+    ("path", "http_origin", "forced"),
+    [
+        ("/courses/course-v1:MITx+T101+2026/courseware/", None, False),
+        ("/courses/course-v1:MITx+T101+2026/instructor", None, True),
+        ("/api/user/v1/preferences/edx", "http://authoring.example.com", True),
+    ],
+    ids=["course_page_kept", "staff_page_always_english", "authoring_always_english"],
+)
+def test_in_place_translations_course(  # noqa: PLR0913, PLR0917
+    request_factory,
+    mock_user,
+    mocker,
+    settings,
+    in_place_translations_disabled,
+    path,
+    http_origin,
+    forced,
 ):
-    """With the learner's choice winning, no page switches or saves a language."""
+    """With the flag on, staff and authoring requests still switch to English."""
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    learner_language_disabled.return_value = True
-    request = request_factory.get("/")
+    settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
+    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["instructor"]
+    in_place_translations_disabled.return_value = True
+    mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
+    mocker.patch(f"{MODULE}.set_user_preference")
+    mock_helpers.get_language_cookie.return_value = "fr"
+    request_kwargs = {"HTTP_ORIGIN": http_origin} if http_origin else {}
+    request = request_factory.get(path, **request_kwargs)
     request.user = mock_user
 
-    assert should_process_request(request) is False
+    CourseLanguageCookieMiddleware(mocker.Mock()).process_response(
+        request, HttpResponse()
+    )
+
+    assert mock_helpers.set_language_cookie.called is forced
 
 
 @pytest.mark.parametrize(
@@ -414,15 +441,11 @@ def test_learner_language_skips_all_switching(
         ("/admin/waffle/flag/", None),
     ],
 )
-def test_learner_language_flag_checked_for_path_course(  # noqa: PLR0913, PLR0917
-    request_factory, mock_user, settings, learner_language_disabled, path, expected_key
+def test_flag_checked_for_path_course(
+    in_place_translations_disabled, path, expected_key
 ):
     """The flag is checked for the course in the path, or globally without one."""
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
-    request = request_factory.get(path)
-    request.user = mock_user
+    learner_language_wins(path)
 
-    should_process_request(request)
-
-    (course_key,), _ = learner_language_disabled.call_args
+    (course_key,), _ = in_place_translations_disabled.call_args
     assert (str(course_key) if course_key else None) == expected_key

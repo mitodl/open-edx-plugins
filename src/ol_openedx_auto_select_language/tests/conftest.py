@@ -32,9 +32,9 @@ def pytest_configure(config):
 
 
 @pytest.fixture(autouse=True)
-def learner_language_disabled(mocker):
+def in_place_translations_disabled(mocker):
     """Keep today's course-language behaviour unless a test turns it on."""
     return mocker.patch(
-        "ol_openedx_auto_select_language.toggles.LEARNER_LANGUAGE.is_enabled",
+        "ol_openedx_auto_select_language.toggles.IN_PLACE_TRANSLATIONS.is_enabled",
         return_value=False,
     )

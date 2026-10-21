@@ -148,10 +148,10 @@ def test_returns_error_responses(
 
 
 def test_course_language_echoes_cookie_when_learner_language_wins(
-    request_factory, mock_user, mocker, learner_language_disabled
+    request_factory, mock_user, mocker, in_place_translations_disabled
 ):
     """The Footer compares this with the cookie, so it must not switch."""
-    learner_language_disabled.return_value = True
+    in_place_translations_disabled.return_value = True
     mocker.patch(f"{MODULE}.CourseOverview").get_from_id.return_value.language = "es"
     mocker.patch(f"{MODULE}.lang_pref_helpers.get_language_cookie", return_value="fr")
     request = request_factory.get("/")

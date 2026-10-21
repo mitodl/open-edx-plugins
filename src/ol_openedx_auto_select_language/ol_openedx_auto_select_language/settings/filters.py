@@ -71,6 +71,9 @@ TRANSLATION_PIPELINE_STEPS = {
     "org.openedx.learning.courseware_metadata.api.render.started.v1": (
         "ol_openedx_auto_select_language.translation_filters.TranslateCoursewareMetadata"
     ),
+    "org.openedx.learning.vertical_block.render.completed.v1": (
+        "ol_openedx_auto_select_language.translation_filters.AddAnswerNoteBelowTitles"
+    ),
 }
 
 

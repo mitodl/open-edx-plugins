@@ -6,17 +6,18 @@ from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
 
-# .. toggle_name: ol_openedx_auto_select_language.learner_language
+# .. toggle_name: ol_openedx_auto_select_language.in_place_translations
 # .. toggle_implementation: CourseWaffleFlag
 # .. toggle_default: False
-# .. toggle_description: Learner-language mode for a course: the learner's own
-#   language choice wins and the course is shown in it. Course pages, staff pages
-#   and Studio stop switching or saving the language, course-language lookups
-#   report the learner's language, video subtitles follow the learner's language
-#   before the course language, and the course's BlockTranslation rows are shown.
+# .. toggle_description: In-place translations mode for a course: the learner's own
+#   language choice wins and the course is shown in it. Course pages stop
+#   switching or saving the language (Studio and staff pages stay English),
+#   course-language lookups report the learner's language, video subtitles follow
+#   the learner's language before the course language, and the course's
+#   BlockTranslation rows are shown.
 #   Pages outside a course follow the flag's global value.
-LEARNER_LANGUAGE = CourseWaffleFlag(
-    "ol_openedx_auto_select_language.learner_language", __name__
+IN_PLACE_TRANSLATIONS = CourseWaffleFlag(
+    "ol_openedx_auto_select_language.in_place_translations", __name__
 )
 
 
@@ -39,6 +40,6 @@ def course_key_from_path(path):
         return None
 
 
-def learner_language_enabled(course_key=None):
+def in_place_translations_enabled(course_key=None):
     """Return True when the learner's own language choice wins for this course."""
-    return LEARNER_LANGUAGE.is_enabled(course_key)
+    return IN_PLACE_TRANSLATIONS.is_enabled(course_key)

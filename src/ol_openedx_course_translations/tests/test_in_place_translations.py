@@ -6,10 +6,14 @@ import pytest
 from ol_openedx_course_translations.blocks import (
     restore_capa,
     restore_kept_parts,
+    serialize,
     source_hash,
 )
 from ol_openedx_course_translations.management.commands.backfill_block_translations import (  # noqa: E501
     build_rows,
+)
+from ol_openedx_course_translations.management.commands.translate_blocks_in_place import (  # noqa: E501
+    translate_value,
 )
 from ol_openedx_course_translations.models import BlockTranslation
 from opaque_keys.edx.keys import CourseKey
@@ -94,9 +98,16 @@ def test_restore_capa(translated, expected):
             ),
             {"zones": [{"title": "Haut", "uid": "z1"}, {"title": "Old"}], "items": []},
         ),
+        (
+            "survey",
+            "answers",
+            [("Y", "Yes"), ("N", "No")],
+            '[["Y", "Oui"], ["N", "Non"]]',
+            [["Y", "Oui"], ["N", "Non"]],
+        ),
         ("poll", "answers", [["R", {"label": "Red"}]], "[]", None),
     ],
-    ids=["poll_keys_kept", "dnd_v1_zone_title_kept", "shape_differs"],
+    ids=["poll_keys_kept", "dnd_v1_zone_title_kept", "tuple_pairs", "shape_differs"],
 )
 def test_restore_kept_parts(block_type, field, source, translated, expected):
     assert restore_kept_parts(block_type, field, source, translated) == expected
@@ -154,3 +165,46 @@ def test_restore_capa_drops_added_grading_attributes():
         '<problem><choicegroup><choice correct="true">Oui</choice>'
         "<choice>Non</choice></choicegroup></problem>"
     )
+
+
+class FakeProvider:
+    """Upper-cases text, like a translation that changes every string."""
+
+    def translate_text(self, source_text, _target_language, tag_handling=None):
+        self.tag_handling = tag_handling
+        return source_text.replace("Question", "QUESTION")
+
+    def _batch_translate_units(self, units, _target_language, _glossary_directory):
+        return [unit.upper() for unit in units]
+
+
+@pytest.mark.parametrize(
+    ("block_type", "field", "source", "expected", "tag_handling"),
+    [
+        ("html", "data", "<p>Question</p>", "<p>QUESTION</p>", "html"),
+        (
+            "problem",
+            "data",
+            "<problem>Question</problem>",
+            "<problem>QUESTION</problem>",
+            "xml",
+        ),
+        ("poll", "question", "Question", "QUESTION", None),
+        (
+            "poll",
+            "answers",
+            [("R", {"label": "Red", "img": None})],
+            [["R", {"label": "RED", "img": None}]],
+            None,
+        ),
+    ],
+    ids=["html", "capa_xml", "plain", "nested_keys_restored"],
+)
+def test_translate_value(block_type, field, source, expected, tag_handling):
+    provider = FakeProvider()
+
+    translated = translate_value(provider, block_type, field, source, "fr")
+    restored = restore_kept_parts(block_type, field, source, serialize(translated))
+
+    assert restored == expected
+    assert getattr(provider, "tag_handling", None) == tag_handling
