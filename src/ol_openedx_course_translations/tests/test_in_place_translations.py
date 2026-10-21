@@ -70,9 +70,20 @@ LLM_PROBLEM = (
             SOURCE_PROBLEM.replace("Capital?", "Capitale ?").replace(">Yes<", ">Oui<"),
         ),
         ("<problem><p>Capitale ?</p></problem>", None),
+        (
+            SOURCE_PROBLEM.replace(
+                "<textline/></stringresponse>", "</stringresponse><textline/>"
+            ),
+            None,
+        ),
         ("<problem><p>broken", None),
     ],
-    ids=["keeps_answers_translates_choices", "structure_differs", "invalid_xml"],
+    ids=[
+        "keeps_answers_translates_choices",
+        "structure_differs",
+        "element_moved",
+        "invalid_xml",
+    ],
 )
 def test_restore_capa(translated, expected):
     assert restore_capa(SOURCE_PROBLEM, translated) == expected
