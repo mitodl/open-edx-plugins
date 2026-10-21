@@ -282,12 +282,12 @@ def _restore_dict(source, translated, key):
 def _restore_list(source, translated, key):
     if len(source) != len(translated):
         raise _MismatchError
-    # Pair keys are restored by position, so a list whose pairs were reordered
+    # Entry keys are restored by position, so a list whose entries were reordered
     # would give labels the wrong keys.
-    source_keys = [_pair_key(item) for item in source]
+    source_keys = [_entry_key(item) for item in source]
     if None not in source_keys:
         for source_key, item in zip(source_keys, translated, strict=True):
-            other = _pair_key(item)
+            other = _entry_key(item)
             if other != source_key and other in source_keys:
                 raise _MismatchError
     # Poll and survey pairs are [key, label-or-details].
@@ -298,10 +298,17 @@ def _restore_list(source, translated, key):
     ]
 
 
-def _pair_key(value):
-    """Return the key of a poll or survey ``[key, details]`` pair, else ``None``."""
+def _entry_key(value):
+    """
+    Return the key of a list entry, else ``None``.
+
+    Poll and survey entries are ``[key, details]`` pairs; poll_question answers,
+    course updates and drag and drop zones are dicts with an ``id`` or ``uid``.
+    """
     if isinstance(value, (list, tuple)) and len(value) == 2:  # noqa: PLR2004
         return value[0] if isinstance(value[0], str) else None
+    if isinstance(value, dict):
+        return value.get("id", value.get("uid"))
     return None
 
 
