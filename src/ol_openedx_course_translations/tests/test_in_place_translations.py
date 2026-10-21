@@ -114,7 +114,7 @@ def test_restore_kept_parts(block_type, field, source, translated, expected):
 
 
 def test_build_rows_maps_by_block_id_and_flags_stale(mocker):
-    translated_at = datetime(2026, 1, 1, tzinfo=UTC)
+    imported = datetime(2026, 1, 1, tzinfo=UTC)
     edited = _block(
         mocker,
         data="<p>Hi</p>",
@@ -132,15 +132,18 @@ def test_build_rows_maps_by_block_id_and_flags_stale(mocker):
     missing = _block(mocker, data="x", display_name="x", edited_on=None)
     missing.location = COURSE_KEY.make_usage_key("html", "gone")
     targets = {
-        "a": _block(mocker, data="<p>Salut</p>", display_name="Intro"),
-        "b": _block(mocker, data="<p>Pareil</p>", display_name="Pareil"),
+        "a": _block(
+            mocker, data="<p>Salut</p>", display_name="Intro", edited_on=imported
+        ),
+        "b": _block(
+            mocker, data="<p>Pareil</p>", display_name="Pareil", edited_on=imported
+        ),
     }
 
     rows = build_rows(
         [edited, untouched, missing],
         lambda _type, block_id: targets.get(block_id),
         "fr",
-        translated_at,
     )
 
     assert [(row.field, row.translated_value, row.status) for row in rows] == [
@@ -208,3 +211,24 @@ def test_translate_value(block_type, field, source, expected, tag_handling):
 
     assert restored == expected
     assert getattr(provider, "tag_handling", None) == tag_handling
+
+
+class MarkupProvider(FakeProvider):
+    """Records which strings went through the markup-aware path."""
+
+    def translate_text(self, source_text, _target_language, tag_handling=None):
+        self.tag_handling = tag_handling
+        return source_text.replace("Note", "NOTE")
+
+
+def test_translate_value_nested_markup_uses_markup_path():
+    provider = MarkupProvider()
+    source = [{"id": 1, "content": '<p><a href="/x">Note</a></p>', "date": "d"}]
+
+    translated = translate_value(provider, "course_info", "items", source, "fr")
+
+    # Markup goes through translate_text; plain strings through the batch API.
+    assert translated == [
+        {"id": 1, "content": '<p><a href="/x">NOTE</a></p>', "date": "D"}
+    ]
+    assert provider.tag_handling == "html"

@@ -5,6 +5,7 @@ from statistics import fmean
 from django.contrib import admin
 from django.utils.html import format_html, format_html_join
 
+from ol_openedx_course_translations.blocks import serialize, source_hash
 from ol_openedx_course_translations.models import (
     BlockTranslation,
     CourseTranslationLog,
@@ -311,13 +312,44 @@ class BlockTranslationAdmin(admin.ModelAdmin):
         "usage_key",
         "field",
         "language",
+        "current_source",
         "source_hash",
         "created_at",
         "updated_at",
     )
 
+    @admin.display(description="Current published source")
+    def current_source(self, obj):
+        """Show the published source the translation is checked against."""
+        value = published_source_value(obj.usage_key, obj.field)
+        return "(block not found)" if value is None else serialize(value)
+
     def save_model(self, request, obj, form, change):
-        """Mark a hand-edited translation reviewed so syncs never overwrite it."""
+        """
+        Mark a hand-edited translation reviewed so syncs never overwrite it.
+
+        The editor reviews it against the current published source shown on the
+        form, so the fingerprint is refreshed to that source.
+        """
         if "translated_value" in form.changed_data:
             obj.status = BlockTranslation.Status.REVIEWED
+            value = published_source_value(obj.usage_key, obj.field)
+            if value is not None:
+                obj.source_hash = source_hash(value)
         super().save_model(request, obj, form, change)
+
+
+def published_source_value(usage_key, field):
+    """Return a block field's published value, or None when the block is gone."""
+    # xmodule exists only inside edx-platform.
+    from xmodule.modulestore import ModuleStoreEnum  # noqa: PLC0415
+    from xmodule.modulestore.django import modulestore  # noqa: PLC0415
+    from xmodule.modulestore.exceptions import ItemNotFoundError  # noqa: PLC0415
+
+    try:
+        block = modulestore().get_item(
+            usage_key, revision=ModuleStoreEnum.RevisionOption.published_only
+        )
+    except ItemNotFoundError:
+        return None
+    return getattr(block, field, None)
