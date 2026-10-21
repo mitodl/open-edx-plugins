@@ -181,33 +181,37 @@ class Command(BaseCommand):
         }
         rows, skipped, failed = [], 0, []
         published = ModuleStoreEnum.RevisionOption.published_only
-        for block_type, fields in TRANSLATABLE_BLOCK_FIELDS.items():
-            for block in store.get_items(
-                course_key, qualifiers={"category": block_type}, revision=published
-            ):
-                for field in fields:
-                    source_value = getattr(block, field, None)
-                    if not source_value:
-                        continue
-                    row_hash, status = existing.get(
-                        (block.location, field), (None, None)
-                    )
-                    current = (
-                        status == BlockTranslation.Status.AUTO
-                        and row_hash == source_hash(source_value)
-                    )
-                    if status == BlockTranslation.Status.REVIEWED or (
-                        current and not options["force"]
-                    ):
-                        skipped += 1
-                        continue
-                    row = translated_row(provider, block, field, language)
-                    if row is None:
-                        failed.append(f"{block.location} {field}")
-                    else:
-                        rows.append(row)
-                        self.stdout.write(f"translated {block_type} {field}")
-        written = save_rows(rows)
+        # Rows translated before a provider error are saved, so a rerun does not
+        # pay for them again.
+        try:
+            for block_type, fields in TRANSLATABLE_BLOCK_FIELDS.items():
+                for block in store.get_items(
+                    course_key, qualifiers={"category": block_type}, revision=published
+                ):
+                    for field in fields:
+                        source_value = getattr(block, field, None)
+                        if not source_value:
+                            continue
+                        row_hash, status = existing.get(
+                            (block.location, field), (None, None)
+                        )
+                        current = (
+                            status == BlockTranslation.Status.AUTO
+                            and row_hash == source_hash(source_value)
+                        )
+                        if status == BlockTranslation.Status.REVIEWED or (
+                            current and not options["force"]
+                        ):
+                            skipped += 1
+                            continue
+                        row = translated_row(provider, block, field, language)
+                        if row is None:
+                            failed.append(f"{block.location} {field}")
+                        else:
+                            rows.append(row)
+                            self.stdout.write(f"translated {block_type} {field}")
+        finally:
+            written = save_rows(rows)
         self.stdout.write(
             f"Stored {written} translations, skipped {skipped} current or reviewed, "
             f"{len(failed)} not translated."
