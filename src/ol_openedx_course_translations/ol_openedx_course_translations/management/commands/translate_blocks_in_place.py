@@ -201,6 +201,18 @@ def translated_transcript(provider, transcript, language):
     )
 
 
+def same_language(code, other):
+    """Return True when two codes name the same language, e.g. ``es_419``/``es-419``."""
+    return code.lower().replace("_", "-") == other.lower().replace("_", "-")
+
+
+def transcript_language(languages, code):
+    """Return the transcript language in ``languages`` matching ``code``, or None."""
+    return next(
+        (language for language in languages if same_language(language, code)), None
+    )
+
+
 def translate_transcripts(provider, videos, source_language, language, *, force):
     """
     Add a translated transcript to edx-val for each video, saving each when done.
@@ -227,17 +239,19 @@ def translate_transcripts(provider, videos, source_language, language, *, force)
             continue
         seen.add(video_id)
         languages = edxval_api.get_available_transcript_languages(video_id)
-        if language in languages and not force:
+        target = transcript_language(languages, language)
+        if target and not force:
             kept.append(video_id)
             continue
-        if source_language not in languages:
+        source = transcript_language(languages, source_language)
+        if not source:
             not_translated.append(f"{video_id} (no {source_language} transcript)")
             continue
         try:
-            metadata = edxval_api.get_video_transcript(video_id, source_language)
-            data = edxval_api.get_video_transcript_data(video_id, source_language)
+            metadata = edxval_api.get_video_transcript(video_id, source)
+            data = edxval_api.get_video_transcript_data(video_id, source)
             if not metadata or not data:
-                not_translated.append(f"{video_id} (no {source_language} transcript)")
+                not_translated.append(f"{video_id} (no {source} transcript)")
                 continue
             sjson = translated_transcript(
                 provider,
@@ -247,13 +261,15 @@ def translate_transcripts(provider, videos, source_language, language, *, force)
         except (TranscriptNotFoundError, ValueError) as error:
             not_translated.append(f"{video_id} ({type(error).__name__}: {error})")
             continue
+        # An existing transcript is replaced under its own code.
+        target = target or language
         edxval_api.create_or_update_video_transcript(
             video_id,
-            language,
+            target,
             metadata={
                 "provider": "Custom",
                 "file_format": "sjson",
-                "language_code": language,
+                "language_code": target,
             },
             file_data=ContentFile(sjson.encode("utf-8")),
         )
@@ -353,7 +369,7 @@ class Command(BaseCommand):
             self.stdout.write(f"  not translated: {item}")
 
         source_language = getattr(course, "language", None) or settings.LANGUAGE_CODE
-        if source_language == language:
+        if same_language(source_language, language):
             # The course's own transcripts are the source; never replace them.
             self.stdout.write(
                 "Video transcripts not translated: the course is in that language."
