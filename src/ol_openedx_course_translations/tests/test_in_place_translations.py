@@ -807,3 +807,21 @@ def test_translate_transcripts_replaces_under_the_existing_code(mocker, edxval_a
 
     assert _translate_force[0] == ["v1"]
     assert edxval_api.create_or_update_video_transcript.call_args.args[1] == "pt-BR"
+
+
+def test_annotation_comments_are_translation_units():
+    from ol_openedx_course_translations.utils.course_translations import (  # noqa: PLC0415
+        HtmlXmlTranslationHelper,
+    )
+
+    source = (
+        '<annotatable><annotation title="Note" body="Read this twice." problem="0"'
+        ' highlight="yellow">The passage.</annotation>'
+        '<p body="not a comment">Text</p></annotatable>'
+    )
+
+    _root, units, _refs = HtmlXmlTranslationHelper(is_xml=True).extract_units(source)
+
+    assert "Read this twice." in units
+    assert {"Note", "The passage.", "Text"} <= set(units)
+    assert not {"0", "yellow", "not a comment"} & set(units)
