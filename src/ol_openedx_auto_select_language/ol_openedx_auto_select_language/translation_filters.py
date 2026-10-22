@@ -11,6 +11,7 @@ from openedx_filters import PipelineStep
 from ol_openedx_auto_select_language.translations import (
     answer_language_note,
     course_translations,
+    grader_labels,
     plain_key,
     refresh_problem_feedback,
     translate_block,
@@ -143,6 +144,81 @@ class TranslateCoursewareMetadata(PipelineStep):
                 )
             )
         return {"course_key": course_key, "user": user, "data": data}
+
+
+def _translate_assignment_types(labels, entries, key="assignment_type"):
+    """
+    Translate ``entry[key]`` where it is a grading type name.
+
+    Block descriptions of special exams hold the exam's own text, which is kept.
+    """
+    for entry in entries:
+        if entry.get(key) in labels:
+            entry[key] = labels[entry[key]]["type"]
+
+
+class _AssignmentTypesStep(PipelineStep):
+    """Translate grading type names in a course home API response."""
+
+    def run_filter(self, course_key, user, data):
+        """Swap grading type names for the learner's language, when translated."""
+        labels = grader_labels(course_key)
+        if labels:
+            self.translate(labels, data)
+        return {"course_key": course_key, "user": user, "data": data}
+
+    def translate(self, labels, data):
+        """Translate the response's grading type names in place."""
+        raise NotImplementedError
+
+
+class TranslateProgressAssignmentTypes(_AssignmentTypesStep):
+    """
+    Translate grading type names on the progress tab.
+
+    The grading policy, the grade summary and the subsections' types are translated
+    together: the progress page compares them by name.
+    """
+
+    def translate(self, labels, data):
+        """Swap each grading type name and short label for its translation."""
+        policies = (data.get("grading_policy") or {}).get("assignment_policies", [])
+        for entry in [*policies, *data.get("assignment_type_grade_summary", [])]:
+            label = labels.get(entry.get("type"))
+            if label:
+                entry["type"] = label["type"]
+                if entry.get("short_label") and label["short_label"]:
+                    entry["short_label"] = label["short_label"]
+        for section in data.get("section_scores", []):
+            _translate_assignment_types(labels, section.get("subsections", []))
+
+
+class TranslateDatesAssignmentTypes(_AssignmentTypesStep):
+    """Translate grading type names on the dates tab."""
+
+    def translate(self, labels, data):
+        """Swap each date's grading type name for its translation."""
+        _translate_assignment_types(labels, data.get("course_date_blocks", []))
+
+
+class TranslateOutlineTabAssignmentTypes(_AssignmentTypesStep):
+    """Translate grading type names on the course outline tab and its dates widget."""
+
+    def translate(self, labels, data):
+        """Swap subsection descriptions and date types for their translations."""
+        blocks = (data.get("course_blocks") or {}).get("blocks", {})
+        _translate_assignment_types(labels, blocks.values(), key="description")
+        dates = (data.get("dates_widget") or {}).get("course_date_blocks", [])
+        _translate_assignment_types(labels, dates)
+
+
+class TranslateCourseNavigationAssignmentTypes(_AssignmentTypesStep):
+    """Translate grading type names in the courseware navigation sidebar."""
+
+    def translate(self, labels, data):
+        """Swap subsection descriptions for their translations."""
+        blocks = data.get("blocks", {})
+        _translate_assignment_types(labels, blocks.values(), key="description")
 
 
 class AddAnswerNoteBelowTitles(PipelineStep):

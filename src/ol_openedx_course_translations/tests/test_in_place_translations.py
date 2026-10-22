@@ -4,16 +4,23 @@ from datetime import UTC, datetime
 
 import pytest
 from ol_openedx_course_translations.blocks import (
+    GRADER_LABELS_FIELD,
+    grader_labels_source,
     restore_capa,
+    restore_grader_labels,
     restore_kept_parts,
     serialize,
     source_hash,
 )
 from ol_openedx_course_translations.management.commands.backfill_block_translations import (  # noqa: E501
     build_rows,
+    grader_labels_backfill_row,
 )
 from ol_openedx_course_translations.management.commands.translate_blocks_in_place import (  # noqa: E501
+    grader_labels_row,
+    translate_transcripts,
     translate_value,
+    translated_transcript,
 )
 from ol_openedx_course_translations.models import BlockTranslation
 from opaque_keys.edx.keys import CourseKey
@@ -417,10 +424,12 @@ def test_translate_blocks_in_place_saves_rows_before_a_provider_error(mocker):
     ]
     for block in blocks:
         block.location = block.scope_ids.usage_id
+    course = mocker.Mock(raw_grader=[], language="en")
     store = mocker.Mock()
-    store.get_items.side_effect = lambda _key, qualifiers, **_kw: (
-        blocks if qualifiers["category"] == "html" else []
-    )
+    store.get_items.side_effect = lambda _key, qualifiers, **_kw: {
+        "html": blocks,
+        "course": [course],
+    }.get(qualifiers["category"], [])
     mocker.patch("xmodule.modulestore.django.modulestore", return_value=store)
     mocker.patch(f"{command}.parse_and_validate_provider_spec", return_value=("p", "m"))
     mocker.patch(f"{command}.get_translation_provider")
@@ -439,3 +448,321 @@ def test_translate_blocks_in_place_saves_rows_before_a_provider_error(mocker):
         )
 
     save_rows.assert_called_once_with([first_row])
+
+
+GRADERS = [["Homework", "HW"], ["Exam", ""]]
+
+
+@pytest.mark.parametrize(
+    ("translated", "expected"),
+    [
+        (
+            (
+                '{"Homework": {"type": "Devoirs", "short_label": "DEV"},'
+                ' "Exam": {"type": "Examen"}}'
+            ),
+            {
+                "Homework": {"type": "Devoirs", "short_label": "DEV"},
+                "Exam": {"type": "Examen", "short_label": ""},
+            },
+        ),
+        ('{"Homework": {"type": "Devoirs"}}', None),
+        ('{"Homework": {"type": "Devoirs"}, "Exam": {"type": "Devoirs"}}', None),
+        ('{"Homework": {"type": ""}, "Exam": {"type": "Examen"}}', None),
+        ("not json", None),
+    ],
+    ids=["valid", "missing_type", "same_name_twice", "empty_name", "invalid_json"],
+)
+def test_restore_grader_labels(translated, expected):
+    assert restore_grader_labels(GRADERS, translated) == expected
+
+
+def _course(mocker, graders, weights=None):
+    course = mocker.Mock()
+    course.location = COURSE_KEY.make_usage_key("course", "course")
+    course.raw_grader = [
+        {"type": grader_type, "short_label": label, "weight": weight}
+        for (grader_type, label), weight in zip(
+            graders, weights or [0.5] * len(graders), strict=True
+        )
+    ]
+    return course
+
+
+def test_grader_labels_row(mocker):
+    provider = mocker.Mock()
+    provider.translate_grading_types.return_value = {
+        "Homework": "Devoirs",
+        "HW": "DEV",
+        "Exam": "Examen",
+    }
+
+    row = grader_labels_row(provider, _course(mocker, GRADERS), GRADERS, "fr")
+
+    assert row.field == GRADER_LABELS_FIELD
+    assert row.source_hash == source_hash(GRADERS)
+    assert row.translated_value == serialize(
+        {
+            "Exam": {"short_label": "", "type": "Examen"},
+            "Homework": {"short_label": "DEV", "type": "Devoirs"},
+        }
+    )
+    provider.translate_grading_types.assert_called_once_with(
+        ["Homework", "HW", "Exam"], "fr"
+    )
+
+
+def _subsection(mocker, block_id, grading_format):
+    block = mocker.Mock(format=grading_format)
+    block.location = COURSE_KEY.make_usage_key("sequential", block_id)
+    return block
+
+
+@pytest.mark.parametrize(
+    ("target_weights", "target_format", "reason"),
+    [
+        (None, "Devoirs", None),
+        ([0.2, 0.8], "Devoirs", "the grading types differ in number or weight"),
+        (None, "Examen", "subsection s1 has another type"),
+        (None, None, "subsection s1 is missing from the target"),
+    ],
+    ids=["paired", "weights_differ", "subsection_type_differs", "subsection_missing"],
+)
+def test_grader_labels_backfill_row(mocker, target_weights, target_format, reason):
+    source = _course(mocker, GRADERS, [0.8, 0.2])
+    target = _course(
+        mocker, [["Devoirs", "DEV"], ["Examen", ""]], target_weights or [0.8, 0.2]
+    )
+    subsections = [
+        (
+            _subsection(mocker, "s1", "Homework"),
+            _subsection(mocker, "s1", target_format) if target_format else None,
+        ),
+        (_subsection(mocker, "s2", None), _subsection(mocker, "s2", None)),
+    ]
+
+    row, skipped = grader_labels_backfill_row(source, target, subsections, "fr")
+
+    assert skipped == reason
+    if reason is None:
+        assert restore_grader_labels(GRADERS, row.translated_value)["Homework"] == {
+            "type": "Devoirs",
+            "short_label": "DEV",
+        }
+
+
+class UpperProvider:
+    """Upper-cases subtitle text, like a translation that changes every cue."""
+
+    def translate_srt_with_validation(self, subtitles, _language):
+        for subtitle in subtitles:
+            subtitle.content = subtitle.content.upper()
+        return subtitles
+
+
+def test_translated_transcript_keeps_timings():
+    source = "1\n00:00:01,000 --> 00:00:02,500\nHello there\n\n"
+
+    sjson = translated_transcript(
+        UpperProvider(), {"content": source.encode(), "file_format": "srt"}, "fr"
+    )
+
+    assert '"text": ["HELLO THERE"]' in sjson
+    assert '"start": [1000]' in sjson
+    assert '"end": [2500]' in sjson
+
+
+def _video(mocker, video_id):
+    video = mocker.Mock(edx_video_id=video_id)
+    video.location = COURSE_KEY.make_usage_key("video", video_id or "none")
+    return video
+
+
+@pytest.fixture
+def edxval_api(mocker):
+    """Patch edx-val with an English source transcript and translation mocked."""
+    api = mocker.patch("edxval.api")
+    api.get_available_transcript_languages.return_value = ["en"]
+    api.get_video_transcript.return_value = {"file_format": "srt"}
+    api.get_video_transcript_data.return_value = {"content": b"x"}
+    api.translate = mocker.patch(
+        "ol_openedx_course_translations.management.commands.translate_blocks_in_place."
+        "translated_transcript",
+        return_value="{}",
+    )
+    return api
+
+
+def _translate(mocker, video_ids, *, force=False):
+    videos = [_video(mocker, video_id) for video_id in video_ids]
+    return translate_transcripts(mocker.Mock(), videos, "en", "fr", force=force)
+
+
+NO_VIDEO_ID = f"{COURSE_KEY.make_usage_key('video', 'none')} (no edx_video_id)"
+
+
+@pytest.mark.parametrize(
+    ("languages", "force", "expected"),
+    [
+        (["en"], False, (["v1"], [], [NO_VIDEO_ID])),
+        (["en", "fr"], False, ([], ["v1"], [NO_VIDEO_ID])),
+        (["en", "fr"], True, (["v1"], [], [NO_VIDEO_ID])),
+        (["de"], False, ([], [], ["v1 (no en transcript)", NO_VIDEO_ID])),
+    ],
+    ids=["missing_language_added", "existing_kept", "existing_forced", "no_source"],
+)
+def test_translate_transcripts(mocker, edxval_api, languages, force, expected):
+    edxval_api.get_available_transcript_languages.return_value = languages
+
+    assert _translate(mocker, ["v1", ""], force=force) == expected
+    assert edxval_api.create_or_update_video_transcript.called == bool(expected[0])
+
+
+def test_translate_transcripts_continues_after_a_failed_video(mocker, edxval_api):
+    edxval_api.translate.side_effect = [ValueError("bad cues"), "{}"]
+
+    translated, _kept, not_translated = _translate(mocker, ["v1", "v2"])
+
+    assert translated == ["v2"]
+    assert not_translated == ["v1 (ValueError: bad cues)"]
+
+
+def test_translate_transcripts_stops_on_provider_errors(mocker, edxval_api):
+    edxval_api.translate.side_effect = RuntimeError("rate limited")
+
+    with pytest.raises(RuntimeError):
+        _translate(mocker, ["v1"])
+
+
+def test_translate_transcripts_translates_a_shared_video_once(mocker, edxval_api):
+    translated, _kept, _not_translated = _translate(mocker, ["v1", "v1"])
+
+    assert translated == ["v1"]
+    assert edxval_api.translate.call_count == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("course_language", "flags", "expected_force"),
+    [
+        ("en", ["--force-transcripts"], True),
+        ("en", ["--force"], False),
+        ("fr", [], None),
+    ],
+    ids=["force_transcripts", "force_fields_only", "course_in_target_language"],
+)
+def test_translate_blocks_in_place_transcript_step(
+    mocker, course_language, flags, expected_force
+):
+    from io import StringIO  # noqa: PLC0415
+
+    from django.core.management import call_command  # noqa: PLC0415
+
+    command = (
+        "ol_openedx_course_translations.management.commands.translate_blocks_in_place"
+    )
+    course = mocker.Mock(raw_grader=[], language=course_language, display_name="")
+    video = _video(mocker, "v1")
+    video.display_name = ""
+    store = mocker.Mock()
+    store.get_items.side_effect = lambda _key, qualifiers, **_kw: {
+        "course": [course],
+        "video": [video],
+    }.get(qualifiers["category"], [])
+    mocker.patch("xmodule.modulestore.django.modulestore", return_value=store)
+    mocker.patch(f"{command}.parse_and_validate_provider_spec", return_value=("p", "m"))
+    provider = mocker.patch(f"{command}.get_translation_provider").return_value
+    transcripts = mocker.patch(
+        f"{command}.translate_transcripts",
+        return_value=(["v1"], [], ["v2 (no en transcript)"]),
+    )
+    out = StringIO()
+
+    call_command(
+        "translate_blocks_in_place",
+        f"--course={COURSE_KEY}",
+        "--language=fr",
+        "--provider=p/m",
+        *flags,
+        stdout=out,
+    )
+
+    if expected_force is None:
+        transcripts.assert_not_called()
+        assert "the course is in that language" in out.getvalue()
+    else:
+        transcripts.assert_called_once_with(
+            provider, [video], "en", "fr", force=expected_force
+        )
+        assert "Added 1 video transcripts" in out.getvalue()
+        assert "transcript not translated: v2 (no en transcript)" in out.getvalue()
+
+
+def test_admin_source_of_grader_labels_matches_the_learner_side(mocker):
+    from ol_openedx_course_translations.admin import (  # noqa: PLC0415
+        published_source_value,
+    )
+
+    course = mocker.Mock(
+        raw_grader=[{"type": "Homework", "short_label": "HW"}, {"type": "Exam"}]
+    )
+    store = mocker.patch("xmodule.modulestore.django.modulestore").return_value
+    store.get_item.return_value = course
+
+    source = published_source_value(
+        COURSE_KEY.make_usage_key("course", "course"), GRADER_LABELS_FIELD
+    )
+
+    assert source == [["Homework", "HW"], ["Exam", ""]]
+
+
+def test_grader_labels_source_reads_missing_short_labels_as_empty(mocker):
+    course = mocker.Mock(raw_grader=[{"type": "Quiz", "short_label": None}])
+
+    assert grader_labels_source(course) == [["Quiz", ""]]
+
+
+@pytest.mark.django_db
+def test_translate_blocks_in_place_reports_duplicate_grading_names(mocker):
+    from io import StringIO  # noqa: PLC0415
+
+    from django.core.management import call_command  # noqa: PLC0415
+
+    command = (
+        "ol_openedx_course_translations.management.commands.translate_blocks_in_place"
+    )
+    course = _course(mocker, GRADERS)
+    course.language = "en"
+    course.display_name = ""
+    store = mocker.Mock()
+    store.get_items.side_effect = lambda _key, qualifiers, **_kw: {
+        "course": [course]
+    }.get(qualifiers["category"], [])
+    mocker.patch("xmodule.modulestore.django.modulestore", return_value=store)
+    mocker.patch(f"{command}.parse_and_validate_provider_spec", return_value=("p", "m"))
+    provider = mocker.patch(f"{command}.get_translation_provider").return_value
+    provider.translate_grading_types.side_effect = ValueError("same name twice")
+    transcripts = mocker.patch(
+        f"{command}.translate_transcripts", return_value=([], [], [])
+    )
+    out = StringIO()
+
+    call_command(
+        "translate_blocks_in_place",
+        f"--course={COURSE_KEY}",
+        "--language=fr",
+        "--provider=p/m",
+        stdout=out,
+    )
+
+    assert f"not translated: {course.location} grader_labels (same name twice)" in (
+        out.getvalue()
+    )
+    transcripts.assert_called_once()
+
+
+def test_translated_transcript_rejects_a_transcript_without_cues():
+    with pytest.raises(ValueError, match="no cues"):
+        translated_transcript(
+            UpperProvider(), {"content": b"", "file_format": "srt"}, "fr"
+        )

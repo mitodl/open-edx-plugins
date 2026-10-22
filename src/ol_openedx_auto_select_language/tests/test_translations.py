@@ -6,16 +6,25 @@ import pytest
 from ol_openedx_auto_select_language.translation_filters import (
     AddAnswerNoteBelowTitles,
     TranslateCourseBlockNames,
+    TranslateCourseNavigationAssignmentTypes,
     TranslateCourseOutline,
+    TranslateDatesAssignmentTypes,
+    TranslateOutlineTabAssignmentTypes,
+    TranslateProgressAssignmentTypes,
 )
 from ol_openedx_auto_select_language.translations import (
     add_problem_answer_note,
+    grader_labels,
     plain_key,
     refresh_problem_feedback,
     responsetypes,
     translate_block,
 )
-from ol_openedx_course_translations.blocks import source_hash
+from ol_openedx_course_translations.blocks import (
+    GRADER_LABELS_FIELD,
+    serialize,
+    source_hash,
+)
 from opaque_keys.edx.keys import CourseKey
 
 API = "ol_openedx_auto_select_language.translations"
@@ -298,3 +307,133 @@ def test_refresh_problem_feedback_skips_saved_unsubmitted_answers(mocker):
 
     responder.evaluate_answers.assert_not_called()
     assert block.lcp.correct_map.get_msg("p_2_1") == "<p>Exact</p>"
+
+
+GRADERS = [["Homework", "HW"], ["Exam", "Ex"]]
+LABELS = {
+    "Homework": {"type": "Devoirs", "short_label": "DEV"},
+    "Exam": {"type": "Examen", "short_label": "EX"},
+}
+
+
+@pytest.mark.parametrize(
+    ("row_hash", "expected"),
+    [(source_hash(GRADERS), LABELS), ("old", {}), (None, {})],
+    ids=["current", "grading_changed", "no_row"],
+)
+def test_grader_labels(mocker, row_hash, expected):
+    course_usage_key = COURSE_KEY.make_usage_key("course", "course")
+    rows = (
+        {course_usage_key: {GRADER_LABELS_FIELD: (row_hash, serialize(LABELS))}}
+        if row_hash
+        else {}
+    )
+    mocker.patch(f"{API}.course_translations", return_value=rows)
+    course = mocker.Mock(
+        raw_grader=[{"type": t, "short_label": label} for t, label in GRADERS]
+    )
+    mocker.patch(f"{API}.modulestore").return_value.get_course.return_value = course
+
+    assert grader_labels(COURSE_KEY) == expected
+
+
+def _run(step, data, mocker, labels=LABELS):
+    mocker.patch(f"{FILTERS}.grader_labels", return_value=labels)
+    return step(filter_type="test", running_pipeline=[]).run_filter(
+        course_key=COURSE_KEY, user=None, data=data
+    )["data"]
+
+
+def test_progress_assignment_types_translated_together(mocker):
+    data = {
+        "grading_policy": {
+            "assignment_policies": [{"type": "Homework", "short_label": "HW"}]
+        },
+        "assignment_type_grade_summary": [{"type": "Exam", "short_label": "Ex"}],
+        "section_scores": [
+            {"subsections": [{"assignment_type": "Homework"}, {"assignment_type": ""}]}
+        ],
+    }
+
+    result = _run(TranslateProgressAssignmentTypes, data, mocker)
+
+    assert result["grading_policy"]["assignment_policies"] == [
+        {"type": "Devoirs", "short_label": "DEV"}
+    ]
+    assert result["assignment_type_grade_summary"] == [
+        {"type": "Examen", "short_label": "EX"}
+    ]
+    assert [
+        s["assignment_type"] for s in result["section_scores"][0]["subsections"]
+    ] == [
+        "Devoirs",
+        "",
+    ]
+
+
+def test_dates_assignment_types_translated(mocker):
+    data = {
+        "course_date_blocks": [{"assignment_type": "Exam"}, {"assignment_type": None}]
+    }
+
+    result = _run(TranslateDatesAssignmentTypes, data, mocker)
+
+    assert [d["assignment_type"] for d in result["course_date_blocks"]] == [
+        "Examen",
+        None,
+    ]
+
+
+@pytest.mark.parametrize(
+    ("step", "data", "blocks_path"),
+    [
+        (
+            TranslateOutlineTabAssignmentTypes,
+            {
+                "course_blocks": {
+                    "blocks": {
+                        "a": {"description": "Homework"},
+                        "b": {"description": "Timed exam"},
+                    }
+                },
+                "dates_widget": {"course_date_blocks": [{"assignment_type": "Exam"}]},
+            },
+            ("course_blocks", "blocks"),
+        ),
+        (
+            TranslateCourseNavigationAssignmentTypes,
+            {
+                "blocks": {
+                    "a": {"description": "Homework"},
+                    "b": {"description": "Timed exam"},
+                }
+            },
+            ("blocks",),
+        ),
+    ],
+    ids=["outline_tab", "navigation"],
+)
+def test_block_descriptions_translated_only_for_type_names(
+    mocker, step, data, blocks_path
+):
+    result = _run(step, data, mocker)
+
+    blocks = result
+    for key in blocks_path:
+        blocks = blocks[key]
+    assert blocks == {
+        "a": {"description": "Devoirs"},
+        "b": {"description": "Timed exam"},
+    }
+    if "dates_widget" in result:
+        assert result["dates_widget"]["course_date_blocks"] == [
+            {"assignment_type": "Examen"}
+        ]
+
+
+def test_assignment_type_steps_leave_data_without_labels(mocker):
+    data = {"course_date_blocks": [{"assignment_type": "Exam"}]}
+
+    result = _run(TranslateDatesAssignmentTypes, data, mocker, labels={})
+
+    assert result == {"course_date_blocks": [{"assignment_type": "Exam"}]}

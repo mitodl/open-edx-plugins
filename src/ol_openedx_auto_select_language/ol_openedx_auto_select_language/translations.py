@@ -9,14 +9,18 @@ from django.conf import settings
 from django.utils.translation import get_language, get_language_info
 from edx_django_utils.cache import RequestCache
 from ol_openedx_course_translations.blocks import (
+    GRADER_LABELS_FIELD,
     SOURCE_TEXT_HANDLERS,
     TRANSLATABLE_BLOCK_FIELDS,
     TYPED_ANSWER_TAGS,
     deserialize,
+    grader_labels_source,
+    restore_grader_labels,
     source_hash,
 )
 from ol_openedx_course_translations.models import BlockTranslation
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
+from xmodule.modulestore.django import modulestore
 
 from ol_openedx_auto_select_language.toggles import in_place_translations_enabled
 
@@ -93,6 +97,36 @@ def course_translations(course_key):
         translations.setdefault(usage_key, {})[field] = (row_hash, value)
     cache.set(cache_key, translations)
     return translations
+
+
+def grader_labels(course_key):
+    """
+    Return ``{type: {"type": ..., "short_label": ...}}`` for the learner's language.
+
+    Empty when there is no row for the language, the course's grading types
+    changed since they were translated, or the stored value is unusable.
+    """
+    course_key = plain_key(course_key)
+    row_hash, value = (
+        course_translations(course_key)
+        .get(course_key.make_usage_key("course", "course"), {})
+        .get(GRADER_LABELS_FIELD, (None, None))
+    )
+    if row_hash is None:
+        return {}
+    source_pairs = grader_labels_source(modulestore().get_course(course_key))
+    if row_hash != source_hash(source_pairs):
+        return {}
+    labels = restore_grader_labels(source_pairs, value)
+    if labels is None:
+        log.warning(
+            "Unusable %s translation for %s (%s)",
+            GRADER_LABELS_FIELD,
+            course_key,
+            get_language(),
+        )
+        return {}
+    return labels
 
 
 def course_language_codes(course_key):

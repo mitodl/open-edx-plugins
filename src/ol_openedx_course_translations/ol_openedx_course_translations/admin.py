@@ -7,6 +7,8 @@ from django.contrib import admin
 from django.utils.html import format_html, format_html_join
 
 from ol_openedx_course_translations.blocks import (
+    GRADER_LABELS_FIELD,
+    grader_labels_source,
     restore_kept_parts,
     serialize,
     source_hash,
@@ -389,4 +391,6 @@ def published_source_value(usage_key, field):
         )
     except ItemNotFoundError:
         return None
+    if field == GRADER_LABELS_FIELD:
+        return grader_labels_source(block)
     return getattr(block, field, None)
