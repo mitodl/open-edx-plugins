@@ -478,7 +478,7 @@ def test_restore_grader_labels(translated, expected):
 
 
 def _course(mocker, graders, weights=None):
-    course = mocker.Mock()
+    course = mocker.Mock(edited_on=None)
     course.location = COURSE_KEY.make_usage_key("course", "course")
     course.raw_grader = [
         {"type": grader_type, "short_label": label, "weight": weight}
@@ -766,3 +766,44 @@ def test_translated_transcript_rejects_a_transcript_without_cues():
         translated_transcript(
             UpperProvider(), {"content": b"", "file_format": "srt"}, "fr"
         )
+
+
+def test_grader_labels_backfill_row_is_stale_when_the_source_changed(mocker):
+    source = _course(mocker, GRADERS, [0.8, 0.2])
+    target = _course(mocker, [["Devoirs", "DEV"], ["Examen", ""]], [0.8, 0.2])
+    source.edited_on = datetime(2026, 3, 1, tzinfo=UTC)
+    target.edited_on = datetime(2026, 2, 1, tzinfo=UTC)
+
+    row, _reason = grader_labels_backfill_row(source, target, [], "fr")
+
+    assert row.status == BlockTranslation.Status.STALE
+
+
+@pytest.mark.parametrize(
+    ("languages", "expected_source"),
+    [(["es-419", "en"], "es-419"), (["ES_419"], "ES_419")],
+    ids=["hyphen", "underscore_upper"],
+)
+def test_translate_transcripts_matches_language_codes(
+    mocker, edxval_api, languages, expected_source
+):
+    edxval_api.get_available_transcript_languages.return_value = languages
+    videos = [_video(mocker, "v1")]
+
+    translated, _kept, _not_translated = translate_transcripts(
+        mocker.Mock(), videos, "es_419", "fr", force=False
+    )
+
+    assert translated == ["v1"]
+    edxval_api.get_video_transcript_data.assert_called_once_with("v1", expected_source)
+
+
+def test_translate_transcripts_replaces_under_the_existing_code(mocker, edxval_api):
+    edxval_api.get_available_transcript_languages.return_value = ["en", "pt-BR"]
+
+    _translate_force = translate_transcripts(
+        mocker.Mock(), [_video(mocker, "v1")], "en", "pt_br", force=True
+    )
+
+    assert _translate_force[0] == ["v1"]
+    assert edxval_api.create_or_update_video_transcript.call_args.args[1] == "pt-BR"
