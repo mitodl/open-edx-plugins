@@ -5,6 +5,7 @@ Filters for Open edX auto select language.
 from collections import OrderedDict
 
 from django.conf import settings
+from django.utils.translation import get_language
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx_filters import PipelineStep
 from xmodule.modulestore.django import modulestore
@@ -12,6 +13,7 @@ from xmodule.modulestore.django import modulestore
 from ol_openedx_auto_select_language.constants import (
     ENGLISH_LANGUAGE_CODE,
 )
+from ol_openedx_auto_select_language.toggles import in_place_translations_enabled
 from ol_openedx_auto_select_language.utils import LanguageCode
 
 VIDEO_BLOCK_TYPE = "video"
@@ -122,7 +124,13 @@ class RestrictVideoTranscriptLanguages(PipelineStep):
             return {"block": block, "context": context}
 
         course_language = _course_language(block)
-        if not course_language:
+        preferred = [course_language] if course_language else []
+        if (
+            in_place_translations_enabled(block.scope_ids.usage_id.course_key)
+            and get_language()
+        ):
+            preferred.insert(0, get_language())
+        if not preferred:
             return {"block": block, "context": context}
 
         def restricted(transcripts, dest_lang=None):  # noqa: ARG001
@@ -130,18 +138,24 @@ class RestrictVideoTranscriptLanguages(PipelineStep):
             Return the student-view transcript info for one language only.
 
             The incoming ``dest_lang`` is deliberately ignored in favour of
-            this block's own course language. ``AddDestLangForVideoBlock``
+            this block's own preferred languages: the learner's (when their
+            choice wins), then the course's. ``AddDestLangForVideoBlock``
             writes a single shared ``student_view_context`` key once per
             child, so in a vertical holding several videos the last child
-            wins and would otherwise drag its siblings off the course
-            language. The platform resolver already falls back on its own
-            when the course language has no transcript.
+            wins and would otherwise drag its siblings off those languages.
+            The platform resolver falls back to English on its own when no
+            preferred language has a transcript.
             """
-            track_url, language, languages = original(
-                transcripts=transcripts, dest_lang=course_language
-            )
-            if language in languages and _same_language(language, course_language):
-                languages = OrderedDict([(language, languages[language])])
+            for wanted in preferred:
+                track_url, language, languages = original(
+                    transcripts=transcripts, dest_lang=wanted
+                )
+                if language in languages and _same_language(language, wanted):
+                    return (
+                        track_url,
+                        language,
+                        OrderedDict([(language, languages[language])]),
+                    )
             return track_url, language, languages
 
         block.get_transcripts_for_student = restricted

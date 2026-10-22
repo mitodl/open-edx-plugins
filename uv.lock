@@ -2293,13 +2293,14 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-auto-select-language"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "src/ol_openedx_auto_select_language" }
 dependencies = [
     { name = "django", version = "5.2.17", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "django", version = "6.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "djangorestframework" },
     { name = "edx-opaque-keys" },
+    { name = "ol-openedx-course-translations" },
 ]
 
 [package.metadata]
@@ -2307,6 +2308,7 @@ requires-dist = [
     { name = "django", specifier = ">=5.2" },
     { name = "djangorestframework", specifier = ">=3.16.0" },
     { name = "edx-opaque-keys" },
+    { name = "ol-openedx-course-translations", editable = "src/ol_openedx_course_translations" },
 ]
 
 [[package]]
@@ -2495,7 +2497,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-translations"
-version = "0.12.1"
+version = "0.13.0"
 source = { editable = "src/ol_openedx_course_translations" }
 dependencies = [
     { name = "azure-identity" },

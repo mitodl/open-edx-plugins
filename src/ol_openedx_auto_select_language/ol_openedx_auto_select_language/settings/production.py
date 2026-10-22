@@ -4,6 +4,7 @@
 
 from ol_openedx_auto_select_language.settings.filters import (
     register_restrict_transcripts_filter,
+    register_translation_filters,
     register_video_language_filter,
 )
 
@@ -17,3 +18,4 @@ def plugin_settings(settings):
     # entry added by common settings; this merges the pipeline step back in.
     register_video_language_filter(settings)
     register_restrict_transcripts_filter(settings)
+    register_translation_filters(settings)

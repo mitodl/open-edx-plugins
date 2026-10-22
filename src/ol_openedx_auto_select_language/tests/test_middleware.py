@@ -8,6 +8,7 @@ from ol_openedx_auto_select_language.constants import (
 from ol_openedx_auto_select_language.middleware import (
     CourseLanguageCookieMiddleware,
     CourseLanguageCookieResetMiddleware,
+    learner_language_wins,
     redirect_current_path,
     set_language,
     should_process_request,
@@ -393,3 +394,58 @@ def test_no_change_when_cookie_is_english_or_empty(
 
     assert result is response
     mock_helpers.set_language_cookie.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("path", "http_origin", "forced"),
+    [
+        ("/courses/course-v1:MITx+T101+2026/courseware/", None, False),
+        ("/courses/course-v1:MITx+T101+2026/instructor", None, True),
+        ("/api/user/v1/preferences/edx", "http://authoring.example.com", True),
+    ],
+    ids=["course_page_kept", "staff_page_always_english", "authoring_always_english"],
+)
+def test_in_place_translations_course(  # noqa: PLR0913, PLR0917
+    request_factory,
+    mock_user,
+    mocker,
+    settings,
+    in_place_translations_disabled,
+    path,
+    http_origin,
+    forced,
+):
+    """With the flag on, staff and authoring requests still switch to English."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
+    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["instructor"]
+    in_place_translations_disabled.return_value = True
+    mock_helpers = mocker.patch(f"{MODULE}.lang_pref_helpers")
+    mocker.patch(f"{MODULE}.set_user_preference")
+    mock_helpers.get_language_cookie.return_value = "fr"
+    request_kwargs = {"HTTP_ORIGIN": http_origin} if http_origin else {}
+    request = request_factory.get(path, **request_kwargs)
+    request.user = mock_user
+
+    CourseLanguageCookieMiddleware(mocker.Mock()).process_response(
+        request, HttpResponse()
+    )
+
+    assert mock_helpers.set_language_cookie.called is forced
+
+
+@pytest.mark.parametrize(
+    ("path", "expected_key"),
+    [
+        ("/courses/course-v1:MITx+T101+2026/instructor", "course-v1:MITx+T101+2026"),
+        ("/admin/waffle/flag/", None),
+    ],
+)
+def test_flag_checked_for_path_course(
+    in_place_translations_disabled, path, expected_key
+):
+    """The flag is checked for the course in the path, or globally without one."""
+    learner_language_wins(path)
+
+    (course_key,), _ = in_place_translations_disabled.call_args
+    assert (str(course_key) if course_key else None) == expected_key

@@ -53,3 +53,58 @@ def register_restrict_transcripts_filter(settings):
     if RESTRICT_TRANSCRIPTS_PIPELINE_STEP not in filter_entry["pipeline"]:
         filter_entry["pipeline"].append(RESTRICT_TRANSCRIPTS_PIPELINE_STEP)
     settings.OPEN_EDX_FILTERS_CONFIG = filters_config
+
+
+TRANSLATION_PIPELINE_STEPS = {
+    "org.openedx.learning.xblock.bound.v1": (
+        "ol_openedx_auto_select_language.translation_filters.TranslateBoundBlock"
+    ),
+    "org.openedx.learning.course_blocks.transform.completed.v1": (
+        "ol_openedx_auto_select_language.translation_filters.TranslateCourseBlockNames"
+    ),
+    "org.openedx.learning.course_outline.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters.TranslateCourseOutline"
+    ),
+    "org.openedx.learning.course_home_metadata.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters.TranslateCourseHomeMetadata"
+    ),
+    "org.openedx.learning.courseware_metadata.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters.TranslateCoursewareMetadata"
+    ),
+    "org.openedx.learning.vertical_block.render.completed.v1": (
+        "ol_openedx_auto_select_language.translation_filters.AddAnswerNoteBelowTitles"
+    ),
+    "org.openedx.learning.course_home_progress.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters."
+        "TranslateProgressAssignmentTypes"
+    ),
+    "org.openedx.learning.course_home_dates.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters."
+        "TranslateDatesAssignmentTypes"
+    ),
+    "org.openedx.learning.course_home_outline.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters."
+        "TranslateOutlineTabAssignmentTypes"
+    ),
+    "org.openedx.learning.course_navigation.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters."
+        "TranslateCourseNavigationAssignmentTypes"
+    ),
+}
+
+
+def register_translation_filters(settings):
+    """Merge the translation display steps into ``OPEN_EDX_FILTERS_CONFIG``.
+
+    These steps fail silently: on an error the platform logs it and the learner
+    sees the source text, rather than a broken page.
+    """
+    filters_config = getattr(settings, "OPEN_EDX_FILTERS_CONFIG", {}) or {}
+    for filter_type, step in TRANSLATION_PIPELINE_STEPS.items():
+        filter_entry = filters_config.setdefault(
+            filter_type, {"fail_silently": True, "pipeline": []}
+        )
+        filter_entry.setdefault("pipeline", [])
+        if step not in filter_entry["pipeline"]:
+            filter_entry["pipeline"].append(step)
+    settings.OPEN_EDX_FILTERS_CONFIG = filters_config
