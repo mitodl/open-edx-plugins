@@ -25,6 +25,15 @@ from ol_openedx_course_translations.blocks import (
 from ol_openedx_course_translations.models import BlockTranslation
 
 
+def edit_status(source, target):
+    """Return STALE when the source was edited after its translated counterpart."""
+    source_edited = getattr(source, "edited_on", None)
+    target_edited = getattr(target, "edited_on", None)
+    if source_edited and target_edited and source_edited > target_edited:
+        return BlockTranslation.Status.STALE
+    return BlockTranslation.Status.AUTO
+
+
 def build_rows(source_blocks, get_target_block, language):
     """
     Return unsaved rows for every field whose target value differs from source.
@@ -41,13 +50,7 @@ def build_rows(source_blocks, get_target_block, language):
         target = get_target_block(location.block_type, location.block_id)
         if target is None:
             continue
-        source_edited = getattr(block, "edited_on", None)
-        target_edited = getattr(target, "edited_on", None)
-        status = (
-            BlockTranslation.Status.STALE
-            if source_edited and target_edited and source_edited > target_edited
-            else BlockTranslation.Status.AUTO
-        )
+        status = edit_status(block, target)
         for field in TRANSLATABLE_BLOCK_FIELDS[location.block_type]:
             source_value = getattr(block, field, None)
             translated_value = getattr(target, field, None)
@@ -118,6 +121,7 @@ def grader_labels_backfill_row(source_course, target_course, subsections, langua
     row = grader_labels_translation(source_course, source_pairs, target_pairs, language)
     if row is None:
         return None, "the grading types are not translated or not usable"
+    row.status = edit_status(source_course, target_course)
     return row, None
 
 

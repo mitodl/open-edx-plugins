@@ -238,7 +238,13 @@ def _problem(mocker, responder, saved_msg="<p>Exact</p>"):
     return block
 
 
-def _responder(mocker, response_class, rebuilt_msg="<p>Right</p>", hintfn=None):
+def _responder(
+    mocker,
+    response_class,
+    rebuilt_msg="<p>Right</p>",
+    hintfn=None,
+    rebuilt_correctness="correct",
+):
     responder = mocker.Mock(spec=response_class)
     responder.answer_ids = ["p_2_1"]
     responder.xml = mocker.Mock()
@@ -246,7 +252,7 @@ def _responder(mocker, response_class, rebuilt_msg="<p>Right</p>", hintfn=None):
         mocker.Mock(get=lambda _name: hintfn) if hintfn else None
     )
     rebuilt = _correct_map(rebuilt_msg)
-    rebuilt.set_property("p_2_1", "correctness", "incorrect")
+    rebuilt.set_property("p_2_1", "correctness", rebuilt_correctness)
     responder.evaluate_answers.return_value = rebuilt
     return responder
 
@@ -437,3 +443,15 @@ def test_assignment_type_steps_leave_data_without_labels(mocker):
     result = _run(TranslateDatesAssignmentTypes, data, mocker, labels={})
 
     assert result == {"course_date_blocks": [{"assignment_type": "Exam"}]}
+
+
+def test_refresh_problem_feedback_keeps_feedback_for_another_result(mocker):
+    mocker.patch(f"{API}.in_place_translations_enabled", return_value=True)
+    responder = _responder(
+        mocker, responsetypes.MultipleChoiceResponse, rebuilt_correctness="incorrect"
+    )
+    block = _problem(mocker, responder)
+
+    refresh_problem_feedback(block)
+
+    assert block.lcp.correct_map.get_msg("p_2_1") == "<p>Exact</p>"

@@ -258,7 +258,11 @@ def refresh_problem_feedback(block):
             log.warning("Could not rebuild feedback for %s", block.scope_ids.usage_id)
             continue
         for aid in answer_ids:
-            if aid not in rebuilt:
+            # Feedback for another result (the answer was changed and not
+            # rescored) would contradict the saved grade, so it is kept.
+            if aid not in rebuilt or rebuilt.get_correctness(
+                aid
+            ) != lcp.correct_map.get_correctness(aid):
                 continue
             for name in FEEDBACK_PROPERTIES:
                 lcp.correct_map.set_property(aid, name, rebuilt.get_property(aid, name))
