@@ -74,6 +74,22 @@ TRANSLATION_PIPELINE_STEPS = {
     "org.openedx.learning.vertical_block.render.completed.v1": (
         "ol_openedx_auto_select_language.translation_filters.AddAnswerNoteBelowTitles"
     ),
+    "org.openedx.learning.course_home_progress.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters."
+        "TranslateProgressAssignmentTypes"
+    ),
+    "org.openedx.learning.course_home_dates.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters."
+        "TranslateDatesAssignmentTypes"
+    ),
+    "org.openedx.learning.course_home_outline.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters."
+        "TranslateOutlineTabAssignmentTypes"
+    ),
+    "org.openedx.learning.course_navigation.api.render.started.v1": (
+        "ol_openedx_auto_select_language.translation_filters."
+        "TranslateCourseNavigationAssignmentTypes"
+    ),
 }
 
 

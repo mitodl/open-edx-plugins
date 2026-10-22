@@ -182,6 +182,61 @@ CAPA_KEEP_SUBTREES = {
 CAPA_KEEP_TEXT = {"additional_answer", "option"}
 
 
+# Grading type names are kept in their own row on the course block and never put
+# on the block: grading matches each subsection's format to a grader type by name.
+GRADER_LABELS_FIELD = "grader_labels"
+
+
+def grader_labels_source(course):
+    """Return the course's grading types as ``[[type, short_label], ...]``, in order."""
+    # Studio saves a grader without a short label as None.
+    return [
+        [grader.get("type") or "", grader.get("short_label") or ""]
+        for grader in getattr(course, "raw_grader", None) or []
+    ]
+
+
+def grader_labels_value(source_pairs, translated_pairs):
+    """Return ``{type: {"type": ..., "short_label": ...}}``, pairing by position."""
+    return {
+        source[0]: {"type": translated[0], "short_label": translated[1]}
+        for source, translated in zip(source_pairs, translated_pairs, strict=True)
+    }
+
+
+def restore_grader_labels(source_pairs, translated_value):
+    """Return the parsed labels when they name exactly the source types, else None."""
+    try:
+        labels = json.loads(translated_value)
+    except (TypeError, ValueError):
+        return None
+    source_types = [grader_type for grader_type, _ in source_pairs]
+    # The progress page matches types by name, so names must stay distinct.
+    if (
+        len(set(source_types)) != len(source_types)
+        or not isinstance(labels, dict)
+        or set(labels) != set(source_types)
+    ):
+        return None
+    if not all(
+        isinstance(label, dict)
+        and isinstance(label.get("type"), str)
+        and label["type"]
+        and isinstance(label.get("short_label", ""), str)
+        for label in labels.values()
+    ):
+        return None
+    if len({label["type"] for label in labels.values()}) != len(labels):
+        return None
+    return {
+        grader_type: {
+            "type": label["type"],
+            "short_label": label.get("short_label", ""),
+        }
+        for grader_type, label in labels.items()
+    }
+
+
 def source_hash(value):
     """Return the fingerprint a translation row is checked against."""
     return hashlib.sha256(serialize(value).encode()).hexdigest()
@@ -229,6 +284,8 @@ def restore_kept_parts(block_type, field, source_value, translated_value):
     """
     if block_type == "problem" and field == "data":
         return restore_capa(source_value, translated_value)
+    if field == GRADER_LABELS_FIELD:
+        return restore_grader_labels(source_value, translated_value)
     decoded = json_string_value(block_type, field, source_value)
     try:
         if decoded is not None:

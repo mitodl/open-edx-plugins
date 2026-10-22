@@ -13,7 +13,11 @@ from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey
 
 from ol_openedx_course_translations.blocks import (
+    GRADER_LABELS_FIELD,
     TRANSLATABLE_BLOCK_FIELDS,
+    grader_labels_source,
+    grader_labels_value,
+    restore_grader_labels,
     restore_kept_parts,
     serialize,
     source_hash,
@@ -68,6 +72,71 @@ def build_rows(source_blocks, get_target_block, language):
                 )
             )
     return rows
+
+
+def _subsection_mismatch(subsections, type_mapping):
+    """Return why a source subsection's type does not map to its counterpart's."""
+    for source, target in subsections:
+        block_id = source.location.block_id
+        if target is None:
+            return f"subsection {block_id} is missing from the target"
+        source_format = getattr(source, "format", None)
+        if source_format and getattr(target, "format", None) != type_mapping.get(
+            source_format
+        ):
+            return f"subsection {block_id} has another type"
+    return None
+
+
+def grader_labels_backfill_row(source_course, target_course, subsections, language):
+    """
+    Return ``(row, reason)``: the grading type names row, or None and the reason.
+
+    The two courses name their grading types in different languages, so they are
+    paired by position. The pairing is only trusted when both courses have the
+    same number of types with the same weights, and every source subsection's
+    type maps to its counterpart's type (``subsections`` lists source and target
+    subsection pairs).
+    """
+    source_pairs = grader_labels_source(source_course)
+    target_pairs = grader_labels_source(target_course)
+    if not source_pairs:
+        return None, "the source course has no grading types"
+
+    def weights(course):
+        return [grader.get("weight") for grader in course.raw_grader or []]
+
+    if weights(source_course) != weights(target_course):
+        return None, "the grading types differ in number or weight"
+    type_mapping = {
+        source[0]: target[0]
+        for source, target in zip(source_pairs, target_pairs, strict=True)
+    }
+    mismatch = _subsection_mismatch(subsections, type_mapping)
+    if mismatch:
+        return None, mismatch
+    row = grader_labels_translation(source_course, source_pairs, target_pairs, language)
+    if row is None:
+        return None, "the grading types are not translated or not usable"
+    return row, None
+
+
+def grader_labels_translation(course, source_pairs, translated_pairs, language):
+    """Return an unsaved grading type names row, pairing lists by position, or None."""
+    labels = restore_grader_labels(
+        source_pairs, serialize(grader_labels_value(source_pairs, translated_pairs))
+    )
+    if labels is None or translated_pairs == source_pairs:
+        return None
+    return BlockTranslation(
+        course_key=course.location.course_key,
+        usage_key=course.location,
+        field=GRADER_LABELS_FIELD,
+        language=language,
+        source_hash=source_hash(source_pairs),
+        translated_value=serialize(labels),
+        status=BlockTranslation.Status.AUTO,
+    )
 
 
 def save_rows(rows):
@@ -168,6 +237,21 @@ class Command(BaseCommand):
             )
         ]
         rows = build_rows(source_blocks, get_target_block, language)
+        source_course = store.get_course(source_key)
+        grader_row, reason = grader_labels_backfill_row(
+            source_course,
+            store.get_course(target_key),
+            [
+                (block, get_target_block("sequential", block.location.block_id))
+                for block in source_blocks
+                if block.location.block_type == "sequential"
+            ],
+            language,
+        )
+        if grader_row is None:
+            self.stdout.write(f"Grading type names not copied: {reason}.")
+        else:
+            rows.append(grader_row)
         written = save_rows(rows)
         stale = sum(row.status == BlockTranslation.Status.STALE for row in rows)
         self.stdout.write(
