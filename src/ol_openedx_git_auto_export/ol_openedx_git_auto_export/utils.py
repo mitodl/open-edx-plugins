@@ -198,14 +198,29 @@ def cache_op(op, *args, on_error, **kwargs):
 
 
 def claim_export_slot(content_key):
-    """Claim the right to queue the next export task, if nothing holds it."""
-    return cache_op(
+    """
+    Claim the right to queue the next export task, if nothing holds it.
+
+    A claim starts a burst unless a start is still recorded: a slot can
+    expire while its task waits behind a worker backlog, and restarting the
+    burst there would let the backlog postpone the export indefinitely.
+    """
+    claimed = cache_op(
         cache.add,
         pending_cache_key(content_key),
         "1",
         timeout=EXPORT_DEBOUNCE_PENDING_TTL,
         on_error=True,
     )
+    if claimed:
+        cache_op(
+            cache.add,
+            burst_start_cache_key(content_key),
+            time.time(),
+            timeout=EXPORT_BURST_START_TTL,
+            on_error=None,
+        )
+    return claimed
 
 
 def release_export_slot(content_key):
@@ -338,15 +353,6 @@ def queue_debounced_export(content_key, resolve_user):
             content_key,
         )
         return
-    # Claiming the slot starts a burst; set, not add, so a dead burst's start
-    # can't carry over and cut this one short.
-    cache_op(
-        cache.set,
-        burst_start_cache_key(content_key),
-        time.time(),
-        timeout=EXPORT_BURST_START_TTL,
-        on_error=None,
-    )
 
     try:
         get_or_create_git_export_repo_dir()

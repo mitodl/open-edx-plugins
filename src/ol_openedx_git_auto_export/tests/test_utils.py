@@ -48,7 +48,7 @@ def test_claim_export_slot_uses_the_pending_ttl():
     with mock.patch("ol_openedx_git_auto_export.utils.cache.add") as mock_add:
         claim_export_slot("lib:org:slug")
 
-    mock_add.assert_called_once_with(
+    mock_add.assert_any_call(
         pending_cache_key("lib:org:slug"), "1", timeout=EXPORT_DEBOUNCE_PENDING_TTL
     )
 
@@ -231,11 +231,12 @@ class TestBurstStart(TestCase):
         assert started is not None
         assert started != 1000.0  # noqa: PLR2004
 
-    def test_new_burst_replaces_a_dead_bursts_start(self):
-        """A burst whose slot lapsed leaves its start behind; inheriting it
-        would force the next burst's export early."""
+    def test_claim_keeps_a_start_whose_task_is_still_queued(self):
+        """Behind a worker backlog the slot can expire while its task is still
+        queued; restarting the burst on every new claim would let the backlog
+        postpone the export indefinitely."""
         key = "lib:org:slug"
-        cache.set(burst_start_cache_key(key), 0, timeout=None)
+        cache.set(burst_start_cache_key(key), 1000.0, timeout=None)
         with (
             mock.patch(
                 "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
@@ -246,7 +247,8 @@ class TestBurstStart(TestCase):
         ):
             queue_debounced_export(key, lambda: None)
 
-        assert cache.get(burst_start_cache_key(key)) > 0
+        assert cache.get(pending_cache_key(key)) == "1"
+        assert cache.get(burst_start_cache_key(key)) == 1000.0  # noqa: PLR2004
 
 
 class TestExportDebounce(TestCase):
