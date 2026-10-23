@@ -10,6 +10,7 @@ from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
 from cms.djangoapps.contentstore.git_export_utils import GitExportError, export_to_git
 from django.conf import settings
+from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import LearningContextKey
 from rest_framework import status
 
@@ -88,14 +89,13 @@ def _export_unless_unchanged(context_key, git_url, user):
         LOGGER.info("No changes to export for %s", context_key)
 
 
-def _wait_for_running_export(context_key_string, user, token):
+def _wait_to_export(context_key_string, user, token):
     """
-    Re-queue behind another export of the same content.
+    Re-queue until the clone directory is free, without ending the burst.
 
-    The running export may predate this task's changes, so this one runs
-    after it instead of racing it on the same clone directory.
+    Whatever holds it may predate this task's changes, so this one runs
+    after it instead of racing it.
     """
-    LOGGER.info("%s is already being exported; waiting for it", context_key_string)
     if token:
         # Keeps the slot and the burst's start, as a superseded task does.
         queue_export_task(
@@ -122,9 +122,17 @@ def async_export_to_git(context_key_string, user=None, token=None):
 
     owned = acquire_export_lock(context_key_string)
     if owned is False:
-        _wait_for_running_export(context_key_string, user, token)
+        LOGGER.info("%s is already being exported; waiting for it", context_key_string)
+        _wait_to_export(context_key_string, user, token)
         return
     try:
+        if not _index_unlocked(context_key_string):
+            # A killed export's lock, or Studio's own export running.
+            LOGGER.info(
+                "%s has a recent index.lock; waiting for it", context_key_string
+            )
+            _wait_to_export(context_key_string, user, token)
+            return
         if token:
             # Release before exporting, so signals landing during the export
             # queue a fresh task instead of being dropped. Only now, holding
@@ -135,6 +143,22 @@ def async_export_to_git(context_key_string, user=None, token=None):
         # None means the cache was down: this export never held the lock.
         if owned:
             release_export_lock(context_key_string)
+
+
+def _index_unlocked(context_key_string):
+    """Clear a stale index.lock; False if a younger one would block git."""
+    try:
+        context_key = LearningContextKey.from_string(context_key_string)
+    except InvalidKeyError:
+        return True  # _export reports it
+    git_url = (
+        ContentGitRepository.objects.filter(
+            content_key=context_key, is_export_enabled=True
+        )
+        .values_list("git_url", flat=True)
+        .first()
+    )
+    return git_url is None or clear_stale_git_lock(git_url)
 
 
 def _export(context_key_string, user):
@@ -168,15 +192,9 @@ def _export(context_key_string, user):
                 if hasattr(content_info["content_module"], "id")
                 else context_key,
             )
-            # Remove any stale .git/index.lock left by a previously crashed worker.
-            # Dirty working-tree files from a prior crash are cleaned by the
+            # A stale .git/index.lock was removed by _index_unlocked. Dirty
+            # working-tree files from a prior crash are cleaned by the
             # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
-            if not clear_stale_git_lock(content_repo.git_url):
-                # A killed export's lock, or Studio's own export running: try
-                # again once git finishes or the lock is old enough to remove.
-                LOGGER.info("Retrying the export of %s shortly", context_key_string)
-                queue_debounced_export(context_key_string, lambda: user)
-                return
             _export_unless_unchanged(context_key, content_repo.git_url, user)
         else:
             LOGGER.info(

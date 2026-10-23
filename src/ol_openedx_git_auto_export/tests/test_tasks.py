@@ -310,9 +310,35 @@ class TestExportLock(TestCase):
 
         assert cache.get(burst_start_cache_key(CONTENT_KEY)) is not None
 
-    def test_young_index_lock_retries_instead_of_failing(self):
-        """A killed export can leave an index.lock too young to remove; git
-        would fail against it, and nothing else would retry the export."""
+    def test_young_index_lock_waits_keeping_an_overdue_burst(self):
+        """A killed export can leave an index.lock too young to remove. The
+        task must wait for it without ending the burst: a forced, overdue
+        export that restarted its burst could be postponed another max wait."""
+        cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+        cache.set(debounce_cache_key(CONTENT_KEY), "newer", timeout=None)
+        overdue = time.time() - EXPORT_MAX_WAIT - 1
+        cache.set(burst_start_cache_key(CONTENT_KEY), overdue, timeout=None)
+
+        with ExitStack() as stack:
+            mock_export = mock_export_collaborators(stack)
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.tasks.clear_stale_git_lock",
+                    return_value=False,
+                )
+            )
+            mock_queue = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.queue_export_task")
+            )
+            async_export_to_git(CONTENT_KEY, user=USER, token="older")  # noqa: S106
+
+        mock_export.assert_not_called()
+        mock_queue.assert_called_once_with(CONTENT_KEY, USER, "newer")
+        assert cache.get(pending_cache_key(CONTENT_KEY)) == "1"
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) == overdue
+        assert cache.get(export_lock_cache_key(CONTENT_KEY)) is None
+
+    def test_young_index_lock_without_a_token_queues_a_debounced_retry(self):
         with ExitStack() as stack:
             mock_export = mock_export_collaborators(stack)
             stack.enter_context(
@@ -324,13 +350,12 @@ class TestExportLock(TestCase):
             mock_retry = stack.enter_context(
                 mock.patch("ol_openedx_git_auto_export.tasks.queue_debounced_export")
             )
-            async_export_to_git(CONTENT_KEY, user=USER, token="current")  # noqa: S106
+            async_export_to_git(CONTENT_KEY, user=USER)
 
         mock_export.assert_not_called()
         key, resolve_user = mock_retry.call_args.args
         assert key == CONTENT_KEY
         assert resolve_user() == USER
-        assert cache.get(export_lock_cache_key(CONTENT_KEY)) is None
 
     def test_cache_outage_exports_without_releasing_anothers_lock(self):
         """With the cache down the export goes ahead unowned; if the cache
