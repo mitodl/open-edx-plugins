@@ -4,6 +4,7 @@ Utility functions for the ol_openedx_git_auto_export app.
 
 import logging
 import re
+import time
 import uuid
 from pathlib import Path
 
@@ -26,12 +27,18 @@ from ol_openedx_git_auto_export.constants import (
     ENABLE_AUTO_GITHUB_REPO_CREATION,
     ENABLE_GIT_AUTO_EXPORT,
     ENABLE_GIT_AUTO_LIBRARY_EXPORT,
+    EXPORT_BURST_START_CACHE_KEY,
+    EXPORT_BURST_START_TTL,
     EXPORT_DEBOUNCE_CACHE_KEY,
     EXPORT_DEBOUNCE_DELAY,
     EXPORT_DEBOUNCE_PENDING_CACHE_KEY,
     EXPORT_DEBOUNCE_PENDING_TTL,
     EXPORT_DEBOUNCE_TOKEN_TTL,
+    EXPORT_LOCK_CACHE_KEY,
+    EXPORT_LOCK_TTL,
+    EXPORT_MAX_WAIT,
     REPOSITORY_NAME_MAX_LENGTH,
+    STALE_GIT_LOCK_AGE,
     ContentType,
 )
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
@@ -162,6 +169,14 @@ def pending_cache_key(content_key):
     return EXPORT_DEBOUNCE_PENDING_CACHE_KEY.format(content_key=str(content_key))
 
 
+def burst_start_cache_key(content_key):
+    return EXPORT_BURST_START_CACHE_KEY.format(content_key=str(content_key))
+
+
+def export_lock_cache_key(content_key):
+    return EXPORT_LOCK_CACHE_KEY.format(content_key=str(content_key))
+
+
 def cache_op(op, *args, on_error, **kwargs):
     """
     Run a debounce cache operation, returning on_error if the backend is down.
@@ -194,8 +209,36 @@ def claim_export_slot(content_key):
 
 
 def release_export_slot(content_key):
-    """Give up the queue slot; the marker outlives whatever failed holding it."""
-    cache_op(cache.delete, pending_cache_key(content_key), on_error=None)
+    """Give up the queue slot, ending the burst; the next signal starts anew."""
+    cache_op(
+        cache.delete_many,
+        [pending_cache_key(content_key), burst_start_cache_key(content_key)],
+        on_error=None,
+    )
+
+
+def burst_exceeded_max_wait(content_key):
+    """Report whether this burst has postponed its export for too long."""
+    started = cache_op(
+        cache.get, burst_start_cache_key(content_key), None, on_error=None
+    )
+    return started is not None and time.time() - started >= EXPORT_MAX_WAIT
+
+
+def acquire_export_lock(content_key):
+    """Claim the content's clone directory, if no export of it is running."""
+    # on_error=True: with the cache down, a possible overlap beats no export.
+    return cache_op(
+        cache.add,
+        export_lock_cache_key(content_key),
+        "1",
+        timeout=EXPORT_LOCK_TTL,
+        on_error=True,
+    )
+
+
+def release_export_lock(content_key):
+    cache_op(cache.delete, export_lock_cache_key(content_key), on_error=None)
 
 
 def current_export_token(content_key, default):
@@ -255,11 +298,11 @@ def schedule_export_with_debounce(content_key, resolve_user):
     # stops its hook loop at the first raiser, cancelling later signals' hooks.
     # Lambda not partial -- Django's robust error handler logs __qualname__.
     transaction.on_commit(
-        lambda: _queue_debounced_export(content_key, resolve_user), robust=True
+        lambda: queue_debounced_export(content_key, resolve_user), robust=True
     )
 
 
-def _queue_debounced_export(content_key, resolve_user):
+def queue_debounced_export(content_key, resolve_user):
     """
     Record a fresh token and queue a task if none is queued already.
 
@@ -281,6 +324,15 @@ def _queue_debounced_export(content_key, resolve_user):
             content_key,
         )
         return
+    # Claiming the slot starts a burst; set, not add, so a dead burst's start
+    # can't carry over and cut this one short.
+    cache_op(
+        cache.set,
+        burst_start_cache_key(content_key),
+        time.time(),
+        timeout=EXPORT_BURST_START_TTL,
+        on_error=None,
+    )
 
     try:
         get_or_create_git_export_repo_dir()
@@ -323,17 +375,23 @@ def clear_stale_git_lock(git_url):
     Remove a stale .git/index.lock file for the local clone of git_url, if present.
 
     A stale lock file can be left behind when a worker process is killed mid-operation.
+    Callers must hold the export lock; a younger lock may belong to an export
+    that bypasses it, such as Studio's own Export to Git page.
     """
     git_repo_export_dir = getattr(
         settings, "GIT_REPO_EXPORT_DIR", "/openedx/export_course_repos"
     )
     rdir = git_url.rsplit("/", 1)[-1].rsplit(".git", 1)[0]
     index_lock = Path(git_repo_export_dir) / rdir / ".git" / "index.lock"
-    if index_lock.exists():
-        log.warning(
-            "Removing stale .git/index.lock for repo %s at %s", git_url, index_lock
-        )
-        index_lock.unlink()
+    try:
+        age = time.time() - index_lock.stat().st_mtime
+    except FileNotFoundError:
+        return
+    if age < STALE_GIT_LOCK_AGE:
+        log.warning("Leaving %s, only %ds old, for repo %s", index_lock, age, git_url)
+        return
+    log.warning("Removing stale .git/index.lock for repo %s at %s", git_url, index_lock)
+    index_lock.unlink(missing_ok=True)
 
 
 def _get_library_publisher(library_key):
@@ -398,7 +456,7 @@ def export_content_to_git(content_key, dry_run=False):  # noqa: FBT002
         return True
     # Not via on_commit: robust hooks log and swallow a failed queue, and
     # there is no pending write here to wait for.
-    _queue_debounced_export(
+    queue_debounced_export(
         content_key,
         lambda: (
             _get_library_publisher(content_key)

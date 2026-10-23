@@ -42,3 +42,17 @@ EXPORT_DEBOUNCE_PENDING_CACHE_KEY = "git_export_pending:{content_key}"
 EXPORT_DEBOUNCE_PENDING_TTL = EXPORT_DEBOUNCE_DELAY + 55  # seconds
 # Bounded so dormant content doesn't sit in the cache forever.
 EXPORT_DEBOUNCE_TOKEN_TTL = 60 * 60 * 24 * 7  # 7 days
+# A burst that keeps postponing its export is exported anyway after this long.
+EXPORT_MAX_WAIT = 10 * 60  # seconds
+EXPORT_BURST_START_CACHE_KEY = "git_export_burst_start:{content_key}"
+# Must outlive the max wait plus one hop, or the burst forgets when it began.
+EXPORT_BURST_START_TTL = EXPORT_MAX_WAIT + EXPORT_DEBOUNCE_PENDING_TTL
+
+# Exports of one content item share a clone directory, so they serialize on
+# this lock. Celery kills an export at EXPORT_TIME_LIMIT, before the lock
+# expires, so a lock never lapses under a running export.
+EXPORT_TIME_LIMIT = 10 * 60  # seconds
+EXPORT_LOCK_CACHE_KEY = "git_export_lock:{content_key}"
+EXPORT_LOCK_TTL = EXPORT_TIME_LIMIT + 60  # seconds
+# git holds index.lock for seconds; an older one was left by a killed process.
+STALE_GIT_LOCK_AGE = 60  # seconds

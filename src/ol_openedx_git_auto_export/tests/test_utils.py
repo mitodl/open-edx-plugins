@@ -2,6 +2,8 @@
 Tests for the git export debounce logic in utils.py.
 """
 
+import os
+import time
 from unittest import mock
 
 import pytest
@@ -11,18 +13,23 @@ from ol_openedx_git_auto_export.constants import (
     EXPORT_DEBOUNCE_DELAY,
     EXPORT_DEBOUNCE_PENDING_TTL,
     EXPORT_DEBOUNCE_TOKEN_TTL,
+    STALE_GIT_LOCK_AGE,
 )
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.utils import (
     _get_library_publisher,
+    burst_start_cache_key,
     claim_export_slot,
+    clear_stale_git_lock,
     current_export_token,
     debounce_cache_key,
     export_content_to_git,
     export_course_to_git,
     export_library_to_git,
     pending_cache_key,
+    queue_debounced_export,
     queue_export_task,
+    release_export_slot,
 )
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
@@ -102,6 +109,78 @@ def test_queue_export_task_routes_to_the_configured_queue(queue):
         queue_export_task("lib:org:slug", None, "a-token")
 
     assert mock_apply_async.call_args.kwargs["queue"] == queue
+
+
+@pytest.mark.parametrize(
+    ("age", "removed"),
+    [(STALE_GIT_LOCK_AGE + 1, True), (STALE_GIT_LOCK_AGE - 30, False)],
+)
+def test_clear_stale_git_lock_only_removes_old_locks(tmp_path, age, removed):
+    """A young index.lock may belong to a git command that is still running."""
+    index_lock = tmp_path / "repo" / ".git" / "index.lock"
+    index_lock.parent.mkdir(parents=True)
+    index_lock.touch()
+    then = time.time() - age
+    os.utime(index_lock, (then, then))
+
+    with override_settings(GIT_REPO_EXPORT_DIR=str(tmp_path)):
+        clear_stale_git_lock("git@github.com:org/repo.git")
+
+    assert index_lock.exists() is not removed
+
+
+def test_clear_stale_git_lock_tolerates_a_missing_lock(tmp_path):
+    with override_settings(GIT_REPO_EXPORT_DIR=str(tmp_path)):
+        clear_stale_git_lock("git@github.com:org/repo.git")
+
+
+class TestBurstStart(TestCase):
+    """The burst start bounds how long signals can postpone an export."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_recorded_once_per_burst_and_cleared_with_the_slot(self):
+        key = "lib:org:slug"
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ),
+        ):
+            queue_debounced_export(key, lambda: None)
+            started = cache.get(burst_start_cache_key(key))
+            assert started is not None
+
+            # A later signal in the same burst loses the slot, so it must not
+            # push the start back.
+            with mock.patch(
+                "ol_openedx_git_auto_export.utils.time.time", return_value=started + 30
+            ):
+                queue_debounced_export(key, lambda: None)
+            assert cache.get(burst_start_cache_key(key)) == started
+
+        release_export_slot(key)
+        assert cache.get(burst_start_cache_key(key)) is None
+
+    def test_new_burst_replaces_a_dead_bursts_start(self):
+        """A burst whose slot lapsed leaves its start behind; inheriting it
+        would force the next burst's export early."""
+        key = "lib:org:slug"
+        cache.set(burst_start_cache_key(key), 0, timeout=None)
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ),
+        ):
+            queue_debounced_export(key, lambda: None)
+
+        assert cache.get(burst_start_cache_key(key)) > 0
 
 
 class TestExportDebounce(TestCase):
@@ -398,7 +477,7 @@ def test_export_content_to_git_queues_by_content_type(
             "ol_openedx_git_auto_export.utils.get_content_info"
         ) as mock_content_info,
         mock.patch(
-            "ol_openedx_git_auto_export.utils._queue_debounced_export"
+            "ol_openedx_git_auto_export.utils.queue_debounced_export"
         ) as mock_queue,
     ):
         assert export_content_to_git(content_key, dry_run=dry_run) is enabled
@@ -476,7 +555,7 @@ def test_export_content_to_git_raises_for_missing_content():
             side_effect=ContentNotFoundError,
         ),
         mock.patch(
-            "ol_openedx_git_auto_export.utils._queue_debounced_export"
+            "ol_openedx_git_auto_export.utils.queue_debounced_export"
         ) as mock_queue,
         pytest.raises(ContentNotFoundError),
     ):

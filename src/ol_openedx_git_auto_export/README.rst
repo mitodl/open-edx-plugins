@@ -159,3 +159,15 @@ key errored or, with ``--content-keys``, if any named key was skipped. Exports
 go through the same debounce as publish-triggered ones: a request made during
 a pending export's 5-second countdown is merged into it, but one made after
 that export has started queues another.
+
+How Exports Are Scheduled
+=========================
+
+- A burst of publish signals for one course or library becomes one export,
+  which runs once no signal has arrived for 5 seconds. A burst that keeps
+  going is exported anyway every 10 minutes.
+- Exports of the same course or library never run at the same time, since they
+  share one clone directory. An export queued while another is running waits
+  for it, then exports whatever changed since.
+- An export is killed after 10 minutes. Removing a ``.git/index.lock`` left by
+  a killed export waits until the lock is a minute old.
