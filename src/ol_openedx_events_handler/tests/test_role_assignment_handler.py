@@ -208,13 +208,14 @@ def test_skips_a_role_key_in_the_wrong_namespace(
     """
     A role key that does not carry the role namespace is not translated.
 
-    Same reasoning as the subject case: the name after the separator may be
-    a real role, but a key arriving under another namespace is malformed rather
-    than a grant to act on.
+    The name after the separator is deliberately a role that *would* map, so
+    stripping the prefix instead of comparing it would translate it to staff
+    and dispatch. A name that maps to nothing would be skipped either way and
+    would not catch that regression.
     """
     with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
         handle_role_assignment_created(
-            None, role_assignment=_event(role=f"user^{USERNAME}")
+            None, role_assignment=_event(role="user^course_staff")
         )
 
     mock_task.delay.assert_not_called()
