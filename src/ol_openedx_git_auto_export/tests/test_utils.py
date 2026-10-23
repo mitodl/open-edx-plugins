@@ -198,6 +198,39 @@ class TestBurstStart(TestCase):
         release_export_slot(key)
         assert cache.get(burst_start_cache_key(key)) is None
 
+    def test_a_publish_between_the_deletions_keeps_its_start(self):
+        """Releasing the slot takes two deletions where delete_many isn't
+        atomic. A publish landing between them must not lose its start."""
+        key = "lib:org:slug"
+        cache.set(pending_cache_key(key), "1", timeout=None)
+        cache.set(burst_start_cache_key(key), 1000.0, timeout=None)
+        real_delete = cache.delete
+
+        def delete_then_publish(cache_key, *args, **kwargs):
+            result = real_delete(cache_key, *args, **kwargs)
+            queue_debounced_export(key, lambda: None)
+            return result
+
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.cache.delete",
+                side_effect=delete_then_publish,
+            ),
+        ):
+            release_export_slot(key)
+
+        # The publish after the slot was freed claimed it; its start remains.
+        assert cache.get(pending_cache_key(key)) == "1"
+        started = cache.get(burst_start_cache_key(key))
+        assert started is not None
+        assert started != 1000.0  # noqa: PLR2004
+
     def test_new_burst_replaces_a_dead_bursts_start(self):
         """A burst whose slot lapsed leaves its start behind; inheriting it
         would force the next burst's export early."""

@@ -94,12 +94,13 @@ FEATURES["ENABLE_AUTO_GITHUB_LIBRARY_REPO_CREATION"] = False
 
 #### Cache backend
 
-The export debounce collapses a publish burst into one export by sharing two
-cache keys between the CMS web processes and the Celery workers, so
+The export debounce collapses a publish burst into one export, and an export
+lock keeps two exports of the same content out of one clone directory. Both
+share cache keys between the CMS web processes and the Celery workers, so
 `CACHES["default"]` must be a backend they all share (memcached, Redis).
 Under a per-process backend such as `LocMemCache`, or under `DummyCache`,
-every signal queues its own export task -- correct, but with none of the
-debouncing.
+every signal queues its own export task and exports on different workers can
+overlap.
 
 ## Security Considerations
 
