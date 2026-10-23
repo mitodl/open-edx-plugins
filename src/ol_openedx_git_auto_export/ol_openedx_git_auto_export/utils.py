@@ -276,6 +276,14 @@ def queue_export_task(content_key, user, token):
         timeout=EXPORT_DEBOUNCE_PENDING_TTL,
         on_error=None,
     )
+    # Likewise the burst start, which a long wait on the export lock would
+    # outlive; touch keeps its value, so the max wait still counts from it.
+    cache_op(
+        cache.touch,
+        burst_start_cache_key(content_key),
+        EXPORT_BURST_START_TTL,
+        on_error=None,
+    )
     log.info("Queuing git export for %s in %ds", content_key, EXPORT_DEBOUNCE_DELAY)
     try:
         async_export_to_git.apply_async(

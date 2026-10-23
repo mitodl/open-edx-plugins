@@ -140,6 +140,27 @@ class TestBurstStart(TestCase):
     def setUp(self):
         cache.clear()
 
+    def test_every_hop_renews_it_without_moving_it(self):
+        """A chain waiting behind a lock can outlive the start's TTL; if it
+        expired, nothing would bound the burst any more."""
+        key = "lib:org:slug"
+        cache.set(burst_start_cache_key(key), 1000.0, timeout=1)
+        with mock.patch(
+            "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+        ):
+            queue_export_task(key, None, "a-token")
+        time.sleep(1.1)
+
+        assert cache.get(burst_start_cache_key(key)) == 1000.0  # noqa: PLR2004
+
+    def test_renewal_does_not_create_a_missing_start(self):
+        with mock.patch(
+            "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+        ):
+            queue_export_task("lib:org:slug", None, "a-token")
+
+        assert cache.get(burst_start_cache_key("lib:org:slug")) is None
+
     def test_recorded_once_per_burst(self):
         key = "lib:org:slug"
         with (
