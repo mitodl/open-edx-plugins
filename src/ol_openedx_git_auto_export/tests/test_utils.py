@@ -124,14 +124,14 @@ def test_clear_stale_git_lock_only_removes_old_locks(tmp_path, age, removed):
     os.utime(index_lock, (then, then))
 
     with override_settings(GIT_REPO_EXPORT_DIR=str(tmp_path)):
-        clear_stale_git_lock("git@github.com:org/repo.git")
+        assert clear_stale_git_lock("git@github.com:org/repo.git") is removed
 
     assert index_lock.exists() is not removed
 
 
 def test_clear_stale_git_lock_tolerates_a_missing_lock(tmp_path):
     with override_settings(GIT_REPO_EXPORT_DIR=str(tmp_path)):
-        clear_stale_git_lock("git@github.com:org/repo.git")
+        assert clear_stale_git_lock("git@github.com:org/repo.git") is True
 
 
 class TestBurstStart(TestCase):
