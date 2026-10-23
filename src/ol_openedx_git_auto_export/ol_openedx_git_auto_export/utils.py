@@ -264,11 +264,12 @@ def queue_export_task(content_key, user, token):
     """
     from ol_openedx_git_auto_export.tasks import async_export_to_git  # noqa: PLC0415
 
-    # Renew the slot for the task about to be queued. The hand-off in
-    # _superseded keeps holding the slot rather than re-claiming it, so without
-    # this the marker expires EXPORT_DEBOUNCE_PENDING_TTL after the first claim
-    # -- and an import that keeps publishing past that lets a second chain
-    # start, putting two exports on one clone directory.
+    # Renew the slot for the task about to be queued. The hand-offs in
+    # _superseded and _wait_to_export keep holding the slot rather than
+    # re-claiming it, so without this the marker expires
+    # EXPORT_DEBOUNCE_PENDING_TTL after the first claim -- and an import that
+    # keeps publishing past that lets a second chain start, putting two
+    # exports on one clone directory.
     cache_op(
         cache.set,
         pending_cache_key(content_key),
@@ -389,12 +390,13 @@ def clear_stale_git_lock(git_url):
     Remove a stale .git/index.lock file for the local clone of git_url, if present.
 
     A stale lock file can be left behind when a worker process is killed mid-operation.
-    Callers must hold the export lock; a younger lock may belong to an export
-    that bypasses it, such as Studio's own Export to Git page.
+    Only a lock older than STALE_GIT_LOCK_AGE is removed: a younger one may
+    belong to a live git process, such as Studio's own Export to Git page,
+    which bypasses the export lock.
 
     Returns:
-        bool: False if a lock too young to remove is still there, so git
-            would fail against it.
+        bool: True if no lock remains, False if one too young to remove is
+            still there, so git would fail against it.
     """
     git_repo_export_dir = getattr(
         settings, "GIT_REPO_EXPORT_DIR", "/openedx/export_course_repos"

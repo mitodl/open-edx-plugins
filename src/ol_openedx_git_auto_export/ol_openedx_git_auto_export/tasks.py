@@ -37,17 +37,17 @@ LOGGER = get_task_logger(__name__)
 
 def _superseded(context_key_string, user, token):
     """
-    Report whether a newer signal replaced this task, re-queuing if so.
+    Report whether a newer signal replaced this task, re-queuing if so,
+    unless the burst has already waited past EXPORT_MAX_WAIT.
     """
     current_token = current_export_token(context_key_string, token)
-    stale = current_token != token
-    if stale and burst_exceeded_max_wait(context_key_string):
+    if current_token == token:
+        return False
+    if burst_exceeded_max_wait(context_key_string):
         LOGGER.info(
             "Signals for %s have postponed its export too long; exporting now",
             context_key_string,
         )
-        stale = False
-    if not stale:
         return False
 
     LOGGER.info(
@@ -62,7 +62,7 @@ def _superseded(context_key_string, user, token):
     except Exception:
         # queue_export_task released the slot on its way out.
         LOGGER.exception(
-            "Failed to re-queue %s; exporting current state instead",
+            "Failed to re-queue %s; trying to export current state instead",
             context_key_string,
         )
         return False
@@ -91,7 +91,7 @@ def _export_unless_unchanged(context_key, git_url, user):
 
 def _wait_to_export(context_key_string, user, token):
     """
-    Re-queue until the clone directory is free, without ending the burst.
+    Queue one more hop, to retry once the clone directory is free.
 
     Whatever holds it may predate this task's changes, so this one runs
     after it instead of racing it.
@@ -103,46 +103,6 @@ def _wait_to_export(context_key_string, user, token):
         )
     else:
         queue_debounced_export(context_key_string, lambda: user)
-
-
-@shared_task(time_limit=EXPORT_TIME_LIMIT)
-def async_export_to_git(context_key_string, user=None, token=None):
-    """Export a course or library to Git.
-
-    Args:
-        context_key_string (str): String representation of LearningContextKey
-        user: Optional user for git export
-        token: Debounce token from utils.queue_export_task; see
-            EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
-            None skips the staleness check and the debounce state, and
-            exists only for messages queued by releases predating the token.
-    """
-    if token and _superseded(context_key_string, user, token):
-        return
-
-    owned = acquire_export_lock(context_key_string)
-    if owned is False:
-        LOGGER.info("%s is already being exported; waiting for it", context_key_string)
-        _wait_to_export(context_key_string, user, token)
-        return
-    try:
-        if not _index_unlocked(context_key_string):
-            # A killed export's lock, or Studio's own export running.
-            LOGGER.info(
-                "%s has a recent index.lock; waiting for it", context_key_string
-            )
-            _wait_to_export(context_key_string, user, token)
-            return
-        if token:
-            # Release before exporting, so signals landing during the export
-            # queue a fresh task instead of being dropped. Only now, holding
-            # the lock: this also ends the burst, which a wait must not do.
-            release_export_slot(context_key_string)
-        _export(context_key_string, user)
-    finally:
-        # None means the cache was down: this export never held the lock.
-        if owned:
-            release_export_lock(context_key_string)
 
 
 def _index_unlocked(context_key_string):
@@ -159,6 +119,55 @@ def _index_unlocked(context_key_string):
         .first()
     )
     return git_url is None or clear_stale_git_lock(git_url)
+
+
+@shared_task(time_limit=EXPORT_TIME_LIMIT)
+def async_export_to_git(context_key_string, user=None, token=None):
+    """Export a course or library to Git.
+
+    Args:
+        context_key_string (str): String representation of LearningContextKey
+        user: Optional user for git export
+        token: Debounce token from utils.queue_export_task; see
+            EXPORT_DEBOUNCE_CACHE_KEY in constants.py for the mechanism.
+            None skips the staleness check, and a task that must wait
+            re-enters through queue_debounced_export. It exists only for
+            messages queued by releases predating the token.
+    """
+    if token and _superseded(context_key_string, user, token):
+        return
+
+    owned = acquire_export_lock(context_key_string)
+    if owned is False:
+        LOGGER.info("%s is already being exported; waiting for it", context_key_string)
+        _wait_to_export(context_key_string, user, token)
+        return
+    try:
+        try:
+            unlocked = _index_unlocked(context_key_string)
+        except Exception:
+            # Still holding the slot: later signals would see an export
+            # queued that will never run.
+            if token:
+                release_export_slot(context_key_string)
+            raise
+        if not unlocked:
+            # A killed export's lock, or Studio's own export running.
+            LOGGER.info(
+                "%s has a recent index.lock; waiting for it", context_key_string
+            )
+            _wait_to_export(context_key_string, user, token)
+            return
+        if token:
+            # Release before exporting, so signals landing during the export
+            # queue a fresh task instead of being dropped. Only now, holding
+            # the lock: this also ends the burst, which a wait must not do.
+            release_export_slot(context_key_string)
+        _export(context_key_string, user)
+    finally:
+        # None means the cache was down: this export never held the lock.
+        if owned:
+            release_export_lock(context_key_string)
 
 
 def _export(context_key_string, user):
@@ -192,9 +201,8 @@ def _export(context_key_string, user):
                 if hasattr(content_info["content_module"], "id")
                 else context_key,
             )
-            # A stale .git/index.lock was removed by _index_unlocked. Dirty
-            # working-tree files from a prior crash are cleaned by the
-            # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
+            # _index_unlocked removed any stale index.lock; export_to_git's
+            # `git reset --hard` + `git clean` handle files a crash left dirty.
             _export_unless_unchanged(context_key, content_repo.git_url, user)
         else:
             LOGGER.info(
@@ -211,8 +219,8 @@ def _export(context_key_string, user):
             if hasattr(content_info["content_module"], "id")
             else context_key,
         )
-        # Re-raised, not retried, so Celery records the failure; a retry
-        # would hit the same push or commit error.
+        # Re-raised, not retried, so Celery records the failure; most push
+        # and commit errors recur until someone fixes their cause.
         raise
     except ContentGitRepository.DoesNotExist:
         LOGGER.info(
