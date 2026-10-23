@@ -101,13 +101,32 @@ edx-platform configuration
   ``--delete``, so the course teams this command exists to catch up remain in
   ``CourseAccessRole``.
 
-  The live webhook is unaffected either way: Open edX emits
-  ``COURSE_ACCESS_ROLE_ADDED`` for an authz grant too, so the receiver still
-  fires and the consumer still records the role. Only catching up after the
-  fact is affected -- which matters for the 404 case above, because re-running
-  this command will not recover a role granted on an authz-enabled course.
-  Covering those needs the command to read role assignments from authz as well,
-  which it does not do yet.
+  The live webhook covers both, through two receivers. A grant made through
+  edx-platform's own role classes emits ``COURSE_ACCESS_ROLE_ADDED`` even with
+  the flag on, because ``authz_add_role`` emits it alongside the authz write;
+  that covers Studio's course team page and the instructor dashboard. A grant
+  made through the openedx-authz API directly -- the Admin Console's *Assign
+  Role* wizard -- emits only ``ROLE_ASSIGNMENT_CREATED``, which the
+  ``role_assignment`` receiver listens for. Without it, a course team member
+  added from the Admin Console is never mirrored.
+
+  A grant that emits both sends the webhook twice. The consumer records the
+  role with ``get_or_create``, so a duplicate is a wasted request rather than
+  a wrong one, and missing a role outright is the worse failure.
+
+  The ``role_assignment`` receiver is only registered where
+  ``openedx_events.authz`` exists, which means openedx-events 11.2.0 or later,
+  and it only has an event to receive where openedx-authz is 1.13.0 or later --
+  that is the version which began emitting ``ROLE_ASSIGNMENT_CREATED`` on
+  commit. Both are declared as dependencies but deliberately left unpinned, the
+  same way the rest of this repo treats libraries edx-platform already ships: a
+  floor would make pip fight the platform's own pin on a release such as Ulmo,
+  which pins openedx-authz 0.20.0 and cannot use this receiver anyway.
+
+  Only catching up after the fact is affected -- which matters for the 404 case
+  above, because re-running this command will not recover a role granted on an
+  authz-enabled course. Covering those needs the command to read role
+  assignments from authz as well, which it does not do yet.
 
 - Set the username of the service worker that the external system uses to create
   enrollments through the Open edX enrollment REST API. Enrollments created by

@@ -15,6 +15,15 @@ _COURSE_ACCESS_ROLE_ADDED_RECEIVER = {
     ),
 }
 
+_ROLE_ASSIGNMENT_CREATED_RECEIVER = {
+    PluginSignals.RECEIVER_FUNC_NAME: "handle_role_assignment_created",
+    PluginSignals.SIGNAL_PATH: "openedx_events.authz.signals.ROLE_ASSIGNMENT_CREATED",
+    PluginSignals.DISPATCH_UID: (
+        "ol_openedx_events_handler.handlers.role_assignment"
+        ".handle_role_assignment_created"
+    ),
+}
+
 _COURSE_ENROLLMENT_CREATED_RECEIVER = {
     PluginSignals.RECEIVER_FUNC_NAME: "handle_course_enrollment_created",
     PluginSignals.SIGNAL_PATH: (
@@ -35,6 +44,20 @@ _COURSE_GRADE_NOW_PASSED_RECEIVER = {
         ".listen_for_passing_grade"
     ),
 }
+
+# openedx_events.authz arrived in openedx-events 11.2.0, so it is absent on
+# releases pinning an earlier version (Ulmo is on 10.5.0). Registering a
+# receiver for a signal path that cannot be imported is not a soft failure:
+# connect_plugin_receivers resolves every SIGNAL_PATH with import_string and
+# nothing in that chain catches ImportError, so the whole LMS or CMS fails to
+# start. Those releases do ship openedx-authz -- Ulmo pins 0.20.0 -- but that
+# version predates the event, so there is nothing to receive there either.
+try:
+    import openedx_events.authz.signals  # noqa: F401
+
+    _AUTHZ_RECEIVERS = [_ROLE_ASSIGNMENT_CREATED_RECEIVER]
+except ImportError:
+    _AUTHZ_RECEIVERS = []
 
 _SETTINGS_CONFIG = {
     SettingsType.COMMON: {
@@ -58,13 +81,17 @@ class OlOpenedxEventsHandlerConfig(AppConfig):
                 PluginSignals.RELATIVE_PATH: "handlers.lms",
                 PluginSignals.RECEIVERS: [
                     _COURSE_ACCESS_ROLE_ADDED_RECEIVER,
+                    *_AUTHZ_RECEIVERS,
                     _COURSE_ENROLLMENT_CREATED_RECEIVER,
                     _COURSE_GRADE_NOW_PASSED_RECEIVER,
                 ],
             },
             ProjectType.CMS: {
-                PluginSignals.RELATIVE_PATH: "handlers.course_access_role",
-                PluginSignals.RECEIVERS: [_COURSE_ACCESS_ROLE_ADDED_RECEIVER],
+                PluginSignals.RELATIVE_PATH: "handlers.cms",
+                PluginSignals.RECEIVERS: [
+                    _COURSE_ACCESS_ROLE_ADDED_RECEIVER,
+                    *_AUTHZ_RECEIVERS,
+                ],
             },
         },
         PluginSettings.CONFIG: {
