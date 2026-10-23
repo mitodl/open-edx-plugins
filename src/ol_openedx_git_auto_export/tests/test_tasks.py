@@ -253,6 +253,7 @@ class TestExportLock(TestCase):
     def test_held_lock_queues_a_follow_up_instead_of_exporting(self):
         lock_key = export_lock_cache_key(CONTENT_KEY)
         cache.set(lock_key, "1", timeout=None)
+        cache.set(burst_start_cache_key(CONTENT_KEY), 1000.0, timeout=None)
 
         with ExitStack() as stack:
             mock_export_to_git = mock_export_collaborators(stack)
@@ -266,8 +267,9 @@ class TestExportLock(TestCase):
         key, resolve_user = mock_follow_up.call_args.args
         assert str(key) == CONTENT_KEY
         assert resolve_user() == USER
-        # Still the running export's lock.
+        # Still the running export's lock, and still the burst's start.
         assert cache.get(lock_key) == "1"
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) == 1000.0  # noqa: PLR2004
 
 
 class TestMissingRepositoryHandling(TestCase):

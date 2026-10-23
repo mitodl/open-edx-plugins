@@ -209,12 +209,13 @@ def claim_export_slot(content_key):
 
 
 def release_export_slot(content_key):
-    """Give up the queue slot, ending the burst; the next signal starts anew."""
-    cache_op(
-        cache.delete_many,
-        [pending_cache_key(content_key), burst_start_cache_key(content_key)],
-        on_error=None,
-    )
+    """Give up the queue slot; the marker outlives whatever failed holding it."""
+    cache_op(cache.delete, pending_cache_key(content_key), on_error=None)
+
+
+def end_burst(content_key):
+    """Forget when the burst began, once its export has actually started."""
+    cache_op(cache.delete, burst_start_cache_key(content_key), on_error=None)
 
 
 def burst_exceeded_max_wait(content_key):
@@ -324,10 +325,11 @@ def queue_debounced_export(content_key, resolve_user):
             content_key,
         )
         return
-    # Claiming the slot starts a burst; set, not add, so a dead burst's start
-    # can't carry over and cut this one short.
+    # add, not set: a follow-up queued because another export holds the lock
+    # keeps the burst's start. A start left by a dead burst costs one early
+    # export at most.
     cache_op(
-        cache.set,
+        cache.add,
         burst_start_cache_key(content_key),
         time.time(),
         timeout=EXPORT_BURST_START_TTL,

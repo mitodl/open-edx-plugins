@@ -21,6 +21,7 @@ from ol_openedx_git_auto_export.utils import (
     burst_exceeded_max_wait,
     clear_stale_git_lock,
     current_export_token,
+    end_burst,
     get_content_info,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
@@ -102,6 +103,7 @@ def _export_exclusively(context_key, git_url, user):
         LOGGER.info("%s is already being exported; queuing a follow-up", context_key)
         queue_debounced_export(context_key, lambda: user)
         return
+    end_burst(context_key)
     try:
         # Remove any stale .git/index.lock left by a previously crashed worker.
         # Dirty working-tree files from a prior crash are cleaned by the
