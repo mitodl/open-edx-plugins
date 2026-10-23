@@ -168,8 +168,8 @@ How Exports Are Scheduled
 - A burst of publish signals for one course or library becomes one export,
   which runs once no signal has arrived for 5 seconds. A burst that keeps
   going is exported anyway every 10 minutes.
-- Exports of the same course or library never run at the same time, since they
-  share one clone directory. An export queued while another is running waits
-  for it, then exports whatever changed since.
+- Exports of the same course or library wait for each other, since they share
+  one clone directory. An export queued while another is running waits for it,
+  then exports whatever changed since.
 - An export is killed after 10 minutes. Removing a ``.git/index.lock`` left by
   a killed export waits until the lock is a minute old.

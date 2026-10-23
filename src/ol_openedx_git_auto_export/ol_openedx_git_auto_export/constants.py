@@ -31,8 +31,9 @@ REPOSITORY_NAME_MAX_LENGTH = 100  # Max length from GitHub for repo name
 
 # A publish burst fires one signal per block. The pending key keeps one export
 # task queued per burst; the debounce key holds a token every signal overwrites.
-# A task exports only while its token is current, else it re-queues -- so the
-# export reflects the end of the burst. A missing token counts as current.
+# A task exports only while its token is current, else it re-queues (until
+# EXPORT_MAX_WAIT) -- so the export reflects the end of the burst. A missing
+# token counts as current.
 EXPORT_DEBOUNCE_DELAY = 5  # seconds of quiet before the export happens
 # v2: reusing the unversioned key would make a rollback see it as already
 # claimed by the new long-lived token, and silently stop debouncing.
