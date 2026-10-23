@@ -31,6 +31,8 @@ from ol_openedx_git_auto_export.utils import (
 )
 from opaque_keys.edx.locator import LibraryLocatorV2
 
+from ol_openedx_git_auto_export import utils
+
 CONTENT_KEY = "lib:org:slug"
 USER = "a-user"
 BURST_SIZE = 3
@@ -141,6 +143,59 @@ class TestAsyncExportToGitTokenCheck(TestCase):
 
         mock_export_to_git.assert_called_once()
         assert cache.get(pending_key) is None
+
+    def test_failed_requeue_then_a_wait_keeps_a_burst_start(self):
+        """The failed re-queue released the slot and burst start; carrying on
+        as their owner without re-claiming them would leave a later wait with
+        no max wait."""
+        cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+        cache.set(debounce_cache_key(CONTENT_KEY), "newer-token", timeout=None)
+        cache.set(export_lock_cache_key(CONTENT_KEY), "1", timeout=None)
+
+        with (
+            ExitStack() as stack,
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async",
+                side_effect=[RuntimeError("broker blip"), None],
+            ) as mock_apply_async,
+        ):
+            mock_export_to_git = mock_export_collaborators(stack)
+            async_export_to_git(CONTENT_KEY, user=USER, token="original-token")  # noqa: S106
+
+        mock_export_to_git.assert_not_called()
+        assert mock_apply_async.call_count == 2  # noqa: PLR2004
+        assert cache.get(pending_cache_key(CONTENT_KEY)) == "1"
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) is not None
+
+    def test_failed_requeue_leaves_a_newer_burst_alone(self):
+        """A publish that claims the slot the failed re-queue freed owns it;
+        the old task must neither export over it nor release its state."""
+        cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+        cache.set(debounce_cache_key(CONTENT_KEY), "newer-token", timeout=None)
+        real_release = utils.release_export_slot
+
+        def release_then_newer_publish(content_key):
+            real_release(content_key)
+            cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+            cache.set(burst_start_cache_key(CONTENT_KEY), 1000.0, timeout=None)
+
+        with (
+            ExitStack() as stack,
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async",
+                side_effect=RuntimeError("broker blip"),
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.release_export_slot",
+                side_effect=release_then_newer_publish,
+            ),
+        ):
+            mock_export_to_git = mock_export_collaborators(stack)
+            async_export_to_git(CONTENT_KEY, user=USER, token="original-token")  # noqa: S106
+
+        mock_export_to_git.assert_not_called()
+        assert cache.get(pending_cache_key(CONTENT_KEY)) == "1"
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) == 1000.0  # noqa: PLR2004
 
 
 class TestExportFailuresAreReported(TestCase):

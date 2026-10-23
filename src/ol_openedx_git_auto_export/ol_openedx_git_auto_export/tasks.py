@@ -20,6 +20,7 @@ from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
     acquire_export_lock,
     burst_exceeded_max_wait,
+    claim_export_slot,
     clear_stale_git_lock,
     current_export_token,
     get_content_info,
@@ -60,7 +61,15 @@ def _superseded(context_key_string, user, token):
         # burst extended by another publisher keeps the first as author.
         queue_export_task(context_key_string, user, current_token)
     except Exception:
-        # queue_export_task released the slot on its way out.
+        # queue_export_task released the slot and burst start on its way out.
+        # Re-claim them before carrying on as their owner; if a newer signal
+        # got there first, its task covers this export.
+        if not claim_export_slot(context_key_string):
+            LOGGER.exception(
+                "Failed to re-queue %s; a newer task will export it",
+                context_key_string,
+            )
+            return True
         LOGGER.exception(
             "Failed to re-queue %s; trying to export current state instead",
             context_key_string,
