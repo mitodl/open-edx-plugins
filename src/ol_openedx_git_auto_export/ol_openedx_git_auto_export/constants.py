@@ -50,7 +50,9 @@ EXPORT_BURST_START_TTL = EXPORT_MAX_WAIT + EXPORT_DEBOUNCE_PENDING_TTL
 
 # Exports of one content item share a clone directory, so they serialize on
 # this lock. Celery kills an export at EXPORT_TIME_LIMIT, before the lock
-# expires, so a lock never lapses under a running export.
+# expires, so a lock never lapses under a running export. A timed-out export
+# releases it while Celery terminates it; the TTL covers a worker that dies
+# without unwinding (OOM, pod eviction).
 EXPORT_TIME_LIMIT = 10 * 60  # seconds
 EXPORT_LOCK_CACHE_KEY = "git_export_lock:{content_key}"
 EXPORT_LOCK_TTL = EXPORT_TIME_LIMIT + 60  # seconds
