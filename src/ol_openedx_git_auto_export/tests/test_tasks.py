@@ -283,6 +283,26 @@ class TestMaxWait(TestCase):
                     assert cache.get(burst_start_cache_key(CONTENT_KEY)) is None
 
 
+class TestLeftoverChain(TestCase):
+    """A backlog past the pending TTL can leave two task chains for one key."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_chain_outliving_another_chains_export_keeps_a_deadline(self):
+        # The other chain just exported: slot and burst start are both gone,
+        # and a later publish moved the token on.
+        cache.set(debounce_cache_key(CONTENT_KEY), "newer", timeout=None)
+        with mock.patch(
+            "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+        ) as mock_apply_async:
+            async_export_to_git(CONTENT_KEY, user=USER, token="older")  # noqa: S106
+
+        mock_apply_async.assert_called_once()
+        assert cache.get(pending_cache_key(CONTENT_KEY)) == "1"
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) is not None
+
+
 class TestExportLock(TestCase):
     """Two exports of one content item must not share its clone directory."""
 
