@@ -14,6 +14,8 @@ dependencies = [
     "celery>=4.4.7",
     "django-crum",
     "edx-django-utils>=8.0.0",
+    "edx-opaque-keys",
+    "openedx-authz",
     "openedx-events",
     "requests",
 ]

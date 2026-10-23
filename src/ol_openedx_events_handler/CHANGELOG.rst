@@ -27,6 +27,12 @@ Version 0.6.0 (2026-10-21)
 * The CMS signal module moved from ``handlers.course_access_role`` to
   ``handlers.cms``, so it can export both receivers. ``RELATIVE_PATH`` names a
   single module per project type, and the LMS already had ``handlers.lms``.
+* Declared ``openedx-authz``, which the new receiver reads scope types and the
+  legacy role mapping from, and ``edx-opaque-keys``, which the backfill command
+  has imported since 0.5.0. Both are unpinned, matching how this repo treats
+  libraries edx-platform ships: a floor would make pip fight the platform's own
+  pin on a release that cannot use the receiver. The README records the
+  versions the receiver actually needs.
 
 Version 0.5.0 (2026-10-01)
 ---------------------------
