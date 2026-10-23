@@ -60,6 +60,17 @@ def _superseded(context_key_string, user, token):
     return True
 
 
+def _nothing_to_commit(exc):
+    """
+    Report whether a GitExportError only means the content was unchanged.
+
+    export_to_git raises CANNOT_COMMIT both for this and for real failures
+    such as a held index.lock; only git's own output tells them apart.
+    """
+    output = getattr(exc.__cause__, "output", None) or b""
+    return b"nothing to commit" in output
+
+
 @shared_task
 def async_export_to_git(context_key_string, user=None, token=None):
     """Export a course or library to Git.
@@ -115,7 +126,10 @@ def async_export_to_git(context_key_string, user=None, token=None):
                 content_info["content_type"],
                 context_key_string,
             )
-    except GitExportError:
+    except GitExportError as exc:
+        if _nothing_to_commit(exc):
+            LOGGER.info("No changes to export for %s", context_key_string)
+            return
         LOGGER.exception(
             "Failed async %s content export to git (%s id: %s)",
             content_info["content_type"],

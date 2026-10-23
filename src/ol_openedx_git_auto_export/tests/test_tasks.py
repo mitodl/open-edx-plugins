@@ -2,6 +2,7 @@
 Tests for async_export_to_git's token-based staleness check.
 """
 
+import subprocess
 from contextlib import ExitStack
 from unittest import mock
 
@@ -143,6 +144,24 @@ class TestExportFailuresAreReported(TestCase):
             with self.subTest(error=type(error).__name__), ExitStack() as stack:
                 mock_export_collaborators(stack).side_effect = error
                 with pytest.raises(type(error)):
+                    async_export_to_git(CONTENT_KEY, user=USER)
+
+    def test_only_an_unchanged_export_is_not_a_failure(self):
+        """export_to_git raises CANNOT_COMMIT for both cases; git's output
+        is the only difference."""
+        cases = [
+            (b"On branch main\nnothing to commit, working tree clean\n", False),
+            (b"fatal: Unable to create '.git/index.lock': File exists.\n", True),
+        ]
+        for output, should_raise in cases:
+            with self.subTest(output=output), ExitStack() as stack:
+                error = GitExportError(GitExportError.CANNOT_COMMIT)
+                error.__cause__ = subprocess.CalledProcessError(1, "git", output)
+                mock_export_collaborators(stack).side_effect = error
+                if should_raise:
+                    with pytest.raises(GitExportError):
+                        async_export_to_git(CONTENT_KEY, user=USER)
+                else:
                     async_export_to_git(CONTENT_KEY, user=USER)
 
     def test_content_resolution_failure_propagates(self):
