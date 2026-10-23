@@ -90,7 +90,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
     except Exception:
         # Also covers get_content_info's lookups, so not necessarily a bad key.
         LOGGER.exception("Failed to resolve content %s", context_key_string)
-        return
+        raise
 
     try:
         content_repo = ContentGitRepository.objects.get(content_key=context_key)
@@ -124,6 +124,9 @@ def async_export_to_git(context_key_string, user=None, token=None):
             if hasattr(content_info["content_module"], "id")
             else context_key,
         )
+        # Re-raised, not retried, so Celery records the failure; a retry
+        # would hit the same push or commit error.
+        raise
     except ContentGitRepository.DoesNotExist:
         LOGGER.info(
             "No git repository registered for %s %s; "
@@ -150,6 +153,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
             if hasattr(content_info["content_module"], "id")
             else context_key,
         )
+        raise
 
 
 @shared_task(
