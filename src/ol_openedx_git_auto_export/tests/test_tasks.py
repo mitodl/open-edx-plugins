@@ -310,6 +310,28 @@ class TestExportLock(TestCase):
 
         assert cache.get(burst_start_cache_key(CONTENT_KEY)) is not None
 
+    def test_young_index_lock_retries_instead_of_failing(self):
+        """A killed export can leave an index.lock too young to remove; git
+        would fail against it, and nothing else would retry the export."""
+        with ExitStack() as stack:
+            mock_export = mock_export_collaborators(stack)
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.tasks.clear_stale_git_lock",
+                    return_value=False,
+                )
+            )
+            mock_retry = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.queue_debounced_export")
+            )
+            async_export_to_git(CONTENT_KEY, user=USER, token="current")  # noqa: S106
+
+        mock_export.assert_not_called()
+        key, resolve_user = mock_retry.call_args.args
+        assert key == CONTENT_KEY
+        assert resolve_user() == USER
+        assert cache.get(export_lock_cache_key(CONTENT_KEY)) is None
+
     def test_cache_outage_exports_without_releasing_anothers_lock(self):
         """With the cache down the export goes ahead unowned; if the cache
         recovers meanwhile, the lock it finds belongs to someone else."""

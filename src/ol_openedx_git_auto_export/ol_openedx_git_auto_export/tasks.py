@@ -171,7 +171,12 @@ def _export(context_key_string, user):
             # Remove any stale .git/index.lock left by a previously crashed worker.
             # Dirty working-tree files from a prior crash are cleaned by the
             # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
-            clear_stale_git_lock(content_repo.git_url)
+            if not clear_stale_git_lock(content_repo.git_url):
+                # A killed export's lock, or Studio's own export running: try
+                # again once git finishes or the lock is old enough to remove.
+                LOGGER.info("Retrying the export of %s shortly", context_key_string)
+                queue_debounced_export(context_key_string, lambda: user)
+                return
             _export_unless_unchanged(context_key, content_repo.git_url, user)
         else:
             LOGGER.info(

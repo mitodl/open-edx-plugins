@@ -391,6 +391,10 @@ def clear_stale_git_lock(git_url):
     A stale lock file can be left behind when a worker process is killed mid-operation.
     Callers must hold the export lock; a younger lock may belong to an export
     that bypasses it, such as Studio's own Export to Git page.
+
+    Returns:
+        bool: False if a lock too young to remove is still there, so git
+            would fail against it.
     """
     git_repo_export_dir = getattr(
         settings, "GIT_REPO_EXPORT_DIR", "/openedx/export_course_repos"
@@ -400,12 +404,13 @@ def clear_stale_git_lock(git_url):
     try:
         age = time.time() - index_lock.stat().st_mtime
     except FileNotFoundError:
-        return
+        return True
     if age < STALE_GIT_LOCK_AGE:
         log.warning("Leaving %s, only %ds old, for repo %s", index_lock, age, git_url)
-        return
+        return False
     log.warning("Removing stale .git/index.lock for repo %s at %s", git_url, index_lock)
     index_lock.unlink(missing_ok=True)
+    return True
 
 
 def _get_library_publisher(library_key):
