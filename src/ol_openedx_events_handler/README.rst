@@ -110,8 +110,9 @@ edx-platform configuration
   ``role_assignment`` receiver listens for. Without it, a course team member
   added from the Admin Console is never mirrored.
 
-  A grant that emits both sends the webhook twice. The consumer is expected to
-  upsert, so a duplicate is a wasted request rather than a wrong one, and
+  A grant that emits both sends the webhook twice. The consumer records the
+  role with ``get_or_create``, so a duplicate is a wasted request rather than
+  a wrong one, and
   missing a role outright is the worse failure.
 
   Only catching up after the fact is affected -- which matters for the 404 case

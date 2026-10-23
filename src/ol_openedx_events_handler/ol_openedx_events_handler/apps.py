@@ -50,7 +50,8 @@ _COURSE_GRADE_NOW_PASSED_RECEIVER = {
 # receiver for a signal path that cannot be imported is not a soft failure:
 # connect_plugin_receivers resolves every SIGNAL_PATH with import_string and
 # nothing in that chain catches ImportError, so the whole LMS or CMS fails to
-# start. Those releases have no openedx-authz to emit the event anyway.
+# start. Those releases do ship openedx-authz -- Ulmo pins 0.20.0 -- but that
+# version predates the event, so there is nothing to receive there either.
 try:
     import openedx_events.authz.signals  # noqa: F401
 

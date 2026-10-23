@@ -8,10 +8,11 @@ from ol_openedx_events_handler.handlers.role_assignment import (
     handle_role_assignment_created,
 )
 
-# The signal these tests exercise arrived in openedx-events 11.2.0, and the
-# handler reads its namespace separators from openedx-authz. Releases that pin
-# earlier versions have neither, and the receiver is not registered there --
-# so skip rather than fail, the same condition apps.py checks.
+# The signal these tests exercise arrived in openedx-events 11.2.0, which is
+# the condition apps.py checks before registering the receiver. The handler
+# also reads scope types and namespaces from openedx-authz, and the version a
+# release pinning older openedx-events ships (Ulmo: 0.20.0) predates those, so
+# both are required here and the module skips rather than fails without them.
 pytest.importorskip("openedx_events.authz.data")
 pytest.importorskip("openedx_authz.api.data")
 
@@ -96,6 +97,9 @@ def test_dispatches_for_a_course_team_role(
         ("no namespace at all", "garbage"),
         ("every course in an org", "course-v1^course-v1:OpenedX+DemoX+*"),
         ("every course on the platform", "course-v1^course-v1:*+*+*"),
+        # CCXCourseOverviewData subclasses CourseOverviewData, so an isinstance
+        # test would send this CCX locator to a consumer that records runs.
+        ("a CCX run", "ccx-v1^ccx-v1:OpenedX+DemoX+DemoCourse+ccx@1"),
         ("a course namespace that does not parse", "course-v1^not-a-course-key"),
         ("an empty scope", ""),
     ],
@@ -156,14 +160,15 @@ def test_skips_a_subject_that_is_not_a_known_user(
     _mock_validate,  # noqa: PT019
 ):
     """
-    An unresolvable subject is skipped rather than raising.
+    A user^ subject with no matching account is skipped rather than raising.
 
-    Group assignments land here too: openedx-authz can assign a role to a
-    group, and there is no single learner for the consumer to record.
+    No team_member fixture here, so the username resolves to nobody and the
+    handler takes the DoesNotExist branch. A subject under another namespace
+    never reaches that lookup; those have their own tests below.
     """
     with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
         handle_role_assignment_created(
-            None, role_assignment=_event(subject="group^some-team")
+            None, role_assignment=_event(subject="user^nobody")
         )
 
     mock_task.delay.assert_not_called()
@@ -172,22 +177,21 @@ def test_skips_a_subject_that_is_not_a_known_user(
 @pytest.mark.django_db
 @VALID_WEBHOOK_PATCH
 @TASK_PATCH
-def test_skips_a_group_named_after_an_existing_user(
+def test_skips_a_non_user_subject_named_after_an_existing_user(
     mock_task,
     _mock_validate,  # noqa: PT019
     team_member,  # noqa: ARG001
 ):
     """
-    A group assignment is skipped even when a user shares the group's name.
+    A subject in another namespace is skipped even when a user shares its name.
 
     The subject namespace decides this, not whether the lookup finds someone.
     Stripping the prefix and querying by the remainder would mirror a course
-    team role onto an unrelated individual who happens to be named after the
-    group.
+    team role onto an unrelated individual who happens to share the name.
     """
     with override_settings(ENROLLMENT_COURSE_ACCESS_ROLES=DEFAULT_ROLES):
         handle_role_assignment_created(
-            None, role_assignment=_event(subject=f"group^{USERNAME}")
+            None, role_assignment=_event(subject=f"sub^{USERNAME}")
         )
 
     mock_task.delay.assert_not_called()
@@ -204,7 +208,7 @@ def test_skips_a_role_key_in_the_wrong_namespace(
     """
     A role key that does not carry the role namespace is not translated.
 
-    Same reasoning as the group case: the name after the separator may well be
+    Same reasoning as the subject case: the name after the separator may be
     a real role, but a key arriving under another namespace is malformed rather
     than a grant to act on.
     """

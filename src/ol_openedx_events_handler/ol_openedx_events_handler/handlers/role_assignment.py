@@ -11,14 +11,14 @@ def _external_key(namespaced_key, namespace, separator):
     """
     Return the value half of a namespaced key, if it carries this namespace.
 
-    The namespace is checked rather than stripped. openedx-authz can assign a
-    role to something other than a user -- a group arrives as ``group^<name>``
-    -- and stripping whatever prefix happens to be there would turn that into a
-    username. A group whose name matches an existing user would then mirror a
-    course team role onto that individual, so the prefix has to match.
+    The namespace is compared rather than stripped. A subject under any
+    namespace other than ``user^`` is not a single learner, and stripping
+    whatever prefix happens to be there would turn its name into a username --
+    one that may well belong to somebody, who would then be mirrored onto the
+    course team. The same applies to a role key that is not ``role^``.
 
-    Returns None when it does not, which also covers a key carrying no
-    namespace at all.
+    Returns None when the namespace does not match, which also covers a key
+    carrying no namespace at all.
     """
     if not namespaced_key:
         return None
@@ -32,19 +32,31 @@ def _course_key_from_scope(scope_key):
 
     ``ScopeData`` resolves a namespaced key to the subclass for that scope
     type, so the library decides what counts as a single course rather than
-    this plugin inferring it from the key. A library or organization scope
-    comes back as another subclass, and the wizard's "all courses in this
-    organization" and "all courses on the platform" options come back as glob
-    subclasses -- none of which are ``CourseOverviewData``, and none of which
-    the consumer can key a record on, since it records a single course run.
+    this plugin inferring it from the key. The type has to match exactly:
+    ``CCXCourseOverviewData`` subclasses ``CourseOverviewData``, so an
+    ``isinstance`` test would let a CCX locator through to a consumer that
+    records ordinary course runs.
+
+    Library and organization scopes resolve to other subclasses, and the
+    wizard's "all courses in this organization" and "all courses on the
+    platform" options to glob subclasses. None of them name a single run for
+    the consumer to key a record on, so none are mirrored. The glob ones are
+    logged a level up, because a grant made that way looks like it worked.
     """
     from opaque_keys import InvalidKeyError  # noqa: PLC0415
     from openedx_authz.api.data import CourseOverviewData, ScopeData  # noqa: PLC0415
 
     try:
         scope = ScopeData(namespaced_key=scope_key)
-        if not isinstance(scope, CourseOverviewData):
-            log.debug(
+        if type(scope) is not CourseOverviewData:
+            # A course-namespaced scope that is not one course is a glob: the
+            # operator asked for a whole org or the platform and got nothing.
+            level = (
+                log.info
+                if scope.NAMESPACE == CourseOverviewData.NAMESPACE
+                else log.debug
+            )
+            level(
                 "Ignoring role assignment in scope '%s' - not a single course.",
                 scope_key,
             )
@@ -111,17 +123,15 @@ def _email_for_subject(subject_key, course_key):
     """
     Return the email of the user this assignment is for, or None.
 
-    openedx-authz can also assign a role to a group, which arrives under a
-    different namespace and has no single learner for the consumer to record.
-    Those fall out here, on the namespace rather than on the lookup failing --
-    a group named after an existing user would otherwise resolve to them.
+    Subjects under another namespace fall out here, on the namespace rather
+    than on the lookup failing -- see ``_external_key`` for why that matters.
     """
     from django.contrib.auth import get_user_model  # noqa: PLC0415
     from openedx_authz.api.data import UserData  # noqa: PLC0415
 
     username = _external_key(subject_key, UserData.NAMESPACE, UserData.SEPARATOR)
     if not username:
-        log.debug(
+        log.info(
             "Ignoring role assignment for subject %r in course '%s' - only "
             "assignments to a single user are mirrored.",
             subject_key,
