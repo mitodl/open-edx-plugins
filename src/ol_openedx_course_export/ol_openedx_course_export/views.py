@@ -5,6 +5,7 @@ import logging
 from cms.djangoapps.contentstore.api.views.course_import import (
     CourseImportExportViewMixin,
 )
+from django.conf import settings
 from openedx.core.lib.api.view_utils import verify_course_exists
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
@@ -131,7 +132,11 @@ class CourseExportView(CourseImportExportViewMixin, GenericAPIView):
         upload_task_ids = {}
         for course_id in course_ids:
             try:
-                task_detail = task_upload_course_s3.delay(request.user.id, course_id)
+                task_detail = task_upload_course_s3.apply_async(
+                    args=[request.user.id, course_id],
+                    # None keeps edx-platform's default routing.
+                    queue=settings.COURSE_EXPORT_CELERY_QUEUE,
+                )
                 course_upload_urls[course_id] = get_aws_file_url(course_id)
                 upload_task_ids[course_id] = task_detail.task_id
             except Exception as e:

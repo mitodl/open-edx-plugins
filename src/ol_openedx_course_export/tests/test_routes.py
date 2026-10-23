@@ -26,18 +26,32 @@ class CourseExportRouteTests(ModuleStoreTestCase):
             CourseFactory.create(default_store=ModuleStoreEnum.Type.split).id
         )
         self.client = APIClient()
-        self.client.force_authenticate(UserFactory.create(is_staff=True))
+        self.user = UserFactory.create(is_staff=True)
+        self.client.force_authenticate(self.user)
 
     def test_the_export_path_still_starts_an_export(self):
         """POST /api/courses/v0/export/ queues an export of each course."""
         with mock.patch(UPLOAD_TASK) as upload:
-            upload.delay.return_value.task_id = "task-1"
+            upload.apply_async.return_value.task_id = "task-1"
             response = self.client.post(
                 EXPORT_URL, {"courses": [self.course_id]}, format="json"
             )
 
         assert response.status_code == HTTPStatus.OK, response.content
-        upload.delay.assert_called_once()
+        upload.apply_async.assert_called_once_with(
+            args=[self.user.id, self.course_id], queue=None
+        )
+
+    @override_settings(COURSE_EXPORT_CELERY_QUEUE="edx.cms.core.course_export")
+    def test_export_routes_to_the_configured_queue(self):
+        """Exports pass COURSE_EXPORT_CELERY_QUEUE as the task queue."""
+        with mock.patch(UPLOAD_TASK) as upload:
+            upload.apply_async.return_value.task_id = "task-1"
+            self.client.post(EXPORT_URL, {"courses": [self.course_id]}, format="json")
+
+        assert (
+            upload.apply_async.call_args.kwargs["queue"] == "edx.cms.core.course_export"
+        )
 
     def test_an_unknown_path_under_export_is_not_an_export(self):
         """A path no endpoint serves is a 404, never an export of the body.
@@ -53,4 +67,4 @@ class CourseExportRouteTests(ModuleStoreTestCase):
             )
 
         assert response.status_code == HTTPStatus.NOT_FOUND
-        upload.delay.assert_not_called()
+        upload.apply_async.assert_not_called()
