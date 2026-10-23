@@ -162,12 +162,17 @@ class TestBurstStart(TestCase):
                 queue_debounced_export(key, lambda: None)
             assert cache.get(burst_start_cache_key(key)) == started
 
-    def test_survives_the_hand_off_to_a_lock_follow_up(self):
-        """A task that finds the export lock held releases the slot and queues
-        a follow-up; resetting the start there would restart the max wait."""
+    def test_cleared_with_the_slot(self):
         key = "lib:org:slug"
         cache.set(burst_start_cache_key(key), 1000.0, timeout=None)
         release_export_slot(key)
+        assert cache.get(burst_start_cache_key(key)) is None
+
+    def test_new_burst_replaces_a_dead_bursts_start(self):
+        """A burst whose slot lapsed leaves its start behind; inheriting it
+        would force the next burst's export early."""
+        key = "lib:org:slug"
+        cache.set(burst_start_cache_key(key), 0, timeout=None)
         with (
             mock.patch(
                 "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
@@ -178,7 +183,7 @@ class TestBurstStart(TestCase):
         ):
             queue_debounced_export(key, lambda: None)
 
-        assert cache.get(burst_start_cache_key(key)) == 1000.0  # noqa: PLR2004
+        assert cache.get(burst_start_cache_key(key)) > 0
 
 
 class TestExportDebounce(TestCase):
