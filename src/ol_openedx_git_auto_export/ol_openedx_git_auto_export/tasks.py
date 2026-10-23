@@ -21,7 +21,6 @@ from ol_openedx_git_auto_export.utils import (
     burst_exceeded_max_wait,
     clear_stale_git_lock,
     current_export_token,
-    end_burst,
     get_content_info,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
@@ -48,9 +47,6 @@ def _superseded(context_key_string, user, token):
         )
         stale = False
     if not stale:
-        # Release before exporting, so signals landing during the export
-        # queue a fresh task instead of being dropped.
-        release_export_slot(context_key_string)
         return False
 
     LOGGER.info(
@@ -92,26 +88,21 @@ def _export_unless_unchanged(context_key, git_url, user):
         LOGGER.info("No changes to export for %s", context_key)
 
 
-def _export_exclusively(context_key, git_url, user):
+def _wait_for_running_export(context_key_string, user, token):
     """
-    Export while holding the content's export lock, else queue a follow-up.
+    Re-queue behind another export of the same content.
 
-    The follow-up exports after the running export, which may predate this
-    task's changes, instead of racing it on the same clone directory.
+    The running export may predate this task's changes, so this one runs
+    after it instead of racing it on the same clone directory.
     """
-    if not acquire_export_lock(context_key):
-        LOGGER.info("%s is already being exported; queuing a follow-up", context_key)
-        queue_debounced_export(context_key, lambda: user)
-        return
-    end_burst(context_key)
-    try:
-        # Remove any stale .git/index.lock left by a previously crashed worker.
-        # Dirty working-tree files from a prior crash are cleaned by the
-        # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
-        clear_stale_git_lock(git_url)
-        _export_unless_unchanged(context_key, git_url, user)
-    finally:
-        release_export_lock(context_key)
+    LOGGER.info("%s is already being exported; waiting for it", context_key_string)
+    if token:
+        # Keeps the slot and the burst's start, as a superseded task does.
+        queue_export_task(
+            context_key_string, user, current_export_token(context_key_string, token)
+        )
+    else:
+        queue_debounced_export(context_key_string, lambda: user)
 
 
 @shared_task(time_limit=EXPORT_TIME_LIMIT)
@@ -129,6 +120,25 @@ def async_export_to_git(context_key_string, user=None, token=None):
     if token and _superseded(context_key_string, user, token):
         return
 
+    owned = acquire_export_lock(context_key_string)
+    if owned is False:
+        _wait_for_running_export(context_key_string, user, token)
+        return
+    try:
+        if token:
+            # Release before exporting, so signals landing during the export
+            # queue a fresh task instead of being dropped. Only now, holding
+            # the lock: this also ends the burst, which a wait must not do.
+            release_export_slot(context_key_string)
+        _export(context_key_string, user)
+    finally:
+        # None means the cache was down: this export never held the lock.
+        if owned:
+            release_export_lock(context_key_string)
+
+
+def _export(context_key_string, user):
+    """Resolve the content and its repository, then export it."""
     try:
         context_key = LearningContextKey.from_string(context_key_string)
         content_info = get_content_info(context_key)
@@ -158,7 +168,11 @@ def async_export_to_git(context_key_string, user=None, token=None):
                 if hasattr(content_info["content_module"], "id")
                 else context_key,
             )
-            _export_exclusively(context_key, content_repo.git_url, user)
+            # Remove any stale .git/index.lock left by a previously crashed worker.
+            # Dirty working-tree files from a prior crash are cleaned by the
+            # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
+            clear_stale_git_lock(content_repo.git_url)
+            _export_unless_unchanged(context_key, content_repo.git_url, user)
         else:
             LOGGER.info(
                 "Git export is disabled for %s %s. Skipping export.",

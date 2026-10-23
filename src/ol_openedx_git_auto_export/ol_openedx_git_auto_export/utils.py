@@ -209,13 +209,12 @@ def claim_export_slot(content_key):
 
 
 def release_export_slot(content_key):
-    """Give up the queue slot; the marker outlives whatever failed holding it."""
-    cache_op(cache.delete, pending_cache_key(content_key), on_error=None)
-
-
-def end_burst(content_key):
-    """Forget when the burst began, once its export has actually started."""
-    cache_op(cache.delete, burst_start_cache_key(content_key), on_error=None)
+    """Give up the queue slot, ending the burst; the next signal starts anew."""
+    cache_op(
+        cache.delete_many,
+        [pending_cache_key(content_key), burst_start_cache_key(content_key)],
+        on_error=None,
+    )
 
 
 def burst_exceeded_max_wait(content_key):
@@ -227,14 +226,20 @@ def burst_exceeded_max_wait(content_key):
 
 
 def acquire_export_lock(content_key):
-    """Claim the content's clone directory, if no export of it is running."""
-    # on_error=True: with the cache down, a possible overlap beats no export.
+    """
+    Claim the content's clone directory, if no export of it is running.
+
+    Returns:
+        True if claimed, False if another export holds it, and None if the
+        cache is down. Callers export on None (a possible overlap beats no
+        export) but must not release a lock they never held.
+    """
     return cache_op(
         cache.add,
         export_lock_cache_key(content_key),
         "1",
         timeout=EXPORT_LOCK_TTL,
-        on_error=True,
+        on_error=None,
     )
 
 
@@ -325,11 +330,10 @@ def queue_debounced_export(content_key, resolve_user):
             content_key,
         )
         return
-    # add, not set: a follow-up queued because another export holds the lock
-    # keeps the burst's start. A start left by a dead burst costs one early
-    # export at most.
+    # Claiming the slot starts a burst; set, not add, so a dead burst's start
+    # can't carry over and cut this one short.
     cache_op(
-        cache.add,
+        cache.set,
         burst_start_cache_key(content_key),
         time.time(),
         timeout=EXPORT_BURST_START_TTL,
