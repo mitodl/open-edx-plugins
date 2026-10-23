@@ -1,9 +1,12 @@
 """
-Tests for async_export_to_git's token-based staleness check.
+Tests for async_export_to_git: debounce, export lock, max wait and failures.
 """
 
 import subprocess
+import tempfile
+import time
 from contextlib import ExitStack
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -11,6 +14,7 @@ from cms.djangoapps.contentstore.git_export_utils import GitExportError
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, override_settings
+from ol_openedx_git_auto_export.constants import EXPORT_MAX_WAIT
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.tasks import (
@@ -18,11 +22,16 @@ from ol_openedx_git_auto_export.tasks import (
     async_export_to_git,
 )
 from ol_openedx_git_auto_export.utils import (
+    burst_start_cache_key,
     debounce_cache_key,
     export_library_to_git,
+    export_lock_cache_key,
     pending_cache_key,
+    queue_debounced_export,
 )
 from opaque_keys.edx.locator import LibraryLocatorV2
+
+from ol_openedx_git_auto_export import utils
 
 CONTENT_KEY = "lib:org:slug"
 USER = "a-user"
@@ -44,7 +53,7 @@ CASES = [
 ]
 
 
-def mock_export_collaborators(stack):
+def mock_export_collaborators(stack, *, index_unlocked=True):
     """Patch everything async_export_to_git needs to reach export_to_git."""
     stack.enter_context(
         mock.patch(
@@ -63,7 +72,10 @@ def mock_export_collaborators(stack):
         is_export_enabled=True, git_url="git@example.com:repo.git"
     )
     stack.enter_context(
-        mock.patch("ol_openedx_git_auto_export.tasks.clear_stale_git_lock")
+        mock.patch(
+            "ol_openedx_git_auto_export.tasks.clear_stale_git_lock",
+            return_value=index_unlocked,
+        )
     )
     return stack.enter_context(
         mock.patch("ol_openedx_git_auto_export.tasks.export_to_git")
@@ -132,6 +144,59 @@ class TestAsyncExportToGitTokenCheck(TestCase):
         mock_export_to_git.assert_called_once()
         assert cache.get(pending_key) is None
 
+    def test_failed_requeue_then_a_wait_keeps_a_burst_start(self):
+        """The failed re-queue released the slot and burst start; carrying on
+        as their owner without re-claiming them would leave a later wait with
+        no max wait."""
+        cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+        cache.set(debounce_cache_key(CONTENT_KEY), "newer-token", timeout=None)
+        cache.set(export_lock_cache_key(CONTENT_KEY), "1", timeout=None)
+
+        with (
+            ExitStack() as stack,
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async",
+                side_effect=[RuntimeError("broker blip"), None],
+            ) as mock_apply_async,
+        ):
+            mock_export_to_git = mock_export_collaborators(stack)
+            async_export_to_git(CONTENT_KEY, user=USER, token="original-token")  # noqa: S106
+
+        mock_export_to_git.assert_not_called()
+        assert mock_apply_async.call_count == 2  # noqa: PLR2004
+        assert cache.get(pending_cache_key(CONTENT_KEY)) == "1"
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) is not None
+
+    def test_failed_requeue_leaves_a_newer_burst_alone(self):
+        """A publish that claims the slot the failed re-queue freed owns it;
+        the old task must neither export over it nor release its state."""
+        cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+        cache.set(debounce_cache_key(CONTENT_KEY), "newer-token", timeout=None)
+        real_release = utils.release_export_slot
+
+        def release_then_newer_publish(content_key):
+            real_release(content_key)
+            cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+            cache.set(burst_start_cache_key(CONTENT_KEY), 1000.0, timeout=None)
+
+        with (
+            ExitStack() as stack,
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async",
+                side_effect=RuntimeError("broker blip"),
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.release_export_slot",
+                side_effect=release_then_newer_publish,
+            ),
+        ):
+            mock_export_to_git = mock_export_collaborators(stack)
+            async_export_to_git(CONTENT_KEY, user=USER, token="original-token")  # noqa: S106
+
+        mock_export_to_git.assert_not_called()
+        assert cache.get(pending_cache_key(CONTENT_KEY)) == "1"
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) == 1000.0  # noqa: PLR2004
+
 
 class TestExportFailuresAreReported(TestCase):
     """A failed export must fail the Celery task, not log and succeed."""
@@ -182,6 +247,300 @@ class TestExportFailuresAreReported(TestCase):
             side_effect=ContentNotFoundError("gone"),
         ):
             async_export_to_git(CONTENT_KEY, user=USER)
+
+
+class TestMaxWait(TestCase):
+    """A burst that keeps postponing its export is exported anyway."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_stale_task_exports_once_the_burst_waited_too_long(self):
+        cases = [
+            # burst age, should_export
+            (EXPORT_MAX_WAIT + 1, True),
+            (EXPORT_MAX_WAIT - 60, False),
+        ]
+        for age, should_export in cases:
+            with self.subTest(age=age), ExitStack() as stack:
+                cache.clear()
+                cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+                cache.set(debounce_cache_key(CONTENT_KEY), "newer", timeout=None)
+                cache.set(
+                    burst_start_cache_key(CONTENT_KEY), time.time() - age, timeout=None
+                )
+                mock_export_to_git = mock_export_collaborators(stack)
+                mock_queue = stack.enter_context(
+                    mock.patch("ol_openedx_git_auto_export.tasks.queue_export_task")
+                )
+                async_export_to_git(CONTENT_KEY, user=USER, token="older")  # noqa: S106
+
+                assert mock_export_to_git.called is should_export
+                assert mock_queue.called is not should_export
+                if should_export:
+                    # The burst is over: the next signal starts a new one.
+                    assert cache.get(pending_cache_key(CONTENT_KEY)) is None
+                    assert cache.get(burst_start_cache_key(CONTENT_KEY)) is None
+
+
+class TestLeftoverChain(TestCase):
+    """A backlog past the pending TTL can leave two task chains for one key."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_chain_outliving_another_chains_export_keeps_a_deadline(self):
+        # The other chain just exported: slot and burst start are both gone,
+        # and a later publish moved the token on.
+        cache.set(debounce_cache_key(CONTENT_KEY), "newer", timeout=None)
+        with mock.patch(
+            "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+        ) as mock_apply_async:
+            async_export_to_git(CONTENT_KEY, user=USER, token="older")  # noqa: S106
+
+        mock_apply_async.assert_called_once()
+        assert cache.get(pending_cache_key(CONTENT_KEY)) == "1"
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) is not None
+
+
+class TestExportLock(TestCase):
+    """Two exports of one content item must not share its clone directory."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_export_holds_the_lock_and_releases_it(self):
+        lock_key = export_lock_cache_key(CONTENT_KEY)
+        for error in (None, GitExportError("Unable to push changes")):
+            with self.subTest(error=error), ExitStack() as stack:
+                held = []
+                mock_export = mock_export_collaborators(stack)
+
+                def export(*_args, error=error, held=held, **_kwargs):
+                    held.append(cache.get(lock_key))
+                    if error:
+                        raise error
+
+                mock_export.side_effect = export
+                if error:
+                    with pytest.raises(GitExportError):
+                        async_export_to_git(CONTENT_KEY, user=USER)
+                else:
+                    async_export_to_git(CONTENT_KEY, user=USER)
+
+                assert held == ["1"]
+                assert cache.get(lock_key) is None
+
+    def test_held_lock_waits_keeping_the_slot_and_the_burst_start(self):
+        """Waiting must neither free the slot nor end the burst: a wait that
+        restarted the burst would also restart its max wait."""
+        lock_key = export_lock_cache_key(CONTENT_KEY)
+        cache.set(lock_key, "1", timeout=None)
+        cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+        cache.set(debounce_cache_key(CONTENT_KEY), "current", timeout=None)
+        cache.set(burst_start_cache_key(CONTENT_KEY), 1000.0, timeout=None)
+
+        with ExitStack() as stack:
+            mock_export_to_git = mock_export_collaborators(stack)
+            mock_queue = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.queue_export_task")
+            )
+            async_export_to_git(CONTENT_KEY, user=USER, token="current")  # noqa: S106
+
+        mock_export_to_git.assert_not_called()
+        mock_queue.assert_called_once_with(CONTENT_KEY, USER, "current")
+        assert cache.get(lock_key) == "1"
+        assert cache.get(pending_cache_key(CONTENT_KEY)) == "1"
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) == 1000.0  # noqa: PLR2004
+
+    def test_without_a_token_a_wait_queues_a_debounced_follow_up(self):
+        for trigger in ("held export lock", "young index.lock"):
+            with self.subTest(trigger=trigger), ExitStack() as stack:
+                cache.clear()
+                if trigger == "held export lock":
+                    cache.set(export_lock_cache_key(CONTENT_KEY), "1", timeout=None)
+                mock_export_to_git = mock_export_collaborators(
+                    stack, index_unlocked=trigger != "young index.lock"
+                )
+                mock_follow_up = stack.enter_context(
+                    mock.patch(
+                        "ol_openedx_git_auto_export.tasks.queue_debounced_export"
+                    )
+                )
+                async_export_to_git(CONTENT_KEY, user=USER)
+
+                mock_export_to_git.assert_not_called()
+                key, resolve_user = mock_follow_up.call_args.args
+                assert key == CONTENT_KEY
+                assert resolve_user() == USER
+
+    def test_publish_during_the_export_keeps_its_burst_start(self):
+        """A burst that begins while this export runs must keep its start,
+        or nothing bounds how long it can postpone its own export."""
+        with ExitStack() as stack:
+            mock_export = mock_export_collaborators(stack)
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+                )
+            )
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+                )
+            )
+            mock_export.side_effect = lambda *_a, **_k: queue_debounced_export(
+                CONTENT_KEY, lambda: None
+            )
+            async_export_to_git(CONTENT_KEY, user=USER, token="current")  # noqa: S106
+
+        started = cache.get(burst_start_cache_key(CONTENT_KEY))
+        assert started is not None
+        assert time.time() - started < 5  # noqa: PLR2004
+
+    def test_young_index_lock_waits_keeping_an_overdue_burst(self):
+        """A killed export can leave an index.lock too young to remove. The
+        task must wait for it without ending the burst: a forced, overdue
+        export that restarted its burst could be postponed another max wait."""
+        cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+        cache.set(debounce_cache_key(CONTENT_KEY), "newer", timeout=None)
+        overdue = time.time() - EXPORT_MAX_WAIT - 1
+        cache.set(burst_start_cache_key(CONTENT_KEY), overdue, timeout=None)
+
+        with ExitStack() as stack:
+            mock_export = mock_export_collaborators(stack, index_unlocked=False)
+            mock_queue = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.queue_export_task")
+            )
+            async_export_to_git(CONTENT_KEY, user=USER, token="older")  # noqa: S106
+
+        mock_export.assert_not_called()
+        mock_queue.assert_called_once_with(CONTENT_KEY, USER, "newer")
+        assert cache.get(pending_cache_key(CONTENT_KEY)) == "1"
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) == overdue
+        assert cache.get(export_lock_cache_key(CONTENT_KEY)) is None
+
+    def test_failed_wait_frees_the_slot_and_the_lock(self):
+        """With the broker down the wait can't be queued: the task must fail,
+        and leave nothing behind that would swallow the next publish."""
+        cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+        cache.set(burst_start_cache_key(CONTENT_KEY), 1000.0, timeout=None)
+        with ExitStack() as stack:
+            mock_export = mock_export_collaborators(stack, index_unlocked=False)
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async",
+                    side_effect=RuntimeError("broker down"),
+                )
+            )
+            with pytest.raises(RuntimeError, match="broker down"):
+                async_export_to_git(CONTENT_KEY, user=USER, token="current")  # noqa: S106
+
+        mock_export.assert_not_called()
+        assert cache.get(pending_cache_key(CONTENT_KEY)) is None
+        assert cache.get(burst_start_cache_key(CONTENT_KEY)) is None
+        assert cache.get(export_lock_cache_key(CONTENT_KEY)) is None
+
+    def test_failed_index_check_frees_the_slot(self):
+        """The index.lock check runs while the task still holds the slot; if
+        it raised with the slot held, the next publishes would see an export
+        queued that never runs."""
+        cache.set(pending_cache_key(CONTENT_KEY), "1", timeout=None)
+        with ExitStack() as stack:
+            mock_export = mock_export_collaborators(stack)
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.tasks.clear_stale_git_lock",
+                    side_effect=PermissionError("shared volume"),
+                )
+            )
+            with pytest.raises(PermissionError):
+                async_export_to_git(CONTENT_KEY, user=USER, token="current")  # noqa: S106
+
+        mock_export.assert_not_called()
+        assert cache.get(pending_cache_key(CONTENT_KEY)) is None
+        assert cache.get(export_lock_cache_key(CONTENT_KEY)) is None
+
+    def test_cache_outage_exports_without_releasing_anothers_lock(self):
+        """With the cache down the export goes ahead unowned; if the cache
+        recovers meanwhile, the lock it finds belongs to someone else."""
+        lock_key = export_lock_cache_key(CONTENT_KEY)
+        with ExitStack() as stack:
+            mock_export = mock_export_collaborators(stack)
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.utils.cache.add",
+                    side_effect=RuntimeError("cache down"),
+                )
+            )
+            mock_export.side_effect = lambda *_a, **_k: cache.set(
+                lock_key, "other-export", timeout=None
+            )
+            async_export_to_git(CONTENT_KEY, user=USER)
+
+        mock_export.assert_called_once()
+        assert cache.get(lock_key) == "other-export"
+
+
+class TestIndexLockCheck(TestCase):
+    """The index.lock check against a real repository row and clone dir."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_young_index_lock_in_the_registered_clone_waits(self):
+        ContentGitRepository.objects.create(
+            content_key=LibraryLocatorV2.from_string(CONTENT_KEY),
+            git_url="git@example.com:org/repo.git",
+        )
+        with tempfile.TemporaryDirectory() as export_dir, ExitStack() as stack:
+            index_lock = Path(export_dir) / "repo" / ".git" / "index.lock"
+            index_lock.parent.mkdir(parents=True)
+            index_lock.touch()
+            stack.enter_context(override_settings(GIT_REPO_EXPORT_DIR=export_dir))
+            mock_export = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.export_to_git")
+            )
+            stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.get_content_info")
+            )
+            mock_queue = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.queue_export_task")
+            )
+            async_export_to_git(CONTENT_KEY, user=USER, token="current")  # noqa: S106
+
+            assert index_lock.exists()
+        mock_export.assert_not_called()
+        mock_queue.assert_called_once()
+
+    def test_unregistered_content_skips_the_check(self):
+        with ExitStack() as stack:
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.tasks.get_content_info",
+                    return_value={
+                        "content_type": "library",
+                        "content_module": mock.Mock(id=CONTENT_KEY),
+                        "is_library": True,
+                    },
+                )
+            )
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.tasks.is_auto_repo_creation_enabled",
+                    return_value=False,
+                )
+            )
+            mock_check = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.clear_stale_git_lock")
+            )
+            mock_export = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.export_to_git")
+            )
+            async_export_to_git(CONTENT_KEY, user=USER)
+
+        mock_check.assert_not_called()
+        mock_export.assert_not_called()
 
 
 class TestMissingRepositoryHandling(TestCase):

@@ -44,7 +44,8 @@ Configuration
 - Optionally route export tasks to their own Celery queue. Exports take tens of
   seconds, so on the default queue they hold up Studio's short publish tasks.
   Unset, exports use edx-platform's default routing. A worker must consume the
-  queue, or exports wait there indefinitely.
+  queue, or exports wait there indefinitely. Repository creation stays on the
+  default queue.
 
   .. code-block::
 
@@ -134,8 +135,9 @@ Re-exporting Without a Publish
 
 Courses are exported only when published and libraries only when updated, so
 content whose export failed stays stale in git until its next change. A failed
-export fails its Celery task, so it shows in task metrics; it is not retried. To queue
-an export on demand, fix whatever made the export fail, then use either:
+export fails its Celery task, so it shows in task metrics; it is not retried.
+To queue an export on demand, fix whatever made the export fail, then use
+either:
 
 - The ``Export selected content to git`` action on the Content Git Repositories
   page in Django admin.
@@ -159,3 +161,15 @@ key errored or, with ``--content-keys``, if any named key was skipped. Exports
 go through the same debounce as publish-triggered ones: a request made during
 a pending export's 5-second countdown is merged into it, but one made after
 that export has started queues another.
+
+How Exports Are Scheduled
+=========================
+
+- A burst of publish signals for one course or library becomes one export,
+  which runs once no signal has arrived for 5 seconds. A burst that keeps
+  going is exported anyway every 10 minutes.
+- Exports of the same course or library wait for each other, since they share
+  one clone directory. An export queued while another is running waits for it,
+  then exports whatever changed since.
+- An export is killed after 10 minutes. Removing a ``.git/index.lock`` left by
+  a killed export waits until the lock is a minute old.
