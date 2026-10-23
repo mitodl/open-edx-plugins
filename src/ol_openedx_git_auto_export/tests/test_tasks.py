@@ -456,11 +456,15 @@ class TestIndexLockCheck(TestCase):
                     return_value=False,
                 )
             )
+            mock_check = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.clear_stale_git_lock")
+            )
             mock_export = stack.enter_context(
                 mock.patch("ol_openedx_git_auto_export.tasks.export_to_git")
             )
             async_export_to_git(CONTENT_KEY, user=USER)
 
+        mock_check.assert_not_called()
         mock_export.assert_not_called()
 
 
