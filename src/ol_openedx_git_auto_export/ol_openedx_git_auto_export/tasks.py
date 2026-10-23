@@ -13,15 +13,20 @@ from django.conf import settings
 from opaque_keys.edx.keys import LearningContextKey
 from rest_framework import status
 
+from ol_openedx_git_auto_export.constants import EXPORT_TIME_LIMIT
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.utils import (
+    acquire_export_lock,
+    burst_exceeded_max_wait,
     clear_stale_git_lock,
     current_export_token,
     get_content_info,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
+    queue_debounced_export,
     queue_export_task,
+    release_export_lock,
     release_export_slot,
     schedule_export_with_debounce,
 )
@@ -34,7 +39,14 @@ def _superseded(context_key_string, user, token):
     Report whether a newer signal replaced this task, re-queuing if so.
     """
     current_token = current_export_token(context_key_string, token)
-    if current_token == token:
+    stale = current_token != token
+    if stale and burst_exceeded_max_wait(context_key_string):
+        LOGGER.info(
+            "Signals for %s have postponed its export too long; exporting now",
+            context_key_string,
+        )
+        stale = False
+    if not stale:
         # Release before exporting, so signals landing during the export
         # queue a fresh task instead of being dropped.
         release_export_slot(context_key_string)
@@ -79,7 +91,28 @@ def _export_unless_unchanged(context_key, git_url, user):
         LOGGER.info("No changes to export for %s", context_key)
 
 
-@shared_task
+def _export_exclusively(context_key, git_url, user):
+    """
+    Export while holding the content's export lock, else queue a follow-up.
+
+    The follow-up exports after the running export, which may predate this
+    task's changes, instead of racing it on the same clone directory.
+    """
+    if not acquire_export_lock(context_key):
+        LOGGER.info("%s is already being exported; queuing a follow-up", context_key)
+        queue_debounced_export(context_key, lambda: user)
+        return
+    try:
+        # Remove any stale .git/index.lock left by a previously crashed worker.
+        # Dirty working-tree files from a prior crash are cleaned by the
+        # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
+        clear_stale_git_lock(git_url)
+        _export_unless_unchanged(context_key, git_url, user)
+    finally:
+        release_export_lock(context_key)
+
+
+@shared_task(time_limit=EXPORT_TIME_LIMIT)
 def async_export_to_git(context_key_string, user=None, token=None):
     """Export a course or library to Git.
 
@@ -123,11 +156,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
                 if hasattr(content_info["content_module"], "id")
                 else context_key,
             )
-            # Remove any stale .git/index.lock left by a previously crashed worker.
-            # Dirty working-tree files from a prior crash are cleaned by the
-            # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
-            clear_stale_git_lock(content_repo.git_url)
-            _export_unless_unchanged(context_key, content_repo.git_url, user)
+            _export_exclusively(context_key, content_repo.git_url, user)
         else:
             LOGGER.info(
                 "Git export is disabled for %s %s. Skipping export.",
