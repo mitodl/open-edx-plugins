@@ -162,13 +162,17 @@ class TestBurstStart(TestCase):
 
         assert cache.get(burst_start_cache_key(key)) == 1000.0  # noqa: PLR2004
 
-    def test_renewal_does_not_create_a_missing_start(self):
+    def test_renewal_restarts_a_missing_start(self):
+        """A second chain left by a backlog can find the start cleared by the
+        first chain's export; without a fresh one its hops are unbounded."""
         with mock.patch(
             "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
         ):
             queue_export_task("lib:org:slug", None, "a-token")
 
-        assert cache.get(burst_start_cache_key("lib:org:slug")) is None
+        started = cache.get(burst_start_cache_key("lib:org:slug"))
+        assert started is not None
+        assert time.time() - started < 5  # noqa: PLR2004
 
     def test_recorded_once_per_burst(self):
         key = "lib:org:slug"
