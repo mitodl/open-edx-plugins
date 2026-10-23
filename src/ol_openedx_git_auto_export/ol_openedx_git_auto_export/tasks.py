@@ -60,15 +60,20 @@ def _superseded(context_key_string, user, token):
     return True
 
 
-def _nothing_to_commit(exc):
+def _export_unless_unchanged(context_key, git_url, user):
     """
-    Report whether a GitExportError only means the content was unchanged.
+    Run export_to_git, treating unchanged content as success.
 
     export_to_git raises CANNOT_COMMIT both for this and for real failures
     such as a held index.lock; only git's own output tells them apart.
     """
-    output = getattr(exc.__cause__, "output", None) or b""
-    return b"nothing to commit" in output
+    try:
+        export_to_git(context_key, git_url, user=user)
+    except GitExportError as exc:
+        output = getattr(exc.__cause__, "output", None) or b""
+        if b"nothing to commit" not in output:
+            raise
+        LOGGER.info("No changes to export for %s", context_key)
 
 
 @shared_task
@@ -119,17 +124,14 @@ def async_export_to_git(context_key_string, user=None, token=None):
             # Dirty working-tree files from a prior crash are cleaned by the
             # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
             clear_stale_git_lock(content_repo.git_url)
-            export_to_git(context_key, content_repo.git_url, user=user)
+            _export_unless_unchanged(context_key, content_repo.git_url, user)
         else:
             LOGGER.info(
                 "Git export is disabled for %s %s. Skipping export.",
                 content_info["content_type"],
                 context_key_string,
             )
-    except GitExportError as exc:
-        if _nothing_to_commit(exc):
-            LOGGER.info("No changes to export for %s", context_key_string)
-            return
+    except GitExportError:
         LOGGER.exception(
             "Failed async %s content export to git (%s id: %s)",
             content_info["content_type"],
