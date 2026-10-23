@@ -210,11 +210,10 @@ def claim_export_slot(content_key):
 
 def release_export_slot(content_key):
     """Give up the queue slot, ending the burst; the next signal starts anew."""
-    cache_op(
-        cache.delete_many,
-        [pending_cache_key(content_key), burst_start_cache_key(content_key)],
-        on_error=None,
-    )
+    # Start first: a signal can only record a new start once the slot is free,
+    # and delete_many isn't atomic on every backend (memcached).
+    cache_op(cache.delete, burst_start_cache_key(content_key), on_error=None)
+    cache_op(cache.delete, pending_cache_key(content_key), on_error=None)
 
 
 def burst_exceeded_max_wait(content_key):
