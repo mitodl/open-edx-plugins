@@ -45,7 +45,7 @@ EXPORT_DEBOUNCE_TOKEN_TTL = 60 * 60 * 24 * 7  # 7 days
 # A burst that keeps postponing its export is exported anyway after this long.
 EXPORT_MAX_WAIT = 10 * 60  # seconds
 EXPORT_BURST_START_CACHE_KEY = "git_export_burst_start:{content_key}"
-# Must outlive the max wait plus one hop, or the burst forgets when it began.
+# Renewed on every hop, so this only bounds how long a dead burst's start lingers.
 EXPORT_BURST_START_TTL = EXPORT_MAX_WAIT + EXPORT_DEBOUNCE_PENDING_TTL
 
 # Exports of one content item share a clone directory, so they serialize on

@@ -18,6 +18,7 @@ from ol_openedx_git_auto_export.constants import (
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.utils import (
     _get_library_publisher,
+    acquire_export_lock,
     burst_start_cache_key,
     claim_export_slot,
     clear_stale_git_lock,
@@ -112,26 +113,34 @@ def test_queue_export_task_routes_to_the_configured_queue(queue):
 
 
 @pytest.mark.parametrize(
-    ("age", "removed"),
-    [(STALE_GIT_LOCK_AGE + 1, True), (STALE_GIT_LOCK_AGE - 30, False)],
+    ("age", "unlocked"),
+    [(STALE_GIT_LOCK_AGE + 1, True), (STALE_GIT_LOCK_AGE - 30, False), (None, True)],
 )
-def test_clear_stale_git_lock_only_removes_old_locks(tmp_path, age, removed):
-    """A young index.lock may belong to a git command that is still running."""
+def test_clear_stale_git_lock_only_removes_old_locks(tmp_path, age, unlocked):
+    """A young index.lock may belong to a git command that is still running.
+    age None: no lock at all."""
     index_lock = tmp_path / "repo" / ".git" / "index.lock"
-    index_lock.parent.mkdir(parents=True)
-    index_lock.touch()
-    then = time.time() - age
-    os.utime(index_lock, (then, then))
+    if age is not None:
+        index_lock.parent.mkdir(parents=True)
+        index_lock.touch()
+        then = time.time() - age
+        os.utime(index_lock, (then, then))
 
     with override_settings(GIT_REPO_EXPORT_DIR=str(tmp_path)):
-        assert clear_stale_git_lock("git@github.com:org/repo.git") is removed
+        assert clear_stale_git_lock("git@github.com:org/repo.git") is unlocked
 
-    assert index_lock.exists() is not removed
+    assert index_lock.exists() is not unlocked
 
 
-def test_clear_stale_git_lock_tolerates_a_missing_lock(tmp_path):
-    with override_settings(GIT_REPO_EXPORT_DIR=str(tmp_path)):
-        assert clear_stale_git_lock("git@github.com:org/repo.git") is True
+def test_export_lock_expires():
+    """A worker that dies without unwinding never releases its lock, so
+    only the TTL stops every later export from waiting forever."""
+    cache.clear()
+    with mock.patch("ol_openedx_git_auto_export.utils.EXPORT_LOCK_TTL", 1):
+        assert acquire_export_lock("lib:org:slug") is True
+        assert acquire_export_lock("lib:org:slug") is False
+        time.sleep(1.1)
+        assert acquire_export_lock("lib:org:slug") is True
 
 
 class TestBurstStart(TestCase):
