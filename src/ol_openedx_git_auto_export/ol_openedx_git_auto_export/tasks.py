@@ -70,8 +70,11 @@ def _export_unless_unchanged(context_key, git_url, user):
     try:
         export_to_git(context_key, git_url, user=user)
     except GitExportError as exc:
-        output = getattr(exc.__cause__, "output", None) or b""
-        if b"nothing to commit" not in output:
+        output = getattr(exc.__cause__, "output", None) or ""
+        # bytes today (check_output without text=True); str if that changes.
+        if isinstance(output, bytes):
+            output = output.decode(errors="replace")
+        if "nothing to commit" not in output:
             raise
         LOGGER.info("No changes to export for %s", context_key)
 

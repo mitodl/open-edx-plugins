@@ -152,6 +152,8 @@ class TestExportFailuresAreReported(TestCase):
         cases = [
             (b"On branch main\nnothing to commit, working tree clean\n", False),
             (b"fatal: Unable to create '.git/index.lock': File exists.\n", True),
+            ("On branch main\nnothing to commit, working tree clean\n", False),
+            (None, True),
         ]
         for output, should_raise in cases:
             with self.subTest(output=output), ExitStack() as stack:
