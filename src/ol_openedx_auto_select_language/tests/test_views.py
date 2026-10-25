@@ -6,6 +6,7 @@ from ol_openedx_auto_select_language.views import (
     CourseLanguageAnonRateThrottle,
     CourseLanguageUserRateThrottle,
     CourseLanguageView,
+    ReleasedLanguagesView,
 )
 from opaque_keys import InvalidKeyError
 from rest_framework import status
@@ -144,3 +145,56 @@ def test_returns_error_responses(
 
     assert response.status_code == scenario["expected_status"]
     assert response.data == scenario["expected_data"]
+
+
+def test_course_language_echoes_cookie_when_learner_language_wins(
+    request_factory, mock_user, mocker, in_place_translations_disabled
+):
+    """The Footer compares this with the cookie, so it must not switch."""
+    in_place_translations_disabled.return_value = True
+    mocker.patch(f"{MODULE}.CourseOverview").get_from_id.return_value.language = "es"
+    mocker.patch(f"{MODULE}.lang_pref_helpers.get_language_cookie", return_value="fr")
+    request = request_factory.get("/")
+    request.user = mock_user
+
+    response = CourseLanguageView().get(request, course_key_string="course-v1:a+b+c")
+
+    assert response.data == {"language": "fr"}
+
+
+def test_released_languages(request_factory, mocker):
+    """The dropdown gets the DarkLang released languages."""
+    language = mocker.Mock(code="fr", name="Français")
+    language.name = "Français"
+    mocker.patch(f"{MODULE}.released_languages", return_value=[language])
+
+    response = ReleasedLanguagesView().get(request_factory.get("/"))
+
+    assert response.data == {
+        "enabled": False,
+        "languages": [{"code": "fr", "name": "Français"}],
+    }
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ({}, ["en", "fr", "hi"]),
+        ({"course_id": "course-v1:MITx+T101+2026"}, ["en", "fr"]),
+    ],
+    ids=["no_course_all_released", "course_own_and_translated_only"],
+)
+def test_released_languages_for_course(request_factory, mocker, query, expected):
+    """In a course, only its own, translated and current languages are listed."""
+    languages = []
+    for code in ("en", "fr", "hi"):
+        language = mocker.Mock(code=code)
+        language.name = code
+        languages.append(language)
+    mocker.patch(f"{MODULE}.released_languages", return_value=languages)
+    mocker.patch(f"{MODULE}.course_language_codes", return_value={"en", "fr"})
+    mocker.patch(f"{MODULE}.get_language", return_value="en")
+
+    response = ReleasedLanguagesView().get(request_factory.get("/", query))
+
+    assert [language["code"] for language in response.data["languages"]] == expected

@@ -37,6 +37,7 @@ from ol_openedx_course_translations.utils.constants import (
     PROVIDER_GEMINI,
     PROVIDER_MISTRAL,
     PROVIDER_OPENAI,
+    TRANSLATABLE_ATTRS_ANNOTATION_ONLY,
     TRANSLATABLE_ATTRS_BASE,
     TRANSLATABLE_ATTRS_OPTIONINPUT_ONLY,
     XML_FORMAT_ATTR,
@@ -687,12 +688,13 @@ class HtmlXmlTranslationHelper:
             # Open edX: do not add display_name; extraction only happens if exists
             return True
 
-        # Open edX rule: options/correct only inside <optioninput>
-        if attr_name in TRANSLATABLE_ATTRS_OPTIONINPUT_ONLY:
-            return (el.tag or "").lower() == "optioninput"
-
-        # Do NOT attempt to translate other attributes (incl. value) by default
-        return False
+        # Open edX rules: options/correct only inside <optioninput>, body only
+        # inside <annotation>. Other attributes (incl. value) are not translated.
+        only_on = {
+            **dict.fromkeys(TRANSLATABLE_ATTRS_OPTIONINPUT_ONLY, "optioninput"),
+            **dict.fromkeys(TRANSLATABLE_ATTRS_ANNOTATION_ONLY, "annotation"),
+        }
+        return (el.tag or "").lower() == only_on.get(attr_name)
 
     def _should_translate_text_in_element(self, el: etree._Element) -> bool:
         return (el.tag or "").lower() not in self._SKIP_TEXT_TAGS

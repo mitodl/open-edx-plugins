@@ -2,10 +2,19 @@
 
 from statistics import fmean
 
+from django import forms
 from django.contrib import admin
 from django.utils.html import format_html, format_html_join
 
+from ol_openedx_course_translations.blocks import (
+    GRADER_LABELS_FIELD,
+    grader_labels_source,
+    restore_kept_parts,
+    serialize,
+    source_hash,
+)
 from ol_openedx_course_translations.models import (
+    BlockTranslation,
     CourseTranslationLog,
     TranslationBenchmark,
     TranslationBenchmarkCandidate,
@@ -296,3 +305,92 @@ class TranslationBenchmarkAdmin(admin.ModelAdmin):
             format_html_join("", "<th>{}</th>", ((judge,) for judge in judges)),
             body,
         )
+
+
+class BlockTranslationForm(forms.ModelForm):
+    """Keep answers, grading code, ids and keys from the source in edited rows."""
+
+    class Meta:
+        model = BlockTranslation
+        fields = "__all__"  # noqa: DJ007
+
+    def clean_translated_value(self):
+        """Restore the source's kept parts, rejecting values that do not match it."""
+        value = self.cleaned_data["translated_value"]
+        row = self.instance
+        source_value = published_source_value(row.usage_key, row.field)
+        if source_value is None:
+            return value
+        # save_model stores the fingerprint of the source the value was checked
+        # against, not of a source published after this check.
+        self.validated_source_hash = source_hash(source_value)
+        restored = restore_kept_parts(
+            row.usage_key.block_type, row.field, source_value, value
+        )
+        if restored is None:
+            msg = "The translation does not have the same structure as the source."
+            raise forms.ValidationError(msg)
+        return serialize(restored)
+
+
+@admin.register(BlockTranslation)
+class BlockTranslationAdmin(admin.ModelAdmin):
+    """Admin interface for reviewing and fixing in-place translations."""
+
+    form = BlockTranslationForm
+
+    list_display = ("usage_key", "field", "language", "status", "updated_at")
+    list_filter = ("status", "language", "field")
+    search_fields = ("course_key", "usage_key")
+    readonly_fields = (
+        "course_key",
+        "usage_key",
+        "field",
+        "language",
+        "current_source",
+        "source_hash",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request):  # noqa: ARG002
+        """Deny adding rows: they are made by the commands and reviewed here."""
+        return False
+
+    @admin.display(description="Current published source")
+    def current_source(self, obj):
+        """Show the published source the translation is checked against."""
+        value = published_source_value(obj.usage_key, obj.field)
+        return "(block not found)" if value is None else serialize(value)
+
+    def save_model(self, request, obj, form, change):
+        """
+        Mark a hand-edited translation reviewed so syncs never overwrite it.
+
+        The editor reviews it against the current published source shown on the
+        form, so the fingerprint is set to the source it was validated against.
+        """
+        if "translated_value" in form.changed_data:
+            obj.status = BlockTranslation.Status.REVIEWED
+            validated_hash = getattr(form, "validated_source_hash", None)
+            if validated_hash is not None:
+                obj.source_hash = validated_hash
+        super().save_model(request, obj, form, change)
+
+
+def published_source_value(usage_key, field):
+    """Return a block field's published value, or None when the block is gone."""
+    # xmodule exists only inside edx-platform.
+    from xmodule.modulestore import ModuleStoreEnum  # noqa: PLC0415
+    from xmodule.modulestore.django import modulestore  # noqa: PLC0415
+    from xmodule.modulestore.exceptions import ItemNotFoundError  # noqa: PLC0415
+
+    try:
+        block = modulestore().get_item(
+            usage_key, revision=ModuleStoreEnum.RevisionOption.published_only
+        )
+    except ItemNotFoundError:
+        return None
+    if field == GRADER_LABELS_FIELD:
+        return grader_labels_source(block)
+    return getattr(block, field, None)

@@ -1,6 +1,7 @@
 """Tests for LanguageCode utility class."""
 
 import pytest
+from ol_openedx_auto_select_language.toggles import course_key_from_path
 from ol_openedx_auto_select_language.utils import LanguageCode
 
 
@@ -47,3 +48,23 @@ def test_to_bcp47(input_code, expected):
 def test_to_django(input_code, expected):
     """Test conversion from BCP47 to Django/Open edX style."""
     assert LanguageCode(input_code).to_django() == expected
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("/courses/course-v1:MITx+T101+2026/courseware/x", "course-v1:MITx+T101+2026"),
+        (
+            "/xblock/block-v1:MITx+T101+2026+type@html+block@a",
+            "course-v1:MITx+T101+2026",
+        ),
+        ("/courses/MITx/T101/2026/", None),
+        ("/", None),
+        (None, None),
+    ],
+)
+def test_course_key_from_path(path, expected):
+    """Course keys come from course or usage keys in the path."""
+    course_key = course_key_from_path(path)
+
+    assert (str(course_key) if course_key else None) == expected
