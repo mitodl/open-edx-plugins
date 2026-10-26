@@ -75,6 +75,11 @@ class CourseSyncMapping(models.Model):
         """
         super().clean()
 
+        if self.source_course and self.source_course == self.target_course:
+            raise ValidationError(
+                {"target_course": "Target course cannot be the same as source course"}
+            )
+
         if not CourseOverview.objects.filter(id=self.source_course).exists():
             raise ValidationError({"source_course": "Source course does not exist"})
 
