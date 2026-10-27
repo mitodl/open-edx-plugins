@@ -1,6 +1,6 @@
 """translate_course's per-file tasks retry a throttled call instead of failing."""
 
-import datetime
+import datetime as dt
 import json
 from unittest import mock
 
@@ -22,9 +22,7 @@ def _transient(error_class):
 
 
 def _cue():
-    return srt.Subtitle(
-        1, datetime.timedelta(0), datetime.timedelta(seconds=1), "Hello."
-    )
+    return srt.Subtitle(1, dt.timedelta(0), dt.timedelta(seconds=1), "Hello.")
 
 
 def _translate_file(path):
