@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -912,7 +912,7 @@ name = "django-model-utils"
 version = "5.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "django", marker = "python_full_version >= '3.12'" },
+    { name = "django" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/81/60/5e232c32a2c977cc1af8c70a38ef436598bc649ad89c2c4568454edde2c9/django_model_utils-5.0.0.tar.gz", hash = "sha256:041cdd6230d2fbf6cd943e1969318bce762272077f4ecd333ab2263924b4e5eb", size = 80559, upload-time = "2024-09-04T11:35:22.858Z" }
 wheels = [
@@ -940,7 +940,7 @@ name = "django-simple-history"
 version = "3.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "django", marker = "python_full_version >= '3.12'" },
+    { name = "django" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6b/1c/0689c13c0aa36df828947692f4e309f93c58e075219735c423edbbf6227d/django_simple_history-3.13.0.tar.gz", hash = "sha256:ca3c1e4ccd5f16f45fbbef6015ee2a246465fd9bd924100df8e9dfb368c4f26c", size = 236759, upload-time = "2026-07-22T13:41:29.588Z" }
 wheels = [
@@ -1107,14 +1107,14 @@ name = "edx-organizations"
 version = "9.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "django", marker = "python_full_version >= '3.12'" },
-    { name = "django-model-utils", marker = "python_full_version >= '3.12'" },
-    { name = "django-simple-history", marker = "python_full_version >= '3.12'" },
-    { name = "djangorestframework", marker = "python_full_version >= '3.12'" },
-    { name = "edx-drf-extensions", marker = "python_full_version >= '3.12'" },
-    { name = "edx-opaque-keys", marker = "python_full_version >= '3.12'" },
-    { name = "pillow", marker = "python_full_version >= '3.12'" },
-    { name = "setuptools", marker = "python_full_version >= '3.12'" },
+    { name = "django" },
+    { name = "django-model-utils" },
+    { name = "django-simple-history" },
+    { name = "djangorestframework" },
+    { name = "edx-drf-extensions" },
+    { name = "edx-opaque-keys" },
+    { name = "pillow" },
+    { name = "setuptools" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/12/e3/75a44d2e7af060a0af551b55b77e6b0b3462f84f7f5ed43c4d287825f401/edx_organizations-9.0.0.tar.gz", hash = "sha256:cc5c5a7f85cdbaa815bdb2b7a17ed9699c3bbb4b88ba404a0db9b23f373d3b1e", size = 43496, upload-time = "2026-08-10T20:16:44.01Z" }
 wheels = [
@@ -2860,7 +2860,7 @@ requires-dist = [
 dev = [
     { name = "codecov" },
     { name = "ddt", specifier = ">=1.7.2" },
-    { name = "prek", specifier = "==0.5.4" },
+    { name = "prek", specifier = "==0.5.5" },
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-cov", specifier = ">=5.0.0" },
     { name = "pytest-django", specifier = ">=4.11.1" },
@@ -2869,7 +2869,7 @@ dev = [
     { name = "ruff", specifier = ">=0.12.0" },
     { name = "twine", specifier = ">=5.0.0" },
 ]
-prek = [{ name = "prek", specifier = "==0.5.4" }]
+prek = [{ name = "prek", specifier = "==0.5.5" }]
 
 [[package]]
 name = "openai"
@@ -2907,16 +2907,16 @@ resolution-markers = [
     "python_full_version < '3.12'",
 ]
 dependencies = [
-    { name = "attrs", marker = "python_full_version < '3.12'" },
-    { name = "casbin-django-orm-adapter", marker = "python_full_version < '3.12'" },
-    { name = "django", marker = "python_full_version < '3.12'" },
-    { name = "djangorestframework", marker = "python_full_version < '3.12'" },
-    { name = "edx-api-doc-tools", marker = "python_full_version < '3.12'" },
-    { name = "edx-django-utils", marker = "python_full_version < '3.12'" },
-    { name = "edx-drf-extensions", marker = "python_full_version < '3.12'" },
-    { name = "edx-opaque-keys", marker = "python_full_version < '3.12'" },
-    { name = "openedx-atlas", marker = "python_full_version < '3.12'" },
-    { name = "pycasbin", marker = "python_full_version < '3.12'" },
+    { name = "attrs" },
+    { name = "casbin-django-orm-adapter" },
+    { name = "django" },
+    { name = "djangorestframework" },
+    { name = "edx-api-doc-tools" },
+    { name = "edx-django-utils" },
+    { name = "edx-drf-extensions" },
+    { name = "edx-opaque-keys" },
+    { name = "openedx-atlas" },
+    { name = "pycasbin" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/5e/81/fd684d3bb6578394615bf553aaf74c7f4378a12b10411c32ebaf2e4fdbab/openedx_authz-0.23.0.tar.gz", hash = "sha256:7926f3ba9d1303dc626900df9ce8f5fb6c91ef4d7bec67f1a93679301d16a5ec", size = 111285, upload-time = "2026-03-04T21:59:34.691Z" }
 wheels = [
@@ -2932,22 +2932,22 @@ resolution-markers = [
     "python_full_version == '3.12.*'",
 ]
 dependencies = [
-    { name = "attrs", marker = "python_full_version >= '3.12'" },
-    { name = "casbin-django-orm-adapter", marker = "python_full_version >= '3.12'" },
-    { name = "django", marker = "python_full_version >= '3.12'" },
-    { name = "django-crum", marker = "python_full_version >= '3.12'" },
-    { name = "django-waffle", marker = "python_full_version >= '3.12'" },
-    { name = "djangorestframework", marker = "python_full_version >= '3.12'" },
-    { name = "edx-api-doc-tools", marker = "python_full_version >= '3.12'" },
-    { name = "edx-ccx-keys", marker = "python_full_version >= '3.12'" },
-    { name = "edx-django-utils", marker = "python_full_version >= '3.12'" },
-    { name = "edx-drf-extensions", marker = "python_full_version >= '3.12'" },
-    { name = "edx-opaque-keys", marker = "python_full_version >= '3.12'" },
-    { name = "edx-organizations", marker = "python_full_version >= '3.12'" },
-    { name = "openedx-atlas", marker = "python_full_version >= '3.12'" },
-    { name = "openedx-events", version = "11.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "openedx-filters", marker = "python_full_version >= '3.12'" },
-    { name = "pycasbin", marker = "python_full_version >= '3.12'" },
+    { name = "attrs" },
+    { name = "casbin-django-orm-adapter" },
+    { name = "django" },
+    { name = "django-crum" },
+    { name = "django-waffle" },
+    { name = "djangorestframework" },
+    { name = "edx-api-doc-tools" },
+    { name = "edx-ccx-keys" },
+    { name = "edx-django-utils" },
+    { name = "edx-drf-extensions" },
+    { name = "edx-opaque-keys" },
+    { name = "edx-organizations" },
+    { name = "openedx-atlas" },
+    { name = "openedx-events", version = "11.2.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "openedx-filters" },
+    { name = "pycasbin" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f1/b0/97c94ddac94d484632e53394f265c7f0b2c281b4c4d0630a5539b1454125/openedx_authz-1.34.1.tar.gz", hash = "sha256:3db8ece49fa916d3fab282a98d29809ddb6af4d28878d6f83644634231562768", size = 830700, upload-time = "2026-10-22T21:59:57.111Z" }
 wheels = [
@@ -2993,13 +2993,13 @@ resolution-markers = [
     "python_full_version < '3.12'",
 ]
 dependencies = [
-    { name = "attrs", marker = "python_full_version < '3.12'" },
-    { name = "django", marker = "python_full_version < '3.12'" },
-    { name = "edx-ccx-keys", marker = "python_full_version < '3.12'" },
-    { name = "edx-django-utils", marker = "python_full_version < '3.12'" },
-    { name = "edx-opaque-keys", marker = "python_full_version < '3.12'" },
-    { name = "fastavro", marker = "python_full_version < '3.12'" },
-    { name = "setuptools", marker = "python_full_version < '3.12'" },
+    { name = "attrs" },
+    { name = "django" },
+    { name = "edx-ccx-keys" },
+    { name = "edx-django-utils" },
+    { name = "edx-opaque-keys" },
+    { name = "fastavro" },
+    { name = "setuptools" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0d/78/d11309c8a1c30d25ca8938688d29bb76fc0af508f9bb75396b3df2a1b5af/openedx_events-10.5.0.tar.gz", hash = "sha256:a31b1f0019204d826305b8ea311a040a16759e838194654df165ea866044b7a1", size = 77097, upload-time = "2025-08-21T04:12:28.708Z" }
 wheels = [
@@ -3015,13 +3015,13 @@ resolution-markers = [
     "python_full_version == '3.12.*'",
 ]
 dependencies = [
-    { name = "attrs", marker = "python_full_version >= '3.12'" },
-    { name = "django", marker = "python_full_version >= '3.12'" },
-    { name = "edx-ccx-keys", marker = "python_full_version >= '3.12'" },
-    { name = "edx-django-utils", marker = "python_full_version >= '3.12'" },
-    { name = "edx-opaque-keys", marker = "python_full_version >= '3.12'" },
-    { name = "fastavro", marker = "python_full_version >= '3.12'" },
-    { name = "setuptools", marker = "python_full_version >= '3.12'" },
+    { name = "attrs" },
+    { name = "django" },
+    { name = "edx-ccx-keys" },
+    { name = "edx-django-utils" },
+    { name = "edx-opaque-keys" },
+    { name = "fastavro" },
+    { name = "setuptools" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7c/8f/cc77bf1748e6c16125b04c47586b46fb43cac66f836780c73029db3393f8/openedx_events-11.2.0.tar.gz", hash = "sha256:b3216aeb959c3429c0091fa40ff8045322a0569a8cf36fa8910458f92923e472", size = 83833, upload-time = "2026-04-22T17:29:25.777Z" }
 wheels = [
@@ -3033,9 +3033,9 @@ name = "openedx-filters"
 version = "3.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "django", marker = "python_full_version >= '3.12'" },
-    { name = "edx-opaque-keys", marker = "python_full_version >= '3.12'" },
-    { name = "setuptools", marker = "python_full_version >= '3.12'" },
+    { name = "django" },
+    { name = "edx-opaque-keys" },
+    { name = "setuptools" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f6/47/5fb3f61dba5f21c1fc44ee4ead99592ee4f20dc423337455fd77befd3559/openedx_filters-3.16.0.tar.gz", hash = "sha256:af90a3203745f425394877b2ae5dda269953070f06fff0742aea3202b9cafb51", size = 253533, upload-time = "2026-10-16T14:05:21.323Z" }
 wheels = [
@@ -3326,18 +3326,19 @@ wheels = [
 
 [[package]]
 name = "prek"
-version = "0.5.4"
+version = "0.5.5"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/30/f1/8f3143530bf43fa82f8873f4e536f318b6143dd5c09171aba0d465e21f04/prek-0.5.4.tar.gz", hash = "sha256:7f5bc061880141e362ef422e52188d0090794c0622e442e3157686d1e342780a", size = 565182, upload-time = "2026-09-28T04:54:43.453Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9b/7b/11538b8e6cd7e269261feae62a2d08818fdcf8f43c3b1a253cec01a5488d/prek-0.5.5.tar.gz", hash = "sha256:16bf596768bb754779c7d42317e9ca16ac609c0cce7d13bae0829944ab40a26a", size = 570428, upload-time = "2026-10-05T06:08:59.165Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/78/a7/f3a4a252c0846c5846dd86118ee0c1fddb7381dc35e3d44c2a5f3cea1757/prek-0.5.4-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:550ecaae0601f9405526c866a57cc6882ed1e9d8696ac1117b8703bb37d087eb", size = 6011113, upload-time = "2026-09-28T04:54:28.107Z" },
-    { url = "https://files.pythonhosted.org/packages/1b/e3/26638cf090b620e63e60a639b8e7d7eb38b9fbea74a0827a182fc922cf8e/prek-0.5.4-py3-none-macosx_11_0_arm64.whl", hash = "sha256:a7ef67cc23e23c6e9c6ca0b27a7b12c19f16774d36b1c88ed035f2639995718d", size = 5534338, upload-time = "2026-09-28T04:54:30.214Z" },
-    { url = "https://files.pythonhosted.org/packages/a0/08/64b668eb088204650b96183cea739b56e6b179130c4398a8a83cbe9b125a/prek-0.5.4-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.musllinux_1_1_aarch64.whl", hash = "sha256:59f2206850f643bafe46b28b4431525f8dcc5b7a763f271179bff10b8157870d", size = 5840937, upload-time = "2026-09-28T04:54:32.226Z" },
-    { url = "https://files.pythonhosted.org/packages/1f/ee/a0f847194eb6a2b67921b4c94c4fbf3f33a785affb190c6a2097344dbdd6/prek-0.5.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7d5b0cab1219a7bc9cc90785c7436f563765440616543ede7dfa3ba5c332cede", size = 6234354, upload-time = "2026-09-28T04:54:34.176Z" },
-    { url = "https://files.pythonhosted.org/packages/32/9a/14186d90ed29b46650452068d6bd1ac233ca0ea41a3b35081c37f6b77b1c/prek-0.5.4-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:8fc22db8132dab9aed4e152bf6a58a7f791f4c91c74305d65d96c48b8ec0bc62", size = 5845649, upload-time = "2026-09-28T04:54:36.252Z" },
-    { url = "https://files.pythonhosted.org/packages/e0/88/ff5bbbada4098f59740ab767f5c2f82d4110b90ea7db309a9bcf21f3dcb9/prek-0.5.4-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:19d4f3986dcd1dfa15f9417e32a75fb2ba084156dbd7ace161f0764281b8064b", size = 6351516, upload-time = "2026-09-28T04:54:38.539Z" },
-    { url = "https://files.pythonhosted.org/packages/c8/1a/0cc410232ef42750b3bf34babd6def4a3943ec98259d9fecda3b26fcd63f/prek-0.5.4-py3-none-win_amd64.whl", hash = "sha256:3100233ba802eff6a4b09bc045c8f50d599bb9d810fa234823bc1642938b224f", size = 5755956, upload-time = "2026-09-28T04:54:40.227Z" },
-    { url = "https://files.pythonhosted.org/packages/98/78/3fd53cc54468db37462885d3139eae40bb469d51beae4575c986b190ab6e/prek-0.5.4-py3-none-win_arm64.whl", hash = "sha256:9fc4ad2d647f70a8a3a9900849e1dd89472cf5a71d830f083b62cf87a0406e27", size = 5502478, upload-time = "2026-09-28T04:54:41.973Z" },
+    { url = "https://files.pythonhosted.org/packages/2e/77/189e554ea92baf6c1d33733b3e9d1ed819ab7d77e57eb2e3ead0bb1d8060/prek-0.5.5-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:50fbceb0f728b504023f6e6c9037ac0656436949d94f7a85bac5542e6c1a4a75", size = 6038669, upload-time = "2026-10-05T06:08:39.368Z" },
+    { url = "https://files.pythonhosted.org/packages/63/ea/fc857c6b3f1e3fdb4d81bdca2051076de82e986cb1455a01b351ac7a5cd1/prek-0.5.5-py3-none-macosx_11_0_arm64.whl", hash = "sha256:2f610927b95e84b28173a4c810892a7b5d5bb55bee792ddf97178fa97654633e", size = 5548955, upload-time = "2026-10-05T06:08:41.428Z" },
+    { url = "https://files.pythonhosted.org/packages/47/c3/2bab54f6393fb9f247225681d476086e24fa6242f329e9ca1e5bd638ec50/prek-0.5.5-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.musllinux_1_1_aarch64.whl", hash = "sha256:120ef7d4b6bb58155e74827743c266e48501efb0e4c37ff726b14fe6e86a126b", size = 5848228, upload-time = "2026-10-05T06:08:44.051Z" },
+    { url = "https://files.pythonhosted.org/packages/aa/f9/1279e1c83819de5904db1a09f4afc589932a2e62c7063713b1fe3a54ee46/prek-0.5.5-py3-none-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:2f6c453a12c21757b23bbbc97415aef78527841ad3f9e61f52cb35cf012f93e5", size = 6371296, upload-time = "2026-10-05T06:08:46.278Z" },
+    { url = "https://files.pythonhosted.org/packages/93/fc/e566be5919eaffef4cc22488f16e4bbfd08961734bd67c06f85d405e4cbc/prek-0.5.5-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:73d509c0d9556171de2502bada4962be7a25871e7b23e782549074e1416dc850", size = 6269922, upload-time = "2026-10-05T06:08:48.645Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/39/a48d8e6203055bff7bb734b1f2f9aede4a4539bee6ab4c9273dbc01fa546/prek-0.5.5-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:76c867fdbd4e4f19e6b6b2988bd1e1407d1324170ebcf1428e4e34f8f0751a99", size = 5861518, upload-time = "2026-10-05T06:08:50.808Z" },
+    { url = "https://files.pythonhosted.org/packages/b7/03/690fba9543033e25ea2e7b2ae1cca1ae8d8c2e32295f0d66f4b50934b8c7/prek-0.5.5-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:c69f60c2b3b4d481e38d0eab3b97ac05ec05d7648ae690925ae95ca9d22c7643", size = 6383685, upload-time = "2026-10-05T06:08:52.868Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/04/1e9ccf3a61a3bfd4107b83973f7afde9177b6ff8f2d5d4b00125e77c2100/prek-0.5.5-py3-none-win_amd64.whl", hash = "sha256:15bff9039349466ea9bf6b0c173b822ff08f8ae4cfbfdea782492e519c06d874", size = 5784759, upload-time = "2026-10-05T06:08:55.056Z" },
+    { url = "https://files.pythonhosted.org/packages/41/d9/bb6811e438d3c74d26cb5d72e6343606e0a7a6283fee87521189f4ba1191/prek-0.5.5-py3-none-win_arm64.whl", hash = "sha256:3db3191d2509830c75438e20956a47c2259867d18a4106064ed75088b968a0c6", size = 5517355, upload-time = "2026-10-05T06:08:57.193Z" },
 ]
 
 [[package]]
@@ -4960,16 +4961,16 @@ resolution-markers = [
     "python_full_version < '3.12'",
 ]
 dependencies = [
-    { name = "fs", marker = "python_full_version < '3.12'" },
-    { name = "lxml", marker = "python_full_version < '3.12'" },
-    { name = "mako", marker = "python_full_version < '3.12'" },
-    { name = "markupsafe", marker = "python_full_version < '3.12'" },
-    { name = "python-dateutil", marker = "python_full_version < '3.12'" },
-    { name = "pytz", marker = "python_full_version < '3.12'" },
-    { name = "pyyaml", marker = "python_full_version < '3.12'" },
-    { name = "simplejson", marker = "python_full_version < '3.12'" },
-    { name = "web-fragments", marker = "python_full_version < '3.12'" },
-    { name = "webob", marker = "python_full_version < '3.12'" },
+    { name = "fs" },
+    { name = "lxml" },
+    { name = "mako" },
+    { name = "markupsafe" },
+    { name = "python-dateutil" },
+    { name = "pytz" },
+    { name = "pyyaml" },
+    { name = "simplejson" },
+    { name = "web-fragments" },
+    { name = "webob" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/a4/f30f817128316505cb80c8397f00fa7f1eb2721799f181813497e5ee9893/xblock-6.1.0.tar.gz", hash = "sha256:245d791172925e50e33a56cc359176fa588584c09885e1eac59faf118e7b9ed2", size = 129642, upload-time = "2026-04-20T09:27:32.364Z" }
 wheels = [
@@ -4978,8 +4979,8 @@ wheels = [
 
 [package.optional-dependencies]
 django = [
-    { name = "lazy", marker = "python_full_version < '3.12'" },
-    { name = "openedx-django-pyfs", marker = "python_full_version < '3.12'" },
+    { name = "lazy" },
+    { name = "openedx-django-pyfs" },
 ]
 
 [[package]]
@@ -4991,16 +4992,16 @@ resolution-markers = [
     "python_full_version == '3.12.*'",
 ]
 dependencies = [
-    { name = "edx-opaque-keys", marker = "python_full_version >= '3.12'" },
-    { name = "fs", marker = "python_full_version >= '3.12'" },
-    { name = "lxml", marker = "python_full_version >= '3.12'" },
-    { name = "mako", marker = "python_full_version >= '3.12'" },
-    { name = "markupsafe", marker = "python_full_version >= '3.12'" },
-    { name = "python-dateutil", marker = "python_full_version >= '3.12'" },
-    { name = "pytz", marker = "python_full_version >= '3.12'" },
-    { name = "pyyaml", marker = "python_full_version >= '3.12'" },
-    { name = "simplejson", marker = "python_full_version >= '3.12'" },
-    { name = "webob", marker = "python_full_version >= '3.12'" },
+    { name = "edx-opaque-keys" },
+    { name = "fs" },
+    { name = "lxml" },
+    { name = "mako" },
+    { name = "markupsafe" },
+    { name = "python-dateutil" },
+    { name = "pytz" },
+    { name = "pyyaml" },
+    { name = "simplejson" },
+    { name = "webob" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/78/06/832185c6237bf1f399a06867f9e208202330b896ee0a541943875cfdf5fd/xblock-6.3.3.tar.gz", hash = "sha256:b3bbf4f0f9516e40262d1d154a4364f8b21681e0dcab160135be5cc7445505f5", size = 1213083, upload-time = "2026-09-01T15:20:08.579Z" }
 wheels = [
@@ -5009,8 +5010,8 @@ wheels = [
 
 [package.optional-dependencies]
 django = [
-    { name = "lazy", marker = "python_full_version >= '3.12'" },
-    { name = "openedx-django-pyfs", marker = "python_full_version >= '3.12'" },
+    { name = "lazy" },
+    { name = "openedx-django-pyfs" },
 ]
 
 [[package]]
