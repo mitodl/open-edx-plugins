@@ -2,7 +2,7 @@
 Helper functions for canvas integration tasks
 """
 
-import datetime
+import datetime as dt
 from time import time
 
 import pytz
@@ -60,12 +60,12 @@ def get_filtered_instructor_tasks(course_id, user):
     task types
     """
     instructor_tasks = get_running_instructor_tasks(course_id)
-    now = datetime.datetime.now(pytz.utc)
+    now = dt.datetime.now(pytz.utc)
     filtered_tasks = InstructorTask.objects.filter(
         course_id=course_id,
         task_type__in=CANVAS_TASK_TYPES,
         updated__lte=now,
-        updated__gte=now - datetime.timedelta(days=2),
+        updated__gte=now - dt.timedelta(days=2),
         requester=user,
     ).order_by("-updated")
 
