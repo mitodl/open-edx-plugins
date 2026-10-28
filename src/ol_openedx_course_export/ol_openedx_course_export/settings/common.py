@@ -3,3 +3,5 @@
 
 def plugin_settings(settings):
     """Settings for the course export s3 location plugin."""  # noqa: D401
+    env_tokens = getattr(settings, "ENV_TOKENS", {})
+    settings.COURSE_EXPORT_CELERY_QUEUE = env_tokens.get("COURSE_EXPORT_CELERY_QUEUE")

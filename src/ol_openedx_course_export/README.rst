@@ -33,6 +33,15 @@ Configuration
     AWS_SECRET_ACCESS_KEY: <your api access key>
     COURSE_IMPORT_EXPORT_BUCKET: <bucket name to export the courses to>
 
+- Optionally route S3 export tasks to their own Celery queue. Exports take a
+  while, so on the default queue they hold up other Studio tasks. Unset,
+  exports use edx-platform's default routing. A worker must consume the queue,
+  or exports wait there indefinitely.
+
+  .. code-block::
+
+    COURSE_EXPORT_CELERY_QUEUE: "edx.cms.core.course_export"
+
 - For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
 How To Use

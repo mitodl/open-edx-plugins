@@ -13,6 +13,15 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.5.0]
+~~~~~~~
+
+Added
+_____
+
+* ``COURSE_EXPORT_CELERY_QUEUE`` routes S3 export tasks to their own Celery
+  queue. Unset, exports keep edx-platform's default routing.
+
 [0.4.3]
 ~~~~~~~
 
