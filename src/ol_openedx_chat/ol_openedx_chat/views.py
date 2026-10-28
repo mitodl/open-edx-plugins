@@ -38,11 +38,11 @@ class ContactUsEnabledView(APIView):
     # Emptied so an expired cookie can't 401 a fail-closed client into hiding the
     # launcher. Waffle still sees the session user via crum, so a flag left on its
     # per-user path is still evaluated per user.
-    authentication_classes = []
+    authentication_classes: list = []
     permission_classes = [AllowAny]
     # A 429 is indistinguishable from "off" to a fail-closed client, so throttling
     # this endpoint would turn a rate limit into a feature outage.
-    throttle_classes = []
+    throttle_classes: list = []
 
     @method_decorator(cache_control(public=True, max_age=60))
     def get(self, request, course_key_string=None):  # noqa: ARG002
