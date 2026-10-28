@@ -32,7 +32,7 @@ def get_ol_openedx_chat_enabled_flag():
 # .. toggle_description: Shows the Contact us launcher in the Open edX MFEs.
 # .. toggle_use_cases: open_edx
 # .. toggle_creation_date: 2026-10-28
-# .. toggle_tickets: https://github.com/mitodl/hq/issues/13992
+# .. toggle_tickets: https://github.com/mitodl/hq/issues/14033
 # .. toggle_warning: None.
 CONTACT_US_ENABLED = "contact_us_enabled"
 
