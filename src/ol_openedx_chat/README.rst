@@ -132,13 +132,22 @@ The Contact us launcher rendered by the MFE footer is gated on the
 ``/ol-openedx-chat/api/contact-us-enabled/`` (optionally with a course key
 appended). The endpoint is unauthenticated and returns ``{"enabled": <bool>}``.
 
-* Site-wide: set the flag's ``everyone`` to on or off. Always set it explicitly —
-  leaving it unset puts waffle on its per-user cookie path and re-enables the
-  launcher for superusers.
+* Site-wide: the flag's ``everyone`` value. Always set it explicitly — leaving it
+  unset puts waffle on its per-user path, where ``superusers`` defaults to true,
+  so an unset flag shows the launcher to every superuser.
 * Per course: add a ``WaffleFlagCourseOverrideModel`` row in Django admin. Course
   overrides beat org overrides, which beat the site-wide value.
 * To remove an override, add a new row with ``enabled`` unchecked. These are
-  ``ConfigurationModel`` records, so they are append-only and cannot be deleted.
+  ``ConfigurationModel`` records, so Django admin offers no delete action.
+
+On deployments managed by ol-infrastructure, ``everyone`` is owned by Pulumi:
+``set_waffle_flags.py`` runs as a pre-deploy job on **every** edxapp rollout and
+re-applies ``edxapp:waffle_flags``, resetting ``everyone`` and the other flag
+fields it parses. Flipping the flag in Django admin takes effect immediately but
+is reverted by the next deploy, including an unrelated one. For an immediate
+kill, flip it in admin and then open a Pulumi PR to make it stick. Course
+override rows are not touched by that job, so they are the durable per-course
+lever.
 
 Clients treat anything other than an explicit ``true`` as off, so an unreachable
 LMS hides the launcher rather than showing it.

@@ -35,8 +35,9 @@ class ContactUsEnabledView(APIView):
         }
     """
 
-    # Emptied so the view itself never reads the session: the answer is the same
-    # for every learner, and a 401 from an expired cookie would read as "off".
+    # Emptied so an expired cookie can't 401 a fail-closed client into hiding the
+    # launcher. Waffle still sees the session user via crum, so a flag left on its
+    # per-user path is still evaluated per user.
     authentication_classes = []
     permission_classes = [AllowAny]
     # A 429 is indistinguishable from "off" to a fail-closed client, so throttling
