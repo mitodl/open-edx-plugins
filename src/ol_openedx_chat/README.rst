@@ -124,6 +124,25 @@ LMS Chat Drawer View
 ----------------------------------
 If you want to disable it for a few videos/problems then you disable the ``Enable AI Chat Assistant`` checkbox against the block in CMS.
 
+Contact us launcher flag
+========================
+
+The Contact us launcher rendered by the MFE footer is gated on the
+``ol_openedx_chat.contact_us_enabled`` course waffle flag, read over
+``/ol-openedx-chat/api/contact-us-enabled/`` (optionally with a course key
+appended). The endpoint is unauthenticated and returns ``{"enabled": <bool>}``.
+
+* Site-wide: set the flag's ``everyone`` to on or off. Always set it explicitly —
+  leaving it unset puts waffle on its per-user cookie path and re-enables the
+  launcher for superusers.
+* Per course: add a ``WaffleFlagCourseOverrideModel`` row in Django admin. Course
+  overrides beat org overrides, which beat the site-wide value.
+* To remove an override, add a new row with ``enabled`` unchecked. These are
+  ``ConfigurationModel`` records, so they are append-only and cannot be deleted.
+
+Clients treat anything other than an explicit ``true`` as off, so an unreachable
+LMS hides the launcher rather than showing it.
+
 Translations
 ============
 
