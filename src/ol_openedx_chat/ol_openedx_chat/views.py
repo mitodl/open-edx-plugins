@@ -36,8 +36,9 @@ class ContactUsEnabledView(APIView):
     """
 
     # Emptied so an expired cookie can't 401 a fail-closed client into hiding the
-    # launcher. Waffle still sees the session user via crum, so a flag left on its
-    # per-user path is still evaluated per user.
+    # launcher. The cost: DRF marks the request anonymous, so waffle's per-user
+    # fields (authenticated/staff/superusers) never match here. Drive the flag from
+    # `everyone` and course overrides.
     authentication_classes: list = []
     permission_classes = [AllowAny]
     # A 429 is indistinguishable from "off" to a fail-closed client, so throttling

@@ -132,12 +132,15 @@ The Contact us launcher rendered by the MFE footer is gated on the
 ``/ol-openedx-chat/api/contact-us-enabled/`` (optionally with a course key
 appended). The endpoint is unauthenticated and returns ``{"enabled": <bool>}``.
 
-* Site-wide: the flag's ``everyone`` value, which is the only flag field that can
-  turn the launcher on. The endpoint declares no authentication classes, so DRF
-  resolves the caller to ``AnonymousUser`` and writes that back onto the Django
-  request that crum hands to ``CourseWaffleFlag``. ``superusers``, ``staff`` and
-  ``authenticated`` therefore never match, even for a signed-in superuser. A null
-  ``everyone`` leaves the launcher off, so set it explicitly.
+* Site-wide: the flag's ``everyone`` value. The endpoint declares no
+  authentication classes, so DRF resolves the caller to ``AnonymousUser`` and
+  writes that back onto the Django request that crum hands to
+  ``CourseWaffleFlag``. ``superusers``, ``staff`` and ``authenticated`` therefore
+  never match, even for a signed-in superuser. The caller-independent fields
+  waffle falls through to — ``testing``, ``languages`` and ``percent`` — are still
+  evaluated, so a stray ``percent`` or ``languages`` value turns the launcher on
+  for everyone. ``waffle_flag --create`` leaves every field unset, which reads as
+  off; set ``everyone`` explicitly rather than relying on that.
 * Per course: add a ``WaffleFlagCourseOverrideModel`` row in Django admin. Course
   overrides beat org overrides, which beat the site-wide value.
 * To remove an override, add a new row with ``enabled`` unchecked. These are

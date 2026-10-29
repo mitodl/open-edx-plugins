@@ -1,6 +1,8 @@
 """Tests for the ContactUsEnabledView API view."""
 
 import pytest
+from crum import CurrentRequestUserMiddleware
+from django.contrib.auth import get_user_model
 from edx_django_utils.cache import RequestCache
 from edx_toggles.toggles.testutils import override_waffle_flag
 from ol_openedx_chat.compat import get_contact_us_enabled_flag
@@ -12,6 +14,7 @@ from openedx.core.djangoapps.waffle_utils.models import (
 )
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from waffle.models import Flag
 
 COURSE_KEY_STRING = "course-v1:edX+DemoX+2024"
 OTHER_COURSE_KEY_STRING = "course-v1:edX+OtherX+2024"
@@ -154,6 +157,39 @@ def test_anonymous_request_succeeds(request_factory):
     response.render()
     assert response.status_code == status.HTTP_200_OK
     assert response.data == {"enabled": False}
+
+
+@pytest.mark.django_db
+def test_signed_in_superuser_does_not_flip_a_per_user_flag(request_factory):
+    """The README and the Pulumi PR both promise this; nothing pinned it.
+
+    Emptying `authentication_classes` makes DRF write `AnonymousUser` onto the
+    HttpRequest that crum hands to `CourseWaffleFlag`, so waffle's per-user
+    fields cannot match. Driven through crum's real middleware and a real Flag
+    row, because `override_waffle_flag` would patch out the fallthrough being
+    tested.
+    """
+    Flag.objects.create(
+        name=get_contact_us_enabled_flag().name,
+        everyone=None,
+        superusers=True,
+        staff=True,
+        authenticated=True,
+    )
+    request = request_factory.get("/")
+    request.user = get_user_model().objects.create_superuser(
+        username="super",
+        email="super@example.com",
+        password="x",  # noqa: S106
+    )
+
+    RequestCache.clear_all_namespaces()
+    response = CurrentRequestUserMiddleware(ContactUsEnabledView.as_view())(request)
+    response.render()
+
+    assert response.data == {"enabled": False}
+    # The write-through is the mechanism, so assert it rather than infer it.
+    assert request.user.is_anonymous
 
 
 @pytest.mark.django_db
