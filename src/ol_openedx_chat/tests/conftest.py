@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.fixtures import request_factory  # noqa: F401
+
 BASE_DIR = Path(__file__).parent.absolute()
 
 
