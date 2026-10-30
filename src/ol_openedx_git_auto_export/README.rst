@@ -41,6 +41,15 @@ Configuration
         'email': 'STUDIO_EXPORT_TO_GIT@example.com'
     }
 
+- Optionally route export tasks to their own Celery queue. Exports take tens of
+  seconds, so on the default queue they hold up Studio's short publish tasks.
+  Unset, exports use edx-platform's default routing. A worker must consume the
+  queue, or exports wait there indefinitely.
+
+  .. code-block::
+
+    GIT_AUTO_EXPORT_CELERY_QUEUE: "edx.cms.core.git_export"
+
 - Restart the server using ``make studio-restart`` on Devstack or ``tutor dev/local restart openedx`` on Tutor.
 - For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 
@@ -124,7 +133,8 @@ Re-exporting Without a Publish
 ==============================
 
 Courses are exported only when published and libraries only when updated, so
-content whose export failed stays stale in git until its next change. To queue
+content whose export failed stays stale in git until its next change. A failed
+export fails its Celery task, so it shows in task metrics; it is not retried. To queue
 an export on demand, fix whatever made the export fail, then use either:
 
 - The ``Export selected content to git`` action on the Content Git Repositories
