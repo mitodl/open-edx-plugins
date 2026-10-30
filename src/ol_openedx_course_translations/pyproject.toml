@@ -14,7 +14,7 @@ dependencies = [
   "azure-identity>=1.25.0",
   "Django>=5.2",
   "djangorestframework>=3.16.0",
-  "litellm==1.88.6",
+  "litellm==1.95.0",
   "srt>=3.5.3",
   "edx-opaque-keys",
 ]
