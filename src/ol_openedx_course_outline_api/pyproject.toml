@@ -1,6 +1,6 @@
 [project]
 name = "ol-openedx-course-outline-api"
-version = "0.2.0"
+version = "0.2.1"
 description = "An Open edX plugin to add API for course outline (modules) for the Learn product page"
 authors = [
   {name = "MIT Office of Digital Learning"}
@@ -9,6 +9,7 @@ license = "BSD-3-Clause"
 readme = "README.rst"
 requires-python = ">=3.11"
 dependencies = [
+  "certifi>=2026.10.19",
   "Django>=5.2",
   "djangorestframework>=3.16.0",
   "edx-django-utils>=8.0.0",
