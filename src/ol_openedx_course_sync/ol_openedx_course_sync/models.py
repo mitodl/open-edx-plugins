@@ -75,7 +75,11 @@ class CourseSyncMapping(models.Model):
         """
         super().clean()
 
-        if self.source_course and self.source_course == self.target_course:
+        # Course keys are case-insensitive in Studio and MySQL, so compare them that way
+        if (
+            self.source_course
+            and str(self.source_course).lower() == str(self.target_course).lower()
+        ):
             raise ValidationError(
                 {"target_course": "Target course cannot be the same as source course"}
             )

@@ -117,16 +117,20 @@ def test_course_sync_mapping_clean(
 
 @skip_unless_cms
 @pytest.mark.django_db
-def test_course_sync_mapping_same_source_and_target():
+@pytest.mark.parametrize(
+    "target_course",
+    ["course-v1:edX+DemoX+2034", "course-v1:edx+demox+2034"],
+)
+def test_course_sync_mapping_same_source_and_target(target_course):
     """
-    A course cannot be mapped to itself.
+    A course cannot be mapped to itself, regardless of key case.
     """
     course_key = CourseLocator.from_string("course-v1:edX+DemoX+2034")
     CourseOverviewFactory.create(id=course_key)
 
     with pytest.raises(ValidationError) as context:
         CourseSyncMapping.objects.create(
-            source_course=course_key, target_course=course_key
+            source_course=course_key, target_course=target_course
         )
     assert "same as source course" in str(context.value.error_dict["target_course"])
     assert not CourseSyncMapping.objects.exists()
