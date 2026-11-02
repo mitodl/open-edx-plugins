@@ -45,6 +45,10 @@ FEEDBACK_REBUILD_RESPONSES = (
 )
 FEEDBACK_PROPERTIES = ("msg", "hint", "hintmode")
 
+# What the course pages outside the unit show: block and course names, and
+# grading type names.
+NAME_FIELDS = ("display_name", GRADER_LABELS_FIELD)
+
 # Source values of the fields translate_block replaced on a block instance.
 ORIGINAL_VALUES_ATTR = "_ol_translation_original_values"
 
@@ -74,26 +78,35 @@ def plain_key(key):
     return key
 
 
-def course_translations(course_key):
+def course_translations(course_key, fields=None, block_type=None):
     """
     Return ``{usage_key: {field: (source_hash, value)}}`` for the learner's language.
 
-    Empty when the course is not in in-place translations mode. Loaded once per
-    request, course and language.
+    Only ``fields``, or only blocks of ``block_type``, are loaded when given, so a
+    page does not load every block's translated HTML and problem XML when it
+    shows names or a few blocks. Empty when the course is not in in-place
+    translations mode. Loaded once per request for each set of arguments.
     """
     language = get_language()
     course_key = plain_key(course_key)
     if not language or not in_place_translations_enabled(course_key):
         return {}
     cache = RequestCache("ol_openedx_auto_select_language.translations")
-    cache_key = f"{course_key}:{language}"
+    cache_key = f"{course_key}:{language}:{','.join(fields or ())}:{block_type or ''}"
     cached = cache.get_cached_response(cache_key)
     if cached.is_found:
         return cached.value
     translations = {}
     rows = BlockTranslation.objects.filter(
         course_key=course_key, language=language, status__in=SERVABLE_STATUSES
-    ).values_list("usage_key", "field", "source_hash", "translated_value")
+    )
+    if fields:
+        rows = rows.filter(field__in=fields)
+    if block_type:
+        # Every key of the type starts with this; the unique index leads with it.
+        prefix = str(course_key.make_usage_key(block_type, "x")).removesuffix("x")
+        rows = rows.filter(usage_key__startswith=prefix)
+    rows = rows.values_list("usage_key", "field", "source_hash", "translated_value")
     for usage_key, field, row_hash, value in rows:
         translations.setdefault(usage_key, {})[field] = (row_hash, value)
     cache.set(cache_key, translations)
@@ -109,7 +122,7 @@ def grader_labels(course_key):
     """
     course_key = plain_key(course_key)
     row_hash, value = (
-        course_translations(course_key)
+        course_translations(course_key, NAME_FIELDS)
         .get(course_key.make_usage_key("course", "course"), {})
         .get(GRADER_LABELS_FIELD, (None, None))
     )
@@ -203,7 +216,9 @@ def translate_block(block):
     fields = TRANSLATABLE_BLOCK_FIELDS.get(block_type)
     if not fields or handler_needs_source_text(block):
         return
-    rows = course_translations(usage_key.course_key).get(usage_key)
+    rows = course_translations(usage_key.course_key, block_type=block_type).get(
+        usage_key
+    )
     if not rows:
         return
     for name in fields:
