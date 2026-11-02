@@ -5,9 +5,9 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.utils.translation import gettext as _
 from openedx_filters import PipelineStep
-from rapid_response_xblock.utils import get_run_data_for_course
 
 from ol_openedx_rapid_response_reports.constants import RAPID_RESPONSE_TAB_ID
+from ol_openedx_rapid_response_reports.utils import is_rapid_response_enabled_for_course
 
 
 def build_instructor_dashboard_tab_url(course_key, tab_id):
@@ -29,10 +29,9 @@ class AddRapidResponseInstructorTab(PipelineStep):
     Add a "Rapid Responses" tab to the instructor dashboard MFE.
 
     Hooks into the ``InstructorDashboardTabsRequested`` filter
-    (``org.openedx.learning.instructor.dashboard.tabs.requested.v1``). There is no
-    course-level setting for rapid response, so the tab is only appended for
-    courses that have at least one rapid response run, mirroring the legacy
-    ``context_api.plugin_context``.
+    (``org.openedx.learning.instructor.dashboard.tabs.requested.v1``). The tab is
+    only appended for courses with rapid response enabled on at least one problem,
+    mirroring the legacy ``context_api.plugin_context``.
 
     The tab ``url`` is an MFE-internal (root-relative) path so the instructor
     dashboard renders the page registered in the routes slot
@@ -43,7 +42,7 @@ class AddRapidResponseInstructorTab(PipelineStep):
         already_present = any(
             tab.get("tab_id") == RAPID_RESPONSE_TAB_ID for tab in tabs
         )
-        if not already_present and get_run_data_for_course(course_key).exists():
+        if not already_present and is_rapid_response_enabled_for_course(course_key):
             # Append after every tab currently in the list so the tab always lands
             # at the end, regardless of the built-in tabs' own sort_order values.
             next_sort_order = (
