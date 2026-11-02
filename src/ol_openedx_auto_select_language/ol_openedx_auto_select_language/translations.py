@@ -3,6 +3,7 @@
 import html
 import logging
 import re
+from contextlib import contextmanager
 
 from crum import get_current_request
 from django.conf import settings
@@ -263,6 +264,29 @@ def refresh_problem_feedback(block):
     ):
         return
     lcp = block.lcp
+    # Grading again emits the learner's hint events; the learner did nothing.
+    with _events_not_published(block.runtime):
+        _rebuild_feedback(block, lcp)
+    _set_in_memory(block, "correct_map", lcp.correct_map.get_dict())
+
+
+@contextmanager
+def _events_not_published(runtime):
+    """Drop the events the runtime publishes inside the ``with`` statement."""
+    own = "publish" in vars(runtime)
+    original = runtime.publish
+    runtime.publish = lambda *_args, **_kwargs: None
+    try:
+        yield
+    finally:
+        if own:
+            runtime.publish = original
+        else:
+            del runtime.publish
+
+
+def _rebuild_feedback(block, lcp):
+    """Put feedback rebuilt from the shown problem text into ``lcp.correct_map``."""
     answers = convert_files_to_filenames(lcp.student_answers)
     for responder in lcp.responders.values():
         hintgroup = responder.xml.find("hintgroup")
@@ -291,7 +315,6 @@ def refresh_problem_feedback(block):
                 continue
             for name in FEEDBACK_PROPERTIES:
                 lcp.correct_map.set_property(aid, name, rebuilt.get_property(aid, name))
-    _set_in_memory(block, "correct_map", lcp.correct_map.get_dict())
 
 
 def _set_in_memory(block, name, value):
