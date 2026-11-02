@@ -143,6 +143,7 @@ CAPA_KEEP_ATTRIBUTES = {
     "partial_range",
     "parts",
     "point_value",
+    "points",  # an input's scoring weight
     "preprocessorClassName",
     "preprocessorSrc",
     "queuename",

@@ -825,3 +825,16 @@ def test_annotation_comments_are_translation_units():
     assert "Read this twice." in units
     assert {"Note", "The passage.", "Text"} <= set(units)
     assert not {"0", "yellow", "not a comment"} & set(units)
+
+
+def test_restore_capa_keeps_the_source_input_points():
+    source = (
+        '<problem><customresponse cfn="check"><textline points="1"/>'
+        '<textline points="1"/><textline/></customresponse></problem>'
+    )
+    translated = (
+        '<problem><customresponse cfn="check"><textline points="9"/>'
+        '<textline points="1"/><textline points="5"/></customresponse></problem>'
+    )
+
+    assert restore_capa(source, translated) == source
