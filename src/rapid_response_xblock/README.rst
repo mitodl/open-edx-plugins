@@ -159,7 +159,7 @@ After you’ve installed
 `ol-openedx-rapid-response-reports <https://github.com/mitodl/open-edx-plugins/tree/main/src/ol_openedx_rapid_response_reports>`__,
 visit ``Rapid Responses`` under the ``Instructor Dashboard``. The tab only
 appears in courses where rapid response is enabled for at least one
-problem (see Usage above). If you still
+problem (see Usage above), or that have past rapid response runs. If you still
 don’t see the ``Rapid Responses`` tab, please check that the plugins are
 installed properly. |Screenshot of Rapid Response reports|
 

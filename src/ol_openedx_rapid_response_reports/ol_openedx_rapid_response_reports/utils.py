@@ -1,4 +1,5 @@
 from django.core.cache import cache
+from rapid_response_xblock.utils import get_run_data_for_course
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_rapid_response_reports.constants import (
@@ -51,3 +52,16 @@ def is_rapid_response_enabled_for_course(course_key):
         )
         cache.set(cache_key, enabled, RAPID_RESPONSE_ENABLED_CACHE_TIMEOUT)
     return enabled
+
+
+def should_show_rapid_response_tab(course_key):
+    """
+    Return True if the instructor dashboard should show the Rapid Responses tab.
+
+    The tab is shown while rapid response is enabled for a problem in the course,
+    and also once the course has any run, so reports for past runs stay reachable
+    after rapid response is switched off again.
+    """
+    return get_run_data_for_course(
+        course_key=course_key
+    ).exists() or is_rapid_response_enabled_for_course(course_key)

@@ -5,9 +5,11 @@ from django.core.cache import cache
 from ol_openedx_rapid_response_reports.constants import RAPID_RESPONSE_ASIDE_TYPE
 from ol_openedx_rapid_response_reports.utils import (
     is_rapid_response_enabled_for_course,
+    should_show_rapid_response_tab,
 )
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.djangolib.testing.utils import skip_unless_lms
+from rapid_response_xblock.models import RapidResponseRun
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.modulestore.tests.factories import BlockFactory, CourseFactory
@@ -56,3 +58,18 @@ class IsRapidResponseEnabledForCourseTests(ModuleStoreTestCase):
     def test_unknown_course(self):
         course_key = CourseKey.from_string("course-v1:org+missing+run")
         assert is_rapid_response_enabled_for_course(course_key) is False
+
+    def test_show_tab_when_enabled(self):
+        self._set_enabled(enabled=True)
+        assert should_show_rapid_response_tab(self.course.id) is True
+
+    def test_show_tab_for_past_runs(self):
+        """Reports stay reachable after rapid response is switched off again"""
+        RapidResponseRun.objects.create(
+            problem_usage_key=self.problem.location, course_key=self.course.id
+        )
+        assert is_rapid_response_enabled_for_course(self.course.id) is False
+        assert should_show_rapid_response_tab(self.course.id) is True
+
+    def test_hide_tab_when_never_used(self):
+        assert should_show_rapid_response_tab(self.course.id) is False

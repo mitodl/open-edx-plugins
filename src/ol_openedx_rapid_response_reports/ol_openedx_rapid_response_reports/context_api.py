@@ -6,14 +6,14 @@ from django.utils.translation import gettext as _
 from rapid_response_xblock.utils import get_run_data_for_course
 from web_fragments.fragment import Fragment
 
-from ol_openedx_rapid_response_reports.utils import is_rapid_response_enabled_for_course
+from ol_openedx_rapid_response_reports.utils import should_show_rapid_response_tab
 
 
 def plugin_context(context):
     """Provide data for the rapid responses dashboard section"""
     course_key = context["course"].id
-    # Only show the section for courses that use rapid response on some problem
-    if not is_rapid_response_enabled_for_course(course_key):
+    # Only show the section for courses that use, or have used, rapid response
+    if not should_show_rapid_response_tab(course_key):
         return context
 
     sections = context.get("sections", [])

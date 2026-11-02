@@ -12,14 +12,14 @@ COURSE_KEY = CourseKey.from_string("course-v1:org+course+run")
 
 @pytest.mark.parametrize("is_enabled", [True, False])
 def test_plugin_context(is_enabled):
-    """The section is only added for courses with rapid response enabled."""
+    """The section is only added for courses that use rapid response."""
     context = {
         "course": SimpleNamespace(id=COURSE_KEY),
         "sections": [{"section_key": "course_info"}],
     }
     with (
         patch(
-            "ol_openedx_rapid_response_reports.context_api.is_rapid_response_enabled_for_course",
+            "ol_openedx_rapid_response_reports.context_api.should_show_rapid_response_tab",
             return_value=is_enabled,
         ) as mock_is_enabled,
         patch(
