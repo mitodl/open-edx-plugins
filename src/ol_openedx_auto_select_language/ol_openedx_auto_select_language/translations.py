@@ -187,9 +187,9 @@ def translate_block(block):
     Seeding the cache is not saved; mutable (List/Dict) fields are also marked
     dirty when read, so they are dropped from the dirty set.
 
-    The same instance can be bound again in a request, to another user (for
-    example rescoring) or for a handler that needs the source text, so the
-    source values are put back before anything is applied.
+    The same instance can be bound again in a request to another user (for
+    example rescoring), so the source values are put back before anything is
+    applied.
 
     A row whose ``source_hash`` no longer matches the live value was made from
     older source text, so the source value is kept instead.
