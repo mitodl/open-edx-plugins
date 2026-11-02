@@ -370,8 +370,8 @@ fatal instead — skipping it would answer a different question than the one ask
 The work runs as Celery tasks on the CMS workers, so a large run is not bound
 by one process. Each stage is dispatched as a group and awaited before the next
 begins; the command prints progress and must stay open for the duration. Tasks
-are queued on ``edx.cms.core.low`` because the CMS workers are shared with
-course publishing — schedule large runs accordingly.
+use the default Celery queue, which the CMS workers share with course
+publishing — schedule large runs accordingly.
 
 **What a run does**
 
