@@ -59,15 +59,16 @@ def _translations(block, **fields):
 
 
 @pytest.mark.parametrize(
-    ("row_source", "handler", "expected"),
+    ("row_source", "handler", "path", "expected"),
     [
-        ("<p>Hello</p>", None, {"data": "<p>Bonjour</p>"}),
-        ("<p>Old text</p>", None, {}),
-        ("<p>Hello</p>", "peer_assess", {}),
+        ("<p>Hello</p>", None, "/xblock/x", {"data": "<p>Bonjour</p>"}),
+        ("<p>Old text</p>", None, "/xblock/x", {}),
+        ("<p>Hello</p>", "peer_assess", "/xblock/x", {}),
+        ("<p>Hello</p>", None, "/api/ora_staff_grader/submission/grade", {}),
     ],
-    ids=["current", "stale_source", "source_text_handler"],
+    ids=["current", "stale_source", "source_text_handler", "staff_grader"],
 )
-def test_translate_block(mocker, row_source, handler, expected):
+def test_translate_block(mocker, row_source, handler, path, expected):
     block = _block(mocker, block_type="openassessment", data="<p>Hello</p>")
     block.prompt = block.title = block.display_name = None
     mocker.patch(
@@ -77,7 +78,7 @@ def test_translate_block(mocker, row_source, handler, expected):
         ),
     )
     mocker.patch(f"{API}.TRANSLATABLE_BLOCK_FIELDS", {"openassessment": ("data",)})
-    request = mocker.Mock()
+    request = mocker.Mock(path=path)
     request.resolver_match.kwargs = {"handler": handler} if handler else {}
     mocker.patch(f"{API}.get_current_request", return_value=request)
 
@@ -455,3 +456,42 @@ def test_refresh_problem_feedback_keeps_feedback_for_another_result(mocker):
     refresh_problem_feedback(block)
 
     assert block.lcp.correct_map.get_msg("p_2_1") == "<p>Exact</p>"
+
+
+@pytest.mark.django_db
+def test_course_translations_serves_current_rows_for_the_language(mocker):
+    from django.utils import translation  # noqa: PLC0415
+    from edx_django_utils.cache import RequestCache  # noqa: PLC0415
+    from ol_openedx_auto_select_language.translations import (  # noqa: PLC0415
+        course_translations,
+    )
+    from ol_openedx_course_translations.models import BlockTranslation  # noqa: PLC0415
+
+    usage = COURSE_KEY.make_usage_key("html", "a")
+    for field, language, status in [
+        ("display_name", "fr", BlockTranslation.Status.AUTO),
+        ("data", "fr", BlockTranslation.Status.REVIEWED),
+        ("title", "fr", BlockTranslation.Status.STALE),
+        ("display_name", "es", BlockTranslation.Status.AUTO),
+    ]:
+        BlockTranslation.objects.create(
+            course_key=COURSE_KEY,
+            usage_key=usage,
+            field=field,
+            language=language,
+            source_hash="h",
+            translated_value=f"{field}-{language}",
+            status=status,
+        )
+    enabled = mocker.patch(f"{API}.in_place_translations_enabled", return_value=True)
+
+    with translation.override("fr"):
+        assert set(course_translations(COURSE_KEY)[usage]) == {"display_name", "data"}
+    with translation.override("es"):
+        assert course_translations(COURSE_KEY)[usage] == {
+            "display_name": ("h", "display_name-es")
+        }
+    RequestCache.clear_all_namespaces()
+    enabled.return_value = False
+    with translation.override("fr"):
+        assert course_translations(COURSE_KEY) == {}

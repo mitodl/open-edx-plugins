@@ -66,6 +66,9 @@ SOURCE_TEXT_HANDLERS = {
     },
     "lti_consumer": {"lti_launch_handler"},
 }
+# Request paths whose views call those handlers themselves, so the handler name is
+# not in the request: the Enhanced Staff Grader saves ORA staff assessments.
+SOURCE_TEXT_PATHS = {"openassessment": ("/api/ora_staff_grader/",)}
 
 # Blocks whose learners type free text, which is kept in the course language.
 # Their note goes below the block's title in the rendered unit.
@@ -144,6 +147,7 @@ CAPA_KEEP_ATTRIBUTES = {
     "parts",
     "point_value",
     "points",  # an input's scoring weight
+    "correct_answer",  # shown by Show Answer, so it must match what is graded
     "preprocessorClassName",
     "preprocessorSrc",
     "queuename",

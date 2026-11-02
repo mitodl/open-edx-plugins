@@ -337,9 +337,14 @@ class Command(BaseCommand):
             ).values_list("usage_key", "field", "source_hash", "status")
         }
 
+        outdated_reviews = []
+
         def needs_translation(location, field, source_value):
             row_hash, status = existing.get((location, field), (None, None))
             if status == BlockTranslation.Status.REVIEWED:
+                # Never overwritten; a source edited since review is listed.
+                if row_hash != source_hash(source_value):
+                    outdated_reviews.append(f"{location} {field}")
                 return False
             return (
                 options["force"]
@@ -361,12 +366,7 @@ class Command(BaseCommand):
             failed += grader_failed
         finally:
             written = save_rows(rows)
-        self.stdout.write(
-            f"Stored {written} translations, skipped {skipped} current or "
-            f"reviewed, {len(failed)} not translated."
-        )
-        for item in failed:
-            self.stdout.write(f"  not translated: {item}")
+        self.report_fields(written, skipped, failed, outdated_reviews)
 
         source_language = getattr(course, "language", None) or settings.LANGUAGE_CODE
         if same_language(source_language, language):
@@ -388,6 +388,22 @@ class Command(BaseCommand):
         )
         for item in not_translated:
             self.stdout.write(f"  transcript not translated: {item}")
+
+    def report_fields(self, written, skipped, failed, outdated_reviews):
+        """Print what happened to the course's fields."""
+        self.stdout.write(
+            f"Stored {written} translations, skipped {skipped} current or "
+            f"reviewed, {len(failed)} not translated."
+        )
+        for item in failed:
+            self.stdout.write(f"  not translated: {item}")
+        if outdated_reviews:
+            self.stdout.write(
+                f"{len(outdated_reviews)} reviewed translations have a changed source "
+                "and are not shown until reviewed again:"
+            )
+            for item in outdated_reviews:
+                self.stdout.write(f"  needs review: {item}")
 
     def translate_fields(
         self, provider, published_blocks, language, needs_translation, rows

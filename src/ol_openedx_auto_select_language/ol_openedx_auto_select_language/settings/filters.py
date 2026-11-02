@@ -1,6 +1,6 @@
 # noqa: INP001
 
-"""Helper to register the auto-select-language video render filter.
+"""Helpers to register the auto-select-language filter steps (video and translations).
 
 Shared by the common (lms) and production settings so the pipeline step is
 declared once. Production must re-apply it because ``lms/envs/production.py``
@@ -96,8 +96,9 @@ TRANSLATION_PIPELINE_STEPS = {
 def register_translation_filters(settings):
     """Merge the translation display steps into ``OPEN_EDX_FILTERS_CONFIG``.
 
-    These steps fail silently: on an error the platform logs it and the learner
-    sees the source text, rather than a broken page.
+    New entries fail silently: on an error the platform logs it and the page
+    still renders, with that step's text left as the source; an entry already in
+    the settings keeps its own ``fail_silently``.
     """
     filters_config = getattr(settings, "OPEN_EDX_FILTERS_CONFIG", {}) or {}
     for filter_type, step in TRANSLATION_PIPELINE_STEPS.items():

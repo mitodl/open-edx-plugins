@@ -34,7 +34,7 @@ def edit_status(source, target):
     return BlockTranslation.Status.AUTO
 
 
-def build_rows(source_blocks, get_target_block, language):
+def build_rows(source_blocks, get_target_block, language, skipped=None):
     """
     Return unsaved rows for every field whose target value differs from source.
 
@@ -42,13 +42,16 @@ def build_rows(source_blocks, get_target_block, language):
     (when ``translate_course`` imported it) may have changed since it was
     translated, so its rows are stored as stale for a person to check.
     Answers, grading code, ids and keys are copied back from the source, and a
-    field is skipped when the two values cannot be matched up.
+    field is skipped when the two values cannot be matched up; ``skipped``, when
+    given, collects a line for each skipped block or field.
     """
     rows = []
+    skipped = [] if skipped is None else skipped
     for block in source_blocks:
         location = block.location
         target = get_target_block(location.block_type, location.block_id)
         if target is None:
+            skipped.append(f"{location} (missing in the target course)")
             continue
         status = edit_status(block, target)
         for field in TRANSLATABLE_BLOCK_FIELDS[location.block_type]:
@@ -62,6 +65,7 @@ def build_rows(source_blocks, get_target_block, language):
                 location.block_type, field, source_value, serialize(translated_value)
             )
             if translated_value is None:
+                skipped.append(f"{location} {field} (does not match the source)")
                 continue
             rows.append(
                 BlockTranslation(
@@ -240,7 +244,8 @@ class Command(BaseCommand):
                 source_key, qualifiers={"category": block_type}, revision=published
             )
         ]
-        rows = build_rows(source_blocks, get_target_block, language)
+        skipped = []
+        rows = build_rows(source_blocks, get_target_block, language, skipped)
         source_course = store.get_course(source_key)
         grader_row, reason = grader_labels_backfill_row(
             source_course,
@@ -260,5 +265,7 @@ class Command(BaseCommand):
         stale = sum(row.status == BlockTranslation.Status.STALE for row in rows)
         self.stdout.write(
             f"Stored {written} translations for {len(source_blocks)} blocks "
-            f"({stale} marked stale)."
+            f"({stale} marked stale), {len(skipped)} not copied."
         )
+        for item in skipped:
+            self.stdout.write(f"  not copied: {item}")
