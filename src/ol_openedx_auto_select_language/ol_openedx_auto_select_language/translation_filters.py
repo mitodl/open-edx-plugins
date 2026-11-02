@@ -9,6 +9,7 @@ from opaque_keys.edx.keys import UsageKey
 from openedx_filters import PipelineStep
 
 from ol_openedx_auto_select_language.translations import (
+    NAME_FIELDS,
     answer_language_note,
     course_translations,
     grader_labels,
@@ -60,7 +61,9 @@ class TranslateCourseBlockNames(PipelineStep):
 
     def run_filter(self, block_structure, user, starting_block_usage_key):
         """Override ``display_name`` with its translation where one is current."""
-        translations = course_translations(starting_block_usage_key.course_key)
+        translations = course_translations(
+            starting_block_usage_key.course_key, NAME_FIELDS
+        )
         if translations:
             for usage_key in block_structure:
                 name = block_structure.get_xblock_field(usage_key, "display_name")
@@ -83,7 +86,7 @@ class TranslateCourseOutline(PipelineStep):
 
     def run_filter(self, course_key, user, data):
         """Translate the course, section and subsection titles."""
-        translations = course_translations(course_key)
+        translations = course_translations(course_key, NAME_FIELDS)
         if translations:
             data["title"] = translated_text(
                 translations,
@@ -110,7 +113,7 @@ class TranslateCourseHomeMetadata(PipelineStep):
 
     def run_filter(self, course_key, user, data):
         """Translate the title and the names of static tabs."""
-        translations = course_translations(course_key)
+        translations = course_translations(course_key, NAME_FIELDS)
         if translations:
             data["title"] = translated_text(
                 translations,
@@ -135,7 +138,7 @@ class TranslateCoursewareMetadata(PipelineStep):
 
     def run_filter(self, course_key, user, data):
         """Translate the (HTML-escaped) course name."""
-        translations = course_translations(course_key)
+        translations = course_translations(course_key, NAME_FIELDS)
         if translations and data.get("name"):
             name = html.unescape(data["name"])
             data["name"] = html.escape(
@@ -233,17 +236,17 @@ class AddAnswerNoteBelowTitles(PipelineStep):
     def run_filter(self, block, fragment, context, view):
         """Insert the note after each translated ORA title in the unit."""
         course_key = block.scope_ids.usage_id.course_key
-        translations = course_translations(course_key)
-        if translations:
-            content = fragment.content
-            for child_key in getattr(block, "children", []):
-                if child_key.block_type in ANSWER_NOTE_BLOCK_TYPES and (
-                    translations.get(plain_key(child_key))
-                ):
-                    content = _insert_after_title(
-                        content, str(child_key), answer_language_note(course_key)
-                    )
-            fragment.content = content
+        content = fragment.content
+        for child_key in getattr(block, "children", []):
+            if child_key.block_type in ANSWER_NOTE_BLOCK_TYPES and (
+                course_translations(course_key, block_type=child_key.block_type).get(
+                    plain_key(child_key)
+                )
+            ):
+                content = _insert_after_title(
+                    content, str(child_key), answer_language_note(course_key)
+                )
+        fragment.content = content
         return {"block": block, "fragment": fragment, "context": context, "view": view}
 
 

@@ -487,7 +487,14 @@ def test_course_translations_serves_current_rows_for_the_language(mocker):
     enabled = mocker.patch(f"{API}.in_place_translations_enabled", return_value=True)
 
     with translation.override("fr"):
+        # Loaded with only the name fields first, so a shared cache entry would
+        # leave ``data`` out of the full load.
+        assert set(course_translations(COURSE_KEY, ("display_name",))[usage]) == {
+            "display_name"
+        }
         assert set(course_translations(COURSE_KEY)[usage]) == {"display_name", "data"}
+        assert usage in course_translations(COURSE_KEY, block_type="html")
+        assert course_translations(COURSE_KEY, block_type="problem") == {}
     with translation.override("es"):
         assert course_translations(COURSE_KEY)[usage] == {
             "display_name": ("h", "display_name-es")
