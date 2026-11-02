@@ -8,6 +8,7 @@ from ol_openedx_auto_select_language.translation_filters import (
     TranslateCourseBlockNames,
     TranslateCourseNavigationAssignmentTypes,
     TranslateCourseOutline,
+    TranslateCoursewareMetadata,
     TranslateDatesAssignmentTypes,
     TranslateOutlineTabAssignmentTypes,
     TranslateProgressAssignmentTypes,
@@ -495,3 +496,18 @@ def test_course_translations_serves_current_rows_for_the_language(mocker):
     enabled.return_value = False
     with translation.override("fr"):
         assert course_translations(COURSE_KEY) == {}
+
+
+def test_courseware_metadata_name_stays_escaped(mocker):
+    course = COURSE_KEY.make_usage_key("course", "course")
+    mocker.patch(
+        f"{FILTERS}.course_translations",
+        return_value={course: {"display_name": (source_hash("A & B"), "<b>X</b> & Y")}},
+    )
+    data = {"name": "A &amp; B"}
+
+    TranslateCoursewareMetadata(filter_type="test", running_pipeline=[]).run_filter(
+        course_key=COURSE_KEY, user=None, data=data
+    )
+
+    assert data["name"] == "&lt;b&gt;X&lt;/b&gt; &amp; Y"
