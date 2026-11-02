@@ -437,7 +437,7 @@ def test_translate_blocks_in_place_saves_rows_before_a_provider_error(mocker):
     mocker.patch(
         f"{command}.translated_row", side_effect=[first_row, RuntimeError("API error")]
     )
-    save_rows = mocker.patch(f"{command}.save_rows", return_value=1)
+    save_rows = mocker.patch(f"{command}.save_rows", return_value=[mocker.Mock()])
 
     with pytest.raises(RuntimeError):
         call_command(
@@ -872,7 +872,7 @@ def test_save_rows_never_overwrites_reviewed_rows():
     )
 
     rows = {r.field: r for r in BlockTranslation.objects.all()}
-    assert written == 1
+    assert [row.field for row in written] == ["data"]
     assert (
         rows["display_name"].translated_value,
         rows["display_name"].source_hash,
@@ -973,7 +973,7 @@ def test_translate_blocks_in_place_skip_rules(  # noqa: PLR0913, PLR0917
     mocker.patch(f"{command}.get_translation_provider")
     mocker.patch(f"{command}.translate_transcripts", return_value=([], [], []))
     translate = mocker.patch(f"{command}.translated_row", return_value=None)
-    mocker.patch(f"{command}.save_rows", return_value=0)
+    mocker.patch(f"{command}.save_rows", return_value=[])
     mocker.patch(f"{command}.TRANSLATABLE_BLOCK_FIELDS", {"html": ("display_name",)})
     _row(
         usage_key=block.location,

@@ -148,9 +148,9 @@ def grader_labels_translation(course, source_pairs, translated_pairs, language):
 
 
 def save_rows(rows):
-    """Upsert rows, leaving reviewed rows untouched. Return the number written."""
+    """Upsert rows, leaving reviewed rows untouched. Return the rows written."""
     if not rows:
-        return 0
+        return []
     with transaction.atomic():
         return _save_unreviewed_rows(rows)
 
@@ -187,7 +187,7 @@ def _save_unreviewed_rows(rows):
         update_fields=["source_hash", "translated_value", "status", "updated_at"],
         batch_size=500,
     )
-    return len(rows)
+    return rows
 
 
 class Command(BaseCommand):
@@ -262,9 +262,9 @@ class Command(BaseCommand):
         else:
             rows.append(grader_row)
         written = save_rows(rows)
-        stale = sum(row.status == BlockTranslation.Status.STALE for row in rows)
+        stale = sum(row.status == BlockTranslation.Status.STALE for row in written)
         self.stdout.write(
-            f"Stored {written} translations for {len(source_blocks)} blocks "
+            f"Stored {len(written)} translations for {len(source_blocks)} blocks "
             f"({stale} marked stale), {len(skipped)} not copied."
         )
         for item in skipped:

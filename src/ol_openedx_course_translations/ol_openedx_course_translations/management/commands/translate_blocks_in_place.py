@@ -365,7 +365,7 @@ class Command(BaseCommand):
             skipped += grader_skipped
             failed += grader_failed
         finally:
-            written = save_rows(rows)
+            written = len(save_rows(rows))
         self.report_fields(written, skipped, failed, outdated_reviews)
 
         source_language = getattr(course, "language", None) or settings.LANGUAGE_CODE
