@@ -294,6 +294,32 @@ def test_refresh_problem_feedback(
         assert set_cached.call_args.args[1]["p_2_1"]["msg"] == expected_msg
 
 
+def test_refresh_problem_feedback_publishes_no_events(mocker):
+    class Runtime:
+        def __init__(self):
+            self.events = []
+
+        def publish(self, _block, name, _data):
+            self.events.append(name)
+
+    mocker.patch(f"{API}.in_place_translations_enabled", return_value=True)
+    responder = _responder(mocker, responsetypes.MultipleChoiceResponse)
+    block = _problem(mocker, responder)
+    block.runtime = Runtime()
+    rebuilt = responder.evaluate_answers.return_value
+
+    def evaluate(*_args):
+        block.runtime.publish(block, "edx.problem.hint.feedback_displayed", {})
+        return rebuilt
+
+    responder.evaluate_answers.side_effect = evaluate
+
+    refresh_problem_feedback(block)
+    block.runtime.publish(block, "later", {})
+
+    assert block.runtime.events == ["later"]
+
+
 def test_refresh_problem_feedback_keeps_saved_feedback_on_error(mocker):
     mocker.patch(f"{API}.in_place_translations_enabled", return_value=True)
     responder = _responder(mocker, responsetypes.StringResponse)
