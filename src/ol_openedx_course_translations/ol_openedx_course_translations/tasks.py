@@ -461,10 +461,6 @@ def translate_info_updates_task(  # noqa: PLR0913, PLR0917, C901
 # to finish instead of failing three times.
 BENCHMARK_VALIDATION_TIMEOUT = 240
 
-# Benchmark work is dispatched in stages of several hundred tasks, so it runs
-# on the low queue: the cms workers are shared with course publishing.
-BENCHMARK_QUEUE = "edx.cms.core.low"
-
 # Exception types that mean the code is wrong, rather than the run hitting
 # something it already reports. Only these get a traceback: an arm gate raising
 # RuntimeError, or a judge reply the parser rejects, is summarised in one line
@@ -491,7 +487,6 @@ def _benchmark_task(name):
     return shared_task(
         bind=True,
         name=name,
-        queue=BENCHMARK_QUEUE,
         autoretry_for=TRANSIENT_PROVIDER_ERRORS,
         retry_backoff=True,
         retry_kwargs={"max_retries": 2},

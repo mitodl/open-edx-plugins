@@ -13,6 +13,13 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.12.3] - 2026-11-02
+~~~~~~~~~~~~~~~~~~~~~
+Fixed
+-----
+- Benchmark tasks no longer name ``edx.cms.core.low``, which no deployed worker
+  consumes, so runs sat queued forever. They now use the default queue.
+
 [0.12.1] - 2026-10-09
 ~~~~~~~~~~~~~~~~~~~~~
 Changed

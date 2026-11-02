@@ -1725,18 +1725,6 @@ def test_validation_keeps_its_defaults_unless_a_caller_overrides_them(judge):
 
 
 @pytest.mark.parametrize("task", BENCHMARK_TASKS)
-def test_benchmark_tasks_stay_off_the_default_queue(task):
-    """
-    A run is hundreds of tasks on workers shared with course publishing.
-
-    Anything that lands on the default queue blocks CMS work for the duration.
-    """
-    # The literal, not BENCHMARK_QUEUE: comparing the constant to itself is a
-    # tautology that passes for any value, including Celery's own default.
-    assert task.queue == "edx.cms.core.low"
-
-
-@pytest.mark.parametrize("task", BENCHMARK_TASKS)
 def test_benchmark_tasks_retry_only_transient_failures(task):
     """
     A malformed judge reply will be malformed again.
