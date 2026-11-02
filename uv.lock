@@ -2429,7 +2429,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat"
-version = "0.6.1"
+version = "0.7.0"
 source = { editable = "src/ol_openedx_chat" }
 dependencies = [
     { name = "django" },
