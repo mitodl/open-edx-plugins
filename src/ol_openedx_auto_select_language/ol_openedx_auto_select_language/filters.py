@@ -143,8 +143,8 @@ class RestrictVideoTranscriptLanguages(PipelineStep):
             writes a single shared ``student_view_context`` key once per
             child, so in a vertical holding several videos the last child
             wins and would otherwise drag its siblings off those languages.
-            The platform resolver falls back to English on its own when no
-            preferred language has a transcript.
+            When no preferred language has a transcript, the platform
+            resolver's own fallback is used.
             """
             for wanted in preferred:
                 track_url, language, languages = original(

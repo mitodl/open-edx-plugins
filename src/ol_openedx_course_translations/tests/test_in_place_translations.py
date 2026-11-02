@@ -838,3 +838,185 @@ def test_restore_capa_keeps_the_source_input_points():
     )
 
     assert restore_capa(source, translated) == source
+
+
+def _row(
+    field="display_name", value="Titre", status=BlockTranslation.Status.AUTO, **kw
+):
+    usage_key = kw.pop("usage_key", COURSE_KEY.make_usage_key("html", "a"))
+    return BlockTranslation(
+        course_key=COURSE_KEY,
+        usage_key=usage_key,
+        field=field,
+        language="fr",
+        source_hash=kw.pop("source_hash", "h1"),
+        translated_value=value,
+        status=status,
+    )
+
+
+@pytest.mark.django_db
+def test_save_rows_never_overwrites_reviewed_rows():
+    from ol_openedx_course_translations.management.commands.backfill_block_translations import (  # noqa: E501, PLC0415
+        save_rows,
+    )
+
+    _row(value="Revu", status=BlockTranslation.Status.REVIEWED).save()
+    _row(field="data", value="<p>Ancien</p>").save()
+
+    written = save_rows(
+        [
+            _row(value="Nouveau", source_hash="h2"),
+            _row(field="data", value="<p>Neuf</p>"),
+        ]
+    )
+
+    rows = {r.field: r for r in BlockTranslation.objects.all()}
+    assert written == 1
+    assert (
+        rows["display_name"].translated_value,
+        rows["display_name"].source_hash,
+    ) == (
+        "Revu",
+        "h1",
+    )
+    assert rows["data"].translated_value == "<p>Neuf</p>"
+
+
+CAPA_SOURCE = (
+    "<problem><multiplechoiceresponse><choicegroup>"
+    '<choice correct="true">Yes</choice><choice correct="false">No</choice>'
+    "</choicegroup></multiplechoiceresponse></problem>"
+)
+
+
+REORDERED_CHOICES = (
+    "<problem><multiplechoiceresponse><choicegroup>"
+    '<choice correct="false">Non</choice><choice correct="true">Oui</choice>'
+    "</choicegroup></multiplechoiceresponse></problem>"
+)
+ADDED_GRADING_ATTRIBUTE = (
+    "<problem><multiplechoiceresponse><choicegroup>"
+    '<choice correct="true" point_value="9">Oui</choice>'
+    '<choice correct="false">Non</choice>'
+    "</choicegroup></multiplechoiceresponse></problem>"
+)
+
+
+@pytest.mark.parametrize(
+    ("translated", "rejected"),
+    [(REORDERED_CHOICES, True), (ADDED_GRADING_ATTRIBUTE, False)],
+    ids=["reordered_choices_rejected", "grading_attributes_from_source"],
+)
+def test_admin_form_checks_problem_translations(mocker, translated, rejected):
+    from django import forms  # noqa: PLC0415
+    from ol_openedx_course_translations.admin import (  # noqa: PLC0415
+        BlockTranslationForm,
+    )
+
+    mocker.patch(
+        "ol_openedx_course_translations.admin.published_source_value",
+        return_value=CAPA_SOURCE,
+    )
+    row = _row(field="data", usage_key=COURSE_KEY.make_usage_key("problem", "p"))
+    form = BlockTranslationForm(instance=row)
+    form.cleaned_data = {"translated_value": translated}
+
+    if rejected:
+        with pytest.raises(forms.ValidationError):
+            form.clean_translated_value()
+    else:
+        cleaned = form.clean_translated_value()
+        assert cleaned == CAPA_SOURCE.replace(">Yes<", ">Oui<").replace(">No<", ">Non<")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("existing_status", "row_source", "flags", "translated", "needs_review"),
+    [
+        (BlockTranslation.Status.AUTO, "Intro", [], False, False),
+        (BlockTranslation.Status.AUTO, "Intro", ["--force"], True, False),
+        (BlockTranslation.Status.STALE, "Intro", [], True, False),
+        (BlockTranslation.Status.AUTO, "Intro v1", [], True, False),
+        (BlockTranslation.Status.REVIEWED, "Intro", ["--force"], False, False),
+        (BlockTranslation.Status.REVIEWED, "Intro v1", [], False, True),
+    ],
+    ids=[
+        "current_auto_skipped",
+        "force_retranslates",
+        "stale_retranslated",
+        "changed_source_retranslated",
+        "reviewed_kept_with_force",
+        "reviewed_outdated_listed",
+    ],
+)
+def test_translate_blocks_in_place_skip_rules(  # noqa: PLR0913, PLR0917
+    mocker, existing_status, row_source, flags, translated, needs_review
+):
+    from io import StringIO  # noqa: PLC0415
+
+    from django.core.management import call_command  # noqa: PLC0415
+
+    command = (
+        "ol_openedx_course_translations.management.commands.translate_blocks_in_place"
+    )
+    block = _block(mocker, display_name="Intro")
+    block.location = block.scope_ids.usage_id
+    course = mocker.Mock(raw_grader=[], language="en", display_name="")
+    store = mocker.Mock()
+    store.get_items.side_effect = lambda _key, qualifiers, **_kw: {
+        "html": [block],
+        "course": [course],
+    }.get(qualifiers["category"], [])
+    mocker.patch("xmodule.modulestore.django.modulestore", return_value=store)
+    mocker.patch(f"{command}.parse_and_validate_provider_spec", return_value=("p", "m"))
+    mocker.patch(f"{command}.get_translation_provider")
+    mocker.patch(f"{command}.translate_transcripts", return_value=([], [], []))
+    translate = mocker.patch(f"{command}.translated_row", return_value=None)
+    mocker.patch(f"{command}.save_rows", return_value=0)
+    mocker.patch(f"{command}.TRANSLATABLE_BLOCK_FIELDS", {"html": ("display_name",)})
+    _row(
+        usage_key=block.location,
+        status=existing_status,
+        source_hash=source_hash(row_source),
+    ).save()
+    out = StringIO()
+
+    call_command(
+        "translate_blocks_in_place",
+        f"--course={COURSE_KEY}",
+        "--language=fr",
+        "--provider=p/m",
+        *flags,
+        stdout=out,
+    )
+
+    assert translate.called == translated
+    assert ("needs review:" in out.getvalue()) == needs_review
+
+
+def test_build_rows_lists_what_it_skips(mocker):
+    missing = _block(mocker, block_id="gone", display_name="Gone", edited_on=None)
+    missing.location = COURSE_KEY.make_usage_key("html", "gone")
+    problem = _block(
+        mocker, block_type="problem", block_id="p", display_name="Q", edited_on=None
+    )
+    problem.location = COURSE_KEY.make_usage_key("problem", "p")
+    problem.data = CAPA_SOURCE
+    target = _block(
+        mocker, block_type="problem", block_id="p", display_name="Q", edited_on=None
+    )
+    target.data = "<problem><p>broken</p></problem>"
+    skipped = []
+
+    build_rows(
+        [missing, problem],
+        lambda block_type, _id: target if block_type == "problem" else None,
+        "fr",
+        skipped,
+    )
+
+    assert skipped == [
+        f"{missing.location} (missing in the target course)",
+        f"{problem.location} data (does not match the source)",
+    ]

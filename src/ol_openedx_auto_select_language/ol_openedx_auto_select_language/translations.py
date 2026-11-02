@@ -11,6 +11,7 @@ from edx_django_utils.cache import RequestCache
 from ol_openedx_course_translations.blocks import (
     GRADER_LABELS_FIELD,
     SOURCE_TEXT_HANDLERS,
+    SOURCE_TEXT_PATHS,
     TRANSLATABLE_BLOCK_FIELDS,
     TYPED_ANSWER_TAGS,
     deserialize,
@@ -166,9 +167,14 @@ def course_language_name(course_key):
 
 def handler_needs_source_text(block):
     """Return True when the current request runs a handler that must see the source."""
-    handlers = SOURCE_TEXT_HANDLERS.get(block.scope_ids.block_type)
+    block_type = block.scope_ids.block_type
     request = get_current_request()
-    match = getattr(request, "resolver_match", None) if request else None
+    if request is None:
+        return False
+    if any(path in request.path for path in SOURCE_TEXT_PATHS.get(block_type, ())):
+        return True
+    handlers = SOURCE_TEXT_HANDLERS.get(block_type)
+    match = getattr(request, "resolver_match", None)
     return bool(handlers and match and match.kwargs.get("handler") in handlers)
 
 
@@ -254,8 +260,12 @@ def refresh_problem_feedback(block):
             continue
         try:
             rebuilt = responder.evaluate_answers(answers, lcp.correct_map)
-        except Exception:  # noqa: BLE001 - keep the saved feedback if it cannot be rebuilt
-            log.warning("Could not rebuild feedback for %s", block.scope_ids.usage_id)
+        except Exception:  # keep the saved feedback if it cannot be rebuilt
+            log.warning(
+                "Could not rebuild feedback for %s",
+                block.scope_ids.usage_id,
+                exc_info=True,
+            )
             continue
         for aid in answer_ids:
             # Feedback for another result (the answer was changed and not
