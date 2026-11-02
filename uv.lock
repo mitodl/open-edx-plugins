@@ -2744,7 +2744,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-rapid-response-reports"
-version = "0.6.1"
+version = "0.6.2"
 source = { editable = "src/ol_openedx_rapid_response_reports" }
 dependencies = [
     { name = "certifi" },

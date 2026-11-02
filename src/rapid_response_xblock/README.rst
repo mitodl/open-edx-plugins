@@ -157,8 +157,10 @@ form of CSV reports as a separate plugin
 
 After you’ve installed
 `ol-openedx-rapid-response-reports <https://github.com/mitodl/open-edx-plugins/tree/main/src/ol_openedx_rapid_response_reports>`__,
-visit ``Rapid Responses`` under the ``Instructor Dashboard``. If you
-don’t see ``Rapid Responses`` tab, please check that the plugins is
+visit ``Rapid Responses`` under the ``Instructor Dashboard``. The tab only
+appears once the course has at least one rapid response run (a problem
+that has been opened for rapid response at least once). If you still
+don’t see the ``Rapid Responses`` tab, please check that the plugins are
 installed properly. |Screenshot of Rapid Response reports|
 
 **NOTE:** Rapid Response xBlock works independently and doesn’t depend

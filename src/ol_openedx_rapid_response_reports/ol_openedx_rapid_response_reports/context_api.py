@@ -10,12 +10,17 @@ from web_fragments.fragment import Fragment
 def plugin_context(context):
     """Provide data for the rapid responses dashboard section"""
     course_key = context["course"].id
+    problem_runs = get_run_data_for_course(course_key=course_key)
+    # Only show the section for courses that actually use rapid response
+    if not problem_runs.exists():
+        return context
+
     sections = context.get("sections", [])
 
     rapid_response_context = {
         "section_key": "rapid_response",
         "section_display_name": _("Rapid Responses"),
-        "problem_runs": get_run_data_for_course(course_key=course_key),
+        "problem_runs": problem_runs,
         "course_key": course_key,
         "download_url": "get_rapid_response_report",
         "fragment": Fragment(),
