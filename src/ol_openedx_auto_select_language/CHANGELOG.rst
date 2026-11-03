@@ -13,6 +13,22 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.4.0] - 2026-11-03
+~~~~~~~~~~~~~~~~~~~~
+Added
+-----
+* In-place translations mode (``ol_openedx_auto_select_language.in_place_translations``
+  course waffle flag): the learner's own language wins, and the course's
+  ``BlockTranslation`` rows are shown in it (unit content, outline, sidebar,
+  progress, dates, grading type names, video subtitles).
+* ``/auto-select-language/api/languages/`` API for the learner language dropdown.
+
+Changed
+-------
+* Staff paths are matched by whole URL path part, so a block or course id that
+  contains "instructor" or "admin" no longer resets the learner's language.
+* In in-place mode staff pages are shown in English without saving it.
+
 [0.1.2] - 2026-07-03
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Fixed
