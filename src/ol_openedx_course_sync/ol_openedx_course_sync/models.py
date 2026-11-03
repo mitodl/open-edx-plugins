@@ -75,6 +75,15 @@ class CourseSyncMapping(models.Model):
         """
         super().clean()
 
+        # Course keys are case-insensitive in Studio and MySQL, so compare them that way
+        if (
+            self.source_course
+            and str(self.source_course).lower() == str(self.target_course).lower()
+        ):
+            raise ValidationError(
+                {"target_course": "Target course cannot be the same as source course"}
+            )
+
         if not CourseOverview.objects.filter(id=self.source_course).exists():
             raise ValidationError({"source_course": "Source course does not exist"})
 
