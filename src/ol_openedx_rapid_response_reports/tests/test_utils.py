@@ -1,5 +1,7 @@
 """Tests for the rapid response reports utils"""
 
+from unittest.mock import patch
+
 from common.djangoapps.student.tests.factories import UserFactory
 from django.core.cache import cache
 from ol_openedx_rapid_response_reports.constants import RAPID_RESPONSE_ASIDE_TYPE
@@ -54,6 +56,16 @@ class IsRapidResponseEnabledForCourseTests(ModuleStoreTestCase):
         assert is_rapid_response_enabled_for_course(self.course.id) is True
         self._set_enabled(enabled=False)
         assert is_rapid_response_enabled_for_course(self.course.id) is False
+
+    def test_cached_result_is_reused(self):
+        """A second call for the same course version does not rescan the problems"""
+        for enabled in (False, True):
+            self._set_enabled(enabled=enabled)
+            assert is_rapid_response_enabled_for_course(self.course.id) is enabled
+            with patch.object(
+                type(self.store), "get_items", side_effect=AssertionError("rescanned")
+            ):
+                assert is_rapid_response_enabled_for_course(self.course.id) is enabled
 
     def test_unknown_course(self):
         course_key = CourseKey.from_string("course-v1:org+missing+run")
