@@ -435,7 +435,8 @@ def test_translate_blocks_in_place_saves_rows_before_a_provider_error(mocker):
     mocker.patch(f"{command}.get_translation_provider")
     first_row = mocker.Mock()
     mocker.patch(
-        f"{command}.translated_row", side_effect=[first_row, RuntimeError("API error")]
+        f"{command}.translated_row",
+        side_effect=[(first_row, None), RuntimeError("API error")],
     )
     save_rows = mocker.patch(f"{command}.save_rows", return_value=[mocker.Mock()])
 
@@ -972,7 +973,9 @@ def test_translate_blocks_in_place_skip_rules(  # noqa: PLR0913, PLR0917
     mocker.patch(f"{command}.parse_and_validate_provider_spec", return_value=("p", "m"))
     mocker.patch(f"{command}.get_translation_provider")
     mocker.patch(f"{command}.translate_transcripts", return_value=([], [], []))
-    translate = mocker.patch(f"{command}.translated_row", return_value=None)
+    translate = mocker.patch(
+        f"{command}.translated_row", return_value=(None, "not translated")
+    )
     mocker.patch(f"{command}.save_rows", return_value=[])
     mocker.patch(f"{command}.TRANSLATABLE_BLOCK_FIELDS", {"html": ("display_name",)})
     _row(
@@ -1020,3 +1023,28 @@ def test_build_rows_lists_what_it_skips(mocker):
         f"{missing.location} (missing in the target course)",
         f"{problem.location} data (does not match the source)",
     ]
+
+
+@pytest.mark.parametrize(
+    ("restored", "reason"),
+    [
+        (None, "the translation does not match the source"),
+        ("Intro", "the translation is the same as the source"),
+        ("Introduction FR", None),
+    ],
+    ids=["mismatch", "unchanged", "translated"],
+)
+def test_translated_row_says_why_it_was_not_translated(mocker, restored, reason):
+    from ol_openedx_course_translations.management.commands import (  # noqa: PLC0415
+        translate_blocks_in_place as command,
+    )
+
+    block = _block(mocker, display_name="Intro")
+    block.location = block.scope_ids.usage_id
+    mocker.patch.object(command, "translate_value", return_value="Introduction FR")
+    mocker.patch.object(command, "restore_kept_parts", return_value=restored)
+
+    row, why = command.translated_row(None, block, "display_name", "fr")
+
+    assert why == reason
+    assert (row is None) == (reason is not None)

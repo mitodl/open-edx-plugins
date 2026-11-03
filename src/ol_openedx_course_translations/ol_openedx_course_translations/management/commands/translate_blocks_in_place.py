@@ -126,15 +126,19 @@ def parse_course_and_language(options):
 
 
 def translated_row(provider, block, field, language):
-    """Return an unsaved row for the field, or None when it could not be translated."""
+    """
+    Return ``(row, None)``, or ``(None, reason)`` when the field was not translated.
+    """
     block_type = block.location.block_type
     source_value = getattr(block, field)
     translated = translate_value(provider, block_type, field, source_value, language)
     restored = restore_kept_parts(
         block_type, field, source_value, serialize(translated)
     )
-    if restored is None or restored == source_value:
-        return None
+    if restored is None:
+        return None, "the translation does not match the source"
+    if restored == source_value:
+        return None, "the translation is the same as the source"
     return BlockTranslation(
         course_key=block.location.course_key,
         usage_key=block.location,
@@ -143,7 +147,7 @@ def translated_row(provider, block, field, language):
         source_hash=source_hash(source_value),
         translated_value=serialize(restored),
         status=BlockTranslation.Status.AUTO,
-    )
+    ), None
 
 
 def grader_labels_row(provider, course, source_pairs, language):
@@ -419,9 +423,9 @@ class Command(BaseCommand):
                     if not needs_translation(block.location, field, source_value):
                         skipped += 1
                         continue
-                    row = translated_row(provider, block, field, language)
+                    row, reason = translated_row(provider, block, field, language)
                     if row is None:
-                        failed.append(f"{block.location} {field}")
+                        failed.append(f"{block.location} {field} ({reason})")
                     else:
                         rows.append(row)
                         self.stdout.write(f"translated {block_type} {field}")
@@ -442,7 +446,8 @@ class Command(BaseCommand):
             # The provider gave two grading types the same name.
             return 0, [f"{course.location} {GRADER_LABELS_FIELD} ({error})"]
         if row is None:
-            return 0, [f"{course.location} {GRADER_LABELS_FIELD}"]
+            reason = "the translation is not usable or is the same as the source"
+            return 0, [f"{course.location} {GRADER_LABELS_FIELD} ({reason})"]
         rows.append(row)
         self.stdout.write("translated course grading types")
         return 0, []
