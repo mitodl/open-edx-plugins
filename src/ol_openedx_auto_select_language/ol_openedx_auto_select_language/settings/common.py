@@ -11,6 +11,14 @@ def apply_common_settings(settings):
         settings: Django settings object to modify
     """
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = False
-    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["admin", "sysadmin", "instructor"]
+    # Matched against whole URL path parts.
+    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = [
+        "admin",
+        "sysadmin",
+        "instructor",
+        "instructor_task",
+        "instructor_task_status",
+        "api-admin",
+    ]
     settings.COURSE_LANGUAGE_ANON_THROTTLE_RATE = "30/min"
     settings.COURSE_LANGUAGE_USER_THROTTLE_RATE = "30/min"
