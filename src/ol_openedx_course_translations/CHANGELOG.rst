@@ -13,6 +13,20 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.13.0] - 2026-11-03
+~~~~~~~~~~~~~~~~~~~~~
+Added
+-----
+- ``BlockTranslation`` rows: translations of a course's own blocks, served in
+  the same course in the learner's language (in-place translations), with an
+  admin for review.
+- ``translate_blocks_in_place`` command: translates a course's blocks, grading
+  type names and video transcripts into these rows; reviewed rows are never
+  overwritten.
+- ``backfill_block_translations`` command: copies the rows from a course already
+  translated with ``translate_course``.
+- Problem answers, grading code, ids and keys are always kept from the source.
+
 [0.12.3] - 2026-11-02
 ~~~~~~~~~~~~~~~~~~~~~
 Fixed
