@@ -60,6 +60,25 @@ def _superseded(context_key_string, user, token):
     return True
 
 
+def _export_unless_unchanged(context_key, git_url, user):
+    """
+    Run export_to_git, treating unchanged content as success.
+
+    export_to_git raises CANNOT_COMMIT both for this and for real failures
+    such as a held index.lock; only git's own output tells them apart.
+    """
+    try:
+        export_to_git(context_key, git_url, user=user)
+    except GitExportError as exc:
+        output = getattr(exc.__cause__, "output", None) or ""
+        # bytes today (check_output without text=True); str if that changes.
+        if isinstance(output, bytes):
+            output = output.decode(errors="replace")
+        if "nothing to commit" not in output:
+            raise
+        LOGGER.info("No changes to export for %s", context_key)
+
+
 @shared_task
 def async_export_to_git(context_key_string, user=None, token=None):
     """Export a course or library to Git.
@@ -90,7 +109,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
     except Exception:
         # Also covers get_content_info's lookups, so not necessarily a bad key.
         LOGGER.exception("Failed to resolve content %s", context_key_string)
-        return
+        raise
 
     try:
         content_repo = ContentGitRepository.objects.get(content_key=context_key)
@@ -108,7 +127,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
             # Dirty working-tree files from a prior crash are cleaned by the
             # `git reset --hard origin/<branch>` + `git clean` inside export_to_git.
             clear_stale_git_lock(content_repo.git_url)
-            export_to_git(context_key, content_repo.git_url, user=user)
+            _export_unless_unchanged(context_key, content_repo.git_url, user)
         else:
             LOGGER.info(
                 "Git export is disabled for %s %s. Skipping export.",
@@ -124,6 +143,9 @@ def async_export_to_git(context_key_string, user=None, token=None):
             if hasattr(content_info["content_module"], "id")
             else context_key,
         )
+        # Re-raised, not retried, so Celery records the failure; a retry
+        # would hit the same push or commit error.
+        raise
     except ContentGitRepository.DoesNotExist:
         LOGGER.info(
             "No git repository registered for %s %s; "
@@ -150,6 +172,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
             if hasattr(content_info["content_module"], "id")
             else context_key,
         )
+        raise
 
 
 @shared_task(

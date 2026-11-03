@@ -233,6 +233,8 @@ def queue_export_task(content_key, user, token):
             args=[str(content_key), user],
             kwargs={"token": token},
             countdown=EXPORT_DEBOUNCE_DELAY,
+            # None keeps edx-platform's default routing.
+            queue=settings.GIT_AUTO_EXPORT_CELERY_QUEUE,
         )
     except Exception:
         log.exception("Failed to queue git export for %s", content_key)

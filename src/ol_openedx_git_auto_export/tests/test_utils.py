@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from ol_openedx_git_auto_export.constants import (
     EXPORT_DEBOUNCE_DELAY,
     EXPORT_DEBOUNCE_PENDING_TTL,
@@ -89,6 +89,21 @@ def test_queue_export_task_renews_the_slot():
     )
 
 
+@pytest.mark.parametrize("queue", [None, "edx.cms.core.git_export"])
+def test_queue_export_task_routes_to_the_configured_queue(queue):
+    """edx-platform's EXPLICIT_QUEUES can't be set from config, so the queue
+    must be passed at the apply_async call."""
+    with (
+        override_settings(GIT_AUTO_EXPORT_CELERY_QUEUE=queue),
+        mock.patch(
+            "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+        ) as mock_apply_async,
+    ):
+        queue_export_task("lib:org:slug", None, "a-token")
+
+    assert mock_apply_async.call_args.kwargs["queue"] == queue
+
+
 class TestExportDebounce(TestCase):
     """A burst queues one task; later signals only overwrite the token."""
 
@@ -158,6 +173,7 @@ class TestExportDebounce(TestCase):
                 args=[str(library_key), "a-user"],
                 kwargs={"token": tokens[0]},
                 countdown=EXPORT_DEBOUNCE_DELAY,
+                queue=None,
             )
 
     def test_export_course_to_git_queues_one_task_per_burst(self):
@@ -200,6 +216,7 @@ class TestExportDebounce(TestCase):
                 args=[str(course_key), None],
                 kwargs={"token": tokens[0]},
                 countdown=EXPORT_DEBOUNCE_DELAY,
+                queue=None,
             )
 
     def test_schedules_via_a_robust_commit_hook(self):

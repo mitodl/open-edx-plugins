@@ -2,12 +2,16 @@
 Tests for async_export_to_git's token-based staleness check.
 """
 
+import subprocess
 from contextlib import ExitStack
 from unittest import mock
 
+import pytest
+from cms.djangoapps.contentstore.git_export_utils import GitExportError
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, override_settings
+from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import ContentGitRepository
 from ol_openedx_git_auto_export.tasks import (
     async_create_github_repo,
@@ -127,6 +131,57 @@ class TestAsyncExportToGitTokenCheck(TestCase):
 
         mock_export_to_git.assert_called_once()
         assert cache.get(pending_key) is None
+
+
+class TestExportFailuresAreReported(TestCase):
+    """A failed export must fail the Celery task, not log and succeed."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_failures_propagate(self):
+        for error in (GitExportError("Unable to commit changes"), RuntimeError("boom")):
+            with self.subTest(error=type(error).__name__), ExitStack() as stack:
+                mock_export_collaborators(stack).side_effect = error
+                with pytest.raises(type(error)):
+                    async_export_to_git(CONTENT_KEY, user=USER)
+
+    def test_only_an_unchanged_export_is_not_a_failure(self):
+        """export_to_git raises CANNOT_COMMIT for both cases; git's output
+        is the only difference."""
+        cases = [
+            (b"On branch main\nnothing to commit, working tree clean\n", False),
+            (b"fatal: Unable to create '.git/index.lock': File exists.\n", True),
+            ("On branch main\nnothing to commit, working tree clean\n", False),
+            (None, True),
+        ]
+        for output, should_raise in cases:
+            with self.subTest(output=output), ExitStack() as stack:
+                error = GitExportError(GitExportError.CANNOT_COMMIT)
+                error.__cause__ = subprocess.CalledProcessError(1, "git", output)
+                mock_export_collaborators(stack).side_effect = error
+                if should_raise:
+                    with pytest.raises(GitExportError):
+                        async_export_to_git(CONTENT_KEY, user=USER)
+                else:
+                    async_export_to_git(CONTENT_KEY, user=USER)
+
+    def test_content_resolution_failure_propagates(self):
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.get_content_info",
+                side_effect=RuntimeError("modulestore down"),
+            ),
+            pytest.raises(RuntimeError, match="modulestore down"),
+        ):
+            async_export_to_git(CONTENT_KEY, user=USER)
+
+    def test_missing_content_is_not_a_failure(self):
+        with mock.patch(
+            "ol_openedx_git_auto_export.tasks.get_content_info",
+            side_effect=ContentNotFoundError("gone"),
+        ):
+            async_export_to_git(CONTENT_KEY, user=USER)
 
 
 class TestMissingRepositoryHandling(TestCase):

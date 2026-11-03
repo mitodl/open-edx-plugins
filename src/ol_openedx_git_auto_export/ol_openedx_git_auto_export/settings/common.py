@@ -19,6 +19,9 @@ def plugin_settings(settings):
     settings.GIT_AUTO_EXPORT_AUTHORING_URL_PREFIX = env_tokens.get(
         "GIT_AUTO_EXPORT_AUTHORING_URL_PREFIX", "authoring"
     )
+    settings.GIT_AUTO_EXPORT_CELERY_QUEUE = env_tokens.get(
+        "GIT_AUTO_EXPORT_CELERY_QUEUE"
+    )
 
     # Course-specific settings
     settings.FEATURES[ENABLE_GIT_AUTO_EXPORT] = env_tokens.get("FEATURES", {}).get(
