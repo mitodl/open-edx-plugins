@@ -7,6 +7,7 @@ import re
 
 from django.conf import settings
 from django.http import HttpResponseRedirect
+from django.utils import translation
 from django.utils.deprecation import MiddlewareMixin
 from opaque_keys.edx.keys import CourseKey
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
@@ -37,8 +38,9 @@ def learner_language_wins(path):
     """
     Return True when the course in the path is in in-place translations mode.
 
-    Then the learner's own language is kept on its course pages. Studio,
-    authoring requests and staff pages are always English, whatever the flag says.
+    Then the learner's own language is kept on its course pages, and staff pages
+    are shown in English without saving it. Studio and authoring requests always
+    switch to English, whatever the flag says.
     """
     return in_place_translations_enabled(course_key_from_path(path))
 
@@ -70,6 +72,17 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
         re.IGNORECASE,
     )
 
+    def process_request(self, request):
+        """Show staff pages in English for this request only in in-place mode."""
+        path = getattr(request, "path_info", request.path)
+        if (
+            should_process_request(request)
+            and self._is_exempt_path(path)
+            and learner_language_wins(path)
+        ):
+            translation.activate(ENGLISH_LANGUAGE_CODE)
+            request.LANGUAGE_CODE = ENGLISH_LANGUAGE_CODE
+
     def process_response(self, request, response):
         """
         Process the response to set/reset language cookie based on course language.
@@ -79,9 +92,14 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
 
         path = getattr(request, "path_info", request.path)
 
-        if self._is_authoring_request(request) or self._is_exempt_path(path):
+        if self._is_authoring_request(request):
             return self._force_english_if_needed(request, response)
-        if learner_language_wins(path):
+        in_place = learner_language_wins(path)
+        if self._is_exempt_path(path) and not in_place:
+            return self._force_english_if_needed(request, response)
+        # In in-place mode the learner's saved choice is kept; process_request
+        # already showed a staff page in English.
+        if in_place:
             return response
 
         course_language = self._get_course_language(path)
@@ -99,8 +117,10 @@ class CourseLanguageCookieMiddleware(MiddlewareMixin):
 
     def _is_exempt_path(self, path):
         """Return True for staff paths (admin, instructor dashboard), always English."""
+        # Whole path parts only: a block id like "instructor_bio" is not a staff path.
+        parts = set(path.strip("/").split("/"))
         return any(
-            exempt_path in path
+            exempt_path in parts
             for exempt_path in settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS
         )
 

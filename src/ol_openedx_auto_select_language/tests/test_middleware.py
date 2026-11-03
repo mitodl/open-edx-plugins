@@ -400,10 +400,10 @@ def test_no_change_when_cookie_is_english_or_empty(
     ("path", "http_origin", "forced"),
     [
         ("/courses/course-v1:MITx+T101+2026/courseware/", None, False),
-        ("/courses/course-v1:MITx+T101+2026/instructor", None, True),
+        ("/courses/course-v1:MITx+T101+2026/instructor", None, False),
         ("/api/user/v1/preferences/edx", "http://authoring.example.com", True),
     ],
-    ids=["course_page_kept", "staff_page_always_english", "authoring_always_english"],
+    ids=["course_page_kept", "staff_page_not_saved", "authoring_always_english"],
 )
 def test_in_place_translations_course(  # noqa: PLR0913, PLR0917
     request_factory,
@@ -415,7 +415,7 @@ def test_in_place_translations_course(  # noqa: PLR0913, PLR0917
     http_origin,
     forced,
 ):
-    """With the flag on, staff and authoring requests still switch to English."""
+    """With the flag on, only authoring requests still save English."""
     settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
     settings.COURSE_AUTHORING_MICROFRONTEND_URL = "http://authoring.example.com"
     settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["instructor"]
@@ -432,6 +432,70 @@ def test_in_place_translations_course(  # noqa: PLR0913, PLR0917
     )
 
     assert mock_helpers.set_language_cookie.called is forced
+
+
+@pytest.mark.parametrize(
+    ("path", "exempt"),
+    [
+        ("/admin/waffle/flag/", True),
+        ("/sysadmin/", True),
+        ("/courses/course-v1:MITx+T101+2026/instructor", True),
+        (
+            "/courses/course-v1:MITx+T101+2026/instructor/api/list_report_downloads",
+            True,
+        ),
+        ("/api/instructor/v1/reports/x", True),
+        ("/api/instructor_task/v1/schedules/x", True),
+        ("/api-admin/", True),
+        (
+            (
+                "/courses/course-v1:MITx+T101+2026/xblock/block-v1:MITx+T101+2026"
+                "+type@html+block@instructor_bio/handler/x"
+            ),
+            False,
+        ),
+        ("/courses/course-v1:MITx+Badminton+2026/courseware", False),
+        ("/courses/course-v1:MITx+T101+2026/courseware", False),
+    ],
+)
+def test_exempt_paths_match_whole_path_parts(mocker, path, exempt):
+    """Only whole path parts are staff paths, not block or course ids."""
+    middleware = CourseLanguageCookieMiddleware(mocker.Mock())
+
+    assert middleware._is_exempt_path(path) is exempt  # noqa: SLF001
+
+
+@pytest.mark.parametrize(
+    ("path", "in_place", "english"),
+    [
+        ("/courses/course-v1:MITx+T101+2026/instructor", True, True),
+        ("/courses/course-v1:MITx+T101+2026/instructor", False, False),
+        ("/courses/course-v1:MITx+T101+2026/courseware", True, False),
+    ],
+    ids=["staff_page_in_place", "staff_page_auto_select", "course_page"],
+)
+def test_staff_page_shown_in_english_for_the_request(  # noqa: PLR0913, PLR0917
+    request_factory,
+    mock_user,
+    mocker,
+    settings,
+    in_place_translations_disabled,
+    path,
+    in_place,
+    english,
+):
+    """In in-place mode a staff page is English for that request only."""
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    settings.AUTO_LANGUAGE_SELECTION_EXEMPT_PATHS = ["instructor"]
+    in_place_translations_disabled.return_value = in_place
+    activate = mocker.patch(f"{MODULE}.translation.activate")
+    request = request_factory.get(path)
+    request.user = mock_user
+
+    CourseLanguageCookieMiddleware(mocker.Mock()).process_request(request)
+
+    assert activate.called is english
+    assert (getattr(request, "LANGUAGE_CODE", None) == ENGLISH_LANGUAGE_CODE) is english
 
 
 @pytest.mark.parametrize(

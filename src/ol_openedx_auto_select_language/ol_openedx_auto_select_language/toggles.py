@@ -11,7 +11,8 @@ from openedx.core.djangoapps.waffle_utils import CourseWaffleFlag
 # .. toggle_default: False
 # .. toggle_description: In-place translations mode for a course: the learner's own
 #   language choice wins and the course is shown in it. Course pages stop
-#   switching or saving the language (Studio and staff pages stay English),
+#   switching or saving the language (staff pages are shown in English without
+#   saving it; Studio still switches to English),
 #   course-language lookups report the learner's language, video subtitles follow
 #   the learner's language before the course language, and the course's
 #   BlockTranslation rows are shown.
