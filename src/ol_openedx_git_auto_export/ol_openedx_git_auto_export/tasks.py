@@ -16,7 +16,7 @@ from rest_framework import status
 
 from ol_openedx_git_auto_export.constants import EXPORT_TIME_LIMIT
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
-from ol_openedx_git_auto_export.models import ContentGitRepository
+from ol_openedx_git_auto_export.models import ContentGitRepository, ExportStatus
 from ol_openedx_git_auto_export.utils import (
     acquire_export_lock,
     burst_exceeded_max_wait,
@@ -28,6 +28,7 @@ from ol_openedx_git_auto_export.utils import (
     is_auto_repo_creation_enabled,
     queue_debounced_export,
     queue_export_task,
+    record_export_result,
     release_export_lock,
     release_export_slot,
     schedule_export_with_debounce,
@@ -79,23 +80,32 @@ def _superseded(context_key_string, user, token):
     return True
 
 
+def _git_output(exc):
+    """Return git's own output from a GitExportError, or ''."""
+    output = getattr(exc.__cause__, "output", None) or ""
+    # bytes today (check_output without text=True); str if that changes.
+    if isinstance(output, bytes):
+        output = output.decode(errors="replace")
+    return output
+
+
 def _export_unless_unchanged(context_key, git_url, user):
     """
     Run export_to_git, treating unchanged content as success.
 
     export_to_git raises CANNOT_COMMIT both for this and for real failures
     such as a held index.lock; only git's own output tells them apart.
+
+    Returns False if there was nothing to commit, else True.
     """
     try:
         export_to_git(context_key, git_url, user=user)
     except GitExportError as exc:
-        output = getattr(exc.__cause__, "output", None) or ""
-        # bytes today (check_output without text=True); str if that changes.
-        if isinstance(output, bytes):
-            output = output.decode(errors="replace")
-        if "nothing to commit" not in output:
+        if "nothing to commit" not in _git_output(exc):
             raise
         LOGGER.info("No changes to export for %s", context_key)
+        return False
+    return True
 
 
 def _wait_to_export(context_key_string, user, token):
@@ -105,13 +115,25 @@ def _wait_to_export(context_key_string, user, token):
     Whatever holds it may predate this task's changes, so this one runs
     after it instead of racing it.
     """
-    if token:
-        # Keeps the slot and the burst's start, as a superseded task does.
-        queue_export_task(
-            context_key_string, user, current_export_token(context_key_string, token)
+    try:
+        if token:
+            # Keeps the slot and the burst's start, as a superseded task does.
+            queue_export_task(
+                context_key_string,
+                user,
+                current_export_token(context_key_string, token),
+            )
+        else:
+            queue_debounced_export(context_key_string, lambda: user)
+    except Exception as exc:
+        # The export is lost: nothing else is queued to run it.
+        record_export_result(
+            context_key_string,
+            ExportStatus.FAILED,
+            user=user,
+            error_message=f"Failed to re-queue the export: {exc!r}",
         )
-    else:
-        queue_debounced_export(context_key_string, lambda: user)
+        raise
 
 
 def _get_content_repo(context_key_string):
@@ -155,11 +177,17 @@ def async_export_to_git(context_key_string, user=None, token=None):
         try:
             content_repo = _get_content_repo(context_key_string)
             unlocked = _index_unlocked(content_repo)
-        except Exception:
+        except Exception as exc:
             # Still holding the slot: later signals would see an export
             # queued that will never run.
             if token:
                 release_export_slot(context_key_string)
+            record_export_result(
+                context_key_string,
+                ExportStatus.FAILED,
+                user=user,
+                error_message=repr(exc),
+            )
             raise
         if not unlocked:
             # A killed export's lock, or Studio's own export running.
@@ -180,7 +208,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
             release_export_lock(context_key_string)
 
 
-def _export(context_key_string, user, content_repo):
+def _export(context_key_string, user, content_repo):  # noqa: C901
     """Resolve the content, then export it to content_repo."""
     try:
         context_key = LearningContextKey.from_string(context_key_string)
@@ -193,10 +221,18 @@ def _export(context_key_string, user, content_repo):
             "Content %s not found; abandoning this export (no retry)",
             context_key_string,
         )
+        record_export_result(context_key_string, ExportStatus.NOT_FOUND, user=user)
         return
-    except Exception:
+    except Exception as exc:
         # Also covers get_content_info's lookups, so not necessarily a bad key.
         LOGGER.exception("Failed to resolve content %s", context_key_string)
+        if not isinstance(exc, InvalidKeyError):  # unstorable key: log only
+            record_export_result(
+                context_key_string,
+                ExportStatus.FAILED,
+                user=user,
+                error_message=repr(exc),
+            )
         raise
 
     if content_repo is None:
@@ -206,59 +242,87 @@ def _export(context_key_string, user, content_repo):
             content_info["content_type"],
             context_key_string,
         )
+        note = "Auto-creation is disabled."
         try:
             if is_auto_repo_creation_enabled(is_library=content_info["is_library"]):
                 async_create_github_repo.delay(str(context_key), export_content=True)
-        except Exception:
+                note = "Repository creation queued."
+        except Exception as exc:
             # Nothing else catches this one, and it must not fail the task.
             LOGGER.exception(
                 "Failed to check/trigger repo creation for %s %s",
                 content_info["content_type"],
                 context_key_string,
             )
+            note = f"Failed to queue repository creation: {exc!r}"
+        record_export_result(
+            context_key, ExportStatus.NO_REPO, user=user, error_message=note
+        )
         return
 
+    git_url = content_repo.git_url
+    content_id = (
+        content_info["content_module"].id
+        if hasattr(content_info["content_module"], "id")
+        else context_key
+    )
     try:
         if content_repo.is_export_enabled:
             LOGGER.info(
                 "Starting async %s content export to git (%s id: %s)",
                 content_info["content_type"],
                 content_info["content_type"],
-                content_info["content_module"].id
-                if hasattr(content_info["content_module"], "id")
-                else context_key,
+                content_id,
             )
             # _index_unlocked removed any stale index.lock; export_to_git's
             # `git reset --hard` + `git clean` handle files a crash left dirty.
-            _export_unless_unchanged(context_key, content_repo.git_url, user)
+            outcome = (
+                ExportStatus.SUCCESS
+                if _export_unless_unchanged(context_key, git_url, user)
+                else ExportStatus.NO_CHANGES
+            )
         else:
             LOGGER.info(
                 "Git export is disabled for %s %s. Skipping export.",
                 content_info["content_type"],
                 context_key_string,
             )
-    except GitExportError:
+            outcome = ExportStatus.SKIPPED_DISABLED
+    except GitExportError as exc:
         LOGGER.exception(
             "Failed async %s content export to git (%s id: %s)",
             content_info["content_type"],
             content_info["content_type"],
-            content_info["content_module"].id
-            if hasattr(content_info["content_module"], "id")
-            else context_key,
+            content_id,
+        )
+        record_export_result(
+            context_key,
+            ExportStatus.FAILED,
+            user=user,
+            git_url=git_url,
+            error_message=str(exc),
+            git_output=_git_output(exc),
         )
         # Re-raised, not retried, so Celery records the failure; most push
         # and commit errors recur until someone fixes their cause.
         raise
-    except Exception:
+    except Exception as exc:
         LOGGER.exception(
             "Unknown error occurred during async %s content export to git (%s id: %s)",
             content_info["content_type"],
             content_info["content_type"],
-            content_info["content_module"].id
-            if hasattr(content_info["content_module"], "id")
-            else context_key,
+            content_id,
+        )
+        record_export_result(
+            context_key,
+            ExportStatus.FAILED,
+            user=user,
+            git_url=git_url,
+            error_message=repr(exc),
         )
         raise
+    else:
+        record_export_result(context_key, outcome, user=user, git_url=git_url)
 
 
 @shared_task(
@@ -266,7 +330,11 @@ def _export(context_key_string, user, content_repo):
     autoretry_for=(requests.exceptions.RequestException,),
     retry_kwargs={"max_retries": 3, "countdown": 10},
 )
-def async_create_github_repo(self, context_key_str, export_content=False):  # noqa: FBT002
+def async_create_github_repo(  # noqa: C901, PLR0912, PLR0915
+    self,
+    context_key_str,
+    export_content=False,  # noqa: FBT002
+):
     """
     Create a GitHub repository for the given course or library key.
 
@@ -287,9 +355,18 @@ def async_create_github_repo(self, context_key_str, export_content=False):  # no
     except ContentNotFoundError as exc:
         response_msg = f"Content {context_key_str} not found: {exc}"
         LOGGER.warning(response_msg)
+        record_export_result(
+            context_key_str, ExportStatus.NOT_FOUND, error_message=response_msg
+        )
         return False, response_msg
-    except Exception:
+    except Exception as exc:
         LOGGER.exception("Failed to parse context key: %s", context_key_str)
+        if not isinstance(exc, InvalidKeyError):  # unstorable key: log only
+            record_export_result(
+                context_key_str,
+                ExportStatus.REPO_CREATION_FAILED,
+                error_message=repr(exc),
+            )
         return False, f"Invalid context key: {context_key_str}"
 
     content_id_slugified = github_repo_name_format(str(context_key))
@@ -330,13 +407,25 @@ def async_create_github_repo(self, context_key_str, export_content=False):  # no
         "has_wiki": False,
         "auto_init": True,
     }
-    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    max_retries = self.retry_kwargs.get("max_retries", 3)
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+    except requests.exceptions.RequestException as exc:
+        # autoretry_for retries these; record only the last attempt.
+        if self.request.retries >= max_retries:
+            record_export_result(
+                context_key, ExportStatus.REPO_CREATION_FAILED, error_message=repr(exc)
+            )
+        raise
     if response.status_code != status.HTTP_201_CREATED:
-        response_msg = f"Failed to create GitHub repository for {content_info['content_type']} {context_key}: {response.json()}"  # noqa: E501
+        try:
+            error_body = response.json()
+        except ValueError:  # e.g. a proxy's HTML error page
+            error_body = response.text[:500]
+        response_msg = f"Failed to create GitHub repository for {content_info['content_type']} {context_key} (HTTP {response.status_code}): {error_body}"  # noqa: E501
         LOGGER.error(response_msg)
 
         # Retry the task if we haven't exceeded max retries
-        max_retries = self.retry_kwargs.get("max_retries", 3)
         if self.request.retries < max_retries:
             LOGGER.info(
                 "Retrying GitHub repository creation for %s %s (attempt %d/%d)",
@@ -348,6 +437,9 @@ def async_create_github_repo(self, context_key_str, export_content=False):  # no
             countdown = self.retry_kwargs.get("countdown", 10)
             raise self.retry(countdown=countdown, exc=Exception(response_msg))
 
+        record_export_result(
+            context_key, ExportStatus.REPO_CREATION_FAILED, error_message=response_msg
+        )
         return False, response_msg
 
     repo_data = response.json()
@@ -371,6 +463,9 @@ def async_create_github_repo(self, context_key_str, export_content=False):  # no
             Response data: {repo_data}
         """
         LOGGER.error(response_msg)
+        record_export_result(
+            context_key, ExportStatus.REPO_CREATION_FAILED, error_message=response_msg
+        )
 
     if ssh_url and export_content:
         # Debounced like every other export, so it coalesces with an import

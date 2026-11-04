@@ -8,6 +8,7 @@ import time
 import uuid
 from pathlib import Path
 
+from celery import current_task
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -42,7 +43,7 @@ from ol_openedx_git_auto_export.constants import (
     ContentType,
 )
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
-from ol_openedx_git_auto_export.models import ContentGitRepository
+from ol_openedx_git_auto_export.models import ContentGitExportLog, ContentGitRepository
 
 log = logging.getLogger(__name__)
 
@@ -600,3 +601,34 @@ def is_auto_repo_creation_enabled(is_library=False):  # noqa: FBT002
         raise ImproperlyConfigured(error_msg)
 
     return True
+
+
+def record_export_result(  # noqa: PLR0913
+    content_key,
+    status,
+    *,
+    user=None,
+    git_url="",
+    error_message="",
+    git_output="",
+):
+    """
+    Store one ContentGitExportLog row for a finished export run.
+
+    Never raises: a failed write must not change the export's own outcome.
+    """
+    try:
+        # A direct (non-Celery) call has a request with no id.
+        task_id = getattr(getattr(current_task, "request", None), "id", None)
+        ContentGitExportLog.objects.create(
+            content_key=LearningContextKey.from_string(str(content_key)),
+            status=status,
+            user=user or "",
+            celery_task_id=task_id or "",
+            git_url=git_url or "",
+            error_message=error_message,
+            # The tail holds git's actual error.
+            git_output=git_output[-20000:],
+        )
+    except Exception:
+        log.exception("Failed to record %s export result for %s", status, content_key)
