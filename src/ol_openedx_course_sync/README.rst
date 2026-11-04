@@ -69,6 +69,7 @@ Course Sync (CMS)
 * The plugin will automatically add course re-runs created from the CMS as the child courses.
     * The organization can be different for the reruns.
 * Target/rerun courses can be managed in the CMS admin model `CourseSyncMapping`.
+    * The "Sync Course Content" and "Sync Course Assets" admin actions are only available in the CMS admin, since the sync tasks run on CMS workers.
 * Now, any changes made in the source course will be synced to the target courses.
 
 Legacy Library Migration (CMS)

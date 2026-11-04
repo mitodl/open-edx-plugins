@@ -5,6 +5,7 @@ Django admin for ol-openedx-course-sync plugin
 import logging
 
 from django import forms
+from django.conf import settings
 from django.contrib import admin
 from organizations.models import Organization
 
@@ -58,7 +59,12 @@ class CourseSyncMappingAdmin(admin.ModelAdmin):
     list_display = ("source_course", "target_course", "is_active")
     search_fields = ("source_course", "target_course")
     list_filter = ("is_active",)
-    actions = ("sync_course_content", "sync_course_assets")
+    # Sync tasks run on CMS workers, so only the CMS admin offers the actions.
+    actions = (
+        ("sync_course_content", "sync_course_assets")
+        if settings.SERVICE_VARIANT == "cms"
+        else ()
+    )
 
     def get_readonly_fields(self, request, obj=None):  # noqa: ARG002
         """
