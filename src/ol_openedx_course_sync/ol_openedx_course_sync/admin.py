@@ -7,12 +7,40 @@ import logging
 from django import forms
 from django.conf import settings
 from django.contrib import admin
+from django.utils.html import format_html
 from organizations.models import Organization
 
 from ol_openedx_course_sync.models import CourseSyncMapping, CourseSyncOrganization
 from ol_openedx_course_sync.tasks import async_course_assets_sync, async_course_sync
 
 log = logging.getLogger(__name__)
+
+
+class SearchableSelect(forms.Select):
+    """
+    Select enhanced with the admin's bundled Select2, filtering the local options
+    """
+
+    class Media:
+        js = (
+            "admin/js/vendor/jquery/jquery.min.js",
+            "admin/js/vendor/select2/select2.full.min.js",
+            "admin/js/jquery.init.js",
+        )
+        css = {
+            "screen": (
+                "admin/css/vendor/select2/select2.min.css",
+                "admin/css/autocomplete.css",
+            )
+        }
+
+    def render(self, name, value, attrs=None, renderer=None):
+        # admin-autocomplete theme matches the admin's own autocomplete styling
+        attrs = {**(attrs or {}), "data-theme": "admin-autocomplete"}
+        return super().render(name, value, attrs, renderer) + format_html(
+            '<script>django.jQuery(function($) {{ $("#{}").select2(); }});</script>',
+            attrs["id"],
+        )
 
 
 class CourseSyncOrganizationForm(forms.ModelForm):
@@ -26,10 +54,12 @@ class CourseSyncOrganizationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        org_choices = [
+        org_choices = [("", "---------")] + [
             (org.name, org.name) for org in Organization.objects.filter(active=True)
         ]
-        self.fields["organization"] = forms.ChoiceField(choices=org_choices)
+        self.fields["organization"] = forms.ChoiceField(
+            choices=org_choices, widget=SearchableSelect
+        )
 
 
 @admin.register(CourseSyncOrganization)
