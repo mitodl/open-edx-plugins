@@ -410,6 +410,10 @@ def async_create_github_repo(  # noqa: C901, PLR0912, PLR0915
     max_retries = self.retry_kwargs.get("max_retries", 3)
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=30)
+        # A malformed 201 body raises JSONDecodeError, also a RequestException.
+        repo_data = (
+            response.json() if response.status_code == status.HTTP_201_CREATED else None
+        )
     except requests.exceptions.RequestException as exc:
         # autoretry_for retries these; record only the last attempt.
         if self.request.retries >= max_retries:
@@ -442,7 +446,6 @@ def async_create_github_repo(  # noqa: C901, PLR0912, PLR0915
         )
         return False, response_msg
 
-    repo_data = response.json()
     ssh_url = repo_data.get("ssh_url")
     if ssh_url:
         # Use the new ContentGitRepository model
