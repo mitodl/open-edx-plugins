@@ -21,18 +21,23 @@ class SearchableSelect(forms.Select):
     Select enhanced with the admin's bundled Select2, filtering the local options
     """
 
-    class Media:
-        js = (
-            "admin/js/vendor/jquery/jquery.min.js",
-            "admin/js/vendor/select2/select2.full.min.js",
-            "admin/js/jquery.init.js",
+    @property
+    def media(self):
+        # Match ModelAdmin's DEBUG-dependent jQuery file so it isn't loaded twice
+        extra = "" if settings.DEBUG else ".min"
+        return forms.Media(
+            js=(
+                f"admin/js/vendor/jquery/jquery{extra}.js",
+                f"admin/js/vendor/select2/select2.full{extra}.js",
+                "admin/js/jquery.init.js",
+            ),
+            css={
+                "screen": (
+                    f"admin/css/vendor/select2/select2{extra}.css",
+                    "admin/css/autocomplete.css",
+                )
+            },
         )
-        css = {
-            "screen": (
-                "admin/css/vendor/select2/select2.min.css",
-                "admin/css/autocomplete.css",
-            )
-        }
 
     def render(self, name, value, attrs=None, renderer=None):
         # admin-autocomplete theme matches the admin's own autocomplete styling
