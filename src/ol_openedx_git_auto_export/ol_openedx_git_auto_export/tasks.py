@@ -27,6 +27,7 @@ from ol_openedx_git_auto_export.utils import (
     clear_stale_git_lock,
     current_export_token,
     get_content_info,
+    get_oversized_assets,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
     queue_debounced_export,
@@ -273,6 +274,16 @@ def async_export_to_git(context_key_string, user=None, token=None):
             release_export_lock(context_key_string)
 
 
+def _oversized_message(oversized):
+    """Describe the assets that keep content from being exported."""
+    files = ", ".join(f"{name} ({size / 2**20:.1f} MB)" for name, size in oversized)
+    limit = settings.GIT_AUTO_EXPORT_MAX_FILE_SIZE / 2**20
+    return (
+        f"Not exported: {len(oversized)} file(s) exceed the {limit:.0f} MB "
+        f"limit git hosts accept: {files}"
+    )
+
+
 def _export(context_key_string, user, content_repo):  # noqa: C901
     """Resolve the content, then export it to content_repo."""
     try:
@@ -339,6 +350,18 @@ def _export(context_key_string, user, content_repo):  # noqa: C901
     )
     try:
         if content_repo.is_export_enabled:
+            if oversized := get_oversized_assets(context_key):
+                # Not raised: it recurs on every publish until the files move.
+                message = _oversized_message(oversized)
+                LOGGER.warning("%s: %s", context_key_string, message)
+                record_export_result(
+                    context_key,
+                    ExportStatus.SKIPPED_LARGE_FILES,
+                    user=user,
+                    git_url=git_url,
+                    error_message=message,
+                )
+                return
             LOGGER.info(
                 "Starting async %s content export to git (%s id: %s)",
                 content_info["content_type"],

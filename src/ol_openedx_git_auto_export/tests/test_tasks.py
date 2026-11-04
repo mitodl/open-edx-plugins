@@ -40,7 +40,11 @@ from ol_openedx_git_auto_export.utils import (
     pending_cache_key,
     queue_debounced_export,
 )
+from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LibraryLocatorV2
+from xmodule.contentstore.content import StaticContent
+from xmodule.contentstore.django import contentstore
+from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 
 from ol_openedx_git_auto_export import tasks as tasks_module
 from ol_openedx_git_auto_export import utils
@@ -1159,3 +1163,71 @@ class TestRepoCreationResultIsRecorded(TestCase):
         assert list(ContentGitExportLog.objects.values_list("status", flat=True)) == [
             ExportStatus.NOT_FOUND
         ]
+
+
+class TestOversizedAssetsSkipTheExport(TestCase):
+    """Content with a file over GitHub's limit is skipped before any git work."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_oversized_assets_skip_the_export(self):
+        with ExitStack() as stack:
+            mock_export = mock_export_collaborators(stack)
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.tasks.get_oversized_assets",
+                    return_value=[("data.tar.gz", 200 * 2**20)],
+                )
+            )
+            async_export_to_git(CONTENT_KEY, user=USER)
+
+        mock_export.assert_not_called()
+        row = ContentGitExportLog.objects.get()
+        assert row.status == ExportStatus.SKIPPED_LARGE_FILES
+        assert "data.tar.gz (200.0 MB)" in row.error_message
+
+    def test_disabled_export_skips_the_check(self):
+        with ExitStack() as stack:
+            mock_export_collaborators(stack)
+            objects = stack.enter_context(
+                mock.patch.object(ContentGitRepository, "objects")
+            )
+            objects.filter.return_value.first.return_value = mock.Mock(
+                is_export_enabled=False, git_url=GIT_URL
+            )
+            mock_check = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.get_oversized_assets")
+            )
+            async_export_to_git(CONTENT_KEY, user=USER)
+
+        mock_check.assert_not_called()
+        assert ContentGitExportLog.objects.get().status == ExportStatus.SKIPPED_DISABLED
+
+
+class TestGetOversizedAssets(ModuleStoreTestCase):
+    """Only the contentstore's oversized assets are returned."""
+
+    def test_returns_assets_over_the_limit(self):
+        course_key = CourseKey.from_string("course-v1:org+oversized+run")
+        for name, size in (("small.pdf", 5), ("limit.pdf", 10), ("big.pdf", 11)):
+            location = StaticContent.compute_location(course_key, name)
+            contentstore().save(
+                StaticContent(location, name, "application/pdf", b"x" * size)
+            )
+
+        for limit in (10, "10"):  # a quoted YAML value must still apply
+            with override_settings(GIT_AUTO_EXPORT_MAX_FILE_SIZE=limit):
+                assert utils.get_oversized_assets(course_key) == [("big.pdf", 11)]
+
+    def test_v2_libraries_and_a_disabled_limit_skip_the_query(self):
+        course_key = CourseKey.from_string("course-v1:org+course+run")
+        with mock.patch.object(utils, "contentstore") as mock_contentstore:
+            assert (
+                utils.get_oversized_assets(LibraryLocatorV2.from_string(CONTENT_KEY))
+                == []
+            )
+            with override_settings(GIT_AUTO_EXPORT_MAX_FILE_SIZE=None):
+                assert utils.get_oversized_assets(course_key) == []
+
+        mock_contentstore.assert_not_called()
