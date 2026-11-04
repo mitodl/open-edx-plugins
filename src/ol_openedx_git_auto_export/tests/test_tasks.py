@@ -911,6 +911,14 @@ class TestRepoCreationResultIsRecorded(TestCase):
             ),
             mock.Mock(side_effect=requests.exceptions.ConnectionError("down")),
             mock.Mock(return_value=mock.Mock(status_code=201, json=dict)),
+            mock.Mock(
+                return_value=mock.Mock(
+                    status_code=201,
+                    json=mock.Mock(
+                        side_effect=requests.exceptions.JSONDecodeError("x", "", 0)
+                    ),
+                )
+            ),
         ]
         for post in failures:
             with self.subTest(post=post):
