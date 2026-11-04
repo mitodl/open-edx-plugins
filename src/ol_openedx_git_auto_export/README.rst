@@ -51,6 +51,19 @@ Configuration
 
     GIT_AUTO_EXPORT_CELERY_QUEUE: "edx.cms.core.git_export"
 
+- Content with a Studio asset over ``GIT_AUTO_EXPORT_MAX_FILE_SIZE`` bytes is
+  not exported, since GitHub rejects pushes containing a file over 100 MB. The
+  check does not bound push memory: content under the limit is still pushed,
+  so size the export worker for its largest courses. The default is
+  GitHub's limit; set it to ``null`` to turn the check off. The skipped export
+  appears in the export history with the files named. To export the content,
+  host those files elsewhere (for example S3) and link to them from the course;
+  the next publish exports it. Files in v2 libraries are not checked.
+
+  .. code-block::
+
+    GIT_AUTO_EXPORT_MAX_FILE_SIZE: 104857600  # bytes
+
 - Restart the server using ``make studio-restart`` on Devstack or ``tutor dev/local restart openedx`` on Tutor.
 - For Tutor installations, these values can also be managed through a `custom tutor plugin <https://docs.tutor.edly.io/tutorials/plugin.html#plugin-development-tutorial>`_.
 

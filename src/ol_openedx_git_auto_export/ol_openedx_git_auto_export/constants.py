@@ -57,5 +57,7 @@ EXPORT_BURST_START_TTL = EXPORT_MAX_WAIT + EXPORT_DEBOUNCE_PENDING_TTL
 EXPORT_TIME_LIMIT = 10 * 60  # seconds
 EXPORT_LOCK_CACHE_KEY = "git_export_lock:{content_key}"
 EXPORT_LOCK_TTL = EXPORT_TIME_LIMIT + 60  # seconds
+# GitHub (and GitHub Enterprise) rejects pushes containing a larger file.
+GIT_MAX_FILE_SIZE = 100 * 1024 * 1024  # bytes; GitHub's "100.00 MB" is MiB
 # git holds index.lock for seconds; an older one was left by a killed process.
 STALE_GIT_LOCK_AGE = 60  # seconds
