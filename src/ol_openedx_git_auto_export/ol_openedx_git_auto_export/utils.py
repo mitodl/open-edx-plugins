@@ -773,13 +773,18 @@ def track_export(content_key, user, *loggers, git_url=""):
             log.exception("Failed to close the %s export record", content_key)
 
 
+def max_file_size():
+    """GIT_AUTO_EXPORT_MAX_FILE_SIZE in bytes; 0 means no limit."""
+    # int: a quoted YAML value would never match Mongo's numeric length.
+    return int(settings.GIT_AUTO_EXPORT_MAX_FILE_SIZE or 0)
+
+
 def get_oversized_assets(content_key):
     """
     Return (name, size in bytes) for each asset over
     GIT_AUTO_EXPORT_MAX_FILE_SIZE, which git hosts reject on push.
     """
-    # int: a quoted YAML value would never match Mongo's numeric length.
-    limit = int(settings.GIT_AUTO_EXPORT_MAX_FILE_SIZE or 0)
+    limit = max_file_size()
     # v2 libraries keep their files in Learning Core, not the contentstore.
     if not limit or isinstance(content_key, LibraryLocatorV2):
         return []

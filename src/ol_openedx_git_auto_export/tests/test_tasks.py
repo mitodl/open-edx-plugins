@@ -1187,6 +1187,23 @@ class TestOversizedAssetsSkipTheExport(TestCase):
         assert row.status == ExportStatus.SKIPPED_LARGE_FILES
         assert "data.tar.gz (200.0 MB)" in row.error_message
 
+    @override_settings(GIT_AUTO_EXPORT_MAX_FILE_SIZE=str(100 * 2**20))
+    def test_a_quoted_limit_still_skips(self):
+        """A quoted YAML value reaches the message formatting as a str."""
+        with ExitStack() as stack:
+            mock_export_collaborators(stack)
+            stack.enter_context(
+                mock.patch(
+                    "ol_openedx_git_auto_export.tasks.get_oversized_assets",
+                    return_value=[("data.tar.gz", 200 * 2**20)],
+                )
+            )
+            async_export_to_git(CONTENT_KEY, user=USER)
+
+        row = ContentGitExportLog.objects.get()
+        assert row.status == ExportStatus.SKIPPED_LARGE_FILES
+        assert "100 MB limit" in row.error_message
+
     def test_disabled_export_skips_the_check(self):
         with ExitStack() as stack:
             mock_export_collaborators(stack)

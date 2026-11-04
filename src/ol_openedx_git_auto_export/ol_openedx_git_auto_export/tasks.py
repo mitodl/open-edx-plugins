@@ -30,6 +30,7 @@ from ol_openedx_git_auto_export.utils import (
     get_oversized_assets,
     github_repo_name_format,
     is_auto_repo_creation_enabled,
+    max_file_size,
     queue_debounced_export,
     queue_export_task,
     record_export_result,
@@ -277,7 +278,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
 def _oversized_message(oversized):
     """Describe the assets that keep content from being exported."""
     files = ", ".join(f"{name} ({size / 2**20:.1f} MB)" for name, size in oversized)
-    limit = settings.GIT_AUTO_EXPORT_MAX_FILE_SIZE / 2**20
+    limit = max_file_size() / 2**20
     return (
         f"Not exported: {len(oversized)} file(s) exceed the {limit:.0f} MB "
         f"limit git hosts accept: {files}"
