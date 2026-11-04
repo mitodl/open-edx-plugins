@@ -114,20 +114,20 @@ def _wait_to_export(context_key_string, user, token):
         queue_debounced_export(context_key_string, lambda: user)
 
 
-def _index_unlocked(context_key_string):
-    """Clear a stale index.lock; False if a younger one would block git."""
+def _get_content_repo(context_key_string):
+    """Return the content's registered repository, or None."""
     try:
         context_key = LearningContextKey.from_string(context_key_string)
     except InvalidKeyError:
-        return True  # _export reports it
-    git_url = (
-        ContentGitRepository.objects.filter(
-            content_key=context_key, is_export_enabled=True
-        )
-        .values_list("git_url", flat=True)
-        .first()
-    )
-    return git_url is None or clear_stale_git_lock(git_url)
+        return None  # _export reports it
+    return ContentGitRepository.objects.filter(content_key=context_key).first()
+
+
+def _index_unlocked(content_repo):
+    """Clear a stale index.lock; False if a younger one would block git."""
+    if content_repo is None or not content_repo.is_export_enabled:
+        return True
+    return clear_stale_git_lock(content_repo.git_url)
 
 
 @shared_task(time_limit=EXPORT_TIME_LIMIT)
@@ -153,7 +153,8 @@ def async_export_to_git(context_key_string, user=None, token=None):
         return
     try:
         try:
-            unlocked = _index_unlocked(context_key_string)
+            content_repo = _get_content_repo(context_key_string)
+            unlocked = _index_unlocked(content_repo)
         except Exception:
             # Still holding the slot: later signals would see an export
             # queued that will never run.
@@ -172,15 +173,15 @@ def async_export_to_git(context_key_string, user=None, token=None):
             # queue a fresh task instead of being dropped. Only now, holding
             # the lock: this also ends the burst, which a wait must not do.
             release_export_slot(context_key_string)
-        _export(context_key_string, user)
+        _export(context_key_string, user, content_repo)
     finally:
         # None means the cache was down: this export never held the lock.
         if owned:
             release_export_lock(context_key_string)
 
 
-def _export(context_key_string, user):
-    """Resolve the content and its repository, then export it."""
+def _export(context_key_string, user, content_repo):
+    """Resolve the content, then export it to content_repo."""
     try:
         context_key = LearningContextKey.from_string(context_key_string)
         content_info = get_content_info(context_key)
@@ -198,9 +199,26 @@ def _export(context_key_string, user):
         LOGGER.exception("Failed to resolve content %s", context_key_string)
         raise
 
-    try:
-        content_repo = ContentGitRepository.objects.get(content_key=context_key)
+    if content_repo is None:
+        LOGGER.info(
+            "No git repository registered for %s %s; "
+            "creating one if auto-creation is enabled.",
+            content_info["content_type"],
+            context_key_string,
+        )
+        try:
+            if is_auto_repo_creation_enabled(is_library=content_info["is_library"]):
+                async_create_github_repo.delay(str(context_key), export_content=True)
+        except Exception:
+            # Nothing else catches this one, and it must not fail the task.
+            LOGGER.exception(
+                "Failed to check/trigger repo creation for %s %s",
+                content_info["content_type"],
+                context_key_string,
+            )
+        return
 
+    try:
         if content_repo.is_export_enabled:
             LOGGER.info(
                 "Starting async %s content export to git (%s id: %s)",
@@ -231,23 +249,6 @@ def _export(context_key_string, user):
         # Re-raised, not retried, so Celery records the failure; most push
         # and commit errors recur until someone fixes their cause.
         raise
-    except ContentGitRepository.DoesNotExist:
-        LOGGER.info(
-            "No git repository registered for %s %s; "
-            "creating one if auto-creation is enabled.",
-            content_info["content_type"],
-            context_key_string,
-        )
-        try:
-            if is_auto_repo_creation_enabled(is_library=content_info["is_library"]):
-                async_create_github_repo.delay(str(context_key), export_content=True)
-        except Exception:
-            # Sibling except clauses don't catch this one.
-            LOGGER.exception(
-                "Failed to check/trigger repo creation for %s %s",
-                content_info["content_type"],
-                context_key_string,
-            )
     except Exception:
         LOGGER.exception(
             "Unknown error occurred during async %s content export to git (%s id: %s)",

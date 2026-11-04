@@ -65,10 +65,8 @@ def mock_export_collaborators(stack, *, index_unlocked=True):
             },
         )
     )
-    # Patch only .objects: leaving ContentGitRepository itself real keeps
-    # DoesNotExist an exception class, so the except clauses stay reachable.
     objects = stack.enter_context(mock.patch.object(ContentGitRepository, "objects"))
-    objects.get.return_value = mock.Mock(
+    objects.filter.return_value.first.return_value = mock.Mock(
         is_export_enabled=True, git_url="git@example.com:repo.git"
     )
     stack.enter_context(
@@ -513,6 +511,24 @@ class TestIndexLockCheck(TestCase):
         mock_export.assert_not_called()
         mock_queue.assert_called_once()
 
+    def test_one_repository_lookup_serves_the_check_and_the_export(self):
+        ContentGitRepository.objects.create(
+            content_key=LibraryLocatorV2.from_string(CONTENT_KEY),
+            git_url="git@example.com:org/repo.git",
+        )
+        with tempfile.TemporaryDirectory() as export_dir, ExitStack() as stack:
+            stack.enter_context(override_settings(GIT_REPO_EXPORT_DIR=export_dir))
+            mock_export = stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.export_to_git")
+            )
+            stack.enter_context(
+                mock.patch("ol_openedx_git_auto_export.tasks.get_content_info")
+            )
+            with self.assertNumQueries(1):
+                async_export_to_git(CONTENT_KEY, user=USER)
+
+        assert mock_export.call_args.args[1] == "git@example.com:org/repo.git"
+
     def test_unregistered_content_skips_the_check(self):
         with ExitStack() as stack:
             stack.enter_context(
@@ -550,14 +566,14 @@ class TestMissingRepositoryHandling(TestCase):
         cache.clear()
 
     def test_repo_creation_check_failure_does_not_crash_the_task(self):
-        """ImproperlyConfigured from missing GitHub settings isn't caught by
-        the sibling except clauses, so the inner guard has to."""
+        """Nothing else catches ImproperlyConfigured from missing GitHub
+        settings, so the inner guard has to."""
         with ExitStack() as stack:
             mock_export_to_git = mock_export_collaborators(stack)
             objects = stack.enter_context(
                 mock.patch.object(ContentGitRepository, "objects")
             )
-            objects.get.side_effect = ContentGitRepository.DoesNotExist
+            objects.filter.return_value.first.return_value = None
             stack.enter_context(
                 mock.patch(
                     "ol_openedx_git_auto_export.tasks.is_auto_repo_creation_enabled",
