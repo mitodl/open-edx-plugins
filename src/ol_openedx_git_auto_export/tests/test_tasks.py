@@ -820,7 +820,7 @@ class TestExportResultIsRecorded(TestCase):
         assert message.rstrip().endswith(f"GitExportError: {raised}")
 
     def test_credentials_in_an_https_url_are_not_stored(self):
-        url = "https://user:s3cret@github.example.com/org/repo.git"
+        url = "https://u:s3cret@git.example/r.git"  # pragma: allowlist secret
         error = GitExportError(GitExportError.CANNOT_PULL)
         error.__cause__ = subprocess.CalledProcessError(
             128, ["git", "clone", url], f"fatal: unable to access '{url}/'".encode()
@@ -839,10 +839,10 @@ class TestExportResultIsRecorded(TestCase):
         row = rows[0]
         for text in (row.git_url, row.error_message, row.git_output, row.log):
             assert "s3cret" not in text
-        assert row.git_url == "https://***@github.example.com/org/repo.git"
-        assert "'clone', 'https://***@github.example.com" in row.error_message
-        assert "https://***@github.example.com" in row.git_output
-        assert "Failed to pull https://***@github.example.com" in row.log
+        assert row.git_url == "https://***@git.example/r.git"
+        assert "'clone', 'https://***@git.example" in row.error_message
+        assert "https://***@git.example" in row.git_output
+        assert "Failed to pull https://***@git.example" in row.log
 
     def test_failures_store_the_traceback(self):
         """The row carries what LOGGER.exception logs, without the logs."""
