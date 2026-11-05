@@ -84,14 +84,19 @@ def _superseded(context_key_string, user, token):
     return True
 
 
-_CONTENT_EXPORT = "Exporting the content"
 # export_to_git's steps, by the module-level name it calls them through.
+# Releases before Willow have only cmd_log and export_course_to_xml.
 _EXPORT_STEPS = {
     # The args may hold the URL, so only "git <command>".
-    "cmd_log": lambda cmd, cwd: f"Running {' '.join(cmd[:2])}",  # noqa: ARG005
-    "export_course_to_xml": lambda *_: _CONTENT_EXPORT,
-    "export_library_to_xml": lambda *_: _CONTENT_EXPORT,
-    "extract_library_v2_zip_to_dir": lambda *_: _CONTENT_EXPORT,
+    "cmd_log": lambda cmd, *_: f"Running {' '.join(cmd[:2])}",
+    **dict.fromkeys(
+        (
+            "export_course_to_xml",
+            "export_library_to_xml",
+            "extract_library_v2_zip_to_dir",
+        ),
+        lambda *_: "Exporting the content",
+    ),
 }
 
 
@@ -109,15 +114,19 @@ def _log_export_steps():
     Log each step export_to_git takes as it starts.
 
     Upstream logs git commands only after they end, at DEBUG, and the content
-    export not at all, so a run killed mid-push or mid-export would show an
-    earlier step as its last.
+    export only if it fails, so a run killed mid-push or mid-export would
+    show an earlier step as its last.
     """
-    originals = {name: getattr(git_export_utils, name) for name in _EXPORT_STEPS}
+    originals = {
+        name: getattr(git_export_utils, name)
+        for name in _EXPORT_STEPS
+        if hasattr(git_export_utils, name)
+    }
     # shortcut: patches the module for the whole process, fine for prefork
     # workers (one task per process); a pool running tasks concurrently in
     # one process would need a lock.
-    for name, describe in _EXPORT_STEPS.items():
-        setattr(git_export_utils, name, _logged(originals[name], describe))
+    for name, original in originals.items():
+        setattr(git_export_utils, name, _logged(original, _EXPORT_STEPS[name]))
     try:
         yield
     finally:
