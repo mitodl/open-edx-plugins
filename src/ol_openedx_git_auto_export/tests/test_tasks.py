@@ -917,8 +917,12 @@ class TestExportResultIsRecorded(TestCase):
 
         def export(*args, **kwargs):  # noqa: ARG001
             # Looked up when called, as export_to_git does: the wrapped one.
-            getattr(git_export_utils, step)(["git", "push", "-q", "origin", "x"], ".")
+            # cwd by keyword: the wrapper must pass kwargs on.
+            returned = getattr(git_export_utils, step)(
+                ["git", "push", "-q", "origin", "x"], cwd="."
+            )
             seen.update(ContentGitExportLog.objects.values("status", "log").get())
+            seen["returned"] = returned
 
         self.run_export(export_effect=export)
         return seen
@@ -939,17 +943,32 @@ class TestExportResultIsRecorded(TestCase):
             with ExitStack() as stack:
                 stack.enter_context(self.subTest(step))
                 stack.enter_context(
-                    mock.patch.object(git_export_utils.subprocess, "check_output")
+                    mock.patch.object(
+                        git_export_utils.subprocess,
+                        "check_output",
+                        return_value=b"main\n",
+                    )
                 )
                 if step != "cmd_log":
-                    stack.enter_context(mock.patch.object(git_export_utils, step))
+                    # create: Ulmo and Verawood lack the library steps.
+                    stack.enter_context(
+                        mock.patch.object(
+                            git_export_utils, step, create=True, return_value=b"main\n"
+                        )
+                    )
                 row = self.row_after(step)
 
-            assert row["status"] == ExportStatus.IN_PROGRESS
-            assert row["log"].splitlines()[-1].endswith(last_line)
+                assert row["status"] == ExportStatus.IN_PROGRESS
+                assert row["log"].splitlines()[-1].endswith(last_line)
+                # export_to_git reads the branch from cmd_log's output.
+                assert row["returned"] == b"main\n"
 
     def test_upstream_functions_are_put_back_after_the_run(self):
-        names = list(tasks_module._EXPORT_STEPS)  # noqa: SLF001
+        names = [
+            name
+            for name in tasks_module._EXPORT_STEPS  # noqa: SLF001
+            if hasattr(git_export_utils, name)
+        ]
         before = [getattr(git_export_utils, name) for name in names]
         self.run_export()
         self.run_export(export_effect=git_error(b"push rejected"))
