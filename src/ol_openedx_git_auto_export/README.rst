@@ -164,7 +164,11 @@ while loading the content.
 
 Runs that are merged into a later one, or wait for another export of the same
 content, add no row; the run that finally exports does. A wait that cannot
-re-queue itself is recorded as Failed. Rows are kept indefinitely.
+re-queue itself is recorded as Failed.
+
+Rows are kept for 30 days, except each course's or library's newest result,
+which is kept however old it is. Older rows are deleted each time an export
+records its result.
 
 Re-exporting Without a Publish
 ==============================

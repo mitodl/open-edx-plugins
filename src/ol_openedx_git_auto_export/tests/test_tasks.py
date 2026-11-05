@@ -882,6 +882,62 @@ class TestExportResultIsRecorded(TestCase):
             _, raised = self.run_export(export_effect=git_error(b"push rejected"))
             assert isinstance(raised, GitExportError)
 
+    def make_row(self, key, age_days):
+        row = ContentGitExportLog.objects.create(
+            content_key=key, status=ExportStatus.SUCCESS
+        )
+        ContentGitExportLog.objects.filter(pk=row.pk).update(
+            created=timezone.now() - timedelta(days=age_days)
+        )
+        return row.pk
+
+    def tracked_success(self):
+        with utils.track_export(CONTENT_KEY, USER):
+            utils.record_export_result(CONTENT_KEY, ExportStatus.SUCCESS)
+
+    def test_a_result_deletes_old_rows_except_each_contents_newest(self):
+        idle_key = "lib:org:idle"
+        for write in (
+            lambda: utils.record_export_result(CONTENT_KEY, ExportStatus.SUCCESS),
+            self.tracked_success,
+        ):
+            with self.subTest(write=write):
+                ContentGitExportLog.objects.all().delete()
+                old = self.make_row(CONTENT_KEY, 31)
+                recent = self.make_row(CONTENT_KEY, 29)
+                # Content never exported again: old rows go, its newest stays.
+                idle_old = self.make_row(idle_key, 365)
+                idle_newest = self.make_row(idle_key, 200)
+                write()
+                pks = set(ContentGitExportLog.objects.values_list("pk", flat=True))
+                assert not {old, idle_old} & pks
+                assert {recent, idle_newest} <= pks
+                assert ContentGitExportLog.objects.filter(
+                    content_key=CONTENT_KEY, pk__gt=idle_newest
+                ).exists()
+
+    def test_a_killed_run_keeps_the_previous_result(self):
+        last = self.make_row(CONTENT_KEY, 40)
+        # A killed run of this content, then another content's result.
+        ContentGitExportLog.objects.create(
+            content_key=CONTENT_KEY, status=ExportStatus.IN_PROGRESS
+        )
+        utils.record_export_result("lib:org:other", ExportStatus.SUCCESS)
+        assert ContentGitExportLog.objects.filter(pk=last).exists()
+        # Its next result replaces it.
+        utils.record_export_result(CONTENT_KEY, ExportStatus.SUCCESS)
+        assert not ContentGitExportLog.objects.filter(pk=last).exists()
+
+    def test_a_failed_cleanup_still_records_the_run(self):
+        old = self.make_row(CONTENT_KEY, 31)
+        with mock.patch(
+            "django.db.models.query.QuerySet.delete", side_effect=DatabaseError("db")
+        ):
+            self.tracked_success()
+        # One row, tracked to its result: the failure didn't drop the run.
+        new = ContentGitExportLog.objects.exclude(pk=old).get()
+        assert new.status == ExportStatus.SUCCESS
+
     def test_superseded_and_waiting_runs_write_no_row(self):
         cache.set(debounce_cache_key(CONTENT_KEY), "token-2")
         with mock.patch("ol_openedx_git_auto_export.tasks.queue_export_task"):

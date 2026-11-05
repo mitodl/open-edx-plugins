@@ -61,3 +61,5 @@ EXPORT_LOCK_TTL = EXPORT_TIME_LIMIT + 60  # seconds
 GIT_MAX_FILE_SIZE = 100 * 1024 * 1024  # bytes; GitHub's "100.00 MB" is MiB
 # git holds index.lock for seconds; an older one was left by a killed process.
 STALE_GIT_LOCK_AGE = 60  # seconds
+# Older ContentGitExportLog rows are deleted, except each content's newest.
+EXPORT_LOG_RETENTION_DAYS = 30
