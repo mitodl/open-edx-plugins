@@ -731,7 +731,7 @@ def track_export(content_key, user, *loggers):
     try:
         yield
     except BaseException as exc:
-        # e.g. SystemExit: export code records only Exception subclasses.
+        # Raised unrecorded, e.g. SystemExit, which export code doesn't catch.
         if _tracked_run.get() is run:
             record_export_result(content_key, ExportStatus.FAILED, user=user, exc=exc)
         raise
@@ -747,7 +747,10 @@ def track_export(content_key, user, *loggers):
                 pk=run.pk, status=ExportStatus.IN_PROGRESS
             ).update(
                 status=ExportStatus.FAILED,
-                error_message="No result was recorded for this run; see its log.",
+                error_message=(
+                    "No result was recorded for this run; see its log or the "
+                    "worker log."
+                ),
                 modified=timezone.now(),
             )
         except Exception:

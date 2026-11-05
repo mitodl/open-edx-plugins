@@ -925,32 +925,55 @@ class TestExportResultIsRecorded(TestCase):
 
     def test_a_killed_run_shows_the_step_it_was_in(self):
         """What a killed run leaves behind: in_progress, last line its step."""
-        steps = [
-            ("cmd_log", "INFO Running git push"),
-            ("export_library_to_xml", "INFO Exporting the content"),
-        ]
-        for step, last_line in steps:
-            with (
-                self.subTest(step),
-                mock.patch.object(git_export_utils.subprocess, "check_output"),
-                mock.patch.object(git_export_utils, "export_library_to_xml"),
-            ):
-                originals = {name: getattr(git_export_utils, name) for name, _ in steps}
+        for step in (
+            "cmd_log",
+            "export_course_to_xml",
+            "export_library_to_xml",
+            "extract_library_v2_zip_to_dir",
+        ):
+            last_line = (
+                "INFO Running git push"
+                if step == "cmd_log"
+                else "INFO Exporting the content"
+            )
+            with ExitStack() as stack:
+                stack.enter_context(self.subTest(step))
+                stack.enter_context(
+                    mock.patch.object(git_export_utils.subprocess, "check_output")
+                )
+                if step != "cmd_log":
+                    stack.enter_context(mock.patch.object(git_export_utils, step))
                 row = self.row_after(step)
 
-                assert row["status"] == ExportStatus.IN_PROGRESS
-                assert row["log"].splitlines()[-1].endswith(last_line)
-                for name, original in originals.items():
-                    assert getattr(git_export_utils, name) is original
+            assert row["status"] == ExportStatus.IN_PROGRESS
+            assert row["log"].splitlines()[-1].endswith(last_line)
+
+    def test_upstream_functions_are_put_back_after_the_run(self):
+        names = list(tasks_module._EXPORT_STEPS)  # noqa: SLF001
+        before = [getattr(git_export_utils, name) for name in names]
+        self.run_export()
+        self.run_export(export_effect=git_error(b"push rejected"))
+        assert [getattr(git_export_utils, name) for name in names] == before
+
+    def test_a_release_without_some_steps_still_exports(self):
+        """Ulmo and Verawood have no library export functions upstream."""
+        with mock.patch.dict(
+            tasks_module._EXPORT_STEPS,  # noqa: SLF001
+            {"not_in_this_release": lambda *_: "never"},
+        ):
+            rows, raised = self.run_export()
+        assert raised is None
+        assert [row.status for row in rows] == [ExportStatus.SUCCESS]
 
     def test_logging_is_put_back_after_the_run(self):
         """A worker at WARNING stays there, and at DEBUG keeps DEBUG out of rows."""
         loggers = (tasks_module.LOGGER, utils.log, git_export_utils.log)
         handlers = [list(logger.handlers) for logger in loggers]
+        for logger in loggers:
+            self.addCleanup(logger.setLevel, logger.level)
         for level in (logging.WARNING, logging.DEBUG):
             with self.subTest(level=level):
                 for logger in loggers:
-                    self.addCleanup(logger.setLevel, logger.level)
                     logger.setLevel(level)
 
                 rows, _ = self.run_export(
