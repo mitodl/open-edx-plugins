@@ -133,18 +133,21 @@ Library v2 (Content Libraries)
 Export History
 ==============
 
-Every finished export run adds a row to **Content Git Export Logs** in Django
-admin (``/admin/ol_openedx_git_auto_export/contentgitexportlog/``): its status,
-author, Celery task id, and, on failure, the error with its traceback and git's
-own output.
-Failed GitHub repository creations are recorded there too. The Content Git
-Repositories list shows each row's latest status and time.
+Every export run adds a row to **Content Git Export Logs** in Django admin
+(``/admin/ol_openedx_git_auto_export/contentgitexportlog/``): its status,
+author, Celery task id, a timestamped log of its steps (including each git
+command as it starts), and, on failure, the error with its traceback and git's
+own output. Failed GitHub repository creations are recorded there too. The
+Content Git Repositories list shows each row's latest status and time.
+
+The row is created as In progress when the export starts and updated as it
+goes. A worker killed mid-export (out of memory, the time limit, a restart)
+leaves it In progress: if its "modified" time is more than 10 minutes old, the
+run is dead, and the last line of its log is the step it died in.
 
 Runs that are merged into a later one, or wait for another export of the same
 content, add no row; the run that finally exports does. A wait that cannot
-re-queue itself is recorded as Failed. A worker killed
-mid-export (out of memory, or the time limit) adds no row either. Rows are
-kept indefinitely.
+re-queue itself is recorded as Failed. Rows are kept indefinitely.
 
 Re-exporting Without a Publish
 ==============================

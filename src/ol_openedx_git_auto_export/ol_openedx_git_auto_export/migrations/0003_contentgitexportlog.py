@@ -50,6 +50,7 @@ class Migration(migrations.Migration):
                     "status",
                     models.CharField(
                         choices=[
+                            ("in_progress", "In progress"),
                             ("success", "Success"),
                             ("no_changes", "No changes"),
                             ("skipped_disabled", "Skipped: export disabled"),
@@ -66,6 +67,7 @@ class Migration(migrations.Migration):
                 ("git_url", models.CharField(blank=True, max_length=255)),
                 ("error_message", models.TextField(blank=True)),
                 ("git_output", models.TextField(blank=True)),
+                ("log", models.TextField(blank=True)),
             ],
             options={
                 "verbose_name": "Content Git Export Log",
