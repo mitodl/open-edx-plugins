@@ -2,6 +2,7 @@
 Views for the public Course Outline API (Learn product page modules).
 """
 
+import hashlib
 from datetime import UTC, datetime
 
 from django.conf import settings
@@ -9,6 +10,10 @@ from django.core.cache import cache
 from edx_rest_framework_extensions.auth.jwt.authentication import JwtAuthentication
 from lms.djangoapps.course_api.blocks.api import get_blocks
 from opaque_keys.edx.keys import CourseKey
+from openedx.core.djangoapps.content.block_structure.exceptions import (
+    BlockStructureNotFound,
+)
+from openedx.core.djangoapps.content.block_structure.models import BlockStructureModel
 from openedx.core.lib.api.authentication import BearerAuthentication
 from openedx.core.lib.api.view_utils import (
     DeveloperErrorViewMixin,
@@ -28,6 +33,35 @@ from ol_openedx_course_outline_api.constants import (
     COURSE_OUTLINE_CACHE_SCHEMA_VERSION,
 )
 from ol_openedx_course_outline_api.utils import build_modules_from_blocks
+
+
+def get_collected_content_version(course):
+    """
+    Return the version of the collected block structure the response is built from.
+
+    The response body comes from get_blocks(), which reads the collected block
+    structure. That is rebuilt asynchronously after a publish, so the modulestore's
+    course_version can already describe content the structure has not caught up to.
+
+    Uses the same version fields the platform compares in
+    BlockStructureStore.is_up_to_date, so a recollection that changes the response
+    without changing course_version (a transformer version bump, for example) still
+    produces a new key.
+
+    Returns None when no collected structure exists yet. get_blocks() builds one as a
+    side effect of serving the request, so there is no version that names the content
+    about to be returned, and the response must not be cached.
+    """
+    try:
+        bs_model = BlockStructureModel.get(course.location)
+    except BlockStructureNotFound:
+        return None
+
+    version_data = "|".join(
+        str(getattr(bs_model, field_name, None))
+        for field_name in BlockStructureModel.VERSION_FIELDS
+    )
+    return hashlib.blake2b(version_data.encode(), digest_size=16).hexdigest()
 
 
 class CourseOutlineView(DeveloperErrorViewMixin, APIView):
@@ -56,20 +90,29 @@ class CourseOutlineView(DeveloperErrorViewMixin, APIView):
                 status_code=status.HTTP_404_NOT_FOUND,
                 developer_message="Course not found",
             )
-        # Key changes when response logic changes (schema version)
-        # or content changes (course_version).
+        # Key changes when response logic changes (schema version) or when the
+        # block structure the response is built from changes. Read the version
+        # before get_blocks(), not after: reading after files this body under
+        # the version of content it isn't, which is the bug. Reading before
+        # can strand a newer body under the old key; that is only served again
+        # if the version fields repeat, which a transformer rollback can do.
         cache_key_prefix = settings.OL_COURSE_OUTLINE_API_CACHE_KEY_PREFIX
         cache_timeout_seconds = settings.OL_COURSE_OUTLINE_API_CACHE_TIMEOUT_SECONDS
-        content_version_str = str(getattr(course, "course_version", None) or "na")
+        content_version_str = get_collected_content_version(course)
         cache_key = (
-            f"{cache_key_prefix}"
-            f"s{COURSE_OUTLINE_CACHE_SCHEMA_VERSION}:"
-            f"{course_key}:"
-            f"{content_version_str}"
+            None
+            if content_version_str is None
+            else (
+                f"{cache_key_prefix}"
+                f"s{COURSE_OUTLINE_CACHE_SCHEMA_VERSION}:"
+                f"{course_key}:"
+                f"{content_version_str}"
+            )
         )
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return Response(cached, status=status.HTTP_200_OK)
+        if cache_key is not None:
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached, status=status.HTTP_200_OK)
 
         requested_fields = [
             "children",
@@ -101,10 +144,11 @@ class CourseOutlineView(DeveloperErrorViewMixin, APIView):
             "modules": modules,
         }
 
-        cache.set(
-            cache_key,
-            response_data,
-            cache_timeout_seconds,
-        )
+        if cache_key is not None:
+            cache.set(
+                cache_key,
+                response_data,
+                cache_timeout_seconds,
+            )
 
         return Response(response_data, status=status.HTTP_200_OK)

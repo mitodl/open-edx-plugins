@@ -2519,7 +2519,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-course-outline-api"
-version = "0.2.1"
+version = "0.2.2"
 source = { editable = "src/ol_openedx_course_outline_api" }
 dependencies = [
     { name = "certifi" },
