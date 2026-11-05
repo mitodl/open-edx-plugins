@@ -2,10 +2,12 @@
 Tests for async_export_to_git: debounce, export lock, max wait and failures.
 """
 
+import logging
 import subprocess
 import tempfile
 import time
 from contextlib import ExitStack
+from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -18,6 +20,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError, connection
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 from ol_openedx_git_auto_export.constants import EXPORT_MAX_WAIT
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import (
@@ -39,6 +42,7 @@ from ol_openedx_git_auto_export.utils import (
 )
 from opaque_keys.edx.locator import LibraryLocatorV2
 
+from ol_openedx_git_auto_export import tasks as tasks_module
 from ol_openedx_git_auto_export import utils
 
 CONTENT_KEY = "lib:org:slug"
@@ -880,9 +884,9 @@ class TestExportResultIsRecorded(TestCase):
         ):
             async_export_to_git(CONTENT_KEY, user=USER)
 
-        assert list(ContentGitExportLog.objects.values_list("status", flat=True)) == [
-            ExportStatus.FAILED
-        ]
+        row = ContentGitExportLog.objects.get()
+        assert row.status == ExportStatus.FAILED
+        assert "Traceback" in row.error_message
 
     def test_celery_task_id_is_stored(self):
         with ExitStack() as stack:
@@ -895,6 +899,7 @@ class TestExportResultIsRecorded(TestCase):
         seen = []
 
         def export(*args, **kwargs):  # noqa: ARG001
+            git_export_utils.log.info("an upstream line")
             seen.append(
                 ContentGitExportLog.objects.values_list("status", flat=True).get()
             )
@@ -904,29 +909,89 @@ class TestExportResultIsRecorded(TestCase):
         assert seen == [ExportStatus.IN_PROGRESS]
         assert [row.status for row in rows] == [ExportStatus.SUCCESS]
         assert "INFO Starting async library content export" in rows[0].log
+        assert "INFO an upstream line" in rows[0].log
 
-    def test_a_run_killed_mid_push_shows_the_push(self):
-        """What a killed run leaves behind: in_progress, last line the git step."""
-        original = git_export_utils.cmd_log
+    def row_after(self, step):
+        """Run an export that takes upstream `step`; return its row mid-run."""
         seen = {}
 
         def export(*args, **kwargs):  # noqa: ARG001
-            with mock.patch.object(
-                git_export_utils.subprocess, "check_output", return_value=b""
-            ):
-                git_export_utils.cmd_log(["git", "push", "-q", "origin", "main"], ".")
+            # Looked up when called, as export_to_git does: the wrapped one.
+            getattr(git_export_utils, step)(["git", "push", "-q", "origin", "x"], ".")
             seen.update(ContentGitExportLog.objects.values("status", "log").get())
 
         self.run_export(export_effect=export)
+        return seen
 
-        assert seen["status"] == ExportStatus.IN_PROGRESS
-        assert seen["log"].splitlines()[-1].endswith("INFO Running git push")
-        assert git_export_utils.cmd_log is original
+    def test_a_killed_run_shows_the_step_it_was_in(self):
+        """What a killed run leaves behind: in_progress, last line its step."""
+        steps = [
+            ("cmd_log", "INFO Running git push"),
+            ("export_library_to_xml", "INFO Exporting the content"),
+        ]
+        for step, last_line in steps:
+            with (
+                self.subTest(step),
+                mock.patch.object(git_export_utils.subprocess, "check_output"),
+                mock.patch.object(git_export_utils, "export_library_to_xml"),
+            ):
+                originals = {name: getattr(git_export_utils, name) for name, _ in steps}
+                row = self.row_after(step)
+
+                assert row["status"] == ExportStatus.IN_PROGRESS
+                assert row["log"].splitlines()[-1].endswith(last_line)
+                for name, original in originals.items():
+                    assert getattr(git_export_utils, name) is original
+
+    def test_logging_is_put_back_after_the_run(self):
+        """A worker at WARNING stays there, and at DEBUG keeps DEBUG out of rows."""
+        loggers = (tasks_module.LOGGER, utils.log, git_export_utils.log)
+        handlers = [list(logger.handlers) for logger in loggers]
+        for level in (logging.WARNING, logging.DEBUG):
+            with self.subTest(level=level):
+                for logger in loggers:
+                    self.addCleanup(logger.setLevel, logger.level)
+                    logger.setLevel(level)
+
+                rows, _ = self.run_export(
+                    export_effect=lambda *_a, **_kw: git_export_utils.log.debug(
+                        "Command output was: secret"
+                    )
+                )
+                self.run_export(export_effect=git_error(b"push rejected"))
+
+                assert "secret" not in rows[0].log
+                assert [logger.level for logger in loggers] == [level] * 3
+                assert [list(logger.handlers) for logger in loggers] == handlers
+
+    def test_a_failed_log_write_does_not_fail_the_export(self):
+        with mock.patch.object(utils, "Concat", side_effect=DatabaseError("db")):
+            rows, raised = self.run_export()
+        assert raised is None
+        assert [row.status for row in rows] == [ExportStatus.SUCCESS]
+
+    def test_each_log_line_marks_activity(self):
+        later = timezone.now() + timedelta(minutes=5)
+        with utils.track_export(CONTENT_KEY, USER):
+            with mock.patch.object(utils.timezone, "now", return_value=later):
+                utils.log.info("still going")
+            assert ContentGitExportLog.objects.get().modified == later
+            utils.record_export_result(CONTENT_KEY, ExportStatus.SUCCESS)
 
     def test_a_run_that_records_nothing_is_closed_as_failed(self):
         with utils.track_export(CONTENT_KEY, USER):
             pass
-        assert ContentGitExportLog.objects.get().status == ExportStatus.FAILED
+        row = ContentGitExportLog.objects.get()
+        assert row.status == ExportStatus.FAILED
+        assert "No result was recorded" in row.error_message
+
+    def test_a_base_exception_is_recorded_with_its_traceback(self):
+        """SystemExit and the like skip the export's own except blocks."""
+        with pytest.raises(SystemExit), utils.track_export(CONTENT_KEY, USER):
+            raise SystemExit(3)
+        row = ContentGitExportLog.objects.get()
+        assert row.status == ExportStatus.FAILED
+        assert row.error_message.rstrip().endswith("SystemExit: 3")
 
     def test_a_nested_task_writes_its_own_row(self):
         """An eager repo creation inside an export must not take its row."""
@@ -937,9 +1002,12 @@ class TestExportResultIsRecorded(TestCase):
                 )
             utils.record_export_result(CONTENT_KEY, ExportStatus.NO_REPO)
 
-        assert sorted(
-            ContentGitExportLog.objects.values_list("status", flat=True)
-        ) == sorted([ExportStatus.NO_REPO, ExportStatus.REPO_CREATION_FAILED])
+        export_row, nested_row = ContentGitExportLog.objects.order_by("pk")
+        assert export_row.status == ExportStatus.NO_REPO
+        assert (nested_row.status, nested_row.celery_task_id) == (
+            ExportStatus.REPO_CREATION_FAILED,
+            "nested",
+        )
 
 
 @override_settings(

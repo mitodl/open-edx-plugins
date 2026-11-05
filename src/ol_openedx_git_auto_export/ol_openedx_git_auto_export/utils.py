@@ -628,7 +628,8 @@ def record_export_result(  # noqa: PLR0913
     Store the result of an export run: on the row track_export started for
     this task, else on a new ContentGitExportLog row.
 
-    exc, if given, adds its traceback to error_message (default: repr(exc)).
+    exc, if given, appends its traceback; an empty error_message becomes
+    repr(exc).
 
     Never raises: a failed write must not change the export's own outcome.
     """
@@ -680,7 +681,7 @@ class _RunLogHandler(logging.Handler):
     def emit(self, record):
         try:
             when = datetime.fromtimestamp(record.created, tz=UTC)
-            line = f"{when:%H:%M:%S} {record.levelname} {record.getMessage()[:2000]}\n"
+            line = f"{when:%H:%M:%SZ} {record.levelname} {record.getMessage()[:2000]}\n"
             ContentGitExportLog.objects.filter(pk=self.pk).update(
                 log=Concat("log", Value(line), output_field=TextField()),
                 modified=timezone.now(),
@@ -695,9 +696,10 @@ def track_export(content_key, user, *loggers):
     Record an export as in_progress before it runs, with what loggers (and
     this module) log during it, until record_export_result stores its result.
 
-    A run killed mid-export keeps in_progress, and its last log line shows
-    the step it died in.
+    A run killed mid-export keeps in_progress, and its last log line is the
+    last step it started.
     """
+    run = None
     try:
         run = ContentGitExportLog.objects.create(
             content_key=LearningContextKey.from_string(str(content_key)),
@@ -705,38 +707,48 @@ def track_export(content_key, user, *loggers):
             user=user or "",
             celery_task_id=_task_id(),
         )
+    except InvalidKeyError:
+        pass  # unstorable; _export logs it
     except Exception:
         log.exception("Failed to record the start of the %s export", content_key)
-        run = None
     if run is None:
         yield
         return
 
     handler = _RunLogHandler(run.pk)
+    handler.setLevel(logging.INFO)  # DEBUG lines hold full commands and output
     loggers = (*loggers, log)
     # shortcut: handlers are process-wide, fine for prefork workers (one task
-    # per process); a threads pool would need a per-run filter.
+    # per process); a pool running tasks concurrently in one process would
+    # need a per-run filter.
     levels = {logger: logger.level for logger in loggers}
     for logger in loggers:
         logger.addHandler(handler)
-        # The trail is INFO lines, whatever level the worker logs at.
+        # The trail needs INFO lines, whatever level the worker logs at.
         if logger.getEffectiveLevel() > logging.INFO:
             logger.setLevel(logging.INFO)
     token = _tracked_run.set(run)
     try:
         yield
+    except BaseException as exc:
+        # e.g. SystemExit: export code records only Exception subclasses.
+        if _tracked_run.get() is run:
+            record_export_result(content_key, ExportStatus.FAILED, user=user, exc=exc)
+        raise
     finally:
         _tracked_run.reset(token)
         for logger, level in levels.items():
             logger.removeHandler(handler)
             logger.setLevel(level)
         try:
-            # A path that forgot record_export_result must not look killed.
+            # Still in_progress: the result's write failed (see the log) or
+            # a path skipped record_export_result. Either way, not killed.
             ContentGitExportLog.objects.filter(
                 pk=run.pk, status=ExportStatus.IN_PROGRESS
             ).update(
                 status=ExportStatus.FAILED,
-                error_message="The export ended without recording a result.",
+                error_message="No result was recorded for this run; see its log.",
+                modified=timezone.now(),
             )
         except Exception:
             log.exception("Failed to close the %s export record", content_key)
