@@ -928,6 +928,27 @@ class TestExportResultIsRecorded(TestCase):
         utils.record_export_result(CONTENT_KEY, ExportStatus.SUCCESS)
         assert not ContentGitExportLog.objects.filter(pk=last).exists()
 
+    def test_repeatedly_killed_runs_dont_pile_up(self):
+        def killed_run(age_days):
+            pk = self.make_row(CONTENT_KEY, age_days)
+            ContentGitExportLog.objects.filter(pk=pk).update(
+                status=ExportStatus.IN_PROGRESS
+            )
+            return pk
+
+        last_result = self.make_row(CONTENT_KEY, 60)
+        killed_run(50)
+        killed_run(40)
+        newest = killed_run(35)
+        utils.record_export_result("lib:org:other", ExportStatus.SUCCESS)
+        pks = set(
+            ContentGitExportLog.objects.filter(content_key=CONTENT_KEY).values_list(
+                "pk", flat=True
+            )
+        )
+        # The two older killed runs are gone.
+        assert pks == {last_result, newest}
+
     def test_a_failed_cleanup_still_records_the_run(self):
         old = self.make_row(CONTENT_KEY, 31)
         with mock.patch(
