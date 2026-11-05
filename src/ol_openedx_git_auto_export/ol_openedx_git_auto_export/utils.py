@@ -9,7 +9,7 @@ import traceback
 import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from celery import current_task
@@ -18,7 +18,7 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
-from django.db.models import TextField, Value
+from django.db.models import Exists, OuterRef, Q, TextField, Value
 from django.db.models.functions import Concat
 from django.utils import timezone
 from opaque_keys import InvalidKeyError
@@ -45,6 +45,7 @@ from ol_openedx_git_auto_export.constants import (
     EXPORT_DEBOUNCE_TOKEN_TTL,
     EXPORT_LOCK_CACHE_KEY,
     EXPORT_LOCK_TTL,
+    EXPORT_LOG_RETENTION_DAYS,
     EXPORT_MAX_WAIT,
     REPOSITORY_NAME_MAX_LENGTH,
     STALE_GIT_LOCK_AGE,
@@ -663,6 +664,7 @@ def record_export_result(  # noqa: PLR0913
             )
     except Exception:
         log.exception("Failed to record %s export result for %s", status, content_key)
+    _delete_old_rows()
 
 
 # export_to_git requires user:password in an http(s) URL; git's errors and
@@ -674,6 +676,37 @@ _URL_CREDENTIALS = re.compile(r"(?<=://)[^/\s]+@")
 def redact_credentials(text):
     """Replace the user:password of any URL in text with ***."""
     return _URL_CREDENTIALS.sub("***@", text)
+
+
+def _delete_old_rows():
+    """
+    Delete rows older than EXPORT_LOG_RETENTION_DAYS, except each content's
+    newest result, which keeps its last status however old it gets.
+
+    An in_progress row doesn't count as a newer result, so a run killed
+    mid-export never costs its content the previous result. An old
+    in_progress row goes once any newer row exists.
+    """
+    try:
+        cutoff = timezone.now() - timedelta(days=EXPORT_LOG_RETENTION_DAYS)
+        newer = ContentGitExportLog.objects.filter(
+            content_key=OuterRef("content_key"), created__gt=OuterRef("created")
+        )
+        newer_result = newer.exclude(status=ExportStatus.IN_PROGRESS)
+        replaced = Q(Exists(newer_result)) | Q(
+            Exists(newer), status=ExportStatus.IN_PROGRESS
+        )
+        # pks first: MySQL can't DELETE from a table its subquery reads.
+        # shortcut: 1000 per result; a bigger backlog takes several results.
+        stale = list(
+            ContentGitExportLog.objects.filter(
+                replaced, created__lt=cutoff
+            ).values_list("pk", flat=True)[:1000]
+        )
+        if stale:
+            ContentGitExportLog.objects.filter(pk__in=stale).delete()
+    except Exception:
+        log.exception("Failed to delete old export rows")
 
 
 def _task_id():
