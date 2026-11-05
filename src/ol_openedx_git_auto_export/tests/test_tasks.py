@@ -11,11 +11,13 @@ from unittest import mock
 
 import pytest
 import requests
+from cms.djangoapps.contentstore import git_export_utils
 from cms.djangoapps.contentstore.git_export_utils import GitExportError
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
-from django.db import DatabaseError
+from django.db import DatabaseError, connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from ol_openedx_git_auto_export.constants import EXPORT_MAX_WAIT
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.models import (
@@ -534,10 +536,12 @@ class TestIndexLockCheck(TestCase):
             stack.enter_context(
                 mock.patch("ol_openedx_git_auto_export.tasks.get_content_info")
             )
-            # The repository lookup, plus the export log row.
-            with self.assertNumQueries(2):
+            with CaptureQueriesContext(connection) as queries:
                 async_export_to_git(CONTENT_KEY, user=USER)
 
+        repo_table = "ol_openedx_git_auto_export_contentgitrepository"
+        lookups = [q for q in queries if f'FROM "{repo_table}"' in q["sql"]]
+        assert len(lookups) == 1
         assert mock_export.call_args.args[1] == "git@example.com:org/repo.git"
 
     def test_unregistered_content_skips_the_check(self):
@@ -886,6 +890,56 @@ class TestExportResultIsRecorded(TestCase):
             result = async_export_to_git.apply(args=[CONTENT_KEY, USER])
 
         assert ContentGitExportLog.objects.get().celery_task_id == result.id
+
+    def test_the_row_is_in_progress_while_the_export_runs(self):
+        seen = []
+
+        def export(*args, **kwargs):  # noqa: ARG001
+            seen.append(
+                ContentGitExportLog.objects.values_list("status", flat=True).get()
+            )
+
+        rows, _ = self.run_export(export_effect=export)
+
+        assert seen == [ExportStatus.IN_PROGRESS]
+        assert [row.status for row in rows] == [ExportStatus.SUCCESS]
+        assert "INFO Starting async library content export" in rows[0].log
+
+    def test_a_run_killed_mid_push_shows_the_push(self):
+        """What a killed run leaves behind: in_progress, last line the git step."""
+        original = git_export_utils.cmd_log
+        seen = {}
+
+        def export(*args, **kwargs):  # noqa: ARG001
+            with mock.patch.object(
+                git_export_utils.subprocess, "check_output", return_value=b""
+            ):
+                git_export_utils.cmd_log(["git", "push", "-q", "origin", "main"], ".")
+            seen.update(ContentGitExportLog.objects.values("status", "log").get())
+
+        self.run_export(export_effect=export)
+
+        assert seen["status"] == ExportStatus.IN_PROGRESS
+        assert seen["log"].splitlines()[-1].endswith("INFO Running git push")
+        assert git_export_utils.cmd_log is original
+
+    def test_a_run_that_records_nothing_is_closed_as_failed(self):
+        with utils.track_export(CONTENT_KEY, USER):
+            pass
+        assert ContentGitExportLog.objects.get().status == ExportStatus.FAILED
+
+    def test_a_nested_task_writes_its_own_row(self):
+        """An eager repo creation inside an export must not take its row."""
+        with utils.track_export(CONTENT_KEY, USER):
+            with mock.patch.object(utils, "_task_id", return_value="nested"):
+                utils.record_export_result(
+                    CONTENT_KEY, ExportStatus.REPO_CREATION_FAILED
+                )
+            utils.record_export_result(CONTENT_KEY, ExportStatus.NO_REPO)
+
+        assert sorted(
+            ContentGitExportLog.objects.values_list("status", flat=True)
+        ) == sorted([ExportStatus.NO_REPO, ExportStatus.REPO_CREATION_FAILED])
 
 
 @override_settings(

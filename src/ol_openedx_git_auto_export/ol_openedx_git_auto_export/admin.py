@@ -139,7 +139,8 @@ class ContentGitRepositoryAdmin(admin.ModelAdmin):
 class ContentGitExportLogAdmin(admin.ModelAdmin):
     """Read-only history of git export runs."""
 
-    list_display = ("content_key", "status", "user", "created", "git_url")
+    # In progress with no activity past EXPORT_TIME_LIMIT: the run was killed.
+    list_display = ("content_key", "status", "user", "created", "modified", "git_url")
     list_filter = ("status", ContentTypeFilter)
     search_fields = ("content_key",)
     list_per_page = 50

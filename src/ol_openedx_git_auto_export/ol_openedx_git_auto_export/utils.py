@@ -7,6 +7,9 @@ import re
 import time
 import traceback
 import uuid
+from contextlib import contextmanager
+from contextvars import ContextVar
+from datetime import UTC, datetime
 from pathlib import Path
 
 from celery import current_task
@@ -15,6 +18,9 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
+from django.db.models import TextField, Value
+from django.db.models.functions import Concat
+from django.utils import timezone
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import LearningContextKey
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
@@ -44,7 +50,11 @@ from ol_openedx_git_auto_export.constants import (
     ContentType,
 )
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
-from ol_openedx_git_auto_export.models import ContentGitExportLog, ContentGitRepository
+from ol_openedx_git_auto_export.models import (
+    ContentGitExportLog,
+    ContentGitRepository,
+    ExportStatus,
+)
 
 log = logging.getLogger(__name__)
 
@@ -615,7 +625,8 @@ def record_export_result(  # noqa: PLR0913
     exc=None,
 ):
     """
-    Store one ContentGitExportLog row for a finished export run.
+    Store the result of an export run: on the row track_export started for
+    this task, else on a new ContentGitExportLog row.
 
     exc, if given, adds its traceback to error_message (default: repr(exc)).
 
@@ -625,17 +636,107 @@ def record_export_result(  # noqa: PLR0913
         if exc is not None:
             trace = "".join(traceback.format_exception(exc))
             error_message = f"{error_message or repr(exc)}\n\n{trace}"
-        # A direct (non-Celery) call has a request with no id.
-        task_id = getattr(getattr(current_task, "request", None), "id", None)
-        ContentGitExportLog.objects.create(
-            content_key=LearningContextKey.from_string(str(content_key)),
-            status=status,
-            user=user or "",
-            celery_task_id=task_id or "",
-            git_url=git_url or "",
-            error_message=error_message,
+        task_id = _task_id()
+        fields = {
+            "status": status,
+            "user": user or "",
+            "celery_task_id": task_id,
+            "git_url": git_url or "",
+            "error_message": error_message,
             # The tail holds git's actual error.
-            git_output=git_output[-20000:],
-        )
+            "git_output": git_output[-20000:],
+        }
+        run = _tracked_run.get()
+        # An eagerly run nested task (repo creation) has its own id and row.
+        if run is not None and run.celery_task_id == task_id:
+            _tracked_run.set(None)
+            ContentGitExportLog.objects.filter(pk=run.pk).update(
+                **fields, modified=timezone.now()
+            )
+        else:
+            ContentGitExportLog.objects.create(
+                content_key=LearningContextKey.from_string(str(content_key)), **fields
+            )
     except Exception:
         log.exception("Failed to record %s export result for %s", status, content_key)
+
+
+def _task_id():
+    # A direct (non-Celery) call has a request with no id.
+    return getattr(getattr(current_task, "request", None), "id", None) or ""
+
+
+# The in_progress row of the export running in this context, until its result.
+_tracked_run = ContextVar("tracked_export_run", default=None)
+
+
+class _RunLogHandler(logging.Handler):
+    """Append each log line to a run's row as it is logged."""
+
+    def __init__(self, pk):
+        super().__init__()
+        self.pk = pk
+
+    def emit(self, record):
+        try:
+            when = datetime.fromtimestamp(record.created, tz=UTC)
+            line = f"{when:%H:%M:%S} {record.levelname} {record.getMessage()[:2000]}\n"
+            ContentGitExportLog.objects.filter(pk=self.pk).update(
+                log=Concat("log", Value(line), output_field=TextField()),
+                modified=timezone.now(),
+            )
+        except Exception:  # noqa: BLE001
+            self.handleError(record)
+
+
+@contextmanager
+def track_export(content_key, user, *loggers):
+    """
+    Record an export as in_progress before it runs, with what loggers (and
+    this module) log during it, until record_export_result stores its result.
+
+    A run killed mid-export keeps in_progress, and its last log line shows
+    the step it died in.
+    """
+    try:
+        run = ContentGitExportLog.objects.create(
+            content_key=LearningContextKey.from_string(str(content_key)),
+            status=ExportStatus.IN_PROGRESS,
+            user=user or "",
+            celery_task_id=_task_id(),
+        )
+    except Exception:
+        log.exception("Failed to record the start of the %s export", content_key)
+        run = None
+    if run is None:
+        yield
+        return
+
+    handler = _RunLogHandler(run.pk)
+    loggers = (*loggers, log)
+    # shortcut: handlers are process-wide, fine for prefork workers (one task
+    # per process); a threads pool would need a per-run filter.
+    levels = {logger: logger.level for logger in loggers}
+    for logger in loggers:
+        logger.addHandler(handler)
+        # The trail is INFO lines, whatever level the worker logs at.
+        if logger.getEffectiveLevel() > logging.INFO:
+            logger.setLevel(logging.INFO)
+    token = _tracked_run.set(run)
+    try:
+        yield
+    finally:
+        _tracked_run.reset(token)
+        for logger, level in levels.items():
+            logger.removeHandler(handler)
+            logger.setLevel(level)
+        try:
+            # A path that forgot record_export_result must not look killed.
+            ContentGitExportLog.objects.filter(
+                pk=run.pk, status=ExportStatus.IN_PROGRESS
+            ).update(
+                status=ExportStatus.FAILED,
+                error_message="The export ended without recording a result.",
+            )
+        except Exception:
+            log.exception("Failed to close the %s export record", content_key)

@@ -29,8 +29,10 @@ class ContentGitRepository(TimeStampedModel):
 
 
 class ExportStatus(models.TextChoices):
-    """Terminal outcome of one export run."""
+    """Outcome of one export run; in_progress until it finishes."""
 
+    # Left as is by a run killed mid-export (OOM, time limit, pod restart).
+    IN_PROGRESS = "in_progress", "In progress"
     SUCCESS = "success", "Success"
     NO_CHANGES = "no_changes", "No changes"
     SKIPPED_DISABLED = "skipped_disabled", "Skipped: export disabled"
@@ -42,8 +44,8 @@ class ExportStatus(models.TextChoices):
 
 class ContentGitExportLog(TimeStampedModel):
     """
-    One row per finished export run, kept so intermittent failures show as a
-    pattern. The newest row per content_key is its current status.
+    One row per export run, kept so intermittent failures show as a pattern.
+    The newest row per content_key is its current status.
     """
 
     # Not a FK: not_found and no_repo rows have no ContentGitRepository.
@@ -54,6 +56,8 @@ class ContentGitExportLog(TimeStampedModel):
     git_url = models.CharField(max_length=255, blank=True)
     error_message = models.TextField(blank=True)
     git_output = models.TextField(blank=True)
+    # Timestamped log lines, written as the run goes.
+    log = models.TextField(blank=True)
 
     class Meta:
         verbose_name = "Content Git Export Log"

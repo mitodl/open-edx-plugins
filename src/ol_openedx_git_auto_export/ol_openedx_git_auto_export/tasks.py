@@ -5,9 +5,12 @@ This module defines background tasks that handle the actual export of course
 content to Git repositories using Celery for asynchronous processing.
 """
 
+from contextlib import contextmanager
+
 import requests
 from celery import shared_task  # pylint: disable=import-error
 from celery.utils.log import get_task_logger
+from cms.djangoapps.contentstore import git_export_utils
 from cms.djangoapps.contentstore.git_export_utils import GitExportError, export_to_git
 from django.conf import settings
 from opaque_keys import InvalidKeyError
@@ -32,6 +35,7 @@ from ol_openedx_git_auto_export.utils import (
     release_export_lock,
     release_export_slot,
     schedule_export_with_debounce,
+    track_export,
 )
 
 LOGGER = get_task_logger(__name__)
@@ -78,6 +82,29 @@ def _superseded(context_key_string, user, token):
         return False
 
     return True
+
+
+@contextmanager
+def _log_git_steps():
+    """
+    Log each git command export_to_git runs as it starts.
+
+    Upstream logs them only after they end, at DEBUG, so a run killed
+    mid-push would show nothing after its commit.
+    """
+    original = git_export_utils.cmd_log
+
+    def cmd_log(cmd, cwd):
+        LOGGER.info("Running %s", " ".join(cmd[:2]))  # args may hold the URL
+        return original(cmd, cwd)
+
+    # shortcut: patches the module for the whole process, fine for prefork
+    # workers (one task per process); a threads pool would need a lock.
+    git_export_utils.cmd_log = cmd_log
+    try:
+        yield
+    finally:
+        git_export_utils.cmd_log = original
 
 
 def _git_output(exc):
@@ -202,7 +229,11 @@ def async_export_to_git(context_key_string, user=None, token=None):
             # queue a fresh task instead of being dropped. Only now, holding
             # the lock: this also ends the burst, which a wait must not do.
             release_export_slot(context_key_string)
-        _export(context_key_string, user, content_repo)
+        with (
+            track_export(context_key_string, user, LOGGER, git_export_utils.log),
+            _log_git_steps(),
+        ):
+            _export(context_key_string, user, content_repo)
     finally:
         # None means the cache was down: this export never held the lock.
         if owned:
