@@ -132,6 +132,7 @@ def _wait_to_export(context_key_string, user, token):
             ExportStatus.FAILED,
             user=user,
             error_message=f"Failed to re-queue the export: {exc!r}",
+            exc=exc,
         )
         raise
 
@@ -186,7 +187,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
                 context_key_string,
                 ExportStatus.FAILED,
                 user=user,
-                error_message=repr(exc),
+                exc=exc,
             )
             raise
         if not unlocked:
@@ -231,7 +232,7 @@ def _export(context_key_string, user, content_repo):  # noqa: C901
                 context_key_string,
                 ExportStatus.FAILED,
                 user=user,
-                error_message=repr(exc),
+                exc=exc,
             )
         raise
 
@@ -243,6 +244,7 @@ def _export(context_key_string, user, content_repo):  # noqa: C901
             context_key_string,
         )
         note = "Auto-creation is disabled."
+        queue_error = None
         try:
             if is_auto_repo_creation_enabled(is_library=content_info["is_library"]):
                 async_create_github_repo.delay(str(context_key), export_content=True)
@@ -255,8 +257,13 @@ def _export(context_key_string, user, content_repo):  # noqa: C901
                 context_key_string,
             )
             note = f"Failed to queue repository creation: {exc!r}"
+            queue_error = exc
         record_export_result(
-            context_key, ExportStatus.NO_REPO, user=user, error_message=note
+            context_key,
+            ExportStatus.NO_REPO,
+            user=user,
+            error_message=note,
+            exc=queue_error,
         )
         return
 
@@ -302,6 +309,7 @@ def _export(context_key_string, user, content_repo):  # noqa: C901
             git_url=git_url,
             error_message=str(exc),
             git_output=_git_output(exc),
+            exc=exc,
         )
         # Re-raised, not retried, so Celery records the failure; most push
         # and commit errors recur until someone fixes their cause.
@@ -318,7 +326,7 @@ def _export(context_key_string, user, content_repo):  # noqa: C901
             ExportStatus.FAILED,
             user=user,
             git_url=git_url,
-            error_message=repr(exc),
+            exc=exc,
         )
         raise
     else:
@@ -365,7 +373,7 @@ def async_create_github_repo(  # noqa: C901, PLR0912, PLR0915
             record_export_result(
                 context_key_str,
                 ExportStatus.REPO_CREATION_FAILED,
-                error_message=repr(exc),
+                exc=exc,
             )
         return False, f"Invalid context key: {context_key_str}"
 
@@ -418,7 +426,7 @@ def async_create_github_repo(  # noqa: C901, PLR0912, PLR0915
         # autoretry_for retries these; record only the last attempt.
         if self.request.retries >= max_retries:
             record_export_result(
-                context_key, ExportStatus.REPO_CREATION_FAILED, error_message=repr(exc)
+                context_key, ExportStatus.REPO_CREATION_FAILED, exc=exc
             )
         raise
     if response.status_code != status.HTTP_201_CREATED:
