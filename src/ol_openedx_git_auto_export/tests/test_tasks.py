@@ -801,12 +801,9 @@ class TestExportResultIsRecorded(TestCase):
                 assert rows[0].user == USER
                 assert str(rows[0].content_key) == CONTENT_KEY
                 assert type(raised) is (expected_error or type(None))
-                # Only runs that reached a registered repository know its URL.
-                reached_repo = (
-                    "content_effect" not in kwargs
-                    and kwargs.get("repo", "") is not None
-                )
-                assert rows[0].git_url == (GIT_URL if reached_repo else "")
+                # The URL is stored from the start whenever a repo is registered.
+                registered = kwargs.get("repo", "") is not None
+                assert rows[0].git_url == (GIT_URL if registered else "")
 
     def test_git_output_is_stored_and_the_error_still_raised(self):
         output = b"remote: error: GH001: Large files detected.\n"
@@ -821,6 +818,31 @@ class TestExportResultIsRecorded(TestCase):
         # The chain keeps the failing git command.
         assert "CalledProcessError" in message
         assert message.rstrip().endswith(f"GitExportError: {raised}")
+
+    def test_credentials_in_an_https_url_are_not_stored(self):
+        url = "https://user:s3cret@github.example.com/org/repo.git"
+        error = GitExportError(GitExportError.CANNOT_PULL)
+        error.__cause__ = subprocess.CalledProcessError(
+            128, ["git", "clone", url], f"fatal: unable to access '{url}/'".encode()
+        )
+
+        def export(*args, **kwargs):  # noqa: ARG001
+            # What a run killed here would leave.
+            assert "s3cret" not in ContentGitExportLog.objects.get().git_url
+            tasks_module.LOGGER.error("Failed to pull %s", url)
+            raise error
+
+        with mock.patch(f"{__name__}.GIT_URL", url):
+            rows, raised = self.run_export(export_effect=export)
+
+        assert raised is error
+        row = rows[0]
+        for text in (row.git_url, row.error_message, row.git_output, row.log):
+            assert "s3cret" not in text
+        assert row.git_url == "https://***@github.example.com/org/repo.git"
+        assert "'clone', 'https://***@github.example.com" in row.error_message
+        assert "https://***@github.example.com" in row.git_output
+        assert "Failed to pull https://***@github.example.com" in row.log
 
     def test_failures_store_the_traceback(self):
         """The row carries what LOGGER.exception logs, without the logs."""
@@ -921,7 +943,9 @@ class TestExportResultIsRecorded(TestCase):
             returned = getattr(git_export_utils, step)(
                 ["git", "push", "-q", "origin", "x"], cwd="."
             )
-            seen.update(ContentGitExportLog.objects.values("status", "log").get())
+            seen.update(
+                ContentGitExportLog.objects.values("status", "log", "git_url").get()
+            )
             seen["returned"] = returned
 
         self.run_export(export_effect=export)
@@ -960,6 +984,8 @@ class TestExportResultIsRecorded(TestCase):
 
                 assert row["status"] == ExportStatus.IN_PROGRESS
                 assert row["log"].splitlines()[-1].endswith(last_line)
+                # A killed run's row still names where it was exporting to.
+                assert row["git_url"] == GIT_URL
                 # export_to_git reads the branch from cmd_log's output.
                 assert row["returned"] == b"main\n"
 

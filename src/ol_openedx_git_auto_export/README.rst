@@ -139,7 +139,8 @@ status, author, Celery task id, a log of its steps with UTC times (each git
 command and the content export, as they start), and, on failure, the error
 with its traceback and git's own output. Failed GitHub repository creations
 are recorded there too. The Content Git Repositories list shows each row's
-latest status and time.
+latest status and time. The user and password in an ``http(s)`` git URL are
+stored as ``***``.
 
 The row is created as In progress when the export starts and updated as it
 goes. A worker killed mid-export (out of memory, the time limit, a restart)
