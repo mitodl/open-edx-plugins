@@ -820,7 +820,8 @@ class TestExportResultIsRecorded(TestCase):
         assert message.rstrip().endswith(f"GitExportError: {raised}")
 
     def test_credentials_in_an_https_url_are_not_stored(self):
-        url = "https://u:s3cret@git.example/r.git"  # pragma: allowlist secret
+        # An "@" in the password: urlparse, and so export_to_git, accept it.
+        url = "https://u:p@s3cret@git.example/r.git"  # pragma: allowlist secret
         error = GitExportError(GitExportError.CANNOT_PULL)
         error.__cause__ = subprocess.CalledProcessError(
             128, ["git", "clone", url], f"fatal: unable to access '{url}/'".encode()

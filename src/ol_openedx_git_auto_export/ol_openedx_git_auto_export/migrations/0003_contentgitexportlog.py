@@ -77,7 +77,11 @@ class Migration(migrations.Migration):
                     models.Index(
                         fields=["content_key", "-created"],
                         name="ol_openedx__content_bcf928_idx",
-                    )
+                    ),
+                    models.Index(
+                        fields=["-created", "-id"],
+                        name="ol_openedx__created_1d4ac7_idx",
+                    ),
                 ],
             },
         ),

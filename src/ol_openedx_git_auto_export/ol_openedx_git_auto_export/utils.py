@@ -666,7 +666,8 @@ def record_export_result(  # noqa: PLR0913
 
 # export_to_git requires user:password in an http(s) URL; git's errors and
 # CalledProcessError's message repeat the URL.
-_URL_CREDENTIALS = re.compile(r"(?<=://)[^/\s@]+@")
+# Greedy, so a password containing "@" is covered up to the host.
+_URL_CREDENTIALS = re.compile(r"(?<=://)[^/\s]+@")
 
 
 def redact_credentials(text):
