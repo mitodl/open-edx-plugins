@@ -84,27 +84,45 @@ def _superseded(context_key_string, user, token):
     return True
 
 
+_CONTENT_EXPORT = "Exporting the content"
+# export_to_git's steps, by the module-level name it calls them through.
+_EXPORT_STEPS = {
+    # The args may hold the URL, so only "git <command>".
+    "cmd_log": lambda cmd, cwd: f"Running {' '.join(cmd[:2])}",  # noqa: ARG005
+    "export_course_to_xml": lambda *_: _CONTENT_EXPORT,
+    "export_library_to_xml": lambda *_: _CONTENT_EXPORT,
+    "extract_library_v2_zip_to_dir": lambda *_: _CONTENT_EXPORT,
+}
+
+
+def _logged(func, describe):
+    def step(*args, **kwargs):
+        LOGGER.info(describe(*args))
+        return func(*args, **kwargs)
+
+    return step
+
+
 @contextmanager
-def _log_git_steps():
+def _log_export_steps():
     """
-    Log each git command export_to_git runs as it starts.
+    Log each step export_to_git takes as it starts.
 
-    Upstream logs them only after they end, at DEBUG, so a run killed
-    mid-push would show nothing after its commit.
+    Upstream logs git commands only after they end, at DEBUG, and the content
+    export not at all, so a run killed mid-push or mid-export would show an
+    earlier step as its last.
     """
-    original = git_export_utils.cmd_log
-
-    def cmd_log(cmd, cwd):
-        LOGGER.info("Running %s", " ".join(cmd[:2]))  # args may hold the URL
-        return original(cmd, cwd)
-
+    originals = {name: getattr(git_export_utils, name) for name in _EXPORT_STEPS}
     # shortcut: patches the module for the whole process, fine for prefork
-    # workers (one task per process); a threads pool would need a lock.
-    git_export_utils.cmd_log = cmd_log
+    # workers (one task per process); a pool running tasks concurrently in
+    # one process would need a lock.
+    for name, describe in _EXPORT_STEPS.items():
+        setattr(git_export_utils, name, _logged(originals[name], describe))
     try:
         yield
     finally:
-        git_export_utils.cmd_log = original
+        for name, original in originals.items():
+            setattr(git_export_utils, name, original)
 
 
 def _git_output(exc):
@@ -231,7 +249,7 @@ def async_export_to_git(context_key_string, user=None, token=None):
             release_export_slot(context_key_string)
         with (
             track_export(context_key_string, user, LOGGER, git_export_utils.log),
-            _log_git_steps(),
+            _log_export_steps(),
         ):
             _export(context_key_string, user, content_repo)
     finally:
