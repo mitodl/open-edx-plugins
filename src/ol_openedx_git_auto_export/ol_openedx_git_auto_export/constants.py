@@ -31,8 +31,9 @@ REPOSITORY_NAME_MAX_LENGTH = 100  # Max length from GitHub for repo name
 
 # A publish burst fires one signal per block. The pending key keeps one export
 # task queued per burst; the debounce key holds a token every signal overwrites.
-# A task exports only while its token is current, else it re-queues -- so the
-# export reflects the end of the burst. A missing token counts as current.
+# A task exports only while its token is current, else it re-queues (until
+# EXPORT_MAX_WAIT) -- so the export reflects the end of the burst. A missing
+# token counts as current.
 EXPORT_DEBOUNCE_DELAY = 5  # seconds of quiet before the export happens
 # v2: reusing the unversioned key would make a rollback see it as already
 # claimed by the new long-lived token, and silently stop debouncing.
@@ -42,3 +43,19 @@ EXPORT_DEBOUNCE_PENDING_CACHE_KEY = "git_export_pending:{content_key}"
 EXPORT_DEBOUNCE_PENDING_TTL = EXPORT_DEBOUNCE_DELAY + 55  # seconds
 # Bounded so dormant content doesn't sit in the cache forever.
 EXPORT_DEBOUNCE_TOKEN_TTL = 60 * 60 * 24 * 7  # 7 days
+# A burst that keeps postponing its export is exported anyway after this long.
+EXPORT_MAX_WAIT = 10 * 60  # seconds
+EXPORT_BURST_START_CACHE_KEY = "git_export_burst_start:{content_key}"
+# Renewed on every hop, so this only bounds how long a dead burst's start lingers.
+EXPORT_BURST_START_TTL = EXPORT_MAX_WAIT + EXPORT_DEBOUNCE_PENDING_TTL
+
+# Exports of one content item share a clone directory, so they serialize on
+# this lock. Celery kills an export at EXPORT_TIME_LIMIT, before the lock
+# expires, so a lock never lapses under a running export. A timed-out export
+# releases it while Celery terminates it; the TTL covers a worker that dies
+# without unwinding (OOM, pod eviction).
+EXPORT_TIME_LIMIT = 10 * 60  # seconds
+EXPORT_LOCK_CACHE_KEY = "git_export_lock:{content_key}"
+EXPORT_LOCK_TTL = EXPORT_TIME_LIMIT + 60  # seconds
+# git holds index.lock for seconds; an older one was left by a killed process.
+STALE_GIT_LOCK_AGE = 60  # seconds

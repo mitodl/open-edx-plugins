@@ -2,6 +2,8 @@
 Tests for the git export debounce logic in utils.py.
 """
 
+import os
+import time
 from unittest import mock
 
 import pytest
@@ -11,18 +13,24 @@ from ol_openedx_git_auto_export.constants import (
     EXPORT_DEBOUNCE_DELAY,
     EXPORT_DEBOUNCE_PENDING_TTL,
     EXPORT_DEBOUNCE_TOKEN_TTL,
+    STALE_GIT_LOCK_AGE,
 )
 from ol_openedx_git_auto_export.exceptions import ContentNotFoundError
 from ol_openedx_git_auto_export.utils import (
     _get_library_publisher,
+    acquire_export_lock,
+    burst_start_cache_key,
     claim_export_slot,
+    clear_stale_git_lock,
     current_export_token,
     debounce_cache_key,
     export_content_to_git,
     export_course_to_git,
     export_library_to_git,
     pending_cache_key,
+    queue_debounced_export,
     queue_export_task,
+    release_export_slot,
 )
 from opaque_keys.edx.keys import CourseKey
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
@@ -40,7 +48,7 @@ def test_claim_export_slot_uses_the_pending_ttl():
     with mock.patch("ol_openedx_git_auto_export.utils.cache.add") as mock_add:
         claim_export_slot("lib:org:slug")
 
-    mock_add.assert_called_once_with(
+    mock_add.assert_any_call(
         pending_cache_key("lib:org:slug"), "1", timeout=EXPORT_DEBOUNCE_PENDING_TTL
     )
 
@@ -102,6 +110,149 @@ def test_queue_export_task_routes_to_the_configured_queue(queue):
         queue_export_task("lib:org:slug", None, "a-token")
 
     assert mock_apply_async.call_args.kwargs["queue"] == queue
+
+
+@pytest.mark.parametrize(
+    ("age", "unlocked"),
+    [(STALE_GIT_LOCK_AGE + 1, True), (STALE_GIT_LOCK_AGE - 30, False), (None, True)],
+)
+def test_clear_stale_git_lock_only_removes_old_locks(tmp_path, age, unlocked):
+    """A young index.lock may belong to a git command that is still running.
+    age None: no lock at all."""
+    index_lock = tmp_path / "repo" / ".git" / "index.lock"
+    if age is not None:
+        index_lock.parent.mkdir(parents=True)
+        index_lock.touch()
+        then = time.time() - age
+        os.utime(index_lock, (then, then))
+
+    with override_settings(GIT_REPO_EXPORT_DIR=str(tmp_path)):
+        assert clear_stale_git_lock("git@github.com:org/repo.git") is unlocked
+
+    assert index_lock.exists() is not unlocked
+
+
+def test_export_lock_expires():
+    """A worker that dies without unwinding never releases its lock, so
+    only the TTL stops every later export from waiting forever."""
+    cache.clear()
+    with mock.patch("ol_openedx_git_auto_export.utils.EXPORT_LOCK_TTL", 1):
+        assert acquire_export_lock("lib:org:slug") is True
+        assert acquire_export_lock("lib:org:slug") is False
+        time.sleep(1.1)
+        assert acquire_export_lock("lib:org:slug") is True
+
+
+class TestBurstStart(TestCase):
+    """The burst start bounds how long signals can postpone an export."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_every_hop_renews_it_without_moving_it(self):
+        """A chain waiting behind a lock can outlive the start's TTL; if it
+        expired, nothing would bound the burst any more."""
+        key = "lib:org:slug"
+        cache.set(burst_start_cache_key(key), 1000.0, timeout=1)
+        with mock.patch(
+            "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+        ):
+            queue_export_task(key, None, "a-token")
+        time.sleep(1.1)
+
+        assert cache.get(burst_start_cache_key(key)) == 1000.0  # noqa: PLR2004
+
+    def test_renewal_restarts_a_missing_start(self):
+        """A second chain left by a backlog can find the start cleared by the
+        first chain's export; without a fresh one its hops are unbounded."""
+        with mock.patch(
+            "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+        ):
+            queue_export_task("lib:org:slug", None, "a-token")
+
+        started = cache.get(burst_start_cache_key("lib:org:slug"))
+        assert started is not None
+        assert time.time() - started < 5  # noqa: PLR2004
+
+    def test_recorded_once_per_burst(self):
+        key = "lib:org:slug"
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ),
+        ):
+            queue_debounced_export(key, lambda: None)
+            started = cache.get(burst_start_cache_key(key))
+            assert started is not None
+
+            # A later signal in the same burst loses the slot, so it must not
+            # push the start back.
+            with mock.patch(
+                "ol_openedx_git_auto_export.utils.time.time", return_value=started + 30
+            ):
+                queue_debounced_export(key, lambda: None)
+            assert cache.get(burst_start_cache_key(key)) == started
+
+    def test_cleared_with_the_slot(self):
+        key = "lib:org:slug"
+        cache.set(burst_start_cache_key(key), 1000.0, timeout=None)
+        release_export_slot(key)
+        assert cache.get(burst_start_cache_key(key)) is None
+
+    def test_a_publish_between_the_deletions_keeps_its_start(self):
+        """Releasing the slot takes two deletions where delete_many isn't
+        atomic. A publish landing between them must not lose its start."""
+        key = "lib:org:slug"
+        cache.set(pending_cache_key(key), "1", timeout=None)
+        cache.set(burst_start_cache_key(key), 1000.0, timeout=None)
+        real_delete = cache.delete
+
+        def delete_then_publish(cache_key, *args, **kwargs):
+            result = real_delete(cache_key, *args, **kwargs)
+            queue_debounced_export(key, lambda: None)
+            return result
+
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.cache.delete",
+                side_effect=delete_then_publish,
+            ),
+        ):
+            release_export_slot(key)
+
+        # The publish after the slot was freed claimed it; its start remains.
+        assert cache.get(pending_cache_key(key)) == "1"
+        started = cache.get(burst_start_cache_key(key))
+        assert started is not None
+        assert started != 1000.0  # noqa: PLR2004
+
+    def test_claim_keeps_a_start_whose_task_is_still_queued(self):
+        """Behind a worker backlog the slot can expire while its task is still
+        queued; restarting the burst on every new claim would let the backlog
+        postpone the export indefinitely."""
+        key = "lib:org:slug"
+        cache.set(burst_start_cache_key(key), 1000.0, timeout=None)
+        with (
+            mock.patch(
+                "ol_openedx_git_auto_export.utils.get_or_create_git_export_repo_dir"
+            ),
+            mock.patch(
+                "ol_openedx_git_auto_export.tasks.async_export_to_git.apply_async"
+            ),
+        ):
+            queue_debounced_export(key, lambda: None)
+
+        assert cache.get(pending_cache_key(key)) == "1"
+        assert cache.get(burst_start_cache_key(key)) == 1000.0  # noqa: PLR2004
 
 
 class TestExportDebounce(TestCase):
@@ -398,7 +549,7 @@ def test_export_content_to_git_queues_by_content_type(
             "ol_openedx_git_auto_export.utils.get_content_info"
         ) as mock_content_info,
         mock.patch(
-            "ol_openedx_git_auto_export.utils._queue_debounced_export"
+            "ol_openedx_git_auto_export.utils.queue_debounced_export"
         ) as mock_queue,
     ):
         assert export_content_to_git(content_key, dry_run=dry_run) is enabled
@@ -476,7 +627,7 @@ def test_export_content_to_git_raises_for_missing_content():
             side_effect=ContentNotFoundError,
         ),
         mock.patch(
-            "ol_openedx_git_auto_export.utils._queue_debounced_export"
+            "ol_openedx_git_auto_export.utils.queue_debounced_export"
         ) as mock_queue,
         pytest.raises(ContentNotFoundError),
     ):
