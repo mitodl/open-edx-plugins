@@ -808,7 +808,24 @@ class TestExportResultIsRecorded(TestCase):
         assert [row.status for row in rows] == [ExportStatus.FAILED]
         assert rows[0].git_output == output.decode()
         assert rows[0].git_url == GIT_URL
-        assert rows[0].error_message == str(raised)
+        message = rows[0].error_message
+        assert message.startswith(f"{raised}\n\n")
+        # The chain keeps the failing git command.
+        assert "CalledProcessError" in message
+        assert message.rstrip().endswith(f"GitExportError: {raised}")
+
+    def test_failures_store_the_traceback(self):
+        """The row carries what LOGGER.exception logs, without the logs."""
+        for kwargs in (
+            {"content_effect": RuntimeError("modulestore down")},
+            {"export_effect": RuntimeError("disk full")},
+        ):
+            with self.subTest(**kwargs):
+                ContentGitExportLog.objects.all().delete()
+                rows, raised = self.run_export(**kwargs)
+                message = rows[0].error_message
+                assert message.startswith(f"{raised!r}\n\nTraceback")
+                assert message.rstrip().endswith(f"RuntimeError: {raised}")
 
     def test_no_repo_says_whether_creation_was_queued(self):
         rows, _ = self.run_export(repo=None)

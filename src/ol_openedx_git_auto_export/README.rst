@@ -135,7 +135,8 @@ Export History
 
 Every finished export run adds a row to **Content Git Export Logs** in Django
 admin (``/admin/ol_openedx_git_auto_export/contentgitexportlog/``): its status,
-author, Celery task id, and, on failure, the error and git's own output.
+author, Celery task id, and, on failure, the error with its traceback and git's
+own output.
 Failed GitHub repository creations are recorded there too. The Content Git
 Repositories list shows each row's latest status and time.
 

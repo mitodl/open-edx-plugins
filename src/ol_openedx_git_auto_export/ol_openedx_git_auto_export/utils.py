@@ -5,6 +5,7 @@ Utility functions for the ol_openedx_git_auto_export app.
 import logging
 import re
 import time
+import traceback
 import uuid
 from pathlib import Path
 
@@ -611,13 +612,19 @@ def record_export_result(  # noqa: PLR0913
     git_url="",
     error_message="",
     git_output="",
+    exc=None,
 ):
     """
     Store one ContentGitExportLog row for a finished export run.
 
+    exc, if given, adds its traceback to error_message (default: repr(exc)).
+
     Never raises: a failed write must not change the export's own outcome.
     """
     try:
+        if exc is not None:
+            trace = "".join(traceback.format_exception(exc))
+            error_message = f"{error_message or repr(exc)}\n\n{trace}"
         # A direct (non-Celery) call has a request with no id.
         task_id = getattr(getattr(current_task, "request", None), "id", None)
         ContentGitExportLog.objects.create(
