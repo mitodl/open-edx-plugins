@@ -257,7 +257,13 @@ def async_export_to_git(context_key_string, user=None, token=None):
             # the lock: this also ends the burst, which a wait must not do.
             release_export_slot(context_key_string)
         with (
-            track_export(context_key_string, user, LOGGER, git_export_utils.log),
+            track_export(
+                context_key_string,
+                user,
+                LOGGER,
+                git_export_utils.log,
+                git_url=content_repo.git_url if content_repo else "",
+            ),
             _log_export_steps(),
         ):
             _export(context_key_string, user, content_repo)

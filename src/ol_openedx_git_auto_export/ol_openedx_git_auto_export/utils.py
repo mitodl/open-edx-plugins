@@ -642,15 +642,17 @@ def record_export_result(  # noqa: PLR0913
             "status": status,
             "user": user or "",
             "celery_task_id": task_id,
-            "git_url": git_url or "",
-            "error_message": error_message,
+            "git_url": redact_credentials(git_url or ""),
+            "error_message": redact_credentials(error_message),
             # The tail holds git's actual error.
-            "git_output": git_output[-20000:],
+            "git_output": redact_credentials(git_output)[-20000:],
         }
         run = _tracked_run.get()
         # An eagerly run nested task (repo creation) has its own id and row.
         if run is not None and run.celery_task_id == task_id:
             _tracked_run.set(None)
+            if not git_url:
+                del fields["git_url"]  # keep the one track_export stored
             ContentGitExportLog.objects.filter(pk=run.pk).update(
                 **fields, modified=timezone.now()
             )
@@ -660,6 +662,16 @@ def record_export_result(  # noqa: PLR0913
             )
     except Exception:
         log.exception("Failed to record %s export result for %s", status, content_key)
+
+
+# export_to_git requires user:password in an http(s) URL; git's errors and
+# CalledProcessError's message repeat the URL.
+_URL_CREDENTIALS = re.compile(r"(?<=://)[^/\s@]+@")
+
+
+def redact_credentials(text):
+    """Replace the user:password of any URL in text with ***."""
+    return _URL_CREDENTIALS.sub("***@", text)
 
 
 def _task_id():
@@ -681,7 +693,8 @@ class _RunLogHandler(logging.Handler):
     def emit(self, record):
         try:
             when = datetime.fromtimestamp(record.created, tz=UTC)
-            line = f"{when:%H:%M:%SZ} {record.levelname} {record.getMessage()[:2000]}\n"
+            message = redact_credentials(record.getMessage())[:2000]
+            line = f"{when:%H:%M:%SZ} {record.levelname} {message}\n"
             ContentGitExportLog.objects.filter(pk=self.pk).update(
                 log=Concat("log", Value(line), output_field=TextField()),
                 modified=timezone.now(),
@@ -691,7 +704,7 @@ class _RunLogHandler(logging.Handler):
 
 
 @contextmanager
-def track_export(content_key, user, *loggers):
+def track_export(content_key, user, *loggers, git_url=""):
     """
     Record an export as in_progress before it runs, with what loggers (and
     this module) log during it, until record_export_result stores its result.
@@ -706,6 +719,7 @@ def track_export(content_key, user, *loggers):
             status=ExportStatus.IN_PROGRESS,
             user=user or "",
             celery_task_id=_task_id(),
+            git_url=redact_credentials(git_url or ""),
         )
     except InvalidKeyError:
         pass  # unstorable; _export logs it
