@@ -1,5 +1,8 @@
 """Tests for the Rapid Responses instructor-dashboard tab pipeline step."""
 
+from unittest.mock import patch
+
+import pytest
 from django.test import override_settings
 from ol_openedx_rapid_response_reports.constants import RAPID_RESPONSE_TAB_ID
 from ol_openedx_rapid_response_reports.pipeline import AddRapidResponseInstructorTab
@@ -14,9 +17,19 @@ def _step():
     return AddRapidResponseInstructorTab(filter_type=FILTER_TYPE, running_pipeline=[])
 
 
+@pytest.fixture
+def mock_enabled():
+    """Patch the course-level check; by default the tab should be shown."""
+    with patch(
+        "ol_openedx_rapid_response_reports.pipeline.should_show_rapid_response_tab",
+        return_value=True,
+    ) as mock_is_enabled:
+        yield mock_is_enabled
+
+
 @override_settings(INSTRUCTOR_MICROFRONTEND_URL=INSTRUCTOR_MFE_URL)
-def test_tab_added():
-    """The Rapid Responses tab is appended unconditionally (gated by install)."""
+def test_tab_added(mock_enabled):
+    """The tab is appended for a course that uses rapid response."""
     result = _step().run_filter(tabs=[], user=None, course_key=COURSE_KEY)
 
     tabs = result["tabs"]
@@ -29,8 +42,19 @@ def test_tab_added():
         tab["url"] == f"/apps/instructor-dashboard/{COURSE_KEY}/{RAPID_RESPONSE_TAB_ID}"
     )
     assert "sort_order" in tab
+    mock_enabled.assert_called_once_with(COURSE_KEY)
 
 
+def test_tab_not_added_when_disabled(mock_enabled):
+    """The tab is hidden for courses that have never used rapid response."""
+    mock_enabled.return_value = False
+    existing = [{"tab_id": "course_info", "sort_order": 10}]
+    result = _step().run_filter(tabs=existing, user=None, course_key=COURSE_KEY)
+
+    assert [tab["tab_id"] for tab in result["tabs"]] == ["course_info"]
+
+
+@pytest.mark.usefixtures("mock_enabled")
 def test_existing_tabs_preserved():
     """Platform-provided tabs are preserved and the Rapid Responses tab appended."""
     existing = [
@@ -48,6 +72,7 @@ def test_existing_tabs_preserved():
     assert tabs[-1]["sort_order"] > max_existing_sort_order
 
 
+@pytest.mark.usefixtures("mock_enabled")
 def test_tab_not_duplicated():
     """The tab is not added twice if it is already present."""
     existing = [{"tab_id": RAPID_RESPONSE_TAB_ID, "title": "Rapid Responses"}]

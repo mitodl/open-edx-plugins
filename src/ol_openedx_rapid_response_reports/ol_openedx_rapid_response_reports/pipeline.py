@@ -7,6 +7,7 @@ from django.utils.translation import gettext as _
 from openedx_filters import PipelineStep
 
 from ol_openedx_rapid_response_reports.constants import RAPID_RESPONSE_TAB_ID
+from ol_openedx_rapid_response_reports.utils import should_show_rapid_response_tab
 
 
 def build_instructor_dashboard_tab_url(course_key, tab_id):
@@ -29,10 +30,9 @@ class AddRapidResponseInstructorTab(PipelineStep):
 
     Hooks into the ``InstructorDashboardTabsRequested`` filter
     (``org.openedx.learning.instructor.dashboard.tabs.requested.v1``). The tab is
-    appended unconditionally, mirroring the legacy ``context_api.plugin_context``
-    which always surfaces the section (no per-course gating). Because this step is
-    only registered when this plugin is installed, the tab appears solely on
-    deployments that actually have rapid response reports available.
+    only appended for courses with rapid response enabled on a problem or with a
+    past run (see ``utils.should_show_rapid_response_tab``), mirroring the legacy
+    ``context_api.plugin_context``.
 
     The tab ``url`` is an MFE-internal (root-relative) path so the instructor
     dashboard renders the page registered in the routes slot
@@ -43,7 +43,7 @@ class AddRapidResponseInstructorTab(PipelineStep):
         already_present = any(
             tab.get("tab_id") == RAPID_RESPONSE_TAB_ID for tab in tabs
         )
-        if not already_present:
+        if not already_present and should_show_rapid_response_tab(course_key):
             # Append after every tab currently in the list so the tab always lands
             # at the end, regardless of the built-in tabs' own sort_order values.
             next_sort_order = (
