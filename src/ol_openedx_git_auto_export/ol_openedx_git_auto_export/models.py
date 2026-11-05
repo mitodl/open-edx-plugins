@@ -63,7 +63,11 @@ class ContentGitExportLog(TimeStampedModel):
         verbose_name = "Content Git Export Log"
         verbose_name_plural = "Content Git Export Logs"
         ordering = ["-created"]
-        indexes = [models.Index(fields=["content_key", "-created"])]
+        indexes = [
+            models.Index(fields=["content_key", "-created"]),
+            # The admin's unfiltered, newest-first list.
+            models.Index(fields=["-created", "-id"]),
+        ]
 
     def __str__(self):
         return f"ContentGitExportLog ({self.content_key}: {self.status})"
