@@ -129,28 +129,54 @@ def _translate_assignment_types(labels, entries, key="assignment_type"):
             entry[key] = labels[entry[key]]["type"]
 
 
-def _translate_names(names, entries, key, *, with_suffix=False):
+def _translate_names(names, entries, key, *, id_key=None, with_suffix=False):
     """
     Translate ``entry[key]`` where it is a block name with a current translation.
 
-    These responses name blocks without always giving their ids, so names are
-    matched by source text: a translation row is current exactly when its source
+    ``names`` is ``(by_block, by_name)`` from ``_name_translations``. An entry
+    with a block id (``entry[id_key]``) uses only that block's translation;
+    other entries are matched by name, and a name shared by blocks translated
+    differently is kept. A translation row is current exactly when its source
     hash is the hash of the name shown. With ``with_suffix``, a name followed by
     " (...)" that the platform adds has the name part translated: the step of
     an ORA date ("<ORA title> (<step>)") or a graded subsection's question
     count ("<name> (<n> Questions)"). The suffix is already in the learner's
     language.
     """
+    by_block, by_name = names
     for entry in entries:
         name = entry.get(key)
         if not name:
             continue
-        if (translated := names.get(source_hash(name))) is not None:
+        usage_key = _usage_key(entry.get(id_key) or "") if id_key else None
+        lookup = by_block.get(plain_key(usage_key), {}) if usage_key else by_name
+        if (translated := lookup.get(source_hash(name))) is not None:
             entry[key] = translated
         elif with_suffix:
             block_name, sep, suffix = name.rpartition(" (")
-            if sep and (translated := names.get(source_hash(block_name))) is not None:
+            if sep and (translated := lookup.get(source_hash(block_name))) is not None:
                 entry[key] = f"{translated}{sep}{suffix}"
+
+
+def _name_translations(translations):
+    """
+    Map source name hashes to translations, as ``(by_block, by_name)``.
+
+    ORA dates show the ORA's title, which can differ from its name, so titles
+    are included. A name translated differently by two blocks maps to None in
+    ``by_name``, so it is never given another block's translation.
+    """
+    by_block, by_name = {}, {}
+    for usage_key, fields in translations.items():
+        for field in ("display_name", "title"):
+            if field not in fields:
+                continue
+            row_hash, translated = fields[field]
+            by_block.setdefault(plain_key(usage_key), {})[row_hash] = translated
+            if by_name.get(row_hash, translated) != translated:
+                translated = None
+            by_name[row_hash] = translated
+    return by_block, by_name
 
 
 class _CourseHomeNamesStep(PipelineStep):
@@ -165,14 +191,9 @@ class _CourseHomeNamesStep(PipelineStep):
         """Swap the names for the learner's language, where translated."""
         translations = course_translations(course_key, NAME_FIELDS)
         if translations:
-            # ORA dates show the ORA's title, which can differ from its name.
-            names = dict(
-                fields[field]
-                for fields in translations.values()
-                for field in ("display_name", "title")
-                if field in fields
+            self.translate(
+                _name_translations(translations), grader_labels(course_key), data
             )
-            self.translate(names, grader_labels(course_key), data)
         return {"course_key": course_key, "user": user, "data": data}
 
     def translate(self, names, labels, data):
@@ -201,7 +222,7 @@ class TranslateProgress(_CourseHomeNamesStep):
         _translate_names(names, sections, "display_name")
         for section in sections:
             subsections = section.get("subsections", [])
-            _translate_names(names, subsections, "display_name")
+            _translate_names(names, subsections, "display_name", id_key="block_key")
             _translate_assignment_types(labels, subsections)
 
 
@@ -224,7 +245,7 @@ class TranslateOutlineTab(_CourseHomeNamesStep):
     def translate(self, names, labels, data):
         """Swap block names, subsection descriptions and dates."""
         blocks = (data.get("course_blocks") or {}).get("blocks", {}).values()
-        _translate_names(names, blocks, "display_name", with_suffix=True)
+        _translate_names(names, blocks, "display_name", id_key="id", with_suffix=True)
         _translate_assignment_types(labels, blocks, key="description")
         dates = (data.get("dates_widget") or {}).get("course_date_blocks", [])
         _translate_dates(names, labels, dates)
@@ -236,7 +257,7 @@ class TranslateCourseNavigation(_CourseHomeNamesStep):
     def translate(self, names, labels, data):
         """Swap block names and subsection descriptions for their translations."""
         blocks = data.get("blocks", {}).values()
-        _translate_names(names, blocks, "display_name", with_suffix=True)
+        _translate_names(names, blocks, "display_name", id_key="id", with_suffix=True)
         _translate_assignment_types(labels, blocks, key="description")
 
 
@@ -253,6 +274,7 @@ class AddAnswerNoteBelowTitles(PipelineStep):
         """Insert the note after each translated ORA title in the unit."""
         course_key = block.scope_ids.usage_id.course_key
         content = fragment.content
+        children = [str(child) for child in getattr(block, "children", [])]
         for child_key in getattr(block, "children", []):
             if child_key.block_type in ANSWER_NOTE_BLOCK_TYPES and (
                 course_translations(course_key, block_type=child_key.block_type).get(
@@ -260,16 +282,29 @@ class AddAnswerNoteBelowTitles(PipelineStep):
                 )
             ):
                 content = _insert_after_title(
-                    content, str(child_key), answer_language_note(course_key)
+                    content, str(child_key), answer_language_note(course_key), children
                 )
         fragment.content = content
         return {"block": block, "fragment": fragment, "context": context, "view": view}
 
 
-def _insert_after_title(content, usage_id, note):
-    """Insert ``note`` after the title of the child rendered with ``usage_id``."""
+def _insert_after_title(content, usage_id, note, children):
+    """
+    Insert ``note`` after the title of the child rendered with ``usage_id``.
+
+    Only that child's own markup is searched, up to the next child, so a child
+    rendered without a title never puts the note under another child's title.
+    """
     start = content.find(f'data-id="{usage_id}"')
-    match = BLOCK_TITLE.search(content, start) if start != -1 else None
+    if start == -1:
+        return content
+    later = [
+        position
+        for child in children
+        if child != usage_id
+        and (position := content.find(f'data-id="{child}"', start)) != -1
+    ]
+    match = BLOCK_TITLE.search(content, start, min(later, default=len(content)))
     if not match:
         return content
     return content[: match.end()] + note + content[match.end() :]
