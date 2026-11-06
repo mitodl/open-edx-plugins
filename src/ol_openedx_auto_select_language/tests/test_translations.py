@@ -190,6 +190,29 @@ def test_answer_note_below_ora_title(mocker):
     )
 
 
+def test_answer_note_not_under_the_next_childs_title(mocker):
+    """A translated ORA rendered without a title gets no note under the next one."""
+    ora = COURSE_KEY.make_usage_key("openassessment", "o1")
+    other = COURSE_KEY.make_usage_key("openassessment", "o2")
+    mocker.patch(f"{FILTERS}.course_translations", return_value={ora: {"title": "x"}})
+    mocker.patch(f"{FILTERS}.answer_language_note", return_value="<NOTE>")
+    title = '<h3 class="openassessment__title problem__header">Essay</h3>'
+    unit = mocker.Mock()
+    unit.scope_ids.usage_id = COURSE_KEY.make_usage_key("vertical", "v")
+    unit.children = [ora, other]
+    fragment = mocker.Mock()
+    fragment.content = (
+        f'<div data-id="{ora}"><p>Closed</p></div><div data-id="{other}">{title}</div>'
+    )
+    content = fragment.content
+
+    AddAnswerNoteBelowTitles(
+        filter_type=mocker.Mock(), running_pipeline=mocker.Mock()
+    ).run_filter(block=unit, fragment=fragment, context={}, view="student_view")
+
+    assert fragment.content == content
+
+
 def test_translate_block_restores_source_before_rebinding(mocker):
     """A block bound again (another user, a source handler) starts from source."""
     block = _block(mocker, data="<p>Hello</p>")
@@ -489,6 +512,37 @@ def test_progress_names_are_matched_whole(mocker):
     result = _run(TranslateProgress, data, mocker)
 
     assert result["section_scores"][0]["display_name"] == "Quiz 1 (6 Questions)"
+
+
+def test_shared_names_use_each_blocks_own_translation(mocker):
+    """Blocks named alike but translated differently never get each other's."""
+    first = COURSE_KEY.make_usage_key("sequential", "a")
+    second = COURSE_KEY.make_usage_key("sequential", "b")
+    untranslated = COURSE_KEY.make_usage_key("sequential", "c")
+    rows = {
+        first: {"display_name": (source_hash("Introduction"), "Présentation")},
+        second: {"display_name": (source_hash("Introduction"), "Introduction (fr)")},
+    }
+    blocks = {
+        str(key): {"id": str(key), "display_name": "Introduction"}
+        for key in (first, second, untranslated)
+    }
+
+    navigation = _run(TranslateCourseNavigation, {"blocks": blocks}, mocker, rows=rows)
+    dates = _run(
+        TranslateDates,
+        {"course_date_blocks": [{"title": "Introduction"}]},
+        mocker,
+        rows=rows,
+    )
+
+    assert [block["display_name"] for block in navigation["blocks"].values()] == [
+        "Présentation",
+        "Introduction (fr)",
+        "Introduction",
+    ]
+    # Dates give no block id, so the shared name is kept.
+    assert dates["course_date_blocks"][0]["title"] == "Introduction"
 
 
 def test_course_home_steps_leave_data_without_translations(mocker):
