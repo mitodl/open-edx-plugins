@@ -4,10 +4,37 @@ from types import SimpleNamespace
 
 import pytest
 from django.utils import translation
-from ol_openedx_course_translations.grading import grades_like_source
+from ol_openedx_course_translations.grading import capa_module, grades_like_source
 from opaque_keys.edx.keys import CourseKey
 
 COURSE_KEY = CourseKey.from_string("course-v1:MITx+T101+2026")
+
+
+@pytest.mark.parametrize(
+    ("extracted", "installed", "expected"),
+    [
+        (True, {"xblocks_contrib", "xmodule"}, "xblocks_contrib"),
+        (False, {"xblocks_contrib", "xmodule"}, "xmodule"),
+        (False, {"xblocks_contrib"}, "xblocks_contrib"),
+        (True, {"xmodule"}, "xmodule"),
+    ],
+)
+def test_capa_module_follows_the_problem_block_in_use(
+    mocker, settings, extracted, installed, expected
+):
+    """Capa classes come from the package of the problem block the platform runs."""
+    settings.USE_EXTRACTED_PROBLEM_BLOCK = extracted
+
+    def import_module(name):
+        if name.split(".")[0] not in installed:
+            raise ImportError(name)
+        return name
+
+    mocker.patch(
+        "ol_openedx_course_translations.grading.import_module", import_module
+    )
+
+    assert capa_module("responsetypes").split(".")[0] == expected
 
 SOURCE = """<problem>
 <multiplechoiceresponse>

@@ -1,20 +1,34 @@
 """Check that a translated problem grades the same way as its source."""
 
 import logging
+from importlib import import_module
 
+from django.conf import settings
 from django.template.loader import render_to_string
 from xmodule.contentstore.django import contentstore
 from xmodule.util.sandboxing import SandboxService
 
-try:
-    from xblocks_contrib.problem.capa.capa_problem import (
-        LoncapaProblem,
-        LoncapaSystem,
-    )
-except ImportError:  # Releases before the problem block moved to xblocks-contrib.
-    from xmodule.capa.capa_problem import LoncapaProblem, LoncapaSystem
-
 log = logging.getLogger(__name__)
+
+
+def capa_module(name):
+    """
+    Import ``name`` from the capa package of the problem block the platform runs.
+
+    Releases with both packages pick the block with USE_EXTRACTED_PROBLEM_BLOCK;
+    releases before the extraction only have ``xmodule.capa``.
+    """
+    packages = ["xblocks_contrib.problem.capa", "xmodule.capa"]
+    if not getattr(settings, "USE_EXTRACTED_PROBLEM_BLOCK", True):
+        packages.reverse()
+    try:
+        return import_module(f"{packages[0]}.{name}")
+    except ImportError:
+        return import_module(f"{packages[1]}.{name}")
+
+
+capa_problem = capa_module("capa_problem")
+LoncapaProblem, LoncapaSystem = capa_problem.LoncapaProblem, capa_problem.LoncapaSystem
 
 # The field the LMS grades from.
 GRADED_FIELD = ("problem", "data")
