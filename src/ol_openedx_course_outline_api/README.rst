@@ -74,9 +74,10 @@ This endpoint caches the full JSON response using Django's configured cache back
 - **Cache key**: ``<prefix>s<schema_version>:<course_key>:<content_version>``.
   - ``prefix`` is configurable via ``OL_COURSE_OUTLINE_API_CACHE_KEY_PREFIX`` (default: ``ol_course_outline_api:outline:v0:``).
   - ``schema_version`` is a plugin constant (bump it when you change the response shape or computation logic).
-  - ``content_version`` is ``course.course_version`` when present; otherwise the key uses ``na``.
+  - ``content_version`` identifies the collected block structure the response was built from: a hash of the same version fields the platform compares in ``BlockStructureStore.is_up_to_date``.
+- **Responses that are not cached**: when no collected block structure exists yet, serving the request is what builds it, so no version yet names the content being returned. That response is served uncached and the request after it caches normally.
 - **Invalidation**:
-  - Publishing a course that updates ``course.course_version`` produces a new cache key, effectively invalidating old entries.
+  - The response body comes from the collected block structure, which the platform rebuilds asynchronously after a publish (``COURSE_PUBLISH_TASK_DELAY``, 30 seconds by default). The key therefore changes when that rebuild lands, not at publish time. This is deliberate: keying on ``course.course_version`` meant a request arriving inside that window cached pre-publish content under the post-publish key, pinning a stale outline for the full TTL.
 
 Troubleshooting
 ---------------

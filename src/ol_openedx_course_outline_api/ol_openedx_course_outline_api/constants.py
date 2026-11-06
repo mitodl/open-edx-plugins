@@ -18,4 +18,4 @@ VISIBLE_TO_STAFF_ONLY_KEYS = ("visible_to_staff_only", "merged_visible_to_staff_
 # Schema version embedded in the cache key.
 # Increment this when the response shape or computation logic changes so old cache
 # entries won't be reused.
-COURSE_OUTLINE_CACHE_SCHEMA_VERSION = 1
+COURSE_OUTLINE_CACHE_SCHEMA_VERSION = 2
