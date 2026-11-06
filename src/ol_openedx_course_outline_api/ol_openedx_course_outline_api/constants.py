@@ -17,9 +17,5 @@ VISIBLE_TO_STAFF_ONLY_KEYS = ("visible_to_staff_only", "merged_visible_to_staff_
 
 # Schema version embedded in the cache key.
 # Increment this when the response shape or computation logic changes so old cache
-# entries won't be reused. Version 2 switched the key from the modulestore's
-# course_version to the collected block structure's version fields. Version 1
-# entries were keyed on a course_version that may have named content the response
-# did not match, so this bump exists to abandon them rather than to avoid a key
-# collision.
+# entries won't be reused.
 COURSE_OUTLINE_CACHE_SCHEMA_VERSION = 2

@@ -37,20 +37,13 @@ from ol_openedx_course_outline_api.utils import build_modules_from_blocks
 
 def get_collected_content_version(course):
     """
-    Return the version of the collected block structure the response is built from.
+    Return a version string for the collected block structure the response is
+    built from, hashing the fields the platform compares in
+    BlockStructureStore.is_up_to_date.
 
-    The response body comes from get_blocks(), which reads the collected block
-    structure. That is rebuilt asynchronously after a publish, so the modulestore's
-    course_version can already describe content the structure has not caught up to.
-
-    Uses the same version fields the platform compares in
-    BlockStructureStore.is_up_to_date, so a recollection that changes the response
-    without changing course_version (a transformer version bump, for example) still
-    produces a new key.
-
-    Returns None when no collected structure exists yet. get_blocks() builds one as a
-    side effect of serving the request, so there is no version that names the content
-    about to be returned, and the response must not be cached.
+    None means the response must not be cached: nothing has been collected yet, and
+    get_blocks() builds the structure while serving the request, so no version yet
+    names the content being returned.
     """
     try:
         bs_model = BlockStructureModel.get(course.location)
@@ -90,26 +83,17 @@ class CourseOutlineView(DeveloperErrorViewMixin, APIView):
                 status_code=status.HTTP_404_NOT_FOUND,
                 developer_message="Course not found",
             )
-        # Key changes when response logic changes (schema version) or when the
-        # block structure the response is built from changes. Read the version
-        # before get_blocks(), not after: reading after files this body under
-        # the version of content it isn't, which is the bug. Reading before
-        # can strand a newer body under the old key; that is only served again
-        # if the version fields repeat, which a transformer rollback can do.
-        cache_key_prefix = settings.OL_COURSE_OUTLINE_API_CACHE_KEY_PREFIX
-        cache_timeout_seconds = settings.OL_COURSE_OUTLINE_API_CACHE_TIMEOUT_SECONDS
-        content_version_str = get_collected_content_version(course)
-        cache_key = (
-            None
-            if content_version_str is None
-            else (
-                f"{cache_key_prefix}"
+        # Read the version before get_blocks(), not after: reading after files
+        # this body under the version of content it isn't, which is the bug.
+        content_version = get_collected_content_version(course)
+        cache_key = None
+        if content_version:
+            cache_key = (
+                f"{settings.OL_COURSE_OUTLINE_API_CACHE_KEY_PREFIX}"
                 f"s{COURSE_OUTLINE_CACHE_SCHEMA_VERSION}:"
                 f"{course_key}:"
-                f"{content_version_str}"
+                f"{content_version}"
             )
-        )
-        if cache_key is not None:
             cached = cache.get(cache_key)
             if cached is not None:
                 return Response(cached, status=status.HTTP_200_OK)
@@ -144,11 +128,11 @@ class CourseOutlineView(DeveloperErrorViewMixin, APIView):
             "modules": modules,
         }
 
-        if cache_key is not None:
+        if cache_key:
             cache.set(
                 cache_key,
                 response_data,
-                cache_timeout_seconds,
+                settings.OL_COURSE_OUTLINE_API_CACHE_TIMEOUT_SECONDS,
             )
 
         return Response(response_data, status=status.HTTP_200_OK)

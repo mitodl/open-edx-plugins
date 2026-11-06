@@ -1,6 +1,7 @@
 """Tests for the course outline API view's cache keying."""
 
-from unittest.mock import Mock, patch
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from django.conf import settings
 from django.core.cache import cache
@@ -27,28 +28,22 @@ from xmodule.modulestore.tests.django_utils import (
 from xmodule.modulestore.tests.factories import BlockFactory, CourseFactory
 
 
-def _fake_course(course_version="COURSEVERSION"):
-    return Mock(
-        location="block-v1:org+num+run+type@course+block@course",
-        course_version=course_version,
-    )
+def _fake_course():
+    return SimpleNamespace(location="block-v1:org+num+run+type@course+block@course")
 
 
 def _fake_structure(**overrides):
-    fields = {
-        "data_version": "BSVERSION",
-        "data_edit_timestamp": "2026-01-01 00:00:00",
-        "transformers_schema_version": "1",
-        "block_structure_schema_version": "1",
-    }
+    # Derived from VERSION_FIELDS so the fake can't drift from what the platform
+    # compares and leave the per-field test below vacuous.
+    fields = dict.fromkeys(BlockStructureModel.VERSION_FIELDS, "BASE")
     fields.update(overrides)
-    return Mock(**fields)
+    return SimpleNamespace(**fields)
 
 
-def _version_for(course=None, **overrides):
+def _version_for(**overrides):
     with patch.object(BlockStructureModel, "get") as get_model:
         get_model.return_value = _fake_structure(**overrides)
-        return get_collected_content_version(course or _fake_course())
+        return get_collected_content_version(_fake_course())
 
 
 def test_version_tracks_the_collected_structure():
@@ -139,8 +134,13 @@ class CourseOutlineViewTests(ModuleStoreTestCase):
         Nothing may be cached under a guessed version, but the request that
         follows it must find the newly collected structure and cache normally.
         """
-        first = self._call_view()
+        with patch(
+            "ol_openedx_course_outline_api.views.cache", wraps=cache
+        ) as cache_spy:
+            first = self._call_view()
+
         assert first.status_code == status.HTTP_200_OK
+        cache_spy.set.assert_not_called()
         assert get_collected_content_version(self.course) is not None
 
         with patch(
@@ -158,8 +158,9 @@ class CourseOutlineViewTests(ModuleStoreTestCase):
         first = self._call_view()
         assert first.status_code == status.HTTP_200_OK
 
-        # Bump course_version without publishing, so the collected block
-        # structure keeps the version it was originally built with.
+        # Rotate course_version while the collected structure stays put: course is
+        # a direct-only category so update_item publishes, but ModuleStoreTestCase
+        # disables signals, so the rebuild that would follow never runs.
         store = modulestore()
         course = store.get_course(self.course.id)
         course.display_name = "Renamed after the outline was cached"
@@ -173,7 +174,7 @@ class CourseOutlineViewTests(ModuleStoreTestCase):
 
         assert second.status_code == status.HTTP_200_OK
         assert spy.call_count == 0, "served a rebuilt outline instead of the cached one"
-        assert self._titles(second) == self._titles(first)
+        assert second.data == first.data
         assert cache.get(self._key_for(new_course_version)) is None
 
     def test_outline_rendered_during_the_rebuild_window_is_not_pinned(self):
