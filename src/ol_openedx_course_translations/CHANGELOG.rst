@@ -26,6 +26,9 @@ Added
 - ``backfill_block_translations`` command: copies the rows from a course already
   translated with ``translate_course``.
 - Problem answers, grading code, ids and keys are always kept from the source.
+  A problem's translation is stored only when its correct answers are the
+  source's and grade the same way against both versions; both commands list
+  the problems that do not.
 
 [0.12.3] - 2026-11-02
 ~~~~~~~~~~~~~~~~~~~~~

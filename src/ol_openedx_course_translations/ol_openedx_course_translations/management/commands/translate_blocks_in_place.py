@@ -33,6 +33,7 @@ from ol_openedx_course_translations.blocks import (
     serialize,
     source_hash,
 )
+from ol_openedx_course_translations.grading import GRADED_FIELD, grades_like_source
 from ol_openedx_course_translations.management.commands.backfill_block_translations import (  # noqa: E501
     grader_labels_translation,
     save_rows,
@@ -139,6 +140,8 @@ def translated_row(provider, block, field, language):
         return None, "the translation does not match the source"
     if restored == source_value:
         return None, "the translation is the same as the source"
+    if (block_type, field) == GRADED_FIELD and not grades_like_source(block, restored):
+        return None, "the translation does not grade like the source"
     return BlockTranslation(
         course_key=block.location.course_key,
         usage_key=block.location,
