@@ -381,7 +381,15 @@ def test_restore_capa_keeps_typed_answer_translated_by_mistake():
     assert restore_capa(source, translated) == source
 
 
-def test_admin_saves_the_hash_of_the_source_it_validated(mocker):
+@pytest.mark.parametrize(
+    ("changed", "status"),
+    [
+        (["translated_value"], BlockTranslation.Status.STALE),
+        # Marking a row reviewed after a source edit, without editing its text.
+        (["status"], BlockTranslation.Status.REVIEWED),
+    ],
+)
+def test_admin_saves_the_hash_of_the_source_it_validated(mocker, changed, status):
     from django.contrib import admin  # noqa: PLC0415
     from ol_openedx_course_translations.admin import (  # noqa: PLC0415
         BlockTranslationAdmin,
@@ -390,7 +398,12 @@ def test_admin_saves_the_hash_of_the_source_it_validated(mocker):
 
     usage_key = COURSE_KEY.make_usage_key("html", "a")
     row = BlockTranslation(
-        course_key=COURSE_KEY, usage_key=usage_key, field="display_name", language="fr"
+        course_key=COURSE_KEY,
+        usage_key=usage_key,
+        field="display_name",
+        language="fr",
+        source_hash=source_hash("Older title"),
+        status=status,
     )
     published = mocker.patch(
         "ol_openedx_course_translations.admin.published_source_value",
@@ -399,7 +412,7 @@ def test_admin_saves_the_hash_of_the_source_it_validated(mocker):
     mocker.patch.object(admin.ModelAdmin, "save_model")
     form = BlockTranslationForm(instance=row)
     form.cleaned_data = {"translated_value": "Titre"}
-    form.changed_data = ["translated_value"]
+    form.changed_data = changed
 
     form.clean_translated_value()
     # The course is published again before the row is saved.
