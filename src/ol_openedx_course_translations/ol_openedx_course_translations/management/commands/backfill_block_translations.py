@@ -22,6 +22,7 @@ from ol_openedx_course_translations.blocks import (
     serialize,
     source_hash,
 )
+from ol_openedx_course_translations.grading import GRADED_FIELD, grades_like_source
 from ol_openedx_course_translations.models import BlockTranslation
 
 
@@ -66,6 +67,11 @@ def build_rows(source_blocks, get_target_block, language, skipped=None):
             )
             if translated_value is None:
                 skipped.append(f"{location} {field} (does not match the source)")
+                continue
+            if (location.block_type, field) == GRADED_FIELD and not (
+                grades_like_source(block, translated_value)
+            ):
+                skipped.append(f"{location} {field} (does not grade like the source)")
                 continue
             rows.append(
                 BlockTranslation(

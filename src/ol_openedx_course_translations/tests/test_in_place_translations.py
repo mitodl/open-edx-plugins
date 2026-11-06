@@ -1048,3 +1048,43 @@ def test_translated_row_says_why_it_was_not_translated(mocker, restored, reason)
 
     assert why == reason
     assert (row is None) == (reason is not None)
+
+
+@pytest.mark.parametrize("grades_alike", [True, False])
+def test_problem_rows_need_the_same_grading(mocker, grades_alike):
+    from ol_openedx_course_translations.management.commands import (  # noqa: PLC0415
+        backfill_block_translations as backfill,
+    )
+    from ol_openedx_course_translations.management.commands import (  # noqa: PLC0415
+        translate_blocks_in_place as command,
+    )
+
+    problem = _block(
+        mocker, block_type="problem", block_id="p", display_name="Q", edited_on=None
+    )
+    problem.location = COURSE_KEY.make_usage_key("problem", "p")
+    problem.data = "<problem><p>Hello</p></problem>"
+    translated = "<problem><p>Bonjour</p></problem>"
+    for module in (command, backfill):
+        mocker.patch.object(module, "restore_kept_parts", return_value=translated)
+        mocker.patch.object(module, "grades_like_source", return_value=grades_alike)
+    mocker.patch.object(command, "translate_value", return_value=translated)
+    target = _block(
+        mocker, block_type="problem", block_id="p", display_name="Q", edited_on=None
+    )
+    target.data = translated
+    skipped = []
+
+    row, why = command.translated_row(None, problem, "data", "fr")
+    rows = backfill.build_rows([problem], lambda *_: target, "fr", skipped)
+
+    assert (row is not None) is grades_alike
+    assert why == (
+        None if grades_alike else "the translation does not grade like the source"
+    )
+    assert [r.field for r in rows] == (["data"] if grades_alike else [])
+    assert skipped == (
+        []
+        if grades_alike
+        else [f"{problem.location} data (does not grade like the source)"]
+    )
