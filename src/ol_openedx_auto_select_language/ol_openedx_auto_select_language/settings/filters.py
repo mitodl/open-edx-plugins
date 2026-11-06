@@ -59,9 +59,6 @@ TRANSLATION_PIPELINE_STEPS = {
     "org.openedx.learning.xblock.bound.v1": (
         "ol_openedx_auto_select_language.translation_filters.TranslateBoundBlock"
     ),
-    "org.openedx.learning.course_blocks.transform.completed.v1": (
-        "ol_openedx_auto_select_language.translation_filters.TranslateCourseBlockNames"
-    ),
     "org.openedx.learning.course_outline.api.render.started.v1": (
         "ol_openedx_auto_select_language.translation_filters.TranslateCourseOutline"
     ),
@@ -75,20 +72,16 @@ TRANSLATION_PIPELINE_STEPS = {
         "ol_openedx_auto_select_language.translation_filters.AddAnswerNoteBelowTitles"
     ),
     "org.openedx.learning.course_home_progress.api.render.started.v1": (
-        "ol_openedx_auto_select_language.translation_filters."
-        "TranslateProgressAssignmentTypes"
+        "ol_openedx_auto_select_language.translation_filters.TranslateProgress"
     ),
     "org.openedx.learning.course_home_dates.api.render.started.v1": (
-        "ol_openedx_auto_select_language.translation_filters."
-        "TranslateDatesAssignmentTypes"
+        "ol_openedx_auto_select_language.translation_filters.TranslateDates"
     ),
     "org.openedx.learning.course_home_outline.api.render.started.v1": (
-        "ol_openedx_auto_select_language.translation_filters."
-        "TranslateOutlineTabAssignmentTypes"
+        "ol_openedx_auto_select_language.translation_filters.TranslateOutlineTab"
     ),
     "org.openedx.learning.course_navigation.api.render.started.v1": (
-        "ol_openedx_auto_select_language.translation_filters."
-        "TranslateCourseNavigationAssignmentTypes"
+        "ol_openedx_auto_select_language.translation_filters.TranslateCourseNavigation"
     ),
 }
 
