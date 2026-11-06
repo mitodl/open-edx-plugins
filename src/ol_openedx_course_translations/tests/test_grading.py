@@ -30,11 +30,10 @@ def test_capa_module_follows_the_problem_block_in_use(
             raise ImportError(name)
         return name
 
-    mocker.patch(
-        "ol_openedx_course_translations.grading.import_module", import_module
-    )
+    mocker.patch("ol_openedx_course_translations.grading.import_module", import_module)
 
     assert capa_module("responsetypes").split(".")[0] == expected
+
 
 SOURCE = """<problem>
 <multiplechoiceresponse>
