@@ -314,9 +314,31 @@ class BlockTranslationForm(forms.ModelForm):
         model = BlockTranslation
         fields = "__all__"  # noqa: DJ007
 
-    def clean_translated_value(self):
+    def clean(self):
+        """
+        Check the translation against the source when it is edited or reviewed.
+
+        Other edits, such as marking a row stale, keep the stored text, so they
+        are allowed when the source has changed shape since the translation.
+        """
+        cleaned_data = super().clean()
+        marked_reviewed = (
+            "status" in self.changed_data
+            and cleaned_data.get("status") == BlockTranslation.Status.REVIEWED
+        )
+        if "translated_value" in cleaned_data and (
+            "translated_value" in self.changed_data or marked_reviewed
+        ):
+            try:
+                cleaned_data["translated_value"] = self.checked_translated_value(
+                    cleaned_data["translated_value"]
+                )
+            except forms.ValidationError as error:
+                self.add_error("translated_value", error)
+        return cleaned_data
+
+    def checked_translated_value(self, value):
         """Restore the source's kept parts, rejecting values that do not match it."""
-        value = self.cleaned_data["translated_value"]
         row = self.instance
         source_value = published_source_value(row.usage_key, row.field)
         if source_value is None:

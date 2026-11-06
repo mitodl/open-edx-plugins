@@ -411,10 +411,9 @@ def test_admin_saves_the_hash_of_the_source_it_validated(mocker, changed, status
     )
     mocker.patch.object(admin.ModelAdmin, "save_model")
     form = BlockTranslationForm(instance=row)
-    form.cleaned_data = {"translated_value": "Titre"}
     form.changed_data = changed
 
-    form.clean_translated_value()
+    form.checked_translated_value("Titre")
     # The course is published again before the row is saved.
     BlockTranslationAdmin(BlockTranslation, admin.site).save_model(
         None, row, form, change=True
@@ -934,14 +933,42 @@ def test_admin_form_checks_problem_translations(mocker, translated, rejected):
     )
     row = _row(field="data", usage_key=COURSE_KEY.make_usage_key("problem", "p"))
     form = BlockTranslationForm(instance=row)
-    form.cleaned_data = {"translated_value": translated}
 
     if rejected:
         with pytest.raises(forms.ValidationError):
-            form.clean_translated_value()
+            form.checked_translated_value(translated)
     else:
-        cleaned = form.clean_translated_value()
+        cleaned = form.checked_translated_value(translated)
         assert cleaned == CAPA_SOURCE.replace(">Yes<", ">Oui<").replace(">No<", ">Non<")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("status", "valid"),
+    [(BlockTranslation.Status.STALE, True), (BlockTranslation.Status.REVIEWED, False)],
+)
+def test_admin_checks_the_text_only_when_edited_or_reviewed(mocker, status, valid):
+    """A row whose source changed shape can be marked stale, but not reviewed."""
+    from django.forms.models import model_to_dict  # noqa: PLC0415
+    from ol_openedx_course_translations.admin import (  # noqa: PLC0415
+        BlockTranslationForm,
+    )
+
+    mocker.patch(
+        "ol_openedx_course_translations.admin.published_source_value",
+        return_value=CAPA_SOURCE,
+    )
+    row = _row(
+        field="data",
+        value=REORDERED_CHOICES,
+        usage_key=COURSE_KEY.make_usage_key("problem", "p"),
+    )
+    row.save()
+    data = {**model_to_dict(row), "status": status}
+
+    form = BlockTranslationForm(data=data, instance=row)
+
+    assert form.is_valid() is valid, form.errors
 
 
 @pytest.mark.django_db
