@@ -3,7 +3,7 @@
 import html
 import re
 
-from ol_openedx_course_translations.blocks import ANSWER_NOTE_BLOCK_TYPES
+from ol_openedx_course_translations.blocks import ANSWER_NOTE_BLOCK_TYPES, source_hash
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import UsageKey
 from openedx_filters import PipelineStep
@@ -48,37 +48,6 @@ class TranslateBoundBlock(PipelineStep):
         translate_block(block)
         refresh_problem_feedback(block)
         return {"block": block, "user": user, "course_key": course_key}
-
-
-class TranslateCourseBlockNames(PipelineStep):
-    """
-    Translate block names in a learner's transformed course block structure.
-
-    Covers the course outline, navigation sidebar, blocks API, dates and progress
-    section names. The structure is a per-request copy, so the shared block
-    structure cache is not changed.
-    """
-
-    def run_filter(self, block_structure, user, starting_block_usage_key):
-        """Override ``display_name`` with its translation where one is current."""
-        translations = course_translations(
-            starting_block_usage_key.course_key, NAME_FIELDS
-        )
-        if translations:
-            for usage_key in block_structure:
-                name = block_structure.get_xblock_field(usage_key, "display_name")
-                translated = translated_text(
-                    translations, usage_key, "display_name", name
-                )
-                if translated != name:
-                    block_structure.override_xblock_field(
-                        usage_key, "display_name", translated
-                    )
-        return {
-            "block_structure": block_structure,
-            "user": user,
-            "starting_block_usage_key": starting_block_usage_key,
-        }
 
 
 class TranslateCourseOutline(PipelineStep):
@@ -160,31 +129,67 @@ def _translate_assignment_types(labels, entries, key="assignment_type"):
             entry[key] = labels[entry[key]]["type"]
 
 
-class _AssignmentTypesStep(PipelineStep):
-    """Translate grading type names in a course home API response."""
+def _translate_names(names, entries, key, *, with_suffix=False):
+    """
+    Translate ``entry[key]`` where it is a block name with a current translation.
+
+    These responses name blocks without always giving their ids, so names are
+    matched by source text: a translation row is current exactly when its source
+    hash is the hash of the name shown. With ``with_suffix``, a name followed by
+    " (...)" that the platform adds has the name part translated: the step of
+    an ORA date ("<ORA title> (<step>)") or a graded subsection's question
+    count ("<name> (<n> Questions)"). The suffix is already in the learner's
+    language.
+    """
+    for entry in entries:
+        name = entry.get(key)
+        if not name:
+            continue
+        if (translated := names.get(source_hash(name))) is not None:
+            entry[key] = translated
+        elif with_suffix:
+            block_name, sep, suffix = name.rpartition(" (")
+            if sep and (translated := names.get(source_hash(block_name))) is not None:
+                entry[key] = f"{translated}{sep}{suffix}"
+
+
+class _CourseHomeNamesStep(PipelineStep):
+    """
+    Translate block and grading type names in a course home API response.
+
+    The response is built per request after any cache, so the shared course
+    data the platform caches and grades from keeps the source names.
+    """
 
     def run_filter(self, course_key, user, data):
-        """Swap grading type names for the learner's language, when translated."""
-        labels = grader_labels(course_key)
-        if labels:
-            self.translate(labels, data)
+        """Swap the names for the learner's language, where translated."""
+        translations = course_translations(course_key, NAME_FIELDS)
+        if translations:
+            # ORA dates show the ORA's title, which can differ from its name.
+            names = dict(
+                fields[field]
+                for fields in translations.values()
+                for field in ("display_name", "title")
+                if field in fields
+            )
+            self.translate(names, grader_labels(course_key), data)
         return {"course_key": course_key, "user": user, "data": data}
 
-    def translate(self, labels, data):
-        """Translate the response's grading type names in place."""
+    def translate(self, names, labels, data):
+        """Translate the response's names in place."""
         raise NotImplementedError
 
 
-class TranslateProgressAssignmentTypes(_AssignmentTypesStep):
+class TranslateProgress(_CourseHomeNamesStep):
     """
-    Translate grading type names on the progress tab.
+    Translate section, subsection and grading type names on the progress tab.
 
     The grading policy, the grade summary and the subsections' types are translated
     together: the progress page compares them by name.
     """
 
-    def translate(self, labels, data):
-        """Swap each grading type name and short label for its translation."""
+    def translate(self, names, labels, data):
+        """Swap each name and short label for its translation."""
         policies = (data.get("grading_policy") or {}).get("assignment_policies", [])
         for entry in [*policies, *data.get("assignment_type_grade_summary", [])]:
             label = labels.get(entry.get("type"))
@@ -192,36 +197,47 @@ class TranslateProgressAssignmentTypes(_AssignmentTypesStep):
                 entry["type"] = label["type"]
                 if entry.get("short_label") and label["short_label"]:
                     entry["short_label"] = label["short_label"]
-        for section in data.get("section_scores", []):
-            _translate_assignment_types(labels, section.get("subsections", []))
+        sections = data.get("section_scores", [])
+        _translate_names(names, sections, "display_name")
+        for section in sections:
+            subsections = section.get("subsections", [])
+            _translate_names(names, subsections, "display_name")
+            _translate_assignment_types(labels, subsections)
 
 
-class TranslateDatesAssignmentTypes(_AssignmentTypesStep):
-    """Translate grading type names on the dates tab."""
-
-    def translate(self, labels, data):
-        """Swap each date's grading type name for its translation."""
-        _translate_assignment_types(labels, data.get("course_date_blocks", []))
+def _translate_dates(names, labels, dates):
+    _translate_names(names, dates, "title", with_suffix=True)
+    _translate_assignment_types(labels, dates)
 
 
-class TranslateOutlineTabAssignmentTypes(_AssignmentTypesStep):
-    """Translate grading type names on the course outline tab and its dates widget."""
+class TranslateDates(_CourseHomeNamesStep):
+    """Translate assignment titles and grading type names on the dates tab."""
 
-    def translate(self, labels, data):
-        """Swap subsection descriptions and date types for their translations."""
-        blocks = (data.get("course_blocks") or {}).get("blocks", {})
-        _translate_assignment_types(labels, blocks.values(), key="description")
+    def translate(self, names, labels, data):
+        """Swap each date's title and grading type name for its translation."""
+        _translate_dates(names, labels, data.get("course_date_blocks", []))
+
+
+class TranslateOutlineTab(_CourseHomeNamesStep):
+    """Translate the course outline tab: block names, types and its dates widget."""
+
+    def translate(self, names, labels, data):
+        """Swap block names, subsection descriptions and dates."""
+        blocks = (data.get("course_blocks") or {}).get("blocks", {}).values()
+        _translate_names(names, blocks, "display_name", with_suffix=True)
+        _translate_assignment_types(labels, blocks, key="description")
         dates = (data.get("dates_widget") or {}).get("course_date_blocks", [])
-        _translate_assignment_types(labels, dates)
+        _translate_dates(names, labels, dates)
 
 
-class TranslateCourseNavigationAssignmentTypes(_AssignmentTypesStep):
-    """Translate grading type names in the courseware navigation sidebar."""
+class TranslateCourseNavigation(_CourseHomeNamesStep):
+    """Translate block names and types in the courseware navigation sidebar."""
 
-    def translate(self, labels, data):
-        """Swap subsection descriptions for their translations."""
-        blocks = data.get("blocks", {})
-        _translate_assignment_types(labels, blocks.values(), key="description")
+    def translate(self, names, labels, data):
+        """Swap block names and subsection descriptions for their translations."""
+        blocks = data.get("blocks", {}).values()
+        _translate_names(names, blocks, "display_name", with_suffix=True)
+        _translate_assignment_types(labels, blocks, key="description")
 
 
 class AddAnswerNoteBelowTitles(PipelineStep):

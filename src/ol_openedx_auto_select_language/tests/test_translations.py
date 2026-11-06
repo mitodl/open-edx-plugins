@@ -5,13 +5,12 @@
 import pytest
 from ol_openedx_auto_select_language.translation_filters import (
     AddAnswerNoteBelowTitles,
-    TranslateCourseBlockNames,
-    TranslateCourseNavigationAssignmentTypes,
+    TranslateCourseNavigation,
     TranslateCourseOutline,
     TranslateCoursewareMetadata,
-    TranslateDatesAssignmentTypes,
-    TranslateOutlineTabAssignmentTypes,
-    TranslateProgressAssignmentTypes,
+    TranslateDates,
+    TranslateOutlineTab,
+    TranslateProgress,
 )
 from ol_openedx_auto_select_language.translations import (
     add_problem_answer_note,
@@ -88,21 +87,10 @@ def test_translate_block(mocker, row_source, handler, path, expected):
     assert block.cached == expected
 
 
-def test_block_names_and_outline_titles(mocker):
+def test_outline_titles(mocker):
     chapter = COURSE_KEY.make_usage_key("chapter", "c1")
     rows = {chapter: {"display_name": (source_hash("Week 1"), "Semaine 1")}}
     mocker.patch(f"{FILTERS}.course_translations", return_value=rows)
-    structure = mocker.MagicMock()
-    structure.__iter__.return_value = iter([chapter])
-    structure.get_xblock_field.return_value = "Week 1"
-
-    TranslateCourseBlockNames(
-        filter_type=mocker.Mock(), running_pipeline=mocker.Mock()
-    ).run_filter(block_structure=structure, user=None, starting_block_usage_key=chapter)
-
-    structure.override_xblock_field.assert_called_once_with(
-        chapter, "display_name", "Semaine 1"
-    )
 
     data = {
         "title": "Course",
@@ -371,11 +359,146 @@ def test_grader_labels(mocker, row_hash, expected):
     assert grader_labels(COURSE_KEY) == expected
 
 
-def _run(step, data, mocker, labels=LABELS):
+NAME_ROWS = {
+    COURSE_KEY.make_usage_key("sequential", "s1"): {
+        "display_name": (source_hash("Quiz 1"), "Quiz 1 (fr)")
+    },
+    COURSE_KEY.make_usage_key("openassessment", "o1"): {
+        "display_name": (source_hash("Essay"), "Dissertation"),
+        "title": (source_hash("Open Response Assessment"), "Évaluation ouverte"),
+    },
+    COURSE_KEY.make_usage_key("chapter", "c1"): {
+        "display_name": (source_hash("Old week name"), "Semaine 1")
+    },
+}
+
+
+def _run(step, data, mocker, labels=LABELS, rows=NAME_ROWS):
+    mocker.patch(f"{FILTERS}.course_translations", return_value=rows)
     mocker.patch(f"{FILTERS}.grader_labels", return_value=labels)
     return step(filter_type="test", running_pipeline=[]).run_filter(
         course_key=COURSE_KEY, user=None, data=data
     )["data"]
+
+
+@pytest.mark.parametrize(
+    ("step", "data", "path"),
+    [
+        (
+            TranslateProgress,
+            {"section_scores": [{"display_name": "Week 1", "subsections": []}]},
+            ("section_scores", 0, "display_name"),
+        ),
+        (
+            TranslateProgress,
+            {"section_scores": [{"subsections": [{"display_name": "Week 1"}]}]},
+            ("section_scores", 0, "subsections", 0, "display_name"),
+        ),
+        (
+            TranslateDates,
+            {"course_date_blocks": [{"title": "Week 1"}]},
+            ("course_date_blocks", 0, "title"),
+        ),
+        (
+            TranslateOutlineTab,
+            {"course_blocks": {"blocks": {"x": {"display_name": "Week 1"}}}},
+            ("course_blocks", "blocks", "x", "display_name"),
+        ),
+        (
+            TranslateOutlineTab,
+            {"dates_widget": {"course_date_blocks": [{"title": "Week 1"}]}},
+            ("dates_widget", "course_date_blocks", 0, "title"),
+        ),
+        (
+            TranslateCourseNavigation,
+            {"blocks": {"x": {"display_name": "Week 1"}}},
+            ("blocks", "x", "display_name"),
+        ),
+    ],
+    ids=[
+        "progress_section",
+        "progress_subsection",
+        "dates",
+        "outline_tab",
+        "outline_dates_widget",
+        "navigation",
+    ],
+)
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("Quiz 1", "Quiz 1 (fr)"),
+        ("Week 1", "Week 1"),  # the row was made from older source text
+        ("Unknown", "Unknown"),
+        (None, None),
+    ],
+    ids=["current", "stale", "no_row", "no_name"],
+)
+def test_course_home_block_names(mocker, step, data, path, case):
+    name, expected = case
+    *parents, key = path
+    entry = data
+    for part in parents:
+        entry = entry[part]
+    entry[key] = name
+
+    _run(step, data, mocker)
+
+    assert entry[key] == expected
+
+
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        ("Essay (Peer Assessment)", "Dissertation (Peer Assessment)"),
+        ("Open Response Assessment (Réponse)", "Évaluation ouverte (Réponse)"),
+        ("Quiz 1", "Quiz 1 (fr)"),
+        ("Course starts", "Course starts"),
+    ],
+)
+def test_dates_assessment_titles(mocker, title, expected):
+    data = {"course_date_blocks": [{"title": title}]}
+
+    result = _run(TranslateDates, data, mocker)
+
+    assert result["course_date_blocks"][0]["title"] == expected
+
+
+@pytest.mark.parametrize("step", [TranslateCourseNavigation, TranslateOutlineTab])
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("Quiz 1 (6 Questions)", "Quiz 1 (fr) (6 Questions)"),
+        ("Week 1 (6 Questions)", "Week 1 (6 Questions)"),  # stale row
+    ],
+)
+def test_graded_subsection_names_keep_their_question_count(
+    mocker, step, name, expected
+):
+    blocks = {"x": {"display_name": name}}
+    data = {"blocks": blocks, "course_blocks": {"blocks": blocks}}
+
+    _run(step, data, mocker)
+
+    assert blocks["x"]["display_name"] == expected
+
+
+def test_progress_names_are_matched_whole(mocker):
+    data = {"section_scores": [{"display_name": "Quiz 1 (6 Questions)"}]}
+
+    result = _run(TranslateProgress, data, mocker)
+
+    assert result["section_scores"][0]["display_name"] == "Quiz 1 (6 Questions)"
+
+
+def test_course_home_steps_leave_data_without_translations(mocker):
+    data = {"blocks": {"x": {"display_name": "Quiz 1", "description": "Homework"}}}
+
+    result = _run(TranslateCourseNavigation, data, mocker, rows={})
+
+    assert result == {
+        "blocks": {"x": {"display_name": "Quiz 1", "description": "Homework"}}
+    }
 
 
 def test_progress_assignment_types_translated_together(mocker):
@@ -389,7 +512,7 @@ def test_progress_assignment_types_translated_together(mocker):
         ],
     }
 
-    result = _run(TranslateProgressAssignmentTypes, data, mocker)
+    result = _run(TranslateProgress, data, mocker)
 
     assert result["grading_policy"]["assignment_policies"] == [
         {"type": "Devoirs", "short_label": "DEV"}
@@ -410,7 +533,7 @@ def test_dates_assignment_types_translated(mocker):
         "course_date_blocks": [{"assignment_type": "Exam"}, {"assignment_type": None}]
     }
 
-    result = _run(TranslateDatesAssignmentTypes, data, mocker)
+    result = _run(TranslateDates, data, mocker)
 
     assert [d["assignment_type"] for d in result["course_date_blocks"]] == [
         "Examen",
@@ -422,7 +545,7 @@ def test_dates_assignment_types_translated(mocker):
     ("step", "data", "blocks_path"),
     [
         (
-            TranslateOutlineTabAssignmentTypes,
+            TranslateOutlineTab,
             {
                 "course_blocks": {
                     "blocks": {
@@ -435,7 +558,7 @@ def test_dates_assignment_types_translated(mocker):
             ("course_blocks", "blocks"),
         ),
         (
-            TranslateCourseNavigationAssignmentTypes,
+            TranslateCourseNavigation,
             {
                 "blocks": {
                     "a": {"description": "Homework"},
@@ -468,7 +591,7 @@ def test_block_descriptions_translated_only_for_type_names(
 def test_assignment_type_steps_leave_data_without_labels(mocker):
     data = {"course_date_blocks": [{"assignment_type": "Exam"}]}
 
-    result = _run(TranslateDatesAssignmentTypes, data, mocker, labels={})
+    result = _run(TranslateDates, data, mocker, labels={})
 
     assert result == {"course_date_blocks": [{"assignment_type": "Exam"}]}
 

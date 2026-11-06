@@ -20,7 +20,9 @@ Added
 * In-place translations mode (``ol_openedx_auto_select_language.in_place_translations``
   course waffle flag): the learner's own language wins, and the course's
   ``BlockTranslation`` rows are shown in it (unit content, outline, sidebar,
-  progress, dates, grading type names, video subtitles).
+  progress, dates, grading type names, video subtitles). Names outside the
+  unit are translated in each API response, so the course data the platform
+  caches and grades from keeps the source names.
 * ``/auto-select-language/api/languages/`` API for the learner language dropdown.
 
 Changed

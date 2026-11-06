@@ -46,9 +46,9 @@ FEEDBACK_REBUILD_RESPONSES = (
 )
 FEEDBACK_PROPERTIES = ("msg", "hint", "hintmode")
 
-# What the course pages outside the unit show: block and course names, and
-# grading type names.
-NAME_FIELDS = ("display_name", GRADER_LABELS_FIELD)
+# What the course pages outside the unit show: block and course names, ORA
+# titles (on the dates pages), and grading type names.
+NAME_FIELDS = ("display_name", "title", GRADER_LABELS_FIELD)
 
 # Source values of the fields translate_block replaced on a block instance.
 ORIGINAL_VALUES_ATTR = "_ol_translation_original_values"
