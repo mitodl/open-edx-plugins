@@ -368,9 +368,14 @@ class BlockTranslationAdmin(admin.ModelAdmin):
         Mark a hand-edited translation reviewed so syncs never overwrite it.
 
         The editor reviews it against the current published source shown on the
-        form, so the fingerprint is set to the source it was validated against.
+        form, so the fingerprint is set to the source it was validated against,
+        also when only the status is changed to reviewed.
         """
-        if "translated_value" in form.changed_data:
+        marked_reviewed = (
+            "status" in form.changed_data
+            and obj.status == BlockTranslation.Status.REVIEWED
+        )
+        if "translated_value" in form.changed_data or marked_reviewed:
             obj.status = BlockTranslation.Status.REVIEWED
             validated_hash = getattr(form, "validated_source_hash", None)
             if validated_hash is not None:
