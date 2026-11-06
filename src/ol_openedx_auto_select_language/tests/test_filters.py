@@ -431,6 +431,8 @@ def test_resolves_with_course_language_not_shared_dest_lang(mocker, settings):
     ],
     ids=["learner_first", "course_fallback"],
 )
+# An in-place course shows translated content even with auto-selection off.
+@pytest.mark.parametrize("auto_selection", [True, False])
 def test_learner_language_wins(  # noqa: PLR0913, PLR0917
     mocker,
     settings,
@@ -438,9 +440,10 @@ def test_learner_language_wins(  # noqa: PLR0913, PLR0917
     learner_language,
     resolved_by_dest,
     expected,
+    auto_selection,
 ):
     """With the learner's choice winning, subtitles follow it before the course."""
-    settings.ENABLE_AUTO_LANGUAGE_SELECTION = True
+    settings.ENABLE_AUTO_LANGUAGE_SELECTION = auto_selection
     in_place_translations_disabled.return_value = True
     mocker.patch(f"{MODULE}.get_language", return_value=learner_language)
     _patch_course_language(mocker, "es")

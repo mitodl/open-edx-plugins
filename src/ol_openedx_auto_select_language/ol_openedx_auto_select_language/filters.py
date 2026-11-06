@@ -116,19 +116,20 @@ class RestrictVideoTranscriptLanguages(PipelineStep):
         """
         original = getattr(block, "get_transcripts_for_student", None)
         if (
-            not getattr(settings, "ENABLE_AUTO_LANGUAGE_SELECTION", False)
-            or block.scope_ids.block_type != VIDEO_BLOCK_TYPE
+            block.scope_ids.block_type != VIDEO_BLOCK_TYPE
             or getattr(block, "ol_transcripts_restricted", False)
             or original is None
         ):
             return {"block": block, "context": context}
+        # An in-place course shows translated content even with auto-selection
+        # off, so its subtitles follow the learner's language too.
+        in_place = in_place_translations_enabled(block.scope_ids.usage_id.course_key)
+        if not (getattr(settings, "ENABLE_AUTO_LANGUAGE_SELECTION", False) or in_place):
+            return {"block": block, "context": context}
 
         course_language = _course_language(block)
         preferred = [course_language] if course_language else []
-        if (
-            in_place_translations_enabled(block.scope_ids.usage_id.course_key)
-            and get_language()
-        ):
+        if in_place and get_language():
             preferred.insert(0, get_language())
         if not preferred:
             return {"block": block, "context": context}
