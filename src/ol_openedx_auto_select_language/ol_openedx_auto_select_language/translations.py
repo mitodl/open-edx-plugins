@@ -20,18 +20,15 @@ from ol_openedx_course_translations.blocks import (
     restore_grader_labels,
     source_hash,
 )
+from ol_openedx_course_translations.grading import capa_module
 from ol_openedx_course_translations.models import BlockTranslation
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_auto_select_language.toggles import in_place_translations_enabled
 
-try:
-    from xblocks_contrib.problem.capa import responsetypes
-    from xblocks_contrib.problem.capa.util import convert_files_to_filenames
-except ImportError:  # Releases before the problem block moved to xblocks-contrib.
-    from xmodule.capa import responsetypes
-    from xmodule.capa.util import convert_files_to_filenames
+responsetypes = capa_module("responsetypes")
+convert_files_to_filenames = capa_module("util").convert_files_to_filenames
 
 log = logging.getLogger(__name__)
 
