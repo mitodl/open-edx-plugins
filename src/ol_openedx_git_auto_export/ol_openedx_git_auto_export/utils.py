@@ -28,6 +28,7 @@ from openedx.core.djangoapps.content_libraries.api import (
     ContentLibraryNotFound,
     get_library,
 )
+from xmodule.contentstore.django import contentstore
 from xmodule.modulestore.django import modulestore
 
 from ol_openedx_git_auto_export.constants import (
@@ -770,3 +771,24 @@ def track_export(content_key, user, *loggers, git_url=""):
             )
         except Exception:
             log.exception("Failed to close the %s export record", content_key)
+
+
+def max_file_size():
+    """GIT_AUTO_EXPORT_MAX_FILE_SIZE in bytes; 0 means no limit."""
+    # int: a quoted YAML value would never match Mongo's numeric length.
+    return int(settings.GIT_AUTO_EXPORT_MAX_FILE_SIZE or 0)
+
+
+def get_oversized_assets(content_key):
+    """
+    Return (name, size in bytes) for each asset over
+    GIT_AUTO_EXPORT_MAX_FILE_SIZE, which git hosts reject on push.
+    """
+    limit = max_file_size()
+    # v2 libraries keep their files in Learning Core, not the contentstore.
+    if not limit or isinstance(content_key, LibraryLocatorV2):
+        return []
+    assets, _ = contentstore().get_all_content_for_course(
+        content_key, filter_params={"length": {"$gt": limit}}
+    )
+    return [(asset["displayname"], asset["length"]) for asset in assets]
