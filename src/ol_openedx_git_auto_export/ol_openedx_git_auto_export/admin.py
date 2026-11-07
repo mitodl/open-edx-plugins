@@ -6,7 +6,7 @@ from collections import Counter
 
 from django.contrib import admin, messages
 from django.contrib.admin import SimpleListFilter
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
 from opaque_keys.edx.locator import LibraryLocator, LibraryLocatorV2
 
 from ol_openedx_git_auto_export.constants import (
@@ -14,7 +14,11 @@ from ol_openedx_git_auto_export.constants import (
     LIBRARY_V2_PREFIX,
     ContentType,
 )
-from ol_openedx_git_auto_export.models import ContentGitRepository
+from ol_openedx_git_auto_export.models import (
+    ContentGitExportLog,
+    ContentGitRepository,
+    ExportStatus,
+)
 from ol_openedx_git_auto_export.utils import queue_git_exports
 
 
@@ -60,11 +64,38 @@ class ContentGitRepositoryAdmin(admin.ModelAdmin):
         "git_url",
         "is_export_enabled",
         "content_type_display",
+        "last_export_status",
+        "last_export_at",
     )
     search_fields = ("content_key", "git_url")
     list_filter = ("is_export_enabled", ContentTypeFilter)
     list_per_page = 50
     actions = ("export_to_git",)
+
+    def get_queryset(self, request):
+        """Annotate each row with its newest export log entry."""
+        newest = ContentGitExportLog.objects.filter(
+            content_key=OuterRef("content_key")
+        ).order_by("-created", "-id")
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                last_status=Subquery(newest.values("status")[:1]),
+                last_at=Subquery(newest.values("created")[:1]),
+            )
+        )
+
+    @admin.display(description="Last export", ordering="last_status")
+    def last_export_status(self, obj):
+        """Status of the newest export log row, if any."""
+        # .get: a rolled-back release may not know a newer status.
+        return dict(ExportStatus.choices).get(obj.last_status, obj.last_status or "-")
+
+    @admin.display(description="Last export at", ordering="last_at")
+    def last_export_at(self, obj):
+        """Time of the newest export log row, if any."""
+        return obj.last_at
 
     @admin.display(description="Content Type")
     def content_type_display(self, obj):
@@ -101,4 +132,27 @@ class ContentGitRepositoryAdmin(admin.ModelAdmin):
 
         To stop exporting content, set `is_export_enabled` to False
         """
+        return False
+
+
+@admin.register(ContentGitExportLog)
+class ContentGitExportLogAdmin(admin.ModelAdmin):
+    """Read-only history of git export runs."""
+
+    # In progress with no activity past EXPORT_TIME_LIMIT: the run was killed.
+    list_display = ("content_key", "status", "user", "created", "modified", "git_url")
+    list_filter = ("status", ContentTypeFilter)
+    search_fields = ("content_key",)
+    list_per_page = 50
+
+    def has_add_permission(self, request):  # noqa: ARG002
+        """Rows are written only by the export tasks."""
+        return False
+
+    def has_change_permission(self, request, obj=None):  # noqa: ARG002
+        """Rows are an audit trail; staff can view but not edit them."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):  # noqa: ARG002
+        """Keep the full history; see README for retention."""
         return False
