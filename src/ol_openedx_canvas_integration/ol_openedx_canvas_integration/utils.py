@@ -28,12 +28,14 @@ def is_canvas_dates_sync_enabled(course=None):
 def is_grade_sync_blocked_by_due_date(course, due_at):
     """
     Whether a grade should not sync because the Canvas assignment ``due_at`` has
-    passed and the course hasn't set ``sync_grades_after_due_date``
+    passed and the course hasn't set ``sync_canvas_grades_after_due_date``
     """
     due_date = parse_datetime(due_at) if due_at else None
     if not due_date or due_date >= datetime.now(tz=UTC):
         return False
-    return not course.other_course_settings.get("sync_grades_after_due_date", False)
+    return not course.other_course_settings.get(
+        "sync_canvas_grades_after_due_date", False
+    )
 
 
 def get_cached_canvas_course_id(course_id):

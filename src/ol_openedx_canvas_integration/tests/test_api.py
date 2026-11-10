@@ -227,14 +227,17 @@ NOT_DUE_UPDATE = (102, {"grade_data[42][posted_grade]": "84.0%"})
     ("other_course_settings", "expected_updates"),
     [
         ({}, [NOT_DUE_UPDATE]),
-        ({"sync_grades_after_due_date": False}, [NOT_DUE_UPDATE]),
-        ({"sync_grades_after_due_date": True}, [PAST_DUE_UPDATE, NOT_DUE_UPDATE]),
+        ({"sync_canvas_grades_after_due_date": False}, [NOT_DUE_UPDATE]),
+        (
+            {"sync_canvas_grades_after_due_date": True},
+            [PAST_DUE_UPDATE, NOT_DUE_UPDATE],
+        ),
     ],
 )
 def test_push_edx_grades_to_canvas_past_due_assignment(
     monkeypatch, other_course_settings, expected_updates
 ):
-    """Past-due grades are pushed only when sync_grades_after_due_date is on."""
+    """Past-due grades are pushed only when sync_canvas_grades_after_due_date is on."""
     course = SimpleNamespace(
         id="course-v1:MITx+course+2026", other_course_settings=other_course_settings
     )

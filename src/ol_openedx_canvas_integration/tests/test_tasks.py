@@ -168,7 +168,7 @@ class TestSyncUserGradeWithCanvas(TestCase):
         mock_get_grades,
         mock_client_class,
     ):
-        """Test that past-due grades sync when sync_grades_after_due_date is on"""
+        """Past-due grades sync when sync_canvas_grades_after_due_date is on"""
         mock_client = mock_client_class.return_value
         mock_client.get_canvas_assignments.return_value = {
             str(self.usage_key): {
@@ -187,7 +187,7 @@ class TestSyncUserGradeWithCanvas(TestCase):
         # class-level get_course_by_id patch wins over method decorators
         with patch.dict(
             tasks.get_course_by_id.return_value.other_course_settings,
-            {"sync_grades_after_due_date": True},
+            {"sync_canvas_grades_after_due_date": True},
         ):
             _sync_user_grade_with_canvas(self.grade_id)
 
