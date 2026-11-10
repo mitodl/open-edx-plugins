@@ -2,13 +2,11 @@
 
 import hashlib
 import logging
-from datetime import UTC, datetime
 from functools import partial
 
 import requests
 from celery import shared_task
 from django.contrib.auth import get_user_model
-from django.utils.dateparse import parse_datetime
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.grades.models import PersistentSubsectionGrade
 from lms.djangoapps.instructor_task.api_helper import submit_task
@@ -22,7 +20,10 @@ from ol_openedx_canvas_integration.constants import (
     TASK_TYPE_PUSH_EDX_GRADES_TO_CANVAS,
     TASK_TYPE_SYNC_CANVAS_ENROLLMENTS,
 )
-from ol_openedx_canvas_integration.utils import get_canvas_course_id
+from ol_openedx_canvas_integration.utils import (
+    get_canvas_course_id,
+    is_grade_sync_blocked_by_due_date,
+)
 
 TASK_LOG = logging.getLogger("edx.celery.task")
 USER_MODEL = get_user_model()
@@ -88,7 +89,7 @@ def sync_user_grade_with_canvas(grade_id):
     _sync_user_grade_with_canvas(grade_id)
 
 
-def _sync_user_grade_with_canvas(grade_id):  # noqa: PLR0911
+def _sync_user_grade_with_canvas(grade_id):
     """
     Call the Canvas API and update the user's grade.
     """
@@ -114,27 +115,15 @@ def _sync_user_grade_with_canvas(grade_id):  # noqa: PLR0911
             grade_instance.usage_key,
         )
         return
-    due_date = existing_assignments_map[str(grade_instance.usage_key)]["due_at"]
-    if due_date:
-        due_date = parse_datetime(due_date)
-    if due_date and due_date < datetime.now(tz=UTC):
+    assignment = existing_assignments_map[str(grade_instance.usage_key)]
+    if is_grade_sync_blocked_by_due_date(course, assignment.get("due_at")):
         TASK_LOG.warning(
             "The assignment %s is past its due date. Skipping grade sync.",
             grade_instance.usage_key,
         )
         return
 
-    due_date = existing_assignments_map[str(grade_instance.usage_key)]["due_at"]
-    if due_date:
-        due_date = parse_datetime(due_date)
-    if due_date and due_date < datetime.now(tz=UTC):
-        TASK_LOG.warning(
-            "The assignment %s is past its due date. Skipping grade sync.",
-            grade_instance.usage_key,
-        )
-        return
-
-    canvas_assignment_id = existing_assignments_map[str(grade_instance.usage_key)]["id"]
+    canvas_assignment_id = assignment["id"]
     openedx_user = USER_MODEL.objects.get(id=grade_instance.user_id)
     canvas_user_id = client.get_student_id_by_email(openedx_user.email)
     if not canvas_user_id:

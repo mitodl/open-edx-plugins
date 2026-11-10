@@ -2,11 +2,9 @@
 
 import logging
 from collections import defaultdict
-from datetime import UTC, datetime
 
 from common.djangoapps.student.models import CourseEnrollment, CourseEnrollmentAllowed
 from django.contrib.auth.models import User
-from django.utils.dateparse import parse_datetime
 from lms.djangoapps.courseware.access import has_access
 from lms.djangoapps.courseware.courses import get_course_by_id
 from lms.djangoapps.grades.context import grading_context_for_course
@@ -22,6 +20,7 @@ from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
 from ol_openedx_canvas_integration.utils import (
     get_canvas_course_id,
     is_canvas_dates_sync_enabled,
+    is_grade_sync_blocked_by_due_date,
 )
 
 log = logging.getLogger(__name__)
@@ -273,10 +272,7 @@ def push_edx_grades_to_canvas(course):
             and str(subsection_block.location) in existing_assignment_dict
         ):
             block_data = existing_assignment_dict[str(subsection_block.location)]
-            due_date = block_data.get("due_at")
-            if due_date:
-                due_date = parse_datetime(due_date)
-            if due_date and due_date < datetime.now(tz=UTC):
+            if is_grade_sync_blocked_by_due_date(course, block_data.get("due_at")):
                 log.warning(
                     "The assignment %s is past its due date. Skipping grade sync.",
                     subsection_block.location,
