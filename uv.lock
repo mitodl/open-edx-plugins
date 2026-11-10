@@ -2471,7 +2471,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat"
-version = "0.7.0"
+version = "0.7.1"
 source = { editable = "src/ol_openedx_chat" }
 dependencies = [
     { name = "django" },
@@ -2491,7 +2491,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat-xblock"
-version = "0.5.0"
+version = "0.5.1"
 source = { editable = "src/ol_openedx_chat_xblock" }
 dependencies = [
     { name = "django" },
@@ -2685,7 +2685,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-feedback"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "src/ol_openedx_feedback" }
 dependencies = [
     { name = "django" },

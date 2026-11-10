@@ -3,8 +3,8 @@
 import logging
 from datetime import datetime
 from functools import wraps
+from importlib.resources import files
 
-import pkg_resources
 import pytz
 from django.conf import settings
 from django.db import transaction
@@ -35,8 +35,7 @@ def get_resource_bytes(path):
     Returns:
         unicode: The unicode contents of the resource at the given path
     """  # noqa: D401
-    resource_contents = pkg_resources.resource_string(__name__, path)
-    return resource_contents.decode("utf-8")
+    return files(__package__).joinpath(path).read_bytes().decode("utf-8")
 
 
 def render_template(template_path, context=None):

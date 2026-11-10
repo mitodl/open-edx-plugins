@@ -1,9 +1,9 @@
 import json
 import logging
 import re
+from importlib.resources import files
 from urllib.parse import urlencode
 
-import pkg_resources
 import requests
 from crum import get_current_request
 from django.conf import settings
@@ -51,8 +51,7 @@ def get_resource_bytes(path):
     Returns:
         unicode: The unicode contents of the resource at the given path
     """  # noqa: D401
-    resource_contents = pkg_resources.resource_string(__name__, path)
-    return resource_contents.decode("utf-8")
+    return files(__package__).joinpath(path).read_bytes().decode("utf-8")
 
 
 def render_template(template_path, context=None):
