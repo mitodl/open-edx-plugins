@@ -63,6 +63,14 @@ class TestDisableMathJaxForOLChatBlock(unittest.TestCase):
         self.filter.run_filter(context, {})
         assert context["load_mathjax"]
 
+    def test_leaf_block_without_children_attribute(self):
+        """Test that a leaf block (problem, html) with no `children` attribute
+        passes through unchanged instead of raising AttributeError."""
+        mock_block = Mock(spec=[])
+        context = {"block": mock_block, "load_mathjax": True}
+        result = self.filter.run_filter(context, {})
+        assert result["context"]["load_mathjax"]
+
     def test_context_modification_in_place(self):
         """Test that the original context dictionary is modified."""
         # Mock parent block with children
