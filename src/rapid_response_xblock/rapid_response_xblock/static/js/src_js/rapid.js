@@ -238,6 +238,29 @@
       );
     }
 
+    // Returns MathJax.Hub on MathJax v2 only. edx-platform master ships MathJax v4,
+    // whose API is typesetPromise(). Check the version, not whether Hub exists: v4's
+    // asciimath input bundles a legacy Hub object whose Queue() throws. Read
+    // window.MathJax at call time, not the reference captured when this file loaded.
+    function mathJaxHub() {
+      var mathJax = window.MathJax;
+      return mathJax && /^2\./.test(mathJax.version || "") ? mathJax.Hub : null;
+    }
+
+    /**
+     * Typeset math inside an HTML node with whichever MathJax version the page loaded.
+     *
+     * @param {Element} node The DOM node to typeset
+     */
+    function typesetMath(node) {
+      var hub = mathJaxHub();
+      if (hub) {
+        hub.Queue(["Typeset", hub, node]);
+      } else if (window.MathJax && typeof window.MathJax.typesetPromise === "function") {
+        window.MathJax.typesetPromise([node]);
+      }
+    }
+
     function hasMathExpression(text) {
       return _.some([
         _.includes(text, "\("),
@@ -471,7 +494,14 @@
     }
 
     function renderMathHJax(chart) {
-      MathJax.Hub.Register.StartupHook("End", function() {
+      var hub = mathJaxHub();
+      if (!hub) {
+        // shortcut: on MathJax v3+ the x axis labels keep their raw TeX text, because
+        // its CHTML output is HTML and cannot be placed inside the chart's SVG. Upgrade
+        // to a foreignObject label if rendered math on the axis is needed there.
+        return;
+      }
+      hub.Register.StartupHook("End", function() {
         setTimeout(function() {
           chart.select(".xaxis").selectAll(".tick").each(function() {
             var tick = d3.select(this);
@@ -493,7 +523,7 @@
           });
         }, 1);
       });
-      MathJax.Hub.Queue(["Typeset", MathJax.Hub, chart.node()]);
+      hub.Queue(["Typeset", hub, chart.node()]);
     }
 
     //---------------------
@@ -622,7 +652,7 @@
           };
           $tooltipContainer.html(tooltipTemplate(templateState));
           if (hasMathExpression(item.answer_text)) {
-            MathJax.Hub.Queue(["Typeset", MathJax.Hub, $tooltipContainer.el]);
+            typesetMath($tooltipContainer[0]);
           }
         })
         .on("mousemove", function() {
@@ -896,13 +926,17 @@
     }
 
     $(function($) { // onLoad
-      // Configure MathJax settings for any problems with math notation
-      MathJax.Hub.Config({
-        tex2jax: {
-          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-          processEscapes: true
-        }
-      });
+      // Configure MathJax settings for any problems with math notation.
+      // v2 only: v3+ is configured by the platform before its script loads.
+      var hub = mathJaxHub();
+      if (hub) {
+        hub.Config({
+          tex2jax: {
+            inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+            processEscapes: true
+          }
+        });
+      }
 
       // There can be only one tooltip container
       $tooltipContainer = $(tooltipContainerSel);
@@ -951,7 +985,10 @@
 
       // adjust graph for each rerender
       window.addEventListener('resize', function() {
-        renderAll();
+        // The chart cannot be drawn until the first responses fetch has filled the state
+        if (state.lastFetch) {
+          renderAll();
+        }
       });
     });
   }
