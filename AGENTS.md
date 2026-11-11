@@ -47,7 +47,7 @@ open-edx-plugins/
 
 Each plugin directory contains:
 - pyproject.toml          # Plugin-specific package metadata
-- setup.cfg               # Additional configuration
+- setup.cfg               # Additional configuration (some plugins)
 - <plugin_name>/          # Source code directory
   ├── apps.py            # Django app configuration
   ├── models.py          # Django models
@@ -148,10 +148,10 @@ cd /openedx/open-edx-plugins
 - Installs test dependencies from workspace
 - Copies edx-platform test_root to each plugin
 - Installs plugin from dist/ or in dev mode
-- Runs pytest with coverage using `--ds=settings.test`, `--ds=<pkg>.settings.test` (standalone settings) or `--ds=lms.envs.test`
-- Some plugins (ol_openedx_chat, ol_openedx_course_sync, ol_openedx_canvas_integration) run a second time with CMS settings
+- Runs pytest with coverage using `--ds=<pkg>.settings.test` when that file defines `INSTALLED_APPS` (ol_openedx_logging, ol_openedx_sentry), otherwise `--ds=lms.envs.test`
+- Some plugins (ol_openedx_chat, ol_openedx_chat_xblock, ol_openedx_course_sync, ol_openedx_canvas_integration) run a second time with CMS settings
 - CMS-only plugins run with `--ds=cms.envs.test` only: ol_openedx_uai_content_customization, plus ol_openedx_git_auto_export and ol_openedx_course_export (with `--nomigrations`)
-- Isolated plugins (openedx-companion-auth, ol-openedx-otel-monitoring) are uninstalled after testing to avoid interference
+- Isolated plugins (`isolated_plugins`, currently openedx-companion-auth) are uninstalled after testing to avoid interference
 
 ## CI/CD Workflows
 
@@ -184,7 +184,7 @@ PyPI publishing is not a GitHub Actions workflow. A Concourse pipeline (`publish
 ### prek Hooks
 After `uv run prek install -f`, all the following run automatically on `git commit` or via `uv run prek run --all-files`:
 - trailing-whitespace, end-of-file-fixer, check-yaml, check-toml
-- check-added-large-files, check-merge-conflicts, debug-statements
+- check-added-large-files, check-merge-conflict, debug-statements
 - yamlfmt (format YAML with specific width/indent rules)
 - yamllint (lint YAML with relaxed rules)
 - detect-secrets (excludes uv.lock)
@@ -255,7 +255,7 @@ plugin_name = "plugin_name.apps:ConfigClass"
 4. **Common issues:**
    - **Django not configured:** Tests need Open edX environment
    - **Module import errors:** Missing edx-platform dependencies
-   - **Isolated plugin test failures:** Some plugins (openedx-companion-auth, ol-openedx-otel-monitoring) change global state and must be tested in isolation
+   - **Isolated plugin test failures:** Some plugins (openedx-companion-auth) modify auth flow and must be tested in isolation
 
 ## Validation Checklist
 
@@ -275,9 +275,9 @@ Before submitting changes:
 
 2. **Test environment dependency:** All plugin tests depend on Open edX's edx-platform being installed and configured. This is why CI uses Tutor.
 
-3. **Plugin isolation:** `openedx-companion-auth` modifies the authentication flow and `ol-openedx-otel-monitoring` instruments Django and sets global OTel providers; both can break other tests. The test script uninstalls them after testing.
+3. **Plugin isolation:** The `openedx-companion-auth` plugin modifies authentication flow and can break other tests. The test script uninstalls every plugin in `isolated_plugins` after testing.
 
-4. **Multiple test runs:** Some plugins (ol_openedx_chat, ol_openedx_course_sync, ol_openedx_canvas_integration) must be tested with both LMS and CMS Django settings, so tests run twice. CMS-only plugins skip the LMS run.
+4. **Multiple test runs:** Some plugins (ol_openedx_chat, ol_openedx_chat_xblock, ol_openedx_course_sync, ol_openedx_canvas_integration) must be tested with both LMS and CMS Django settings, so tests run twice. CMS-only plugins skip the LMS run.
 
 5. **Build artifacts:** The `dist/` directory contains built packages. The test script prefers installing from dist/ over editable installs.
 
