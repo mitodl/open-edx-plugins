@@ -122,6 +122,8 @@ In this case, traces will automatically export to `<OTEL_EXPORTER_OTLP_ENDPOINT>
     OTEL_EXPORTER_OTLP_TRACES_COMPRESSION = "none"
     OTEL_EXPORTER_OTLP_METRICS_COMPRESSION = "none"
 
+The ``*_HEADERS`` settings take a JSON object string, or a mapping when set from YAML. Headers are only sent to ``https`` endpoints.
+
 This approach allows more flexibility and control over where each type of telemetry data is sent, especially useful in complex deployment environments.
 
 As the plugin currently supports only OTLP HTTP, you need to specify the protocol:

@@ -109,7 +109,8 @@ fi
 # Plugins that may affect the tests of other plugins.
 # e.g. openedx-companion-auth adds a redirect to the authentication
 # that fails the authentication process for other plugins.
-isolated_plugins=("openedx-companion-auth")
+# ol-openedx-otel-monitoring instruments Django and sets global OTel providers.
+isolated_plugins=("openedx-companion-auth" "ol-openedx-otel-monitoring")
 export EDXAPP_TEST_MONGO_HOST=mongodb
 
 # Function to run tests for a plugin
