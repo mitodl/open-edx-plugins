@@ -163,12 +163,12 @@ class TestSyncUserGradeWithCanvas(TestCase):
         "ol_openedx_canvas_integration.tasks.get_canvas_course_id",
         MagicMock(return_value="canvas-123"),
     )
-    def test_assignment_past_due_date_synced_when_enabled(
+    def test_assignment_past_due_date_synced_within_grace_days(
         self,
         mock_get_grades,
         mock_client_class,
     ):
-        """Past-due grades sync when sync_canvas_grades_after_due_date is on"""
+        """Past-due grades sync while within the course's grace days"""
         mock_client = mock_client_class.return_value
         mock_client.get_canvas_assignments.return_value = {
             str(self.usage_key): {
@@ -187,7 +187,7 @@ class TestSyncUserGradeWithCanvas(TestCase):
         # class-level get_course_by_id patch wins over method decorators
         with patch.dict(
             tasks.get_course_by_id.return_value.other_course_settings,
-            {"sync_canvas_grades_after_due_date": True},
+            {"sync_canvas_grades_after_due_date_days": 7},
         ):
             _sync_user_grade_with_canvas(self.grade_id)
 
@@ -497,7 +497,8 @@ def test_sync_user_grade_with_canvas_success(monkeypatch):
         course_id="course-v1:MITx+Demo+2026",
         user_id=100,
         full_usage_key="block-v1:MITx+Demo+type@sequential+block@hw1",
-        usage_key="block-v1:MITx+Demo+type@sequential+block@hw1",
+        # differs from full_usage_key: Canvas assignments are keyed by full_usage_key
+        usage_key="i4x://MITx/Demo/sequential/hw1",
     )
     course = SimpleNamespace(id="course-v1:MITx+Demo+2026")
     grade_obj = SimpleNamespace(percent_graded=0.95)

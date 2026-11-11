@@ -111,9 +111,9 @@ Configuration
 1) Open your course in Studio.
 2) Navigate to "Advanced Settings".
 3) Enable other course settings by enabling ``ENABLE_OTHER_COURSE_SETTINGS`` feature flag in CMS
-4) Open course advanced settings in Open edX CMS, Add a dictionary in ``{"canvas_id": <canvas_course_id>, "use_canvas_due_dates": <True/False>, "sync_canvas_grades_after_due_date": <True/False>}``. The ``canvas_course_id`` should be the id of a course that exists on Canvas.
+4) Open course advanced settings in Open edX CMS, Add a dictionary in ``{"canvas_id": <canvas_course_id>, "use_canvas_due_dates": <True/False>, "sync_canvas_grades_after_due_date_days": <days>}``. The ``canvas_course_id`` should be the id of a course that exists on Canvas.
    The ``use_canvas_due_dates`` is an optional flag (defaults to ``False``) to sync the assignment due dates from Canvas to Open edX. (NOTE: Canvas tab would only be visible if ``canvas_id`` is set)
-   The ``sync_canvas_grades_after_due_date`` is an optional flag (defaults to ``False``) to keep syncing grades to Canvas after an assignment's Canvas due date, for both the automatic sync and the ``Push all MITx grades to Canvas`` button.
+   The ``sync_canvas_grades_after_due_date_days`` is an optional non-negative integer (defaults to ``0``): the number of days after an assignment's Canvas due date that grades keep syncing to Canvas, for both the automatic sync and the ``Push all MITx grades to Canvas`` button. Any other value (e.g. ``true``, ``"7"``, ``-1``) is ignored and treated as ``0``.
 
 
 How To Use
@@ -157,7 +157,7 @@ Whenever the course is **Published** from the Studio, the **graded subsections**
 2. Automatic Syncing of Grades
 """"""""""""""""""""""""""""""
 
-Whenever a learner interacts with a graded question in Open edX, the latest grades are automatically posted to Canvas, if it's a part of a synced assignment. Grades for an assignment whose Canvas due date has passed are not synced, unless ``sync_canvas_grades_after_due_date`` is set to ``True`` in course advanced settings.
+Whenever a learner interacts with a graded question in Open edX, the latest grades are automatically posted to Canvas, if it's a part of a synced assignment. Grades for an assignment whose Canvas due date has passed are not synced, unless they fall within ``sync_canvas_grades_after_due_date_days`` days of it (set in course advanced settings).
 
 .. NOTE::
 

@@ -115,7 +115,7 @@ def _sync_user_grade_with_canvas(grade_id):
             grade_instance.usage_key,
         )
         return
-    assignment = existing_assignments_map[str(grade_instance.usage_key)]
+    assignment = existing_assignments_map[str(grade_instance.full_usage_key)]
     if is_grade_sync_blocked_by_due_date(course, assignment.get("due_at")):
         TASK_LOG.warning(
             "The assignment %s is past its due date. Skipping grade sync.",

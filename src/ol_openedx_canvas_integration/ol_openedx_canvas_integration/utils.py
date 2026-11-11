@@ -1,7 +1,7 @@
 """Utilities for Canvas plugin"""
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from django.conf import settings
 from django.core.cache import cache
@@ -12,6 +12,7 @@ from lms.djangoapps.courseware.courses import get_course_by_id
 log = logging.getLogger(__name__)
 
 CANVAS_COURSE_ID_CACHE_KEY_TEMPLATE = "canvas_course_id:{course_id}"
+GRADE_SYNC_GRACE_DAYS_KEY = "sync_canvas_grades_after_due_date_days"
 _MISSING = object()
 
 
@@ -25,17 +26,34 @@ def is_canvas_dates_sync_enabled(course=None):
     return course and course.other_course_settings.get("use_canvas_due_dates", False)
 
 
+def get_grade_sync_grace_days(course):
+    """
+    Days after a Canvas due date that grades keep syncing, from the
+    ``sync_canvas_grades_after_due_date_days`` course setting (0 if unset or invalid)
+    """
+    days = course.other_course_settings.get(GRADE_SYNC_GRACE_DAYS_KEY, 0)
+    # bool is an int subclass, so reject it explicitly
+    if isinstance(days, bool) or not isinstance(days, int) or days < 0:
+        log.warning(
+            "Ignoring invalid %s=%r for course %s; expected a non-negative integer",
+            GRADE_SYNC_GRACE_DAYS_KEY,
+            days,
+            course.id,
+        )
+        return 0
+    return days
+
+
 def is_grade_sync_blocked_by_due_date(course, due_at):
     """
-    Whether a grade should not sync because the Canvas assignment ``due_at`` has
-    passed and the course hasn't set ``sync_canvas_grades_after_due_date``
+    Whether a grade should not sync because the Canvas assignment ``due_at``, plus
+    the course's grace days, has passed
     """
     due_date = parse_datetime(due_at) if due_at else None
-    if not due_date or due_date >= datetime.now(tz=UTC):
+    now = datetime.now(tz=UTC)
+    if not due_date or due_date >= now:
         return False
-    return not course.other_course_settings.get(
-        "sync_canvas_grades_after_due_date", False
-    )
+    return now > due_date + timedelta(days=get_grade_sync_grace_days(course))
 
 
 def get_cached_canvas_course_id(course_id):
