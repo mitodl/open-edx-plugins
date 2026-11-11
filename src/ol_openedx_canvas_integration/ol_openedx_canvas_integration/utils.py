@@ -53,7 +53,8 @@ def is_grade_sync_blocked_by_due_date(course, due_at):
     now = datetime.now(tz=UTC)
     if not due_date or due_date >= now:
         return False
-    return now > due_date + timedelta(days=get_grade_sync_grace_days(course))
+    # compare elapsed days, since due_date + a huge timedelta overflows past year 9999
+    return (now - due_date) / timedelta(days=1) > get_grade_sync_grace_days(course)
 
 
 def get_cached_canvas_course_id(course_id):

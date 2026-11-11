@@ -26,6 +26,7 @@ THREE_DAYS_AGO = (datetime.now(tz=UTC) - timedelta(days=3)).isoformat()
         (THREE_DAYS_AGO, 0, True),
         (THREE_DAYS_AGO, 2, True),
         (THREE_DAYS_AGO, 7, False),
+        (THREE_DAYS_AGO, 3_000_000, False),
     ],
 )
 def test_is_grade_sync_blocked_by_due_date(due_at, grace_days, expected):
