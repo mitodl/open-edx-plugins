@@ -277,7 +277,7 @@ Before submitting changes:
 
 3. **Plugin isolation:** The `openedx-companion-auth` plugin modifies authentication flow and can break other tests. The test script uninstalls every plugin in `isolated_plugins` after testing.
 
-4. **Multiple test runs:** Some plugins (ol_openedx_chat, ol_openedx_chat_xblock, ol_openedx_course_sync, ol_openedx_canvas_integration) must be tested with both LMS and CMS Django settings, so tests run twice. CMS-only plugins skip the LMS run.
+4. **Multiple test runs:** Some plugins (ol_openedx_chat, ol_openedx_course_sync, ol_openedx_canvas_integration) must be tested with both LMS and CMS Django settings, so tests run twice. ol_openedx_chat_xblock also runs twice because the script's `*"ol_openedx_chat"*` match catches it. CMS-only plugins skip the LMS run.
 
 5. **Build artifacts:** The `dist/` directory contains built packages. The test script prefers installing from dist/ over editable installs.
 
