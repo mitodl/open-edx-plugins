@@ -2763,7 +2763,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-otel-monitoring"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "src/ol_openedx_otel_monitoring" }
 dependencies = [
     { name = "certifi" },

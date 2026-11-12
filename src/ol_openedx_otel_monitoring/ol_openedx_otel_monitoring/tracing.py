@@ -26,6 +26,7 @@ from ol_openedx_otel_monitoring.exceptions import (
     InitializationError,
     InstrumentationError,
 )
+from ol_openedx_otel_monitoring.utils import parse_otlp_headers
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -78,9 +79,14 @@ def get_trace_exporter(exporter):
                     )
                     logger.exception(error_message)
                     raise EnvironmentVariableError(error_message)
-                return ExporterClass(endpoint=endpoint, headers=headers)
+                return ExporterClass(
+                    endpoint=endpoint,
+                    headers=parse_otlp_headers(
+                        headers, "OTEL_EXPORTER_OTLP_TRACES_HEADERS"
+                    ),
+                )
 
-            return ExporterClass(endpoint=endpoint, insecure=True)
+            return ExporterClass(endpoint=endpoint)
         # Default exporter configuration
         return ExporterClass()
     except ExporterError as e:
