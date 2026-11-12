@@ -276,12 +276,10 @@
       });
     }
 
+    // indexOf, not _.includes: Underscore's _.includes on a string compares single
+    // characters, so it never matches the two-character "\\(".
     function hasMathExpression(text) {
-      return _.some([
-        _.includes(text, "\\("),
-        _.includes(text, "\\)"),
-        _.includes(text, "$")
-      ]);
+      return text.indexOf("\\(") !== -1 || text.indexOf("\\)") !== -1 || text.indexOf("$") !== -1;
     }
     /**
      * SVG doesn't have a capability to wrap text except for foreignObject which is not supported in IE11.
@@ -325,7 +323,7 @@
           then break text into math expression and english to print data in two lines.
           **/
           var middle =  " ";
-          if (_.includes(text, "\\(")) {
+          if (text.indexOf("\\(") !== -1) {
             middle = "\\(";
           } else if (_.includes(text, "$")) {
             middle = "$";
