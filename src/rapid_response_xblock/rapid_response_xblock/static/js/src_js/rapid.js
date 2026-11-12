@@ -1,4 +1,4 @@
-(function($, _, MathJax) {
+(function($, _) {
   'use strict';
 
   // time between polls of responses API
@@ -32,6 +32,8 @@
   // this sentinel value means no data should be shown
   var NONE_SELECTION = 'None';
   var GENERAL_ERROR_MESSAGE = 'There was an error. Please reload the page or try again later.';
+  // Serializes MathJax v3+ work on the shared tooltip so a clear never races a pending typeset.
+  var tooltipMathQueue = Promise.resolve();
 
   // An object that maps UI state names to the UI artifacts that should be shown when the UI is in
   // that state.
@@ -248,17 +250,32 @@
     }
 
     /**
-     * Typeset math inside an HTML node with whichever MathJax version the page loaded.
+     * Replace the tooltip's content and typeset any math in it with whichever MathJax
+     * version the page loaded.
      *
-     * @param {Element} node The DOM node to typeset
+     * @param {string} html The new tooltip content
+     * @param {boolean} hasMath Whether the content needs typesetting
      */
-    function typesetMath(node) {
+    function setTooltipContent(html, hasMath) {
+      var node = $tooltipContainer[0];
       var hub = mathJaxHub();
-      if (hub) {
-        hub.Queue(["Typeset", hub, node]);
-      } else if (window.MathJax && typeof window.MathJax.typesetPromise === "function") {
-        window.MathJax.typesetPromise([node]);
+      var mathJax = window.MathJax;
+      if (hub || !mathJax || typeof mathJax.typesetClear !== "function") {
+        $tooltipContainer.html(html);
+        if (hub && hasMath) {
+          hub.Queue(["Typeset", hub, node]);
+        }
+        return;
       }
+      // MathJax v3+ keeps every typeset expression in its document until typesetClear()
+      // drops it, so clear the old tooltip math before its DOM is replaced.
+      tooltipMathQueue = tooltipMathQueue.then(function() {
+        mathJax.typesetClear([node]);
+        $tooltipContainer.html(html);
+        return hasMath ? mathJax.typesetPromise([node]) : null;
+      }).catch(function(err) {
+        console.error(err);
+      });
     }
 
     function hasMathExpression(text) {
@@ -650,17 +667,14 @@
             total: item.count,
             percent: percent
           };
-          $tooltipContainer.html(tooltipTemplate(templateState));
-          if (hasMathExpression(item.answer_text)) {
-            typesetMath($tooltipContainer[0]);
-          }
+          setTooltipContent(tooltipTemplate(templateState), hasMathExpression(item.answer_text));
         })
         .on("mousemove", function() {
           $tooltipContainer.css("left", (d3.event.pageX + 20) + "px")
             .css("top", d3.event.pageY + "px");
         })
         .on("mouseout", function() {
-          $tooltipContainer.html('');
+          setTooltipContent('', false);
         })
         .merge(bars)
         .attr("fill", function(item) {
@@ -998,4 +1012,4 @@
   }
 
   window.RapidResponseAsideInit = initializeRapidResponseAside;
-}($, _, MathJax));
+}($, _));
