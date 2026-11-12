@@ -240,12 +240,10 @@
       );
     }
 
-    // Returns MathJax.Hub on MathJax v2 only. edx-platform master ships MathJax v4,
-    // whose API is typesetPromise(). Check the version, not whether Hub exists: v4's
-    // asciimath input bundles a legacy Hub object whose Queue() throws. Read
-    // window.MathJax at call time, not the reference captured when this file loaded.
-    function mathJaxHub() {
-      var mathJax = window.MathJax;
+    // Returns MathJax.Hub on MathJax v2 only. Check the version, not whether Hub exists:
+    // v3+'s asciimath input bundles a legacy Hub object whose Queue() throws.
+    function mathJaxHub(mathJax) {
+      mathJax = mathJax || window.MathJax;
       return mathJax && /^2\./.test(mathJax.version || "") ? mathJax.Hub : null;
     }
 
@@ -258,8 +256,8 @@
      */
     function setTooltipContent(html, hasMath) {
       var node = $tooltipContainer[0];
-      var hub = mathJaxHub();
       var mathJax = window.MathJax;
+      var hub = mathJaxHub(mathJax);
       if (hub || !mathJax || typeof mathJax.typesetClear !== "function") {
         $tooltipContainer.html(html);
         if (hub && hasMath) {
@@ -280,8 +278,8 @@
 
     function hasMathExpression(text) {
       return _.some([
-        _.includes(text, "\("),
-        _.includes(text, "\)"),
+        _.includes(text, "\\("),
+        _.includes(text, "\\)"),
         _.includes(text, "$")
       ]);
     }
@@ -327,7 +325,7 @@
           then break text into math expression and english to print data in two lines.
           **/
           var middle =  " ";
-          if (_.includes(text, "\(")) {
+          if (_.includes(text, "\\(")) {
             middle = "\\(";
           } else if (_.includes(text, "$")) {
             middle = "$";
@@ -499,6 +497,9 @@
           renderChart(d3.select(charts[index]), index);
         })
         .selectAll("svg")
+        // v3+ can't render math inside SVG (see renderMathHJax), so keep the page-wide
+        // typeset from turning the raw TeX tick labels into blank 0x0 containers.
+        .classed("tex2jax_ignore", !mathJaxHub())
         .attr("width", calcChartWidth())
         .attr("height", calcChartHeight())
         .selectAll(".chart")
