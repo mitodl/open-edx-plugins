@@ -3,6 +3,7 @@
 import json
 import logging
 
+from celery.states import SUCCESS
 from common.djangoapps.student.models import CourseEnrollment, CourseEnrollmentAllowed
 from common.djangoapps.util.json_request import JsonResponse
 from django.contrib.auth.models import User
@@ -206,6 +207,10 @@ def list_canvas_tasks(request, course_id):
     task_features = []
     for task in tasks_qs:
         feature = extract_task_features(task)
+        # edx-platform only marks tasks with a student, problem or email input as
+        # "Complete", so a finished Canvas task would always read "Incomplete".
+        if task.task_type in CANVAS_TASK_TYPES and task.task_state == SUCCESS:
+            feature["status"] = _("Complete")
         # Override the message for Canvas task types with the plugin's formatter
         # so the result reads e.g. "N grades and M assignments updated or created".
         if task.task_type in CANVAS_TASK_TYPES and task.task_output:
