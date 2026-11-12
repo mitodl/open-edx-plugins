@@ -148,7 +148,7 @@ cd /openedx/open-edx-plugins
 - Installs test dependencies from workspace
 - Copies edx-platform test_root to each plugin
 - Installs plugin from dist/ or in dev mode
-- Runs pytest with coverage using `--ds=<pkg>.settings.test` when that file defines `INSTALLED_APPS` (ol_openedx_logging, ol_openedx_sentry), otherwise `--ds=lms.envs.test`
+- Runs pytest with coverage, picking settings in this order: `--ds=settings.test` if the plugin dir has a top-level `settings/test.py` (no plugin currently does), then `--ds=<pkg>.settings.test` when that file defines `INSTALLED_APPS` (ol_openedx_logging, ol_openedx_sentry), otherwise `--ds=lms.envs.test`
 - Some plugins (ol_openedx_chat, ol_openedx_chat_xblock, ol_openedx_course_sync, ol_openedx_canvas_integration) run a second time with CMS settings
 - CMS-only plugins run with `--ds=cms.envs.test` only: ol_openedx_uai_content_customization, plus ol_openedx_git_auto_export and ol_openedx_course_export (with `--nomigrations`)
 - Isolated plugins (`isolated_plugins`, currently openedx-companion-auth) are uninstalled after testing to avoid interference
@@ -179,7 +179,7 @@ cd /openedx/open-edx-plugins
 - Runs zizmor over the GitHub Actions workflows when `.github/workflows/**` changes
 
 ### Publishing
-PyPI publishing is not a GitHub Actions workflow. A Concourse pipeline (`publish-open-edx-plugins-pypi`) builds and publishes each plugin on main. A new plugin must be added to the pipeline config in `mitodl/ol-infrastructure` (`src/ol_concourse/pipelines/open_edx/open_edx_plugins/build_publish_plugins.py`).
+PyPI publishing is not a GitHub Actions workflow. A Concourse pipeline (`publish-open-edx-plugins-pypi`) builds and publishes each plugin on main. Its definition (`mitodl/ol-infrastructure` `src/ol_concourse/pipelines/open_edx/open_edx_plugins/build_publish_plugins.py`) discovers plugins from `src/*/pyproject.toml`, so a new plugin needs no infrastructure code change: regenerate the definition from an updated checkout of this repo and re-apply it with `fly set-pipeline`.
 
 ### prek Hooks
 After `uv run prek install -f`, all the following run automatically on `git commit` or via `uv run prek run --all-files`:
