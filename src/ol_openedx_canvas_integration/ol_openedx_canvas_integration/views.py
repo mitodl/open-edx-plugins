@@ -207,21 +207,23 @@ def list_canvas_tasks(request, course_id):
     task_features = []
     for task in tasks_qs:
         feature = extract_task_features(task)
-        # edx-platform only marks tasks with a student, problem or email input as
-        # "Complete", so a finished Canvas task would always read "Incomplete".
-        if task.task_type in CANVAS_TASK_TYPES and task.task_state == SUCCESS:
-            feature["status"] = _("Complete")
-        # Override the message for Canvas task types with the plugin's formatter
-        # so the result reads e.g. "N grades and M assignments updated or created".
-        if task.task_type in CANVAS_TASK_TYPES and task.task_output:
-            try:
-                feature["task_message"] = get_task_output_formatted_message(
-                    json.loads(task.task_output)
-                )
-            except (ValueError, TypeError):
-                log.exception(
-                    "Could not format Canvas task output for %s", task.task_id
-                )
+        if task.task_type in CANVAS_TASK_TYPES:
+            # edx-platform's get_task_completion_info only marks a task "Complete"
+            # when its input names a student, problem, entrance exam or email, so a
+            # finished Canvas task would always read "Incomplete".
+            if task.task_state == SUCCESS:
+                feature["status"] = _("Complete")
+            # Use the plugin's formatter so the result reads e.g.
+            # "N grades and M assignments updated or created".
+            if task.task_output:
+                try:
+                    feature["task_message"] = get_task_output_formatted_message(
+                        json.loads(task.task_output)
+                    )
+                except (ValueError, TypeError):
+                    log.exception(
+                        "Could not format Canvas task output for %s", task.task_id
+                    )
         task_features.append(feature)
 
     return JsonResponse({"tasks": task_features})

@@ -104,13 +104,18 @@ class ListCanvasTasksViewTests(ModuleStoreTestCase):
         tasks = json.loads(response.content)["tasks"]
         assert tasks[0]["task_message"] == "CANVAS SENTINEL MESSAGE"
 
-    @ddt.data(("SUCCESS", "Complete"), ("FAILURE", "Incomplete"))
+    @ddt.data(
+        ("push_edx_grades_to_canvas", "SUCCESS", "Complete"),
+        ("push_edx_grades_to_canvas", "FAILURE", "Incomplete"),
+        ("push_edx_grades_to_canvas", "PROGRESS", "Incomplete"),
+        ("sync_canvas_enrollments", "SUCCESS", "Complete"),
+    )
     @ddt.unpack
-    def test_canvas_task_status(self, task_state, expected_status):
-        """A successful Canvas task reads "Complete"; a failed one stays
-        "Incomplete"."""
+    def test_canvas_task_status(self, task_type, task_state, expected_status):
+        """Only a successful Canvas task reads "Complete"; failed and in-progress
+        ones stay "Incomplete"."""
         self._create_canvas_task(
-            "push_edx_grades_to_canvas",
+            task_type,
             {"grades": 1, "assignments": 0},
             task_state=task_state,
         )
