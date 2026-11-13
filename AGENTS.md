@@ -2,10 +2,9 @@
 
 ## Repository Overview
 
-This repository contains a collection of 17+ Open edX plugins that extend and enhance the Open edX platform functionality. The plugins are MIT Open Learning Engineering's custom extensions for features like system administration, authentication, monitoring, course management, and integrations.
+This repository contains a collection of 25 Open edX plugins that extend and enhance the Open edX platform functionality. The plugins are MIT Open Learning Engineering's custom extensions for features like system administration, authentication, monitoring, course management, and integrations.
 
 **Repository Type:** Python monorepo with multiple independent plugin packages
-**Size:** ~170 Python source files across 17 plugins
 **Languages/Frameworks:** Python 3.11+, Django 5.2+, Open edX platform
 **Build System:** UV (modern Python package manager), Hatchling backend
 **Target Runtime:** Open edX platform (tested against master, ulmo, and verawood releases)
@@ -13,8 +12,8 @@ This repository contains a collection of 17+ Open edX plugins that extend and en
 ## Repository Structure
 
 ```
-edx-extensions/
-├── src/                          # Source code (workspace with 17 plugin packages)
+open-edx-plugins/
+├── src/                          # Source code (workspace with 25 plugin packages)
 │   ├── edx_sysadmin/            # SysAdmin dashboard plugin
 │   ├── edx_username_changer/    # Username modification plugin
 │   ├── ol_openedx_auto_select_language/    # Open edX plugin to auto select language based on course language
@@ -32,19 +31,23 @@ edx-extensions/
 │   ├── rapid_response_xblock/   # Rapid response XBlock
 │   └── [others...]              # Additional plugins
 ├── docs/                         # Installation and testing guide (README.rst)
-├── .github/workflows/            # CI/CD workflows
-│   ├── ci.yml                   # Integration tests with Tutor/edX
-│   └── test-and-build.yml       # Unit tests and package building
+├── .github/workflows/            # CI workflows (publishing is not here, see below)
+│   ├── ci.yml                   # Build + integration tests with Tutor/edX
+│   ├── ci-image-cache.yml       # Builds and pushes the cached openedx-dev images to GHCR
+│   ├── autofix.yml              # prek hooks via autofix.ci (required check)
+│   ├── actions-static-analysis.yml # zizmor workflow scan
+│   └── ghcr-cleanup.yml         # Nightly prune of old openedx-dev-cache images
+├── .github/edx-branches.json    # Open edX branch matrix shared by ci.yml and ci-image-cache.yml
+├── .github/actions/setup-tutor/ # Installs the Tutor version matching each edX branch
 ├── pyproject.toml               # Root workspace configuration
 ├── uv.lock                      # Locked dependencies
 ├── setup.cfg                    # Legacy flake8/mypy config
 ├── .pre-commit-config.yaml      # prek hooks configuration
-├── run_edx_integration_tests.sh # Test runner script
-└── image_check.sh               # Docker image verification
+└── run_edx_integration_tests.sh # Test runner script
 
 Each plugin directory contains:
 - pyproject.toml          # Plugin-specific package metadata
-- setup.cfg               # Additional configuration
+- setup.cfg               # Additional configuration (some plugins)
 - <plugin_name>/          # Source code directory
   ├── apps.py            # Django app configuration
   ├── models.py          # Django models
@@ -75,7 +78,7 @@ This installs all workspace dependencies and dev tools (pytest, ruff, prek, etc.
 ```bash
 uv build --all-packages
 ```
-Builds wheel and source distributions for all 17 plugins. Output goes to `dist/` directory. Takes ~30-60 seconds.
+Builds wheel and source distributions for all plugins. Output goes to `dist/` directory. Takes ~30-60 seconds.
 
 **Run linter:**
 ```bash
@@ -89,7 +92,7 @@ Lints all Python code using Ruff with extensive rule set (see pyproject.toml). M
 uv run prek install -f  # replaces an existing pre-commit git hook
 uv run prek run --all-files
 ```
-Runs all quality checks: trailing whitespace, YAML validation, secrets detection, ruff format, ruff linting, mypy type checking, and actionlint. Takes ~2-3 minutes on first run (caches environments).
+Runs all quality checks (see prek Hooks below). Takes ~2-3 minutes on first run (caches environments).
 
 **Unit tests (standalone - will fail):**
 ```bash
@@ -145,9 +148,10 @@ cd /openedx/open-edx-plugins
 - Installs test dependencies from workspace
 - Copies edx-platform test_root to each plugin
 - Installs plugin from dist/ or in dev mode
-- Runs pytest with coverage using `--ds=settings.test` or `--ds=lms.envs.test`
-- Some plugins (ol_openedx_chat, ol_openedx_course_sync) run tests twice with CMS settings
-- Isolated plugins (openedx-companion-auth) are uninstalled after testing to avoid interference
+- Runs pytest with coverage, picking settings in this order: `--ds=settings.test` if the plugin dir has a top-level `settings/test.py` (no plugin currently does), then `--ds=<pkg>.settings.test` when that file defines `INSTALLED_APPS` (ol_openedx_logging, ol_openedx_sentry), otherwise `--ds=lms.envs.test`
+- Some plugins (ol_openedx_chat, ol_openedx_chat_xblock, ol_openedx_course_sync, ol_openedx_canvas_integration) run a second time with CMS settings
+- CMS-only plugins run with `--ds=cms.envs.test` only: ol_openedx_uai_content_customization, plus ol_openedx_git_auto_export and ol_openedx_course_export (with `--nomigrations`)
+- Isolated plugins (`isolated_plugins`, currently openedx-companion-auth) are uninstalled after testing to avoid interference
 
 ## CI/CD Workflows
 
@@ -155,39 +159,41 @@ cd /openedx/open-edx-plugins
 
 **1. CI Workflow (`.github/workflows/ci.yml`)**
 - **Triggers:** Push to main, all PRs
-- **Matrix:** 3 Open edX branches (master, ulmo, verawood) — Python 3.12 for master and verawood, 3.11 for ulmo
+- **Matrix:** Open edX branches from `.github/edx-branches.json` (master, release/verawood, release/ulmo) — Python 3.11 for ulmo, 3.12 for the others
 - **Steps:**
-  1. Checkout code
-  2. Setup UV with caching
-  3. Build all packages with `uv build --all-packages`
-  4. Install Tutor (version-specific based on edX branch)
-  5. Clone edx-platform and checkout target branch
-  6. Build Tutor openedx-dev image (~15-20 minutes)
-  7. Launch Tutor (initialize services)
-  8. Run integration tests via Docker Compose
-  9. Upload coverage to CodeCov
-- **Time:** ~30-45 minutes per matrix job
-- **Critical:** Must pass all matrix combinations for merge
+  1. Build all packages once with `uv build --all-packages` and share `dist/` as an artifact
+  2. Install Tutor for the edX branch (`.github/actions/setup-tutor`)
+  3. Clone edx-platform at the target branch
+  4. Pull the cached openedx-dev image from GHCR; build it locally only on a cache miss
+  5. Run `run_edx_integration_tests.sh` in an `lms` container via `docker compose run` (no `tutor dev launch`)
+  6. Upload coverage to CodeCov
+- **Critical:** The `ci-gate` job rolls up the matrix and is a required check (alongside `prek`); every matrix combination must pass for merge
 
-**2. Test and Build Workflow (`.github/workflows/test-and-build.yml`)**
-- **Triggers:** Push to main/develop, PRs to main
-- **Jobs:**
-  - `test`: Run pytest with coverage (NOTE: Will collect only 1 test and error on 14+ collection failures - this is expected as unit tests need edX environment)
-  - `build`: Build all packages, upload artifacts
-  - `publish`: Publish to PyPI (only on main branch pushes, requires PYPI_TOKEN secret)
-- **Time:** ~5-10 minutes
-- **Note:** This workflow's test job shows errors because tests require Open edX environment
+**2. CI Image Cache (`.github/workflows/ci-image-cache.yml`)**
+- Rebuilds and pushes the openedx-dev images nightly, on manual dispatch, and on main pushes that touch the workflow, `setup-tutor` or `edx-branches.json`
+
+**3. prek (`.github/workflows/autofix.yml`)**
+- Runs `prek run --all-files`; on PRs autofix.ci pushes fixes back, on main it fails if hooks would change files. The `prek` job is a required check
+
+**4. Static analysis (`.github/workflows/actions-static-analysis.yml`)**
+- Runs zizmor over the GitHub Actions workflows when `.github/workflows/**` changes
+
+### Publishing
+PyPI publishing is not a GitHub Actions workflow. A Concourse pipeline (`publish-open-edx-plugins-pypi`) builds and publishes each plugin on main. Its definition (`mitodl/ol-infrastructure` `src/ol_concourse/pipelines/open_edx/open_edx_plugins/build_publish_plugins.py`) discovers plugins from `src/*/pyproject.toml`, so a new plugin needs no infrastructure code change: regenerate the definition from an updated checkout of this repo and re-apply it with `fly set-pipeline`.
 
 ### prek Hooks
 After `uv run prek install -f`, all the following run automatically on `git commit` or via `uv run prek run --all-files`:
 - trailing-whitespace, end-of-file-fixer, check-yaml, check-toml
-- check-added-large-files, check-merge-conflicts, debug-statements
+- check-added-large-files, check-merge-conflict, debug-statements
 - yamlfmt (format YAML with specific width/indent rules)
 - yamllint (lint YAML with relaxed rules)
 - detect-secrets (excludes uv.lock)
 - ruff-format, ruff linting (with --extend-ignore=D1, --fix)
 - mypy type checking (with types-pytz, types-requests, types-python-dateutil, types-setuptools)
+- rstcheck (every `.rst` file except those under a plugin's nested `docs/` dir)
 - actionlint (GitHub Actions workflow validation)
+- uv-lock (keeps uv.lock in sync with pyproject.toml)
+- zizmor (GitHub Actions security lint)
 
 ## Plugin Architecture
 
@@ -238,7 +244,7 @@ plugin_name = "plugin_name.apps:ConfigClass"
 3. **Version updates:**
    - **CRITICAL:** Update version in `src/<plugin>/pyproject.toml` before merging to main
    - Version follows semantic versioning
-   - Publishing to PyPI happens automatically on main branch merge
+   - Publishing to PyPI happens automatically on main branch merge (Concourse, see Publishing)
    - **If this release changes which Open edX release(s) the plugin supports**
      (e.g. a dependency-floor bump like the Django 5.2 floor raised for
      Ulmo/Verawood), update the Open edX Release Compatibility table in
@@ -269,14 +275,14 @@ Before submitting changes:
 
 2. **Test environment dependency:** All plugin tests depend on Open edX's edx-platform being installed and configured. This is why CI uses Tutor.
 
-3. **Plugin isolation:** The `openedx-companion-auth` plugin modifies authentication flow and can break other tests. The test script automatically uninstalls it after testing.
+3. **Plugin isolation:** The `openedx-companion-auth` plugin modifies authentication flow and can break other tests. The test script uninstalls every plugin in `isolated_plugins` after testing.
 
-4. **Multiple test runs:** Some plugins (ol_openedx_chat, ol_openedx_course_sync) must be tested with both LMS and CMS Django settings, so tests run twice.
+4. **Multiple test runs:** Some plugins (ol_openedx_chat, ol_openedx_course_sync, ol_openedx_canvas_integration) must be tested with both LMS and CMS Django settings, so tests run twice. ol_openedx_chat_xblock also runs twice because the script's `*"ol_openedx_chat"*` match catches it. CMS-only plugins skip the LMS run.
 
 5. **Build artifacts:** The `dist/` directory contains built packages. The test script prefers installing from dist/ over editable installs.
 
 6. **Tutor version matching:** CI matrix tests against multiple Open edX releases, each requiring specific Tutor versions. Match your local Tutor version to the target Open edX release.
 
-7. **First-time setup time:** Building Tutor openedx-dev image takes 15-20 minutes. Plan accordingly.
+7. **First-time setup time:** Building the Tutor openedx-dev image locally takes 15-20 minutes. CI avoids this with the GHCR image cache.
 
 8. **Search only when needed:** These instructions cover standard workflows. Only search the codebase if you encounter errors not described here or need to understand specific plugin implementation details.
