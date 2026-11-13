@@ -1,6 +1,8 @@
 """Tests for OLChatXBlock"""
 
+import inspect
 import json
+from pathlib import Path
 from unittest.mock import Mock, PropertyMock, patch
 
 import requests
@@ -294,15 +296,14 @@ class OLChatXBlockTest(ModuleStoreTestCase):
         assert response.status_int == expected_status
         assert expected_message in response.body
 
-    @patch("ol_openedx_chat_xblock.block.pkg_resources.resource_string")
-    def test_get_resource_bytes(self, mock_resource_string):
-        """Test get_resource_bytes function."""
-        mock_resource_string.return_value = b"test content"
+    def test_get_resource_bytes(self):
+        """Test get_resource_bytes reads a packaged file as text."""
+        path = "static/html/student_view.html"
+        expected = (Path(inspect.getfile(OLChatXBlock)).parent / path).read_text(
+            encoding="utf-8"
+        )
 
-        result = get_resource_bytes("test/path")
-
-        assert result == "test content"
-        mock_resource_string.assert_called_once()
+        assert get_resource_bytes(path) == expected
 
     @patch("ol_openedx_chat_xblock.block.get_resource_bytes")
     def test_render_template(self, mock_get_resource_bytes):

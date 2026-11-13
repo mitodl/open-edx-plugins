@@ -2,7 +2,8 @@
 The initialization of the context for the Canvas Integration Plugin
 """
 
-import pkg_resources
+from importlib.resources import files
+
 from django.urls import reverse
 from django.utils.translation import gettext as _
 from web_fragments.fragment import Fragment
@@ -20,8 +21,7 @@ def get_resource_bytes(path):
     Returns:
         unicode: The unicode contents of the resource at the given path
     """  # noqa: D401
-    resource_contents = pkg_resources.resource_string(__name__, path)
-    return resource_contents.decode("utf-8")
+    return files(__package__).joinpath(path).read_bytes().decode("utf-8")
 
 
 def plugin_context(context):
