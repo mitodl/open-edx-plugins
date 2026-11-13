@@ -81,7 +81,9 @@ Video Transcript Languages
 ==========================
 
 When ``ENABLE_AUTO_LANGUAGE_SELECTION`` is true, the LMS video player offers
-only the course-language transcript; its language menu is not rendered.
+only the course-language transcript; its language menu is not rendered. In a
+course with in-place translations (also with the setting off), the learner's
+language transcript is offered first, then the course language's.
 
 This is implemented as a ``VerticalBlockChildRenderStarted`` pipeline step
 (``org.openedx.learning.vertical_block_child.render.started.v1``) that narrows

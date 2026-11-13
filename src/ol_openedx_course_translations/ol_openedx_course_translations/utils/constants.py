@@ -22,6 +22,9 @@ TRANSLATABLE_ATTRS_BASE = {
 # Open edX-specific: these are only translatable on <optioninput>
 TRANSLATABLE_ATTRS_OPTIONINPUT_ONLY = {"options", "correct"}
 
+# Annotation comments are learner-facing text kept in <annotation body="...">.
+TRANSLATABLE_ATTRS_ANNOTATION_ONLY = {"body"}
+
 # Never translate these (names), even if user-facing-ish in some contexts
 NEVER_TRANSLATE_ATTRS = {
     "id",
