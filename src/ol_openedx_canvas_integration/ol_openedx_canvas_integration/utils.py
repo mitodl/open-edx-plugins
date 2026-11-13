@@ -33,8 +33,10 @@ def is_grade_sync_blocked_by_due_date(course, due_at):
     due_date = parse_datetime(due_at) if due_at else None
     if not due_date or due_date >= datetime.now(tz=UTC):
         return False
-    return not course.other_course_settings.get(
-        "sync_canvas_grades_after_due_date", False
+    # only a real boolean true opts in, so a quoted "false" can't enable sync
+    return (
+        course.other_course_settings.get("sync_canvas_grades_after_due_date")
+        is not True
     )
 
 
