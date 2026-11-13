@@ -219,6 +219,50 @@ def test_push_edx_grades_to_canvas_pushes_existing_and_creates_new_assignments(
     }
 
 
+PAST_DUE_UPDATE = (101, {"grade_data[42][posted_grade]": "84.0%"})
+NOT_DUE_UPDATE = (102, {"grade_data[42][posted_grade]": "84.0%"})
+
+
+@pytest.mark.parametrize(
+    ("other_course_settings", "expected_updates"),
+    [
+        ({}, [NOT_DUE_UPDATE]),
+        ({"sync_canvas_grades_after_due_date": False}, [NOT_DUE_UPDATE]),
+        (
+            {"sync_canvas_grades_after_due_date": True},
+            [PAST_DUE_UPDATE, NOT_DUE_UPDATE],
+        ),
+    ],
+)
+def test_push_edx_grades_to_canvas_past_due_assignment(
+    monkeypatch, other_course_settings, expected_updates
+):
+    """Past-due grades are pushed only when sync_canvas_grades_after_due_date is on."""
+    course = SimpleNamespace(
+        id="course-v1:MITx+course+2026", other_course_settings=other_course_settings
+    )
+    past_due_block = MockSubsection("block-v1:MITx+course+type@sequential+block@past")
+    not_due_block = MockSubsection("block-v1:MITx+course+type@sequential+block@later")
+    stub_client = StubCanvasClient(canvas_course_id=2001)
+    stub_client.get_canvas_assignments = lambda: {
+        past_due_block.location: {"id": 101, "due_at": "2020-01-01T00:00:00Z"},
+        not_due_block.location: {"id": 102, "due_at": "2999-01-01T00:00:00Z"},
+    }
+    grade = {HashableUser("learner@example.com"): SimpleNamespace(percent_graded=0.84)}
+
+    monkeypatch.setattr(api, "get_canvas_course_id", lambda _course: 2001)
+    monkeypatch.setattr(api, "CanvasClient", stub_canvas_client_factory(stub_client))
+    monkeypatch.setattr(
+        api,
+        "get_subsection_block_user_grades",
+        lambda _course: {past_due_block: grade, not_due_block: grade},
+    )
+
+    api.push_edx_grades_to_canvas(course)
+
+    assert stub_client.updated_assignment_grades == expected_updates
+
+
 @pytest.mark.parametrize(
     ("course", "canvas_course_id", "error_message"),
     [

@@ -1,10 +1,12 @@
 """Utilities for Canvas plugin"""
 
 import logging
+from datetime import UTC, datetime
 
 from django.conf import settings
 from django.core.cache import cache
 from django.http import Http404
+from django.utils.dateparse import parse_datetime
 from lms.djangoapps.courseware.courses import get_course_by_id
 
 log = logging.getLogger(__name__)
@@ -21,6 +23,21 @@ def get_canvas_course_id(course=None):
 def is_canvas_dates_sync_enabled(course=None):
     """Get the canvas due dates setting from the course settings"""
     return course and course.other_course_settings.get("use_canvas_due_dates", False)
+
+
+def is_grade_sync_blocked_by_due_date(course, due_at):
+    """
+    Whether a grade should not sync because the Canvas assignment ``due_at`` has
+    passed and the course hasn't set ``sync_canvas_grades_after_due_date``
+    """
+    due_date = parse_datetime(due_at) if due_at else None
+    if not due_date or due_date >= datetime.now(tz=UTC):
+        return False
+    # only a real boolean true opts in, so a quoted "false" can't enable sync
+    return (
+        course.other_course_settings.get("sync_canvas_grades_after_due_date")
+        is not True
+    )
 
 
 def get_cached_canvas_course_id(course_id):

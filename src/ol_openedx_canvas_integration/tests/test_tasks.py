@@ -23,7 +23,7 @@ from .helpers import HashableUser, stub_canvas_client_factory
 @patch("ol_openedx_canvas_integration.tasks.submit_task", MagicMock(return_value=None))
 @patch(
     "ol_openedx_canvas_integration.tasks.get_course_by_id",
-    MagicMock(return_value=MagicMock()),
+    MagicMock(return_value=MagicMock(other_course_settings={})),
 )
 @skip_unless_lms
 class TestSyncUserGradeWithCanvas(TestCase):
@@ -156,6 +156,42 @@ class TestSyncUserGradeWithCanvas(TestCase):
         _sync_user_grade_with_canvas(self.grade_id)
 
         mock_client.update_assignment_grades.assert_not_called()
+
+    @patch("ol_openedx_canvas_integration.tasks.CanvasClient")
+    @patch("ol_openedx_canvas_integration.tasks.get_subsection_user_grades")
+    @patch(
+        "ol_openedx_canvas_integration.tasks.get_canvas_course_id",
+        MagicMock(return_value="canvas-123"),
+    )
+    def test_assignment_past_due_date_synced_when_enabled(
+        self,
+        mock_get_grades,
+        mock_client_class,
+    ):
+        """Past-due grades sync when sync_canvas_grades_after_due_date is on"""
+        mock_client = mock_client_class.return_value
+        mock_client.get_canvas_assignments.return_value = {
+            str(self.usage_key): {
+                "id": self.canvas_assignment_id,
+                "due_at": str(datetime.now(tz=UTC) - timedelta(days=1)),
+            }
+        }
+        mock_client.get_student_id_by_email.return_value = self.canvas_user_id
+        mock_client.update_assignment_grades.return_value = MagicMock(
+            status_code=requests.codes.ok
+        )
+        mock_get_grades.return_value = {
+            self.usage_key: {self.user: MagicMock(percent_graded=0.85)}
+        }
+
+        # class-level get_course_by_id patch wins over method decorators
+        with patch.dict(
+            tasks.get_course_by_id.return_value.other_course_settings,
+            {"sync_canvas_grades_after_due_date": True},
+        ):
+            _sync_user_grade_with_canvas(self.grade_id)
+
+        mock_client.update_assignment_grades.assert_called_once()
 
     @patch("ol_openedx_canvas_integration.tasks.CanvasClient")
     @patch(
@@ -461,7 +497,8 @@ def test_sync_user_grade_with_canvas_success(monkeypatch):
         course_id="course-v1:MITx+Demo+2026",
         user_id=100,
         full_usage_key="block-v1:MITx+Demo+type@sequential+block@hw1",
-        usage_key="block-v1:MITx+Demo+type@sequential+block@hw1",
+        # differs from full_usage_key: Canvas assignments are keyed by full_usage_key
+        usage_key="i4x://MITx/Demo/sequential/hw1",
     )
     course = SimpleNamespace(id="course-v1:MITx+Demo+2026")
     grade_obj = SimpleNamespace(percent_graded=0.95)

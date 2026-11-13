@@ -13,6 +13,28 @@ CANVAS_COURSE_ID_2 = 9999
 
 
 @pytest.mark.parametrize(
+    ("due_at", "other_course_settings", "expected"),
+    [
+        (None, {}, False),
+        ("", {}, False),
+        ("2999-01-01T00:00:00Z", {}, False),
+        ("2020-01-01T00:00:00Z", {}, True),
+        ("2020-01-01T00:00:00Z", {"sync_canvas_grades_after_due_date": False}, True),
+        ("2020-01-01T00:00:00Z", {"sync_canvas_grades_after_due_date": True}, False),
+        # only a real JSON true counts; quoted or truthy values keep the cutoff
+        ("2020-01-01T00:00:00Z", {"sync_canvas_grades_after_due_date": "false"}, True),
+        ("2020-01-01T00:00:00Z", {"sync_canvas_grades_after_due_date": "False"}, True),
+        ("2020-01-01T00:00:00Z", {"sync_canvas_grades_after_due_date": "true"}, True),
+        ("2020-01-01T00:00:00Z", {"sync_canvas_grades_after_due_date": 11}, True),
+    ],
+)
+def test_is_grade_sync_blocked_by_due_date(due_at, other_course_settings, expected):
+    """A past due date blocks sync unless sync_canvas_grades_after_due_date is on."""
+    course = SimpleNamespace(other_course_settings=other_course_settings)
+    assert utils.is_grade_sync_blocked_by_due_date(course, due_at) is expected
+
+
+@pytest.mark.parametrize(
     ("course", "expected"),
     [
         pytest.param(None, None, id="course_is_none"),
