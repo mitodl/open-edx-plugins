@@ -8,6 +8,7 @@ from http import HTTPStatus
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+import ddt
 import pytest
 from common.djangoapps.student.roles import CourseInstructorRole
 from common.djangoapps.student.tests.factories import UserFactory
@@ -25,6 +26,7 @@ HTTP_OK = 200
 
 
 @skip_unless_lms
+@ddt.ddt
 @override_settings(BULK_EMAIL_DEFAULT_RETRY_DELAY=10, BULK_EMAIL_MAX_RETRIES=5)
 class ListCanvasTasksViewTests(ModuleStoreTestCase):
     """Tests for the list_canvas_tasks endpoint.
@@ -49,7 +51,7 @@ class ListCanvasTasksViewTests(ModuleStoreTestCase):
         request.user = user
         return list_canvas_tasks(request, course_id=self.course_id)
 
-    def _create_canvas_task(self, task_type, results):
+    def _create_canvas_task(self, task_type, results, task_state="SUCCESS"):
         task = InstructorTask.create(
             course_id=self.course.id,
             task_type=task_type,
@@ -57,7 +59,7 @@ class ListCanvasTasksViewTests(ModuleStoreTestCase):
             task_input={},
             requester=self.instructor,
         )
-        task.task_state = "SUCCESS"
+        task.task_state = task_state
         task.task_output = json.dumps({"results": results, "duration_ms": 1000})
         task.save()
         return task
@@ -101,6 +103,26 @@ class ListCanvasTasksViewTests(ModuleStoreTestCase):
         assert response.status_code == HTTPStatus.OK
         tasks = json.loads(response.content)["tasks"]
         assert tasks[0]["task_message"] == "CANVAS SENTINEL MESSAGE"
+
+    @ddt.data(
+        ("push_edx_grades_to_canvas", "SUCCESS", "Complete"),
+        ("push_edx_grades_to_canvas", "FAILURE", "Incomplete"),
+        ("push_edx_grades_to_canvas", "PROGRESS", "Incomplete"),
+        ("sync_canvas_enrollments", "SUCCESS", "Complete"),
+    )
+    @ddt.unpack
+    def test_canvas_task_status(self, task_type, task_state, expected_status):
+        """Only a successful Canvas task reads "Complete"; failed and in-progress
+        ones stay "Incomplete"."""
+        self._create_canvas_task(
+            task_type,
+            {"grades": 1, "assignments": 0},
+            task_state=task_state,
+        )
+
+        tasks = json.loads(self._get(self.instructor).content)["tasks"]
+
+        assert tasks[0]["status"] == expected_status
 
 
 def _unwrap_callable(func):
