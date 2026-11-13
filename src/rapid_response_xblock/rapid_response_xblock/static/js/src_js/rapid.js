@@ -1,4 +1,4 @@
-(function($, _, MathJax) {
+(function($, _) {
   'use strict';
 
   // time between polls of responses API
@@ -32,6 +32,8 @@
   // this sentinel value means no data should be shown
   var NONE_SELECTION = 'None';
   var GENERAL_ERROR_MESSAGE = 'There was an error. Please reload the page or try again later.';
+  // Serializes MathJax v3+ work on the shared tooltip so a clear never races a pending typeset.
+  var tooltipMathQueue = Promise.resolve();
 
   // An object that maps UI state names to the UI artifacts that should be shown when the UI is in
   // that state.
@@ -238,12 +240,46 @@
       );
     }
 
+    // Returns MathJax.Hub on MathJax v2 only. Check the version, not whether Hub exists:
+    // v3+'s asciimath input bundles a legacy Hub object whose Queue() throws.
+    function mathJaxHub(mathJax) {
+      mathJax = mathJax || window.MathJax;
+      return mathJax && /^2\./.test(mathJax.version || "") ? mathJax.Hub : null;
+    }
+
+    /**
+     * Replace the tooltip's content and typeset any math in it with whichever MathJax
+     * version the page loaded.
+     *
+     * @param {string} html The new tooltip content
+     * @param {boolean} hasMath Whether the content needs typesetting
+     */
+    function setTooltipContent(html, hasMath) {
+      var node = $tooltipContainer[0];
+      var mathJax = window.MathJax;
+      var hub = mathJaxHub(mathJax);
+      if (hub || !mathJax || typeof mathJax.typesetClear !== "function") {
+        $tooltipContainer.html(html);
+        if (hub && hasMath) {
+          hub.Queue(["Typeset", hub, node]);
+        }
+        return;
+      }
+      // MathJax v3+ keeps every typeset expression in its document until typesetClear()
+      // drops it, so clear the old tooltip math before its DOM is replaced.
+      tooltipMathQueue = tooltipMathQueue.then(function() {
+        mathJax.typesetClear([node]);
+        $tooltipContainer.html(html);
+        return hasMath ? mathJax.typesetPromise([node]) : null;
+      }).catch(function(err) {
+        console.error(err);
+      });
+    }
+
+    // indexOf, not _.includes: Underscore's _.includes on a string compares single
+    // characters, so it never matches the two-character "\\(".
     function hasMathExpression(text) {
-      return _.some([
-        _.includes(text, "\("),
-        _.includes(text, "\)"),
-        _.includes(text, "$")
-      ]);
+      return text.indexOf("\\(") !== -1 || text.indexOf("\\)") !== -1 || text.indexOf("$") !== -1;
     }
     /**
      * SVG doesn't have a capability to wrap text except for foreignObject which is not supported in IE11.
@@ -287,7 +323,7 @@
           then break text into math expression and english to print data in two lines.
           **/
           var middle =  " ";
-          if (_.includes(text, "\(")) {
+          if (text.indexOf("\\(") !== -1) {
             middle = "\\(";
           } else if (_.includes(text, "$")) {
             middle = "$";
@@ -459,6 +495,9 @@
           renderChart(d3.select(charts[index]), index);
         })
         .selectAll("svg")
+        // v3+ can't render math inside SVG (see renderMathHJax), so keep the page-wide
+        // typeset from turning the raw TeX tick labels into blank 0x0 containers.
+        .classed("tex2jax_ignore", !mathJaxHub())
         .attr("width", calcChartWidth())
         .attr("height", calcChartHeight())
         .selectAll(".chart")
@@ -471,7 +510,14 @@
     }
 
     function renderMathHJax(chart) {
-      MathJax.Hub.Register.StartupHook("End", function() {
+      var hub = mathJaxHub();
+      if (!hub) {
+        // shortcut: on MathJax v3+ the x axis labels keep their raw TeX text, because
+        // its CHTML output is HTML and cannot be placed inside the chart's SVG. Upgrade
+        // to a foreignObject label if rendered math on the axis is needed there.
+        return;
+      }
+      hub.Register.StartupHook("End", function() {
         setTimeout(function() {
           chart.select(".xaxis").selectAll(".tick").each(function() {
             var tick = d3.select(this);
@@ -493,7 +539,7 @@
           });
         }, 1);
       });
-      MathJax.Hub.Queue(["Typeset", MathJax.Hub, chart.node()]);
+      hub.Queue(["Typeset", hub, chart.node()]);
     }
 
     //---------------------
@@ -620,17 +666,14 @@
             total: item.count,
             percent: percent
           };
-          $tooltipContainer.html(tooltipTemplate(templateState));
-          if (hasMathExpression(item.answer_text)) {
-            MathJax.Hub.Queue(["Typeset", MathJax.Hub, $tooltipContainer.el]);
-          }
+          setTooltipContent(tooltipTemplate(templateState), hasMathExpression(item.answer_text));
         })
         .on("mousemove", function() {
           $tooltipContainer.css("left", (d3.event.pageX + 20) + "px")
             .css("top", d3.event.pageY + "px");
         })
         .on("mouseout", function() {
-          $tooltipContainer.html('');
+          setTooltipContent('', false);
         })
         .merge(bars)
         .attr("fill", function(item) {
@@ -896,13 +939,17 @@
     }
 
     $(function($) { // onLoad
-      // Configure MathJax settings for any problems with math notation
-      MathJax.Hub.Config({
-        tex2jax: {
-          inlineMath: [ ['$','$'], ["\\(","\\)"] ],
-          processEscapes: true
-        }
-      });
+      // Configure MathJax settings for any problems with math notation.
+      // v2 only: v3+ is configured by the platform before its script loads.
+      var hub = mathJaxHub();
+      if (hub) {
+        hub.Config({
+          tex2jax: {
+            inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+            processEscapes: true
+          }
+        });
+      }
 
       // There can be only one tooltip container
       $tooltipContainer = $(tooltipContainerSel);
@@ -951,7 +998,10 @@
 
       // adjust graph for each rerender
       window.addEventListener('resize', function() {
-        renderAll();
+        // The chart cannot be drawn until the first responses fetch has filled the state
+        if (state.lastFetch) {
+          renderAll();
+        }
       });
     });
   }
@@ -961,4 +1011,4 @@
   }
 
   window.RapidResponseAsideInit = initializeRapidResponseAside;
-}($, _, MathJax));
+}($, _));
