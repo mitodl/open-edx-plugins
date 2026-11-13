@@ -4056,7 +4056,7 @@ wheels = [
 
 [[package]]
 name = "rapid-response-xblock"
-version = "0.12.1"
+version = "0.12.2"
 source = { editable = "src/rapid_response_xblock" }
 dependencies = [
     { name = "django" },
