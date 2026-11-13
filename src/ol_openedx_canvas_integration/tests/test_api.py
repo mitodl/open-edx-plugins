@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
 from ol_openedx_canvas_integration.constants import COURSE_KEY_ID_EMPTY
-from ol_openedx_canvas_integration.utils import GRADE_SYNC_GRACE_DAYS_KEY
 
 from ol_openedx_canvas_integration import api
 
@@ -229,23 +227,25 @@ NOT_DUE_UPDATE = (102, {"grade_data[42][posted_grade]": "84.0%"})
     ("other_course_settings", "expected_updates"),
     [
         ({}, [NOT_DUE_UPDATE]),
-        ({GRADE_SYNC_GRACE_DAYS_KEY: 2}, [NOT_DUE_UPDATE]),
-        ({GRADE_SYNC_GRACE_DAYS_KEY: 7}, [PAST_DUE_UPDATE, NOT_DUE_UPDATE]),
+        ({"sync_canvas_grades_after_due_date": False}, [NOT_DUE_UPDATE]),
+        (
+            {"sync_canvas_grades_after_due_date": True},
+            [PAST_DUE_UPDATE, NOT_DUE_UPDATE],
+        ),
     ],
 )
 def test_push_edx_grades_to_canvas_past_due_assignment(
     monkeypatch, other_course_settings, expected_updates
 ):
-    """Past-due grades are pushed only within the grace days after the due date."""
+    """Past-due grades are pushed only when sync_canvas_grades_after_due_date is on."""
     course = SimpleNamespace(
         id="course-v1:MITx+course+2026", other_course_settings=other_course_settings
     )
     past_due_block = MockSubsection("block-v1:MITx+course+type@sequential+block@past")
     not_due_block = MockSubsection("block-v1:MITx+course+type@sequential+block@later")
-    three_days_ago = (datetime.now(tz=UTC) - timedelta(days=3)).isoformat()
     stub_client = StubCanvasClient(canvas_course_id=2001)
     stub_client.get_canvas_assignments = lambda: {
-        past_due_block.location: {"id": 101, "due_at": three_days_ago},
+        past_due_block.location: {"id": 101, "due_at": "2020-01-01T00:00:00Z"},
         not_due_block.location: {"id": 102, "due_at": "2999-01-01T00:00:00Z"},
     }
     grade = {HashableUser("learner@example.com"): SimpleNamespace(percent_graded=0.84)}

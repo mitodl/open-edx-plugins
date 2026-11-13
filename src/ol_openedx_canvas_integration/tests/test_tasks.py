@@ -163,12 +163,12 @@ class TestSyncUserGradeWithCanvas(TestCase):
         "ol_openedx_canvas_integration.tasks.get_canvas_course_id",
         MagicMock(return_value="canvas-123"),
     )
-    def test_assignment_past_due_date_synced_within_grace_days(
+    def test_assignment_past_due_date_synced_when_enabled(
         self,
         mock_get_grades,
         mock_client_class,
     ):
-        """Past-due grades sync while within the course's grace days"""
+        """Past-due grades sync when sync_canvas_grades_after_due_date is on"""
         mock_client = mock_client_class.return_value
         mock_client.get_canvas_assignments.return_value = {
             str(self.usage_key): {
@@ -187,7 +187,7 @@ class TestSyncUserGradeWithCanvas(TestCase):
         # class-level get_course_by_id patch wins over method decorators
         with patch.dict(
             tasks.get_course_by_id.return_value.other_course_settings,
-            {"sync_canvas_grades_after_due_date_days": 7},
+            {"sync_canvas_grades_after_due_date": True},
         ):
             _sync_user_grade_with_canvas(self.grade_id)
 

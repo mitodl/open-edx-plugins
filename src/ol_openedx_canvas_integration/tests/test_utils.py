@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -13,45 +12,21 @@ CANVAS_COURSE_ID_1 = 12345
 CANVAS_COURSE_ID_2 = 9999
 
 
-THREE_DAYS_AGO = (datetime.now(tz=UTC) - timedelta(days=3)).isoformat()
-
-
 @pytest.mark.parametrize(
-    ("due_at", "grace_days", "expected"),
+    ("due_at", "other_course_settings", "expected"),
     [
-        (None, None, False),
-        ("", None, False),
-        ("2999-01-01T00:00:00Z", None, False),
-        (THREE_DAYS_AGO, None, True),
-        (THREE_DAYS_AGO, 0, True),
-        (THREE_DAYS_AGO, 2, True),
-        (THREE_DAYS_AGO, 7, False),
-        (THREE_DAYS_AGO, 3_000_000, False),
+        (None, {}, False),
+        ("", {}, False),
+        ("2999-01-01T00:00:00Z", {}, False),
+        ("2020-01-01T00:00:00Z", {}, True),
+        ("2020-01-01T00:00:00Z", {"sync_canvas_grades_after_due_date": False}, True),
+        ("2020-01-01T00:00:00Z", {"sync_canvas_grades_after_due_date": True}, False),
     ],
 )
-def test_is_grade_sync_blocked_by_due_date(due_at, grace_days, expected):
-    """A due date blocks sync once it is more than the grace days in the past."""
-    settings = (
-        {} if grace_days is None else {utils.GRADE_SYNC_GRACE_DAYS_KEY: grace_days}
-    )
-    course = SimpleNamespace(
-        id="course-v1:MITx+course+2026", other_course_settings=settings
-    )
+def test_is_grade_sync_blocked_by_due_date(due_at, other_course_settings, expected):
+    """A past due date blocks sync unless sync_canvas_grades_after_due_date is on."""
+    course = SimpleNamespace(other_course_settings=other_course_settings)
     assert utils.is_grade_sync_blocked_by_due_date(course, due_at) is expected
-
-
-@pytest.mark.parametrize("grace_days", [True, "7", -1, 1.5, None])
-def test_invalid_grace_days_are_ignored(caplog, grace_days):
-    """Values that aren't non-negative ints count as 0 and log a warning."""
-    course = SimpleNamespace(
-        id="course-v1:MITx+course+2026",
-        other_course_settings={utils.GRADE_SYNC_GRACE_DAYS_KEY: grace_days},
-    )
-    # half a day past due: accepting True (1) or 1.5 as days would unblock it
-    half_day_ago = (datetime.now(tz=UTC) - timedelta(hours=12)).isoformat()
-    with caplog.at_level(logging.WARNING):
-        assert utils.is_grade_sync_blocked_by_due_date(course, half_day_ago) is True
-    assert utils.GRADE_SYNC_GRACE_DAYS_KEY in caplog.text
 
 
 @pytest.mark.parametrize(
