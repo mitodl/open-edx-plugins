@@ -167,7 +167,7 @@ cd /openedx/open-edx-plugins
   4. Pull the cached openedx-dev image from GHCR; build it locally only on a cache miss
   5. Run `run_edx_integration_tests.sh` in an `lms` container via `docker compose run` (no `tutor dev launch`)
   6. Upload coverage to CodeCov
-- **Critical:** Must pass all matrix combinations for merge
+- **Critical:** The `ci-gate` job rolls up the matrix and is a required check (alongside `prek`); every matrix combination must pass for merge
 
 **2. CI Image Cache (`.github/workflows/ci-image-cache.yml`)**
 - Rebuilds and pushes the openedx-dev images nightly, on manual dispatch, and on main pushes that touch the workflow, `setup-tutor` or `edx-branches.json`
@@ -190,7 +190,7 @@ After `uv run prek install -f`, all the following run automatically on `git comm
 - detect-secrets (excludes uv.lock)
 - ruff-format, ruff linting (with --extend-ignore=D1, --fix)
 - mypy type checking (with types-pytz, types-requests, types-python-dateutil, types-setuptools)
-- rstcheck (README.rst validation)
+- rstcheck (every `.rst` file except those under a plugin's nested `docs/` dir)
 - actionlint (GitHub Actions workflow validation)
 - uv-lock (keeps uv.lock in sync with pyproject.toml)
 - zizmor (GitHub Actions security lint)
