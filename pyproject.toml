@@ -42,7 +42,7 @@ exclude = [
 ]
 
 [dependency-groups]
-prek = ["prek==0.5.9"]
+prek = ["prek==0.5.10"]
 dev = [
     { include-group = "prek" },
     "pytest>=8.0.0",
