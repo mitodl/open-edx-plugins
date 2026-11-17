@@ -130,6 +130,31 @@ Library v2 (Content Libraries)
 - Library v2 uses the new event architecture and supports both creation and update signals for immediate repository creation
 - Both library types support automatic git export on updates once configured
 
+Export History
+==============
+
+Every export that runs adds a row to **Content Git Export Logs** in Django
+admin (``/admin/ol_openedx_git_auto_export/contentgitexportlog/``): its
+status, author, Celery task id, a log of its steps with UTC times (each git
+command and the content export, as they start), and, on failure, the error
+with its traceback and git's own output. Failed GitHub repository creations
+are recorded there too. The Content Git Repositories list shows each row's
+latest status and time. The user and password in an ``http(s)`` git URL are
+stored as ``***``.
+
+The row is created as In progress when the export starts and updated as it
+goes. A worker killed mid-export (out of memory, the time limit, a restart)
+leaves it In progress until the next export of the same content marks it
+Failed. Until then, a "modified" time more than 10 minutes old (the export time
+limit) means the run is dead. The last line of its log is the last step it
+started; an empty log means it died before the export itself began, while
+loading the content.
+
+Runs that are merged into a later one, or wait for another export of the same
+content, add no row; the run that finally exports does. A wait that cannot
+re-queue itself is recorded as Failed. Rows are kept indefinitely; only
+superusers can delete them from the admin.
+
 Re-exporting Without a Publish
 ==============================
 
