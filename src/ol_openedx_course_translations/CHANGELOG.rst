@@ -13,6 +13,37 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.13.0] - 2026-11-17
+~~~~~~~~~~~~~~~~~~~~~
+Added
+-----
+- ``translate_course --yes`` skips the confirmation prompt, so the command can
+  run with no one to answer it.
+
+Fixed
+-----
+- A problem's expected answers (customresponse ``expect``, non-regexp
+  stringresponse ``answer`` and ``additional_answer``, including the older
+  ``_or_`` and text forms) stay untranslated where its text quotes
+  them. A French run asked learners to type "oui" while the grader wanted "yes".
+  If the LLM drops an answer, that text is left in the source language. The
+  answer word stays in the source language everywhere in that problem's text,
+  so with ``answer="true"`` the word "true" stays English while "false" is
+  translated. An answer that only appears in an ``<answer>`` grader's code
+  isn't protected.
+- The text of ``<answer>`` (Python graders) and ``<grader_payload>`` is no
+  longer sent for translation. Feedback messages written inside an ``<answer>``
+  grader now stay in the source language. Text right after a skipped element
+  (such as ``</script>``) is now translated; it was skipped with the element.
+- For course XML/HTML files, the optional validation pass is kept only when it
+  changes nothing but translatable text. Output that drops an element, changes
+  how often an expected answer appears, or edits grading code, untranslated
+  attributes or skipped text is discarded. Course updates still only check
+  that the output is markup.
+- The translation log row is written after the import succeeds, not before, and
+  its stats name the target course. A failed log write no longer reports an
+  imported course as a failed translation.
+
 [0.12.3] - 2026-11-02
 ~~~~~~~~~~~~~~~~~~~~~
 Fixed

@@ -22,6 +22,10 @@ TRANSLATABLE_ATTRS_BASE = {
 # Open edX-specific: these are only translatable on <optioninput>
 TRANSLATABLE_ATTRS_OPTIONINPUT_ONLY = {"options", "correct"}
 
+# Stands in for a problem's expected answer while its text is translated, so
+# the LLM never sees the word a learner has to type
+ANSWER_PLACEHOLDER = "⟦{}⟧"
+
 # Never translate these (names), even if user-facing-ish in some contexts
 NEVER_TRANSLATE_ATTRS = {
     "id",
