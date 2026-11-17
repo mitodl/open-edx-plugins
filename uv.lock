@@ -2443,7 +2443,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-canvas-integration"
-version = "0.10.0"
+version = "0.10.1"
 source = { editable = "src/ol_openedx_canvas_integration" }
 dependencies = [
     { name = "celery" },
@@ -2471,7 +2471,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat"
-version = "0.7.0"
+version = "0.7.1"
 source = { editable = "src/ol_openedx_chat" }
 dependencies = [
     { name = "django" },
@@ -2491,7 +2491,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-chat-xblock"
-version = "0.5.0"
+version = "0.5.1"
 source = { editable = "src/ol_openedx_chat_xblock" }
 dependencies = [
     { name = "django" },
@@ -2685,7 +2685,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-feedback"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "src/ol_openedx_feedback" }
 dependencies = [
     { name = "django" },
@@ -4056,7 +4056,7 @@ wheels = [
 
 [[package]]
 name = "rapid-response-xblock"
-version = "0.12.1"
+version = "0.12.2"
 source = { editable = "src/rapid_response_xblock" }
 dependencies = [
     { name = "django" },

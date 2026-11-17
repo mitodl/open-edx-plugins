@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from ol_openedx_canvas_integration import context_api
@@ -17,18 +18,12 @@ class StubFragment:
         self.javascript.append(source)
 
 
-def test_get_resource_bytes_decodes_utf8(monkeypatch):
-    """Test that get resource bytes decodes utf8."""
-    monkeypatch.setattr(
-        context_api.pkg_resources,
-        "resource_string",
-        lambda _module_name, _path: b"hello-canvas",
-    )
+def test_get_resource_bytes_reads_packaged_file():
+    """Test that get_resource_bytes reads a packaged file as text."""
+    path = "static/js/canvas_integration.js"
+    expected = (Path(context_api.__file__).parent / path).read_text(encoding="utf-8")
 
-    assert (
-        context_api.get_resource_bytes("static/js/canvas_integration.js")
-        == "hello-canvas"
-    )
+    assert context_api.get_resource_bytes(path) == expected
 
 
 def test_plugin_context_returns_none_when_no_canvas_course_id(monkeypatch):

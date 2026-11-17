@@ -1,8 +1,8 @@
 """XBlockAside that renders the per-block feedback trigger."""
 
 import logging
+from importlib.resources import files
 
-import pkg_resources
 from django.conf import settings
 from django.template import Context, Template
 from django.utils.translation import gettext
@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 def _resource(path):
     """Return the decoded contents of a packaged resource."""
-    return pkg_resources.resource_string(__name__, path).decode("utf-8")
+    return files(__package__).joinpath(path).read_bytes().decode("utf-8")
 
 
 def _render(path, context):
