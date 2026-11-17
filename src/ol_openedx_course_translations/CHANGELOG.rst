@@ -37,7 +37,8 @@ Fixed
   (such as ``</script>``) is now translated; it was skipped with the element.
 - For course XML/HTML files, the optional validation pass is kept only when it
   changes nothing but translatable text. Output that drops an element, changes
-  how often an expected answer appears, or edits grading code, untranslated
+  how often an expected answer appears, points a dropdown's ``correct`` at a
+  different option (or at none), or edits grading code, untranslated
   attributes or skipped text is discarded. Course updates still only check
   that the output is markup.
 - The translation log row is written after the import succeeds, not before, and

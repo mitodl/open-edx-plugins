@@ -10,6 +10,7 @@ or attribute names
 import json
 import logging
 import re
+import shlex
 import shutil
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
@@ -775,7 +776,8 @@ class HtmlXmlTranslationHelper:
         """
         Everything in the markup that translation must not change: each element's
         tag, its attribute names, the values of attributes that aren't translated,
-        the text of elements whose text isn't translated, and how often the
+        the content of elements whose text isn't translated, which dropdown
+        option is the correct one, and how often the
         problem's expected answers appear in its text. When an answer is also a
         common word in the target language ("no" in Spanish), a validator fix
         that drops one use of it is rejected too; the first translation is kept.
@@ -807,14 +809,37 @@ class HtmlXmlTranslationHelper:
         return [answers] + [
             (
                 el.tag,
-                None if self._should_translate_text_in_element(el) else el.text,
+                # Whole content, so code after a comment inside <script> counts too
+                None
+                if self._should_translate_text_in_element(el)
+                else etree.tostring(el, encoding="unicode", with_tail=False),
                 sorted(
                     (name, None if self._is_translatable_attr(el, name) else value)
                     for name, value in el.attrib.items()
                 ),
+                self._correct_option_index(el),
             )
             for el in self._iter_elements(root)
         ]
+
+    @staticmethod
+    def _correct_option_index(el: etree._Element) -> int | None:
+        """Which dropdown option is graded correct, -1 if none of them is."""
+        if (el.tag or "").lower() != "optioninput":
+            return None
+        # Same parsing as capa's OptionInput.parse_options
+        options = el.get("options", "")
+        options = re.sub(r"([a-zA-Z])('|\\')([a-zA-Z])", r"\1&#39;\3", options)
+        options = re.sub(r"\\'", r"&#39;", options)
+        lexer = shlex.shlex(options[1:-1])
+        lexer.quotes = "'"
+        lexer.whitespace = ", "
+        try:
+            tokens = [token[1:-1].replace("&#39;", "'") for token in lexer]
+        except ValueError:
+            return -1
+        correct = el.get("correct", "")
+        return tokens.index(correct) if correct in tokens else -1
 
     def extract_units(  # noqa: C901
         self, raw: str

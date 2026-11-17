@@ -142,6 +142,29 @@ def test_keeps_markup_structure(candidate, keeps):
     assert keeps_markup_structure(CUSTOM_PROBLEM, candidate, is_xml=True) is keeps
 
 
+DROPDOWN = (
+    "<problem><optionresponse>"
+    "<optioninput options=\"('oui','l'eau')\" correct=\"l'eau\"/>"
+    "</optionresponse>"
+    '<script type="loncapa/python">x = 1<!-- note -->LIMIT = 5</script></problem>'
+)
+
+
+@pytest.mark.parametrize(
+    ("candidate", "keeps"),
+    [
+        (DROPDOWN.replace("oui", "yes").replace("l'eau", "water"), True),
+        # The validator picks another option, or one no option matches
+        (DROPDOWN.replace('correct="l\'eau"', 'correct="oui"'), False),
+        (DROPDOWN.replace("'oui','l'eau'", "'Oui','L'eau'"), False),
+        # Grading code after a comment
+        (DROPDOWN.replace("LIMIT = 5", "LIMIT = 0"), False),
+    ],
+)
+def test_the_correct_option_and_grading_code_are_locked(candidate, keeps):
+    assert keeps_markup_structure(DROPDOWN, candidate, is_xml=True) is keeps
+
+
 HTML_PAGE = "<p>Hello there</p><script>var answer = 1;</script>"
 
 
