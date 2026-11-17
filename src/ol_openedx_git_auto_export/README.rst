@@ -144,14 +144,16 @@ stored as ``***``.
 
 The row is created as In progress when the export starts and updated as it
 goes. A worker killed mid-export (out of memory, the time limit, a restart)
-leaves it In progress: if its "modified" time is more than 10 minutes old (the
-export time limit), the run is dead, and the last line of its log is the last
-step it started. An empty log means it died before the export itself began,
-while loading the content.
+leaves it In progress until the next export of the same content marks it
+Failed. Until then, a "modified" time more than 10 minutes old (the export time
+limit) means the run is dead. The last line of its log is the last step it
+started; an empty log means it died before the export itself began, while
+loading the content.
 
 Runs that are merged into a later one, or wait for another export of the same
 content, add no row; the run that finally exports does. A wait that cannot
-re-queue itself is recorded as Failed. Rows are kept indefinitely.
+re-queue itself is recorded as Failed. Rows are kept indefinitely; only
+superusers can delete them from the admin.
 
 Re-exporting Without a Publish
 ==============================

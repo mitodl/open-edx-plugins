@@ -154,5 +154,5 @@ class ContentGitExportLogAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):  # noqa: ARG002
-        """Keep the full history; see README for retention."""
-        return False
+        """Superusers only, e.g. to remove a row holding a leaked secret."""
+        return request.user.is_superuser

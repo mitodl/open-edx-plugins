@@ -675,6 +675,26 @@ def redact_credentials(text):
     return _URL_CREDENTIALS.sub("***@", text)
 
 
+def close_dead_runs(content_key):
+    """
+    Mark the content's in_progress rows failed. Call only while holding its
+    export lock: the lock outlives EXPORT_TIME_LIMIT, so their runs are dead.
+    """
+    try:
+        ContentGitExportLog.objects.filter(
+            content_key=LearningContextKey.from_string(str(content_key)),
+            status=ExportStatus.IN_PROGRESS,
+        ).update(
+            status=ExportStatus.FAILED,
+            error_message=(
+                "The worker stopped mid-run; its last log line is the step it was in."
+            ),
+            modified=timezone.now(),
+        )
+    except Exception:
+        log.exception("Failed to close dead export runs for %s", content_key)
+
+
 def _task_id():
     # A direct (non-Celery) call has a request with no id.
     return getattr(getattr(current_task, "request", None), "id", None) or ""

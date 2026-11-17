@@ -869,6 +869,47 @@ class TestExportResultIsRecorded(TestCase):
         assert rows[0].git_output.endswith("fatal: the real error")
         assert len(rows[0].git_output) < len(output)
 
+    def test_a_run_holding_the_lock_closes_its_contents_dead_runs(self):
+        # None: the cache is down, so there's no lock and another run may be live.
+        for owned in (True, None):
+            with self.subTest(owned=owned):
+                ContentGitExportLog.objects.all().delete()
+                dead = ContentGitExportLog.objects.create(
+                    content_key=CONTENT_KEY, status=ExportStatus.IN_PROGRESS
+                )
+                other = ContentGitExportLog.objects.create(
+                    content_key="lib:org:other", status=ExportStatus.IN_PROGRESS
+                )
+                with ExitStack() as stack:
+                    mock_export_collaborators(stack)
+                    stack.enter_context(
+                        mock.patch(
+                            "ol_openedx_git_auto_export.tasks.acquire_export_lock",
+                            return_value=owned,
+                        )
+                    )
+                    async_export_to_git(CONTENT_KEY, user=USER)
+
+                dead.refresh_from_db()
+                other.refresh_from_db()
+                if owned:
+                    assert dead.status == ExportStatus.FAILED
+                    assert "stopped mid-run" in dead.error_message
+                else:
+                    assert dead.status == ExportStatus.IN_PROGRESS
+                assert other.status == ExportStatus.IN_PROGRESS
+                # The run's own row still gets its result.
+                assert ContentGitExportLog.objects.filter(
+                    content_key=CONTENT_KEY, status=ExportStatus.SUCCESS
+                ).exists()
+
+    def test_failing_to_close_dead_runs_does_not_fail_the_export(self):
+        with mock.patch.object(
+            utils, "ContentGitExportLog", wraps=ContentGitExportLog
+        ) as model:
+            model.objects.filter.side_effect = [DatabaseError("db")]
+            utils.close_dead_runs(CONTENT_KEY)
+
     def test_a_failed_write_does_not_change_the_outcome(self):
         with mock.patch.object(
             ContentGitExportLog.objects, "create", side_effect=DatabaseError("db")

@@ -72,13 +72,16 @@ class TestLastExportColumn(TestCase):
 
 
 class TestExportLogAdminIsReadOnly(TestCase):
-    """The export log is an audit trail: staff can view it, nothing more."""
+    """The export log is an audit trail: staff view it, superusers can delete."""
 
-    def test_no_add_change_or_delete(self):
+    def test_no_add_or_change_and_only_superusers_delete(self):
         model_admin = ContentGitExportLogAdmin(ContentGitExportLog, site)
         request = RequestFactory().get("/")
-        request.user = mock.Mock(is_superuser=True, is_active=True, is_staff=True)
-
-        assert not model_admin.has_add_permission(request)
-        assert not model_admin.has_change_permission(request)
-        assert not model_admin.has_delete_permission(request)
+        for is_superuser in (True, False):
+            with self.subTest(is_superuser=is_superuser):
+                request.user = mock.Mock(
+                    is_superuser=is_superuser, is_active=True, is_staff=True
+                )
+                assert not model_admin.has_add_permission(request)
+                assert not model_admin.has_change_permission(request)
+                assert model_admin.has_delete_permission(request) is is_superuser

@@ -25,6 +25,7 @@ from ol_openedx_git_auto_export.utils import (
     burst_exceeded_max_wait,
     claim_export_slot,
     clear_stale_git_lock,
+    close_dead_runs,
     current_export_token,
     get_content_info,
     github_repo_name_format,
@@ -256,6 +257,8 @@ def async_export_to_git(context_key_string, user=None, token=None):
             # queue a fresh task instead of being dropped. Only now, holding
             # the lock: this also ends the burst, which a wait must not do.
             release_export_slot(context_key_string)
+        if owned:  # None: the cache is down, so another run may be live
+            close_dead_runs(context_key_string)
         with (
             track_export(
                 context_key_string,
