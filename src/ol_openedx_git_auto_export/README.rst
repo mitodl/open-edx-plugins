@@ -55,10 +55,11 @@ Configuration
   not exported, since GitHub rejects pushes containing a file over 100 MB. The
   check does not bound push memory: content under the limit is still pushed,
   so size the export worker for its largest courses. The default is
-  GitHub's limit; set it to ``null`` to turn the check off. The skipped export
-  appears in the export history with the files named. To export the content,
-  host those files elsewhere (for example S3) and link to them from the course;
-  the next publish exports it. Files in v2 libraries are not checked.
+  GitHub's limit; set it to ``null`` or ``0`` to turn the check off. The
+  skipped export appears in the export history with the files named. To export
+  the content, host those files elsewhere (for example S3) and link to them
+  from the course; the next publish exports it. Files in v2 libraries are not
+  checked.
 
   .. code-block::
 
