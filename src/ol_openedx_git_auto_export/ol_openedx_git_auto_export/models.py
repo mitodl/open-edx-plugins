@@ -36,6 +36,7 @@ class ExportStatus(models.TextChoices):
     SUCCESS = "success", "Success"
     NO_CHANGES = "no_changes", "No changes"
     SKIPPED_DISABLED = "skipped_disabled", "Skipped: export disabled"
+    SKIPPED_LARGE_FILES = "skipped_large_files", "Skipped: files too large"
     NOT_FOUND = "not_found", "Content not found"
     NO_REPO = "no_repo", "No repository"
     REPO_CREATION_FAILED = "repo_creation_failed", "Repository creation failed"

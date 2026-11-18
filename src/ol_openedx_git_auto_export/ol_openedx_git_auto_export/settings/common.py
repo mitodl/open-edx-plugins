@@ -5,6 +5,7 @@ from ol_openedx_git_auto_export.constants import (
     ENABLE_AUTO_GITHUB_REPO_CREATION,
     ENABLE_GIT_AUTO_EXPORT,
     ENABLE_GIT_AUTO_LIBRARY_EXPORT,
+    GIT_MAX_FILE_SIZE,
 )
 
 
@@ -21,6 +22,9 @@ def plugin_settings(settings):
     )
     settings.GIT_AUTO_EXPORT_CELERY_QUEUE = env_tokens.get(
         "GIT_AUTO_EXPORT_CELERY_QUEUE"
+    )
+    settings.GIT_AUTO_EXPORT_MAX_FILE_SIZE = env_tokens.get(
+        "GIT_AUTO_EXPORT_MAX_FILE_SIZE", GIT_MAX_FILE_SIZE
     )
 
     # Course-specific settings
