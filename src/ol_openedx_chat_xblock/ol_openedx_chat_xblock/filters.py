@@ -22,7 +22,8 @@ class DisableMathJaxForOLChatBlock(PipelineStep):
             updated context dictionary with load_mathjax disabled
         """
 
-        for child in dict(context)["block"].children:
+        # Leaf blocks (problem, html) have no `children` attribute.
+        for child in getattr(dict(context)["block"], "children", []):
             if child.block_type == __package__:
                 context["load_mathjax"] = False
                 break
