@@ -1035,7 +1035,8 @@ def test_the_admin_report_ranks_the_same_way_the_command_does():
     assert not run.comparative_only
 
     html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
-    rendered = [row for row in html.split("<tr>") if "<td>" in row]
+    scoring = html.split("<h3>Initial scoring</h3>")[1]
+    rendered = [row for row in scoring.split("<tr>") if "<td>" in row]
 
     expected = build_rows(
         {
@@ -1053,7 +1054,7 @@ def test_the_admin_report_ranks_the_same_way_the_command_does():
     assert len(rendered) == len(expected)
     for row, expected_row in zip(rendered, expected, strict=True):
         assert f"<td>{expected_row.candidate}</td>" in row
-        assert f"<td>{expected_row.mean_rank:.2f}</td>" in row
+        assert f"<td>{expected_row.mean_rank:.1f}</td>" in row
         assert f"<td>{expected_row.mean_score:.2f}</td>" in row
 
 
@@ -1063,9 +1064,10 @@ def test_the_admin_report_shows_each_judge_and_the_verdict():
     """
     The aggregate alone lets a reader crown the top row.
 
-    Mean rank comes only from the scoring pass, so a candidate can lead the
-    table while both judges ranked it low head to head. The per-judge columns
-    and the verdict are what make that visible in the stored record.
+    Initial scoring's avg place comes only from the scoring pass, so a
+    candidate can lead that table while both judges ranked it low head to
+    head. The
+    per-judge columns and the verdict make that visible in the stored record.
     """
     _run(translators="openai,gemini", judges="openai,gemini")
     run = TranslationBenchmark.objects.get()
@@ -1075,10 +1077,11 @@ def test_the_admin_report_shows_each_judge_and_the_verdict():
 
     for judge in ("openai/gpt-test", "gemini/gemini-test"):
         assert f"<th>{judge}</th>" in html
-    # position · accuracy/fluency/terminology, and a #rank for the shortlist.
-    assert re.search(r"<td>\d+\.\d · \d+/\d+/\d+", html)
-    assert "· #1" in html
-    assert "Verdict:" in html
+    # An overall per judge with its criteria under it, and a #rank per judge.
+    assert re.search(r"<td>\d+\.\d<br><small>\d+/\d+/\d+</small></td>", html)
+    assert "<td>#1</td>" in html
+    # The fixture's judges shuffle labels, so it may or may not tie at the top.
+    assert "<b>Winner: " in html or "<b>No clear winner:</b>" in html
     # The admin recomputes the verdict from stored ranks. If it failed to
     # collect them the line would still render, saying nothing was ranked.
     assert "no candidates were ranked" not in html
@@ -2055,20 +2058,11 @@ def test_the_admin_renders_a_comparative_only_run():
 
     html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
-    assert "Verdict:" in html
-    # Whole cell, not a fragment: the missing scores must read as an em dash,
-    # and the position must be the rank rather than a second statistic.
-    assert "<td>1.0 · — · #1</td>" in html
-    # The two-pass legend describes a shortlist and scores this run has not.
-    assert "ranked comparatively only" in html
-
-    inline = TranslationBenchmarkCandidateInline(
-        TranslationBenchmarkCandidate, admin.site
-    )
-    for candidate in run.candidates.all():
-        # The same null criteria reach the inline on the same page, where
-        # they used to render as "None/None/None".
-        assert "None" not in inline.judge_scores(candidate)
+    assert "<b>Winner: " in html
+    assert "<td>#1</td>" in html
+    # Nothing was scored alone, so there is no scoring table to show.
+    assert "Initial scoring" not in html
+    assert "None" not in html
 
 
 def test_the_run_admin_is_read_only_but_a_run_can_be_deleted():
@@ -2089,6 +2083,12 @@ def test_the_run_admin_is_read_only_but_a_run_can_be_deleted():
 
     assert not admin_view.has_add_permission(request)
     assert not admin_view.has_change_permission(request)
+    # Admin checks accept any fieldset name as a possible form field, so a
+    # typo only fails when the page is opened.
+    shown = {
+        field for _, options in admin_view.fieldsets for field in options["fields"]
+    }
+    assert shown == set(admin_view.readonly_fields)
     assert admin_view.has_delete_permission(request)
     assert not inline.can_delete
 
@@ -2177,11 +2177,12 @@ def test_the_standings_render_a_partly_judged_run():
 
     html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
-    # Rendered accuracy/fluency/terminology, the order the legend promises.
+    # Rendered accuracy/fluency/terminology, the order the caption names.
     assert "9/7/6" in html
     # A judge that scored but never ranked still gets its column.
     assert "<th>alpha</th>" in html
-    assert html.index("<th>alpha</th>") < html.index("<th>zeta</th>")
+    scoring = html.split("<h3>Initial scoring</h3>")[1]
+    assert scoring.index("<th>alpha</th>") < scoring.index("<th>zeta</th>")
     # alpha never placed c, and formatting a missing position raised.
     assert "<td>—</td>" in html
     # b and c were not shortlisted, so they carry no rank at all.
@@ -2415,23 +2416,13 @@ def test_a_run_whose_judges_never_ranked_names_no_winner():
 
     html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
-    assert "no clear winner" in html
+    assert "No clear winner" in html
+    # Scored but never ranked: no final table, and nothing marked ranked.
+    assert "Final ranking" not in html
+    assert "Initial scoring" in html
+    assert "<td>✓</td>" not in html
     # A run made before validated-only candidates still has to read.
     assert inline.validator_display(candidate) == "none"
-
-
-@pytest.mark.django_db
-def test_a_candidate_no_judge_reached_renders_as_a_dash():
-    """A blank cell would read as a score of nothing rather than no score."""
-    run = _stored_run()
-    candidate = TranslationBenchmarkCandidate.objects.create(
-        run=run, translator="a", validator="v"
-    )
-    inline = TranslationBenchmarkCandidateInline(
-        TranslationBenchmarkCandidate, admin.site
-    )
-
-    assert inline.judge_scores(candidate) == "—"
 
 
 @pytest.mark.django_db
@@ -2521,9 +2512,8 @@ def test_the_standings_do_not_query_once_per_candidate(django_assert_num_queries
 def test_a_half_scored_row_is_read_the_same_way_everywhere():
     """
     The command writes all three criteria or none, so this row can only come
-    from a hand edit or a restored dump. Both readers must still agree: one
-    treating it as scored and the other not is how a row renders in the
-    inline and vanishes from the standings without a word.
+    from a hand edit or a restored dump. It counts as ranked but not scored,
+    so it appears in the final ranking only.
     """
     run = _stored_run()
     candidate = TranslationBenchmarkCandidate.objects.create(
@@ -2532,19 +2522,13 @@ def test_a_half_scored_row_is_read_the_same_way_everywhere():
     TranslationBenchmarkScore.objects.create(
         candidate=candidate, judge="j1", accuracy=7, comparative_rank=1
     )
-    inline = TranslationBenchmarkCandidateInline(
-        TranslationBenchmarkCandidate, admin.site
-    )
 
     html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
-    # Pinned exactly rather than by absence of "None". The inline goes
-    # through _criteria; the standings fall back to the ratings default,
-    # since a half-scored row is never recorded there. Two paths to the
-    # same em dash, so both are asserted.
-    assert inline.judge_scores(candidate) == "j1 — [#1]"
-    assert "<td>1.0 · — · #1</td>" in html
-    # Present in the standings, not merely absent from the failure text.
+    # Ranked, so in the final table; not fully scored, so not in the other.
+    assert "<td>#1</td>" in html
+    assert "Initial scoring" not in html
+    # Present in the final ranking, not merely absent from the failure text.
     assert "a → v" in html
 
 
@@ -2595,10 +2579,12 @@ def test_stored_scores_are_rendered_whatever_the_run_s_mode_says():
     html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
     assert "9.00" in html
-    # Ordered by the scores, not by the comparative ranks: a leads the table
-    # while b, ranked first head to head, still takes the verdict.
-    assert "<td>1</td><td>a → v</td>" in html
-    assert "Verdict:</b> b → v" in html
+    # b, ranked first head to head, leads the final table and takes the
+    # verdict, while a still leads the scoring table on its scores.
+    assert "<b>Winner: b → v</b>" in html
+    assert "<td>1</td><td>b → v</td>" in html
+    scoring = html.split("<h3>Initial scoring</h3>")[1]
+    assert scoring.index("a → v") < scoring.index("b → v")
 
 
 @pytest.mark.django_db
@@ -2731,6 +2717,90 @@ def test_a_judge_that_only_ranked_still_gets_a_column():
 
     assert "<th>scorer</th>" in html
     assert "<th>ranker</th>" in html
+
+
+@pytest.mark.django_db
+def test_the_final_ranking_leads_with_the_winner_and_shows_each_judge():
+    """
+    The page exists to answer "who won and how sure are we".
+
+    a scores best alone but loses head to head, and the two judges split on
+    it by three places; c was scored but never shortlisted.
+    """
+    run = _stored_run()
+    rows = {
+        name: TranslationBenchmarkCandidate.objects.create(
+            run=run, translator=name, validator="v"
+        )
+        for name in ("a", "b", "c")
+    }
+    stored = {
+        # name: ((j1 score, j1 rank), (j2 score, j2 rank))
+        "a": ((10, 4), (9, 1)),
+        "b": ((9, 1), (8, 2)),
+        "c": ((5, None), (5, None)),
+    }
+    for name, judged in stored.items():
+        for judge, (score, rank) in zip(("j1", "j2"), judged, strict=True):
+            TranslationBenchmarkScore.objects.create(
+                candidate=rows[name],
+                judge=judge,
+                accuracy=score,
+                fluency=score,
+                terminology=score,
+                comparative_rank=rank,
+            )
+
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
+    final, scoring = html.split("<h3>Initial scoring</h3>")
+
+    assert "<b>Winner: b → v</b>" in html
+    assert "(1.5), and 1 of 2 ranking judge(s) ranked it alone in first" in html
+    # Row 1 of the final table is the verdict; a's split shows per judge.
+    assert "<td>1</td><td>b → v</td><td>1.5</td><td>#1</td><td>#2</td>" in final
+    assert "<td>2</td><td>a → v</td><td>2.5</td><td>#4</td><td>#1</td>" in final
+    assert "c → v" not in final
+    # Every scored candidate is listed, marked by whether it was ranked.
+    assert "<td>a → v</td><td>1.0</td><td>9.50</td>" in scoring
+    assert scoring.count("<td>✓</td>") == 2  # noqa: PLR2004
+    assert "<td>c → v</td><td>3.0</td><td>5.00</td>" in scoring
+
+
+@pytest.mark.django_db
+def test_a_tie_for_first_names_no_winner():
+    """Row 1 of a tied final table is one of the leaders, not the winner."""
+    run = _stored_run()
+    for name, ranks in (("a", (1, 2)), ("b", (2, 1))):
+        candidate = TranslationBenchmarkCandidate.objects.create(
+            run=run, translator=name, validator="v"
+        )
+        for judge, rank in zip(("j1", "j2"), ranks, strict=True):
+            TranslationBenchmarkScore.objects.create(
+                candidate=candidate, judge=judge, comparative_rank=rank
+            )
+
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
+
+    assert "<b>No clear winner:</b> the best average place is tied between" in html
+    assert "<b>Winner: " not in html
+
+
+@pytest.mark.django_db
+def test_a_judge_that_ranked_only_part_of_the_shortlist_renders_a_dash():
+    """A hand-fixed row or restored dump can leave a judge's ranking partial."""
+    run = _stored_run()
+    for name, ranks in (("a", {"j1": 1, "j2": 1}), ("b", {"j1": 2})):
+        candidate = TranslationBenchmarkCandidate.objects.create(
+            run=run, translator=name, validator="v"
+        )
+        for judge, rank in ranks.items():
+            TranslationBenchmarkScore.objects.create(
+                candidate=candidate, judge=judge, comparative_rank=rank
+            )
+
+    html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
+
+    assert "<td>b → v</td><td>2.0</td><td>#2</td><td>—</td>" in html
 
 
 @pytest.mark.django_db

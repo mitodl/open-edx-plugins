@@ -13,6 +13,16 @@ Change Log
 Unreleased
 ~~~~~~~~~~
 
+[0.12.4] - 2026-11-20
+~~~~~~~~~~~~~~~~~~~~~
+Changed
+-------
+- The benchmark run admin page leads with the verdict as a sentence, then a
+  Final ranking table in the verdict's order and an Initial scoring table with
+  one overall per judge, its criteria shown under it. Excluded judges show in
+  the Summary section, run settings collapse, and the candidate list no longer
+  repeats the scores.
+
 [0.12.3] - 2026-11-02
 ~~~~~~~~~~~~~~~~~~~~~
 Fixed

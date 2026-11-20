@@ -423,19 +423,25 @@ whose every unit came back unchanged, or a validator that returned prose or rest
 markup — are listed under the table with the reason, so a short table is never a
 silent one.
 
-The run records whether the scoring pass was skipped, so the admin renders
-the standings as what the run actually was rather than inferring it from the
-absence of scores.
-
 Results are stored in ``TranslationBenchmark``, ``TranslationBenchmarkCandidate``
 and ``TranslationBenchmarkScore``, and shown in the Django admin. A run can't be
-edited there, only deleted as a whole. The run page lists every candidate, its
-judge scores and the standings, with a column per judge showing that judge's
-position, its raw scores and its comparative rank, and the verdict above the
-table. A ``--comparative-only`` run recorded
-no scores, so those slots read ``—`` and the position is the comparative rank. Each candidate
-row keeps the content it was scored on in the database — not shown in the admin
-— so a verdict can be checked against the text the judges actually saw.
+edited there, only deleted as a whole. The run page leads with the winner in a
+sentence, then two tables:
+
+- **Final ranking**: the comparative pass, in the verdict's order, so row 1 is
+  the winner unless the top place is tied, which names no winner. It shows each
+  candidate's average place and the place each judge gave.
+- **Initial scoring**: every scored candidate's 1-10 overall from each judge
+  (with accuracy/fluency/terminology under it), its average place across judges,
+  which picked the shortlist, and whether it was ranked side by side.
+  A ``--comparative-only`` run scored nothing, so this table is not shown.
+
+Each table is shown when the run's stored rows hold that pass, whatever the run
+was flagged as. The candidate list below them names every pairing and why any
+was excluded. Each candidate row keeps the content it was scored on in the
+database — not shown in the admin — so a verdict can be checked against the
+text the judges actually saw.
+
 A judge dropped
 from the scoring pass is recorded on the run in ``excluded_judges`` together
 with the reason, so a run that rests on fewer judges says so months later.
