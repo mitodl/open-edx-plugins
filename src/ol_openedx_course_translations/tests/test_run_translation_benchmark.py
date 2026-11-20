@@ -1077,8 +1077,8 @@ def test_the_admin_report_shows_each_judge_and_the_verdict():
 
     for judge in ("openai/gpt-test", "gemini/gemini-test"):
         assert f"<th>{judge}</th>" in html
-    # An overall per judge with its criteria on hover, and a #rank per judge.
-    assert re.search(r'terminology: \d+/\d+/\d+">\d+\.\d</span>', html)
+    # An overall per judge with its criteria under it, and a #rank per judge.
+    assert re.search(r"<td>\d+\.\d<br><small>\d+/\d+/\d+</small></td>", html)
     assert "<td>#1</td>" in html
     # The fixture's judges shuffle labels, so it may or may not tie at the top.
     assert "<b>Winner: " in html or "<b>No clear winner:</b>" in html
@@ -2177,7 +2177,7 @@ def test_the_standings_render_a_partly_judged_run():
 
     html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
-    # Rendered accuracy/fluency/terminology, the order the hover title names.
+    # Rendered accuracy/fluency/terminology, the order the caption names.
     assert "9/7/6" in html
     # A judge that scored but never ranked still gets its column.
     assert "<th>alpha</th>" in html
