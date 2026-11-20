@@ -2755,7 +2755,7 @@ def test_the_final_ranking_leads_with_the_winner_and_shows_disagreement():
     final, scoring = html.split("<h3>Initial scoring</h3>")
 
     assert "<b>Winner: b → v</b>" in html
-    assert "place (1.5), and 1 of 2 judge(s) ranked it alone in first" in html
+    assert "(1.5), and 1 of 2 ranking judge(s) ranked it alone in first" in html
     # Row 1 of the final table is the verdict; a's split shows as 3 places.
     assert "<td>1</td><td>b → v</td><td>1.5</td><td>1</td><td>1 place(s)</td>" in final
     assert "<td>2</td><td>a → v</td><td>2.5</td><td>1</td><td>3 place(s)</td>" in final
@@ -2781,7 +2781,7 @@ def test_a_tie_for_first_names_no_winner():
 
     html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
-    assert "<b>No clear winner:</b> mean comparative rank is tied between" in html
+    assert "<b>No clear winner:</b> the best average place is tied between" in html
     assert "<b>Winner: " not in html
 
 
@@ -2800,10 +2800,7 @@ def test_a_judge_that_ranked_only_part_of_the_shortlist_renders_a_dash():
 
     html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
-    assert (
-        "<td>b → v</td><td>2.0</td><td>0</td><td>0 place(s)</td><td>#2</td><td>—</td>"
-        in html
-    )
+    assert "<td>b → v</td><td>2.0</td><td>0</td><td>—</td><td>#2</td><td>—</td>" in html
 
 
 @pytest.mark.django_db
