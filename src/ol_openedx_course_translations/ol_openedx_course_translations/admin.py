@@ -123,17 +123,15 @@ def _initial_scoring(scoring_rows, overalls_by_judge, ratings, ranked):
             # This judge was dropped, or never scored this arm.
             return "—"
         return format_html(
-            '<span title="accuracy / fluency / terminology: {}">{}</span>',
-            ratings[(judge, candidate)],
-            f"{overall:.1f}",
+            "{}<br><small>{}</small>", f"{overall:.1f}", ratings[(judge, candidate)]
         )
 
     return format_html(
         "<h3>Initial scoring</h3><p>Each judge scored every candidate on its "
         "own, 1-10. Avg place averages where each judge put the candidate among "
         "its own scores (ties share a place), so every judge counts equally; "
-        "the best places went on to be ranked side by side. Hover a score for "
-        "accuracy / fluency / terminology.</p>{}",
+        "the best places went on to be ranked side by side. Under each score "
+        "are its accuracy / fluency / terminology.</p>{}",
         _table(
             ("Candidate", "Avg place", "Avg score", *judges, "Ranked side by side"),
             (

@@ -433,7 +433,7 @@ sentence, then two tables:
   candidate's average place, how many judges ranked it alone in first, how many
   places the judges disagree by, and the place each judge gave.
 - **Initial scoring**: every scored candidate's 1-10 overall from each judge
-  (hover for accuracy/fluency/terminology), its average place across judges,
+  (with accuracy/fluency/terminology under it), its average place across judges,
   which picked the shortlist, and whether it was ranked side by side.
   A ``--comparative-only`` run scored nothing, so this table is not shown.
 
@@ -442,6 +442,7 @@ was flagged as. The candidate list below them names every pairing and why any
 was excluded. Each candidate row keeps the content it was scored on in the
 database — not shown in the admin — so a verdict can be checked against the
 text the judges actually saw.
+
 A judge dropped
 from the scoring pass is recorded on the run in ``excluded_judges`` together
 with the reason, so a run that rests on fewer judges says so months later.
