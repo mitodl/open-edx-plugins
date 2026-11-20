@@ -430,8 +430,7 @@ sentence, then two tables:
 
 - **Final ranking**: the comparative pass, in the verdict's order, so row 1 is
   the winner unless the top place is tied, which names no winner. It shows each
-  candidate's average place, how many judges ranked it alone in first, how many
-  places the judges disagree by, and the place each judge gave.
+  candidate's average place and the place each judge gave.
 - **Initial scoring**: every scored candidate's 1-10 overall from each judge
   (with accuracy/fluency/terminology under it), its average place across judges,
   which picked the shortlist, and whether it was ranked side by side.

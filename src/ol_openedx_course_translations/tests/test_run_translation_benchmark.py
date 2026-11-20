@@ -2720,7 +2720,7 @@ def test_a_judge_that_only_ranked_still_gets_a_column():
 
 
 @pytest.mark.django_db
-def test_the_final_ranking_leads_with_the_winner_and_shows_disagreement():
+def test_the_final_ranking_leads_with_the_winner_and_shows_each_judge():
     """
     The page exists to answer "who won and how sure are we".
 
@@ -2756,9 +2756,9 @@ def test_the_final_ranking_leads_with_the_winner_and_shows_disagreement():
 
     assert "<b>Winner: b → v</b>" in html
     assert "(1.5), and 1 of 2 ranking judge(s) ranked it alone in first" in html
-    # Row 1 of the final table is the verdict; a's split shows as 3 places.
-    assert "<td>1</td><td>b → v</td><td>1.5</td><td>1</td><td>1 place(s)</td>" in final
-    assert "<td>2</td><td>a → v</td><td>2.5</td><td>1</td><td>3 place(s)</td>" in final
+    # Row 1 of the final table is the verdict; a's split shows per judge.
+    assert "<td>1</td><td>b → v</td><td>1.5</td><td>#1</td><td>#2</td>" in final
+    assert "<td>2</td><td>a → v</td><td>2.5</td><td>#4</td><td>#1</td>" in final
     assert "c → v" not in final
     # Every scored candidate is listed, marked by whether it was ranked.
     assert "<td>a → v</td><td>1.0</td><td>9.50</td>" in scoring
@@ -2800,7 +2800,7 @@ def test_a_judge_that_ranked_only_part_of_the_shortlist_renders_a_dash():
 
     html = TranslationBenchmarkAdmin(TranslationBenchmark, mock.Mock()).report(run)
 
-    assert "<td>b → v</td><td>2.0</td><td>0</td><td>—</td><td>#2</td><td>—</td>" in html
+    assert "<td>b → v</td><td>2.0</td><td>#2</td><td>—</td>" in html
 
 
 @pytest.mark.django_db

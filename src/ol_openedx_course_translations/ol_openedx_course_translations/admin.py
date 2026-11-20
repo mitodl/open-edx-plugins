@@ -83,23 +83,20 @@ def _verdict(comparative_rows, votes, ranking_judges):
     )
 
 
-def _final_ranking(comparative_rows, votes):
+def _final_ranking(comparative_rows):
     """Render the comparative pass in the verdict's order."""
     judges = sorted({judge for row in comparative_rows for judge in row.positions})
     return format_html(
         "<h3>Final ranking</h3><p>The judges compared these side by side. "
         "Row 1 wins unless tied for first. Each judge column is the place "
-        "it gave; a judge with no single first place casts no 1st vote.</p>{}",
+        "it gave.</p>{}",
         _table(
-            ("#", "Candidate", "Avg place", "1st votes", "Judges disagree by", *judges),
+            ("#", "Candidate", "Avg place", *judges),
             (
                 (
                     index,
                     row.candidate,
                     f"{row.mean_rank:.1f}",
-                    votes.get(row.candidate, 0),
-                    # One judge can't disagree with itself.
-                    f"{row.spread:.0f} place(s)" if row.judges > 1 else "—",
                     *(
                         f"#{row.positions[judge]:.0f}"
                         if judge in row.positions
@@ -313,7 +310,7 @@ class TranslationBenchmarkAdmin(admin.ModelAdmin):
         votes = rank_one_votes(ranks_by_judge)
         sections = [_verdict(comparative_rows, votes, len(ranks_by_judge))]
         if comparative_rows:
-            sections.append(_final_ranking(comparative_rows, votes))
+            sections.append(_final_ranking(comparative_rows))
         if scoring_rows:
             ranked = {row.candidate for row in comparative_rows}
             sections.append(
