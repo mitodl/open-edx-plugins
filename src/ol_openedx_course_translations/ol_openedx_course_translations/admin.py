@@ -69,11 +69,13 @@ def _verdict(comparative_rows, votes, ranking_judges):
     """State the comparative pass's winner, or why there is none, in a sentence."""
     winner, reason = pick_comparative_winner(comparative_rows)
     if winner is None:
+        # The shared reason names the statistic; this page calls it avg place.
+        reason = reason.replace("mean comparative rank", "the best average place")
         return format_html("<p><b>No clear winner:</b> {}.</p>", reason)
     return format_html(
         "<p><b>Winner: {}</b><br>The judges ranked the candidates side by side. "
-        "It had the best average place ({}), and {} of {} judge(s) ranked it "
-        "alone in first.</p>",
+        "It had the best average place ({}), and {} of {} ranking judge(s) "
+        "ranked it alone in first.</p>",
         winner,
         f"{comparative_rows[0].mean_rank:.1f}",
         votes.get(winner, 0),
@@ -96,7 +98,8 @@ def _final_ranking(comparative_rows, votes):
                     row.candidate,
                     f"{row.mean_rank:.1f}",
                     votes.get(row.candidate, 0),
-                    f"{row.spread:.0f} place(s)",
+                    # One judge can't disagree with itself.
+                    f"{row.spread:.0f} place(s)" if row.judges > 1 else "—",
                     *(
                         f"#{row.positions[judge]:.0f}"
                         if judge in row.positions
@@ -231,7 +234,14 @@ class TranslationBenchmarkAdmin(admin.ModelAdmin):
     fieldsets = (
         (
             "Summary",
-            {"fields": ("target_language", "benchmark_block_id", "completed_at")},
+            {
+                "fields": (
+                    "target_language",
+                    "benchmark_block_id",
+                    "completed_at",
+                    "excluded_judges",
+                )
+            },
         ),
         ("Results", {"fields": ("report",)}),
         (
@@ -242,7 +252,6 @@ class TranslationBenchmarkAdmin(admin.ModelAdmin):
                     "comparative_only",
                     "translators_arg",
                     "judges_arg",
-                    "excluded_judges",
                     "created_at",
                     "updated_at",
                 ),
