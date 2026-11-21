@@ -18,6 +18,7 @@ from litellm import BadRequestError, RateLimitError, completion
 from litellm.utils import UnsupportedParamsError
 from openai import APIError
 
+from ol_openedx_course_translations.utils.constants import ANSWER_PLACEHOLDER
 from ol_openedx_course_translations.utils.quality_report import Rating
 
 from .base import TranslationProvider
@@ -490,6 +491,8 @@ class LLMProvider(TranslationProvider):
             "2. Maintain the original formatting, spacing, line breaks, and indentation.\n"
             "3. Keep proper nouns, brand names, acronyms, and product names unchanged.\n"
             "4. Do NOT include explanations, notes, or commentary.\n"
+            f"5. Keep placeholders like {ANSWER_PLACEHOLDER.format(0)} exactly as "
+            "they are, where they fit in the translated sentence.\n"
         )
 
         if glossary_directory:
@@ -785,6 +788,8 @@ class LLMProvider(TranslationProvider):
             "2. Do not add extra IDs.\n"
             "3. Output only the translations (no explanations).\n"
             "4. Preserve whitespace inside each string as much as possible.\n"
+            f"5. Keep placeholders like {ANSWER_PLACEHOLDER.format(0)} exactly as "
+            "they are, where they fit in the translated sentence.\n"
         )
         if glossary_directory:
             glossary_terms = load_glossary(target_language, glossary_directory)

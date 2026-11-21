@@ -14,6 +14,7 @@ from pathlib import Path
 from celery import group
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from django.db import DatabaseError
 from opaque_keys import InvalidKeyError
 from opaque_keys.edx.locator import CourseLocator
 from xmodule.contentstore.django import contentstore
@@ -211,6 +212,12 @@ class Command(BaseCommand):
             action="store_true",
             help=("Keep failed translation files instead of deleting them."),
         )
+        parser.add_argument(
+            "--yes",
+            dest="yes",
+            action="store_true",
+            help="Skip the confirmation prompt, for runs with no one to answer it.",
+        )
 
     def handle(self, **options) -> None:  # noqa: PLR0915, PLR0912, C901
         """Handle the translate_course command."""
@@ -224,7 +231,9 @@ class Command(BaseCommand):
                 options["target_course_id"], TARGET_COURSE_ID_ARG
             )
 
-            if not self.confirm(source_course_key, target_course_key):
+            if not options["yes"] and not self.confirm(
+                source_course_key, target_course_key
+            ):
                 self.stdout.write(self.style.WARNING("Operation cancelled."))
                 return
             self.stdout.write("Proceeding...")
@@ -366,14 +375,8 @@ class Command(BaseCommand):
             )
             self.stdout.write(self.style.SUCCESS(total_time_taken_msg))
             command_stats.append(total_time_taken_msg)
-
-            # Add translation log entry
-            self._add_translation_log_entry(
-                source_language=source_language,
-                target_language=target_language,
-                command_stats=command_stats,
-                source_course_id=source_course_key,
-            )
+            # The log has no target course column, so its stats name it
+            command_stats.append(f"Target course: {target_course_key}")
 
             # Write translations metadata into the translated course output
             self._write_translations_meta_file(
@@ -387,6 +390,26 @@ class Command(BaseCommand):
 
             # Import translated content into the target course, creating it if needed
             self._import_translated_course(translated_course_dir, target_course_key)
+
+            # Logged only once the import succeeds, so a row means a translated
+            # course. The course is in place by now, so a failed write must not
+            # report the run as failed and invite a second translation.
+            try:
+                self._add_translation_log_entry(
+                    source_language=source_language,
+                    target_language=target_language,
+                    command_stats=command_stats,
+                    source_course_id=source_course_key,
+                )
+            except DatabaseError:
+                logger.exception(
+                    "Course imported, but the translation log write failed"
+                )
+                self.stdout.write(
+                    self.style.WARNING(
+                        "Course imported, but the translation log write failed."
+                    )
+                )
 
             # Clean up the translated working directory
             if self.translated_course_dir and self.translated_course_dir.exists():

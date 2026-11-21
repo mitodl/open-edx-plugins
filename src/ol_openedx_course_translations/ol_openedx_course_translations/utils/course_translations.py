@@ -10,9 +10,10 @@ or attribute names
 import json
 import logging
 import re
+import shlex
 import shutil
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from xml.etree.ElementTree import Element
 
@@ -31,6 +32,7 @@ from ol_openedx_course_translations.providers.llm_providers import (
     OpenAIProvider,
 )
 from ol_openedx_course_translations.utils.constants import (
+    ANSWER_PLACEHOLDER,
     NEVER_TRANSLATE_ATTRS,
     PROVIDER_ANTHROPIC,
     PROVIDER_AZURE,
@@ -602,11 +604,15 @@ class _TranslationUnitRef:
       - "text": element.text
       - "tail": element.tail
       - "attr": element.attrib[attr_name]
+
+    protected: the expected answers swapped for placeholders in this unit, in
+    placeholder order
     """
 
     kind: str
     xpath: str
     attr_name: str | None = None
+    protected: tuple[str, ...] = ()
 
 
 class HtmlXmlTranslationHelper:
@@ -622,6 +628,10 @@ class HtmlXmlTranslationHelper:
       * Translate `options` and `correct` attribute VALUES ONLY on <optioninput>
       * Never translate `correct` elsewhere
       * Never adds `display_name` (only translates it if present)
+      * Keeps a problem's expected answers (customresponse `expect`, non-regexp
+        stringresponse `answer` and `additional_answer`) untranslated wherever its
+        text quotes them, so "Type yes" never becomes "Tapez oui" while the
+        grader still wants "yes"
 
     Limitations:
     - HTML parsing with lxml may normalize malformed HTML; prefer XML/XHTML
@@ -629,8 +639,25 @@ class HtmlXmlTranslationHelper:
     - For HTML fragments, serialization attempts to return the <body> inner HTML.
     """
 
-    # Tags whose text content should not be translated (non-user-visible)
-    _SKIP_TEXT_TAGS = {"script", "style"}
+    # Tags whose text content should not be translated (non-user-visible).
+    # answer holds a problem's Python grader and grader_payload its external
+    # grader's config, so translating either can break grading.
+    _SKIP_TEXT_TAGS = {"script", "style", "answer", "grader_payload"}
+    # Answers the platform compares a learner's input against. A regexp
+    # stringresponse answer is a pattern, not text a learner types.
+    # shortcut: an answer that only appears inside an <answer> grader's Python
+    # (no expect attribute) isn't found; parse the grader if courses rely on it.
+    _EXPECTED_ANSWERS_XPATH = (
+        "//customresponse/@expect"
+        " | //stringresponse[not(contains(@type, 'regexp'))]/@answer"
+        " | //stringresponse[not(contains(@type, 'regexp'))]/additional_answer/@answer"
+        # Pre-2015 OLX puts it in the text; capa copies that to @answer on load
+        " | //stringresponse[not(contains(@type, 'regexp'))]"
+        "/additional_answer[not(@answer) or @answer='']/text()"
+    )
+    # Old OLX lists several answers in one, e.g. answer="yes_or_no"
+    _ANSWER_SEPARATOR = "_or_"
+    _MIN_PROTECTED_ANSWER_LENGTH = 2
 
     def __init__(self, *, is_xml: bool):
         self.is_xml = is_xml
@@ -712,6 +739,108 @@ class HtmlXmlTranslationHelper:
             return True
         return False
 
+    def _expected_answer_pattern(self, root: etree._Element) -> re.Pattern | None:
+        """
+        Match the problem's expected answers as whole words, longest first so
+        "York City" wins over "York". None when it has none. Answers shorter than
+        two characters are left out, as they would match ordinary words like "a".
+        """
+        stripped = (
+            answer.strip()
+            for raw in root.xpath(self._EXPECTED_ANSWERS_XPATH)
+            for answer in raw.split(self._ANSWER_SEPARATOR)
+        )
+        answers = {
+            answer
+            for answer in stripped
+            if len(answer) >= self._MIN_PROTECTED_ANSWER_LENGTH
+        }
+        if not answers:
+            return None
+        alternatives = "|".join(
+            re.escape(answer) for answer in sorted(answers, key=len, reverse=True)
+        )
+        return re.compile(rf"(?<!\w)(?:{alternatives})(?!\w)", re.IGNORECASE)
+
+    @staticmethod
+    def _restore_answers(translated: str, protected: tuple[str, ...]) -> str | None:
+        """Put the protected answers back, or None if the LLM dropped a placeholder."""
+        for index, answer in enumerate(protected):
+            placeholder = ANSWER_PLACEHOLDER.format(index)
+            if placeholder not in translated:
+                return None
+            translated = translated.replace(placeholder, answer)
+        return translated
+
+    def locked_shape(self, raw: str) -> list:
+        """
+        Everything in the markup that translation must not change: each element's
+        tag, its attribute names, the values of attributes that aren't translated,
+        the content of elements whose text isn't translated, which dropdown
+        option is the correct one, and how often the
+        problem's expected answers appear in its text. When an answer is also a
+        common word in the target language ("no" in Spanish), a validator fix
+        that drops one use of it is rejected too; the first translation is kept.
+        """
+        try:
+            root = self.parse(raw)
+        except AttributeError:
+            # Inside the platform, defuse_xml_libs() makes an element-free HTML
+            # document raise here where bare lxml returns None
+            root = None
+        if root is None:
+            return []
+        answer_pattern = self._expected_answer_pattern(root)
+        answers = []
+        if answer_pattern:
+            # Answers can be quoted in translatable attributes like label too
+            visible = [
+                *root.itertext(),
+                *(
+                    value
+                    for el in self._iter_elements(root)
+                    for name, value in el.attrib.items()
+                    if self._is_translatable_attr(el, name)
+                ),
+            ]
+            answers = sorted(
+                found.casefold() for found in answer_pattern.findall(" ".join(visible))
+            )
+        return [answers] + [
+            (
+                el.tag,
+                # Whole content, so code after a comment inside <script> counts too
+                None
+                if self._should_translate_text_in_element(el)
+                else etree.tostring(el, encoding="unicode", with_tail=False),
+                sorted(
+                    (name, None if self._is_translatable_attr(el, name) else value)
+                    for name, value in el.attrib.items()
+                ),
+                self._correct_option_index(el),
+            )
+            for el in self._iter_elements(root)
+        ]
+
+    @staticmethod
+    def _correct_option_index(el: etree._Element) -> int | None:
+        """Which dropdown option is graded correct, -1 if none of them is."""
+        if (el.tag or "").lower() != "optioninput":
+            return None
+        # Same parsing as capa's OptionInput.parse_options
+        options = el.get("options", "")
+        options = re.sub(r"([a-zA-Z])('|\\')([a-zA-Z])", r"\1&#39;\3", options)
+        options = re.sub(r"\\'", r"&#39;", options)
+        lexer = shlex.shlex(options[1:-1])
+        lexer.quotes = "'"
+        lexer.whitespace = ", "
+        try:
+            tokens = [token[1:-1].replace("&#39;", "'") for token in lexer]
+        except ValueError:
+            return -1
+        correct = el.get("correct", "")
+        return tokens.index(correct) if correct in tokens else -1
+
     def extract_units(  # noqa: C901
         self, raw: str
     ) -> tuple[etree._Element, list[str], list[_TranslationUnitRef]]:
@@ -728,6 +857,7 @@ class HtmlXmlTranslationHelper:
 
         units: list[str] = []
         refs: list[_TranslationUnitRef] = []
+        answer_pattern = self._expected_answer_pattern(root)
 
         def add_unit(text: str, ref: _TranslationUnitRef) -> None:
             if text is None:
@@ -737,19 +867,27 @@ class HtmlXmlTranslationHelper:
                 return
             if self._looks_like_nontranslatable(core):
                 return
+            protected: list[str] = []
+            if answer_pattern:
+
+                def to_placeholder(match: re.Match) -> str:
+                    protected.append(match.group(0))
+                    return ANSWER_PLACEHOLDER.format(len(protected) - 1)
+
+                core = answer_pattern.sub(to_placeholder, core)
             # Store only core; outer whitespace is preserved on reinsertion
             units.append(core)
-            refs.append(ref)
+            refs.append(replace(ref, protected=tuple(protected)))
 
         tree = root.getroottree()
 
         for el in self._iter_elements(root):
-            # Text node
-            if self._should_translate_text_in_element(el):
-                if el.text:
-                    add_unit(el.text, _TranslationUnitRef("text", tree.getpath(el)))
-                if el.tail:
-                    add_unit(el.tail, _TranslationUnitRef("tail", tree.getpath(el)))
+            # Text node. A tail is the parent's text after this element closes,
+            # so it is translated even when this element's own text is skipped.
+            if el.text and self._should_translate_text_in_element(el):
+                add_unit(el.text, _TranslationUnitRef("text", tree.getpath(el)))
+            if el.tail:
+                add_unit(el.tail, _TranslationUnitRef("tail", tree.getpath(el)))
 
             # Attribute values
             for attr_name, attr_val in list(el.attrib.items()):
@@ -785,11 +923,23 @@ class HtmlXmlTranslationHelper:
             raise ValueError("Translation unit count mismatch")  # noqa: TRY003, EM101
 
         tree = root.getroottree()
-        for ref, translated_core in zip(refs, translated_units, strict=True):
+        for ref, translated_unit in zip(refs, translated_units, strict=True):
             nodes = tree.xpath(ref.xpath)
             if not nodes:
                 continue
             el = nodes[0]
+
+            translated_core = self._restore_answers(translated_unit, ref.protected)
+            if translated_core is None:
+                # Keeping the source text keeps the answer the grader expects
+                logger.warning(
+                    "Translation dropped expected answer(s) %r at %s; keeping "
+                    "the source text. LLM output: %r",
+                    ref.protected,
+                    ref.xpath,
+                    translated_unit[:200],
+                )
+                continue
 
             if ref.kind == "text":
                 orig = el.text or ""
@@ -845,6 +995,18 @@ class HtmlXmlTranslationHelper:
             encoding="unicode",
             method="xml" if self.is_xml else "html",
         )
+
+
+def keeps_markup_structure(source: str, candidate: str, *, is_xml: bool) -> bool:
+    """
+    Whether candidate differs from source only in text that translation may
+    change, so a validation pass can't drop an element or rewrite grading code.
+    """
+    helper = HtmlXmlTranslationHelper(is_xml=is_xml)
+    try:
+        return helper.locked_shape(source) == helper.locked_shape(candidate)
+    except (etree.LxmlError, ValueError):
+        return False
 
 
 def parse_glossary_text(glossary_text: str) -> dict[str, str]:

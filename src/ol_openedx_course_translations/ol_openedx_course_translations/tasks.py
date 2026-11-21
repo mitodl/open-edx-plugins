@@ -35,6 +35,7 @@ from ol_openedx_course_translations.utils.course_translations import (
     apply_format_attribute_mapping,
     get_srt_output_filename,
     get_translation_provider,
+    keeps_markup_structure,
     looks_like_markup,
     translate_policy_fields,
     update_video_xml_complete,
@@ -252,11 +253,16 @@ def translate_file_task(  # noqa: PLR0913, PLR0917, PLR0912, C901
 
             if validated_content is None:
                 pass
-            elif looks_like_markup(validated_content):
+            elif looks_like_markup(validated_content) and keeps_markup_structure(
+                translated_content,
+                validated_content,
+                is_xml=file_path.suffix == ".xml",
+            ):
                 translated_content = validated_content
             else:
                 msg = (
-                    "XML/HTML validation provider returned non-markup output for %s; "
+                    "XML/HTML validation provider returned output that is not "
+                    "markup or changes more than translatable text for %s; "
                     "keeping original translation. Response snippet: %r"
                 )
                 logger.warning(
