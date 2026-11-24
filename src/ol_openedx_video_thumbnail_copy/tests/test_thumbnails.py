@@ -41,7 +41,9 @@ def make_image(course_id, edx_video_id, name):
 def test_copies_missing_image_under_same_key(storage):
     """A thumbnail missing locally is downloaded and saved under its key."""
     make_image(str(COURSE), "vid-1", "video-images/a.png")
-    responses.get(BASE + "video-images/a.png", body=b"PNGDATA")
+    responses.get(
+        BASE + "video-images/a.png", body=b"PNGDATA", content_type="image/png"
+    )
 
     result = copy_course_thumbnails(COURSE, BASE)
 
@@ -80,7 +82,7 @@ def test_source_failure_is_missing_and_others_still_copy(storage, failure):
     make_image(str(COURSE), "vid-1", "video-images/bad.png")
     make_image(str(COURSE), "vid-2", "video-images/ok.png")
     responses.get(BASE + "video-images/bad.png", **failure)
-    responses.get(BASE + "video-images/ok.png", body=b"OK")
+    responses.get(BASE + "video-images/ok.png", body=b"OK", content_type="image/png")
 
     result = copy_course_thumbnails(COURSE, BASE)
 
@@ -96,7 +98,7 @@ def test_shared_key_copied_once():
     """Videos sharing one image key (course reruns) cause a single copy."""
     make_image(str(COURSE), "vid-1", "video-images/a.png")
     make_image(str(COURSE), "vid-2", "video-images/a.png")
-    responses.get(BASE + "video-images/a.png", body=b"X")
+    responses.get(BASE + "video-images/a.png", body=b"X", content_type="image/png")
 
     result = copy_course_thumbnails(COURSE, BASE)
 
@@ -158,7 +160,7 @@ def test_build_source_url(base):
 def test_renamed_save_is_removed_and_reported_missing(storage, mocker):
     """If storage saves under another name, the stray file is removed."""
     make_image(str(COURSE), "vid-1", "video-images/a.png")
-    responses.get(BASE + "video-images/a.png", body=b"X")
+    responses.get(BASE + "video-images/a.png", body=b"X", content_type="image/png")
     storage.save("video-images/a_renamed.png", ContentFile(b"X"))
     mocker.patch.object(storage, "save", return_value="video-images/a_renamed.png")
 
@@ -167,3 +169,18 @@ def test_renamed_save_is_removed_and_reported_missing(storage, mocker):
     assert result.missing == ["video-images/a.png"]
     assert result.copied == []
     assert not storage.exists("video-images/a_renamed.png")
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_non_image_response_is_missing_and_not_saved(storage):
+    """A 200 that isn't an image (e.g. a wrong base URL) is not stored."""
+    make_image(str(COURSE), "vid-1", "video-images/a.png")
+    responses.get(
+        BASE + "video-images/a.png", body="<html></html>", content_type="text/html"
+    )
+
+    result = copy_course_thumbnails(COURSE, BASE)
+
+    assert result.missing == ["video-images/a.png"]
+    assert not storage.exists("video-images/a.png")

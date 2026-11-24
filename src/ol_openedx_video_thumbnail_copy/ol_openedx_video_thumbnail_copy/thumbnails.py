@@ -49,6 +49,13 @@ def _download(url: str) -> bytes | None:
             "Could not fetch video thumbnail %s: HTTP %s", url, response.status_code
         )
         return None
+    content_type = response.headers.get("Content-Type", "")
+    if not content_type.startswith("image/"):
+        # Usually a wrong base URL. Saving it would stick: existing keys are skipped.
+        log.warning(
+            "Not saving video thumbnail %s: Content-Type is %r", url, content_type
+        )
+        return None
     return response.content
 
 

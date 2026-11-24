@@ -60,7 +60,8 @@ For each thumbnail key of the course:
 
 * already present in local storage: skipped, never overwritten;
 * missing: downloaded from ``<source base URL><key>`` and saved under the same key;
-* download fails (404, server error, timeout): reported as missing.
+* download fails (404, server error, timeout) or the response isn't an
+  image (usually a wrong base URL): reported as missing, nothing saved.
 
 The command prints the copied, skipped and missing counts, then each missing
 key. It is safe to run again, for example after a re-import.
