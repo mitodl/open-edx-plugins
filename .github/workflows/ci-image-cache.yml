@@ -94,4 +94,6 @@ jobs:
       run: |
         set -euo pipefail
         docker tag "$LOCAL_IMAGE" "$CACHE_IMAGE"
-        docker push "$CACHE_IMAGE"
+        # Docker 29 pushes an index whose untagged child manifests
+        # ghcr-cleanup.yml then deletes; --platform pushes one plain manifest.
+        docker push --platform linux/amd64 "$CACHE_IMAGE"
