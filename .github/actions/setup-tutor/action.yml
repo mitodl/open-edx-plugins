@@ -90,6 +90,9 @@ runs:
       # from git main instead pins its own upcoming release branch, not
       # edx-platform master, so pin that leg or the image's baked dependencies
       # drift from the mounted code. Also renders env/, read by the test step.
+      # Tutor enables indigo and mfe by default but pip installs neither, and
+      # since overhangio/tutor#1377 a missing enabled plugin fails the build.
+      tutor plugins disable indigo mfe
       if [[ "$tutor_from_main" == true ]]; then
         tutor config save --set OPENEDX_COMMON_VERSION="$EDX_BRANCH"
       else
