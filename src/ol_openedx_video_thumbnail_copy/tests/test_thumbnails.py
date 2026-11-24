@@ -3,6 +3,7 @@
 import pytest
 import requests
 import responses
+from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.base import ContentFile
 from django.core.files.storage import InMemoryStorage
 from edxval.models import CourseVideo, Video, VideoImage
@@ -184,3 +185,25 @@ def test_non_image_response_is_missing_and_not_saved(storage):
 
     assert result.missing == ["video-images/a.png"]
     assert not storage.exists("video-images/a.png")
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_storage_error_on_one_key_does_not_stop_the_rest(storage, mocker):
+    """A storage error (e.g. a traversal key from OLX) only affects that key."""
+    make_image(str(COURSE), "vid-1", "video-images/../../x.png")
+    make_image(str(COURSE), "vid-2", "video-images/ok.png")
+    responses.get(BASE + "video-images/ok.png", body=b"OK", content_type="image/png")
+    real_exists = storage.exists
+
+    def exists(name):
+        if ".." in name:
+            raise SuspiciousFileOperation(name)
+        return real_exists(name)
+
+    mocker.patch.object(storage, "exists", side_effect=exists)
+
+    result = copy_course_thumbnails(COURSE, BASE)
+
+    assert result.missing == ["video-images/../../x.png"]
+    assert result.copied == ["video-images/ok.png"]

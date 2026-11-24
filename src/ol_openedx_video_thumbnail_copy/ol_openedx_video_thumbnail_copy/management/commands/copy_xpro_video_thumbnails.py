@@ -71,6 +71,11 @@ class Command(BaseCommand):
             course_key, source_base_url, dry_run=options["dry_run"]
         )
 
+        if not (result.copied or result.skipped or result.missing):
+            self.stdout.write(
+                f"No video thumbnails found for {course_key}. "
+                "Check that this is the course ID on this instance."
+            )
         prefix = "[dry run] " if options["dry_run"] else ""
         self.stdout.write(f"{prefix}Copied: {len(result.copied)}")
         self.stdout.write(f"{prefix}Skipped: {len(result.skipped)}")

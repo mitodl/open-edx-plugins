@@ -102,3 +102,29 @@ def test_dry_run_output_is_labelled(mock_copy):
     call_command(COMMAND, COURSE_ID, "--dry-run", stdout=out)
 
     assert "[dry run] Copied: 1" in out.getvalue()
+
+
+@override_settings(
+    OL_VIDEO_THUMBNAIL_COPY_SOURCE_BASE_URL="https://from-setting/media/"
+)
+def test_warns_when_course_has_no_thumbnails(mock_copy):
+    """An unknown or wrong course key doesn't look like a successful run."""
+    mock_copy.return_value = CopyResult()
+    out = StringIO()
+
+    call_command(COMMAND, COURSE_ID, stdout=out)
+
+    assert "No video thumbnails found for course-v1:xPRO+T1+R1" in out.getvalue()
+
+
+@override_settings(
+    OL_VIDEO_THUMBNAIL_COPY_SOURCE_BASE_URL="https://from-setting/media/"
+)
+def test_no_warning_when_thumbnails_found(mock_copy):
+    """The warning only shows when the course had no thumbnails at all."""
+    mock_copy.return_value = CopyResult(skipped=["video-images/a.png"])
+    out = StringIO()
+
+    call_command(COMMAND, COURSE_ID, stdout=out)
+
+    assert "No video thumbnails found" not in out.getvalue()

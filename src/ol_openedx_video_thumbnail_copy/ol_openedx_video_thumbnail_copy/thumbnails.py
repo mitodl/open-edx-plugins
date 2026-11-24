@@ -59,6 +59,24 @@ def _download(url: str) -> bytes | None:
     return response.content
 
 
+def _copy_one(storage, key: str, source_base_url: str, *, dry_run: bool) -> str:
+    """Copy one thumbnail; return "copied", "skipped" or "missing"."""
+    if storage.exists(key):
+        return "skipped"
+    if dry_run:
+        return "copied"
+    content = _download(build_source_url(source_base_url, key))
+    if content is None:
+        return "missing"
+    saved = storage.save(key, ContentFile(content))
+    if saved != key:
+        # Storage renamed the file, so the VideoImage row wouldn't find it.
+        log.error("Video thumbnail %s was saved as %s; removing it", key, saved)
+        storage.delete(saved)
+        return "missing"
+    return "copied"
+
+
 def copy_course_thumbnails(
     course_key: CourseKey, source_base_url: str, *, dry_run: bool = False
 ) -> CopyResult:
@@ -67,26 +85,17 @@ def copy_course_thumbnails(
 
     Course import leaves each ``VideoImage`` pointing at the key the image had
     on the source instance. Keys already present locally are never touched.
+    A key that fails (download or storage error) is reported as missing and
+    doesn't stop the others.
     """
     storage = get_video_image_storage()
     result = CopyResult()
     for key in _course_image_keys(course_key):
-        if storage.exists(key):
-            result.skipped.append(key)
-            continue
-        if dry_run:
-            result.copied.append(key)
-            continue
-        content = _download(build_source_url(source_base_url, key))
-        if content is None:
-            result.missing.append(key)
-            continue
-        saved = storage.save(key, ContentFile(content))
-        if saved != key:
-            # Storage renamed the file, so the VideoImage row wouldn't find it.
-            log.error("Video thumbnail %s was saved as %s; removing it", key, saved)
-            storage.delete(saved)
-            result.missing.append(key)
-            continue
-        result.copied.append(key)
+        try:
+            outcome = _copy_one(storage, key, source_base_url, dry_run=dry_run)
+        except Exception:
+            # e.g. SuspiciousFileOperation for a "../" key from course OLX, or S3 errors
+            log.exception("Could not copy video thumbnail %s", key)
+            outcome = "missing"
+        getattr(result, outcome).append(key)
     return result
