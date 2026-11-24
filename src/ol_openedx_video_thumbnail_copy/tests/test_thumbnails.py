@@ -1,0 +1,169 @@
+"""Tests for copying a course's video thumbnails from the source storage."""
+
+import pytest
+import requests
+import responses
+from django.core.files.base import ContentFile
+from django.core.files.storage import InMemoryStorage
+from edxval.models import CourseVideo, Video, VideoImage
+from ol_openedx_video_thumbnail_copy.thumbnails import (
+    CopyResult,
+    build_source_url,
+    copy_course_thumbnails,
+)
+from opaque_keys.edx.keys import CourseKey
+
+BASE = "https://xpro-qa-edxapp-storage.s3.amazonaws.com/media/"
+COURSE = CourseKey.from_string("course-v1:xPRO+T1+R1")
+OTHER_COURSE = "course-v1:xPRO+OTHER+R1"
+
+
+@pytest.fixture
+def storage(mocker):
+    """Swap edx-val's image storage for an in-memory one."""
+    in_memory = InMemoryStorage()
+    mocker.patch(
+        "ol_openedx_video_thumbnail_copy.thumbnails.get_video_image_storage",
+        return_value=in_memory,
+    )
+    return in_memory
+
+
+def make_image(course_id, edx_video_id, name):
+    """Create the edx-val rows a course import leaves behind for one video."""
+    video = Video.objects.create(edx_video_id=edx_video_id, status="upload", duration=0)
+    course_video = CourseVideo.objects.create(video=video, course_id=course_id)
+    VideoImage.create_or_update(course_video, file_name=name)
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_copies_missing_image_under_same_key(storage):
+    """A thumbnail missing locally is downloaded and saved under its key."""
+    make_image(str(COURSE), "vid-1", "video-images/a.png")
+    responses.get(BASE + "video-images/a.png", body=b"PNGDATA")
+
+    result = copy_course_thumbnails(COURSE, BASE)
+
+    assert result.copied == ["video-images/a.png"]
+    assert storage.open("video-images/a.png").read() == b"PNGDATA"
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_skips_existing_without_request(storage):
+    """A thumbnail already in local storage is left alone and not fetched."""
+    make_image(str(COURSE), "vid-1", "video-images/a.png")
+    storage.save("video-images/a.png", ContentFile(b"LEARN"))
+
+    result = copy_course_thumbnails(COURSE, BASE)
+
+    assert result.skipped == ["video-images/a.png"]
+    assert result.copied == []
+    assert len(responses.calls) == 0
+    assert storage.open("video-images/a.png").read() == b"LEARN"
+
+
+@pytest.mark.django_db
+@responses.activate
+@pytest.mark.parametrize(
+    "failure",
+    [
+        {"status": 404},
+        {"status": 500},
+        {"body": requests.ConnectionError()},
+        {"body": requests.Timeout()},
+    ],
+)
+def test_source_failure_is_missing_and_others_still_copy(storage, failure):
+    """A failed download is reported as missing and does not stop the rest."""
+    make_image(str(COURSE), "vid-1", "video-images/bad.png")
+    make_image(str(COURSE), "vid-2", "video-images/ok.png")
+    responses.get(BASE + "video-images/bad.png", **failure)
+    responses.get(BASE + "video-images/ok.png", body=b"OK")
+
+    result = copy_course_thumbnails(COURSE, BASE)
+
+    assert result.missing == ["video-images/bad.png"]
+    assert result.copied == ["video-images/ok.png"]
+    assert not storage.exists("video-images/bad.png")
+
+
+@pytest.mark.django_db
+@responses.activate
+@pytest.mark.usefixtures("storage")
+def test_shared_key_copied_once():
+    """Videos sharing one image key (course reruns) cause a single copy."""
+    make_image(str(COURSE), "vid-1", "video-images/a.png")
+    make_image(str(COURSE), "vid-2", "video-images/a.png")
+    responses.get(BASE + "video-images/a.png", body=b"X")
+
+    result = copy_course_thumbnails(COURSE, BASE)
+
+    assert result.copied == ["video-images/a.png"]
+    assert len(responses.calls) == 1
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_only_requested_course(storage):
+    """Thumbnails of other courses are not touched."""
+    make_image(OTHER_COURSE, "vid-9", "video-images/z.png")
+
+    assert copy_course_thumbnails(COURSE, BASE) == CopyResult([], [], [])
+    assert not storage.exists("video-images/z.png")
+
+
+@pytest.mark.django_db
+@responses.activate
+@pytest.mark.usefixtures("storage")
+def test_course_without_videos():
+    """A course with no videos copies nothing."""
+    assert copy_course_thumbnails(COURSE, BASE) == CopyResult([], [], [])
+    assert len(responses.calls) == 0
+
+
+@pytest.mark.django_db
+@responses.activate
+@pytest.mark.usefixtures("storage")
+def test_blank_image_name_is_ignored():
+    """A video without a thumbnail key is ignored."""
+    make_image(str(COURSE), "vid-1", "")
+
+    assert copy_course_thumbnails(COURSE, BASE) == CopyResult([], [], [])
+    assert len(responses.calls) == 0
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_dry_run_downloads_nothing_writes_nothing(storage):
+    """A dry run reports what would be copied without fetching or saving."""
+    make_image(str(COURSE), "vid-1", "video-images/a.png")
+
+    result = copy_course_thumbnails(COURSE, BASE, dry_run=True)
+
+    assert result.copied == ["video-images/a.png"]
+    assert len(responses.calls) == 0
+    assert not storage.exists("video-images/a.png")
+
+
+@pytest.mark.parametrize("base", [BASE, BASE.rstrip("/")])
+def test_build_source_url(base):
+    """The base URL joins the key with exactly one slash."""
+    assert build_source_url(base, "video-images/a.png") == (BASE + "video-images/a.png")
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_renamed_save_is_removed_and_reported_missing(storage, mocker):
+    """If storage saves under another name, the stray file is removed."""
+    make_image(str(COURSE), "vid-1", "video-images/a.png")
+    responses.get(BASE + "video-images/a.png", body=b"X")
+    storage.save("video-images/a_renamed.png", ContentFile(b"X"))
+    mocker.patch.object(storage, "save", return_value="video-images/a_renamed.png")
+
+    result = copy_course_thumbnails(COURSE, BASE)
+
+    assert result.missing == ["video-images/a.png"]
+    assert result.copied == []
+    assert not storage.exists("video-images/a_renamed.png")
