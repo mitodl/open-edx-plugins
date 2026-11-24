@@ -2811,7 +2811,7 @@ requires-dist = [
 
 [[package]]
 name = "ol-openedx-sentry"
-version = "0.6.1"
+version = "0.6.2"
 source = { editable = "src/ol_openedx_sentry" }
 dependencies = [
     { name = "certifi" },
@@ -2823,7 +2823,7 @@ dependencies = [
 requires-dist = [
     { name = "certifi", specifier = ">=2026.10.19" },
     { name = "django", specifier = ">=5.2" },
-    { name = "sentry-sdk", specifier = ">=2.55.0" },
+    { name = "sentry-sdk", specifier = ">=2.55.0,<3" },
 ]
 
 [[package]]
