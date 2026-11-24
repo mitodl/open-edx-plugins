@@ -36,6 +36,7 @@ include = [
 [tool.hatch.build.targets.sdist]
 include = [
   "ol_openedx_sentry/**/*",
+  "CHANGELOG.rst",
   "README.rst",
   "pyproject.toml",
 ]
