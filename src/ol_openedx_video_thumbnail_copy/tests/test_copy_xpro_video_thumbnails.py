@@ -89,6 +89,7 @@ def test_prints_counts_and_missing_keys(mock_copy):
     assert "Missing: 1" in output
     assert "video-images/m.png" in output
     assert "[dry run]" not in output
+    assert "would copy" not in output
 
 
 @override_settings(
@@ -102,6 +103,25 @@ def test_dry_run_output_is_labelled(mock_copy):
     call_command(COMMAND, COURSE_ID, "--dry-run", stdout=out)
 
     assert "[dry run] Copied: 1" in out.getvalue()
+
+
+@override_settings(
+    OL_VIDEO_THUMBNAIL_COPY_SOURCE_BASE_URL="https://from-setting/media/"
+)
+def test_dry_run_lists_each_key_it_would_copy(mock_copy):
+    """A dry run lists the planned writes so they can be checked first."""
+    mock_copy.return_value = CopyResult(
+        copied=["video-images/a.png", "video-images/b.png"],
+        skipped=["video-images/s.png"],
+    )
+    out = StringIO()
+
+    call_command(COMMAND, COURSE_ID, "--dry-run", stdout=out)
+
+    output = out.getvalue()
+    assert "  would copy: video-images/a.png" in output
+    assert "  would copy: video-images/b.png" in output
+    assert "would copy: video-images/s.png" not in output
 
 
 @override_settings(

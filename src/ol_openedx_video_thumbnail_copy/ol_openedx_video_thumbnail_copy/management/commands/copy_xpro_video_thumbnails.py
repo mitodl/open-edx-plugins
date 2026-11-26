@@ -80,5 +80,8 @@ class Command(BaseCommand):
         self.stdout.write(f"{prefix}Copied: {len(result.copied)}")
         self.stdout.write(f"{prefix}Skipped: {len(result.skipped)}")
         self.stdout.write(f"{prefix}Missing: {len(result.missing)}")
+        if options["dry_run"]:
+            for key in result.copied:
+                self.stdout.write(f"  would copy: {key}")
         for key in result.missing:
             self.stdout.write(f"  missing: {key}")

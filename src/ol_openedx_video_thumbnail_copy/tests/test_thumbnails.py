@@ -156,6 +156,35 @@ def test_build_source_url(base):
     assert build_source_url(base, "video-images/a.png") == (BASE + "video-images/a.png")
 
 
+@pytest.mark.parametrize(
+    ("key", "path"),
+    [
+        ("video-images/frame#1.png", "video-images/frame%231.png"),
+        ("video-images/a?b.png", "video-images/a%3Fb.png"),
+        ("video-images/50%25.png", "video-images/50%2525.png"),
+        ("video-images/a b.png", "video-images/a%20b.png"),
+    ],
+)
+def test_build_source_url_encodes_the_key(key, path):
+    """URL syntax in a key is escaped, so the URL names that exact object."""
+    assert build_source_url(BASE, key) == BASE + path
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_key_with_url_syntax_fetches_that_object(storage):
+    """A "#" in a key is part of the object name, not a URL fragment."""
+    make_image(str(COURSE), "vid-1", "video-images/frame#1.png")
+    responses.get(
+        BASE + "video-images/frame%231.png", body=b"PNG", content_type="image/png"
+    )
+
+    result = copy_course_thumbnails(COURSE, BASE)
+
+    assert result.copied == ["video-images/frame#1.png"]
+    assert storage.open("video-images/frame#1.png").read() == b"PNG"
+
+
 @pytest.mark.django_db
 @responses.activate
 def test_renamed_save_is_removed_and_reported_missing(storage, mocker):

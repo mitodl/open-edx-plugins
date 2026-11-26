@@ -3,6 +3,7 @@
 import logging
 from dataclasses import dataclass, field
 from http import HTTPStatus
+from urllib.parse import quote
 
 import requests
 from django.core.files.base import ContentFile
@@ -25,8 +26,13 @@ class CopyResult:
 
 
 def build_source_url(base_url: str, key: str) -> str:
-    """Join the source storage base URL and a thumbnail key with one slash."""
-    return f"{base_url.rstrip('/')}/{key.lstrip('/')}"
+    """
+    Join the source storage base URL and a thumbnail key with one slash.
+
+    The key is percent-encoded (keeping "/"), so "#", "?" or "%" in it stay
+    part of the object name instead of being read as URL syntax.
+    """
+    return f"{base_url.rstrip('/')}/{quote(key.lstrip('/'), safe='/')}"
 
 
 def _course_image_keys(course_key: CourseKey) -> list[str]:
