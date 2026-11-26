@@ -4,6 +4,7 @@ from statistics import fmean
 
 from django.contrib import admin
 from django.utils.html import format_html, format_html_join
+from django.utils.safestring import mark_safe
 
 from ol_openedx_course_translations.models import (
     CourseTranslationLog,
@@ -15,6 +16,19 @@ from ol_openedx_course_translations.utils.quality_report import (
     build_comparative_rows,
     build_rows,
     pick_comparative_winner,
+    rank_one_votes,
+)
+
+_HOW_IT_WORKS = mark_safe(
+    "<details><summary>How this works</summary><ol>"
+    "<li>Each translator → validator pair translated the block.</li>"
+    "<li>Each judge scored every translation on its own, 1-10 for accuracy, "
+    "fluency and terminology.</li>"
+    "<li>The candidates placed best across judges went to a shortlist.</li>"
+    "<li>Each judge ranked the shortlist side by side. The best average "
+    "place wins; a tie for it names no winner.</li>"
+    "</ol><p>A comparative-only run skips steps 2 and 3 and ranks every "
+    "candidate.</p></details>"
 )
 
 
@@ -23,36 +37,118 @@ def _criteria_values(score):
     Return a score row's three criteria in render order, or None unless
     all three are there.
 
-    All three or none is what the command writes, but the standings and the
-    inline both have to decide what a row with some of them is, and two
-    spellings of that question would let a hand-fixed row render on one and
-    vanish from the other.
+    The command writes all three or none; a hand-fixed row with some of them
+    counts as unscored.
     """
     values = (score.accuracy, score.fluency, score.terminology)
     return values if None not in values else None
 
 
 def _criteria(values):
-    """Render the three criteria joined by slashes, or an em dash."""
-    return "/".join(str(value) for value in values) if values else "—"
+    """Render the three criteria joined by slashes."""
+    return "/".join(str(value) for value in values)
 
 
-def _judge_cell(row, judge, ratings, ranks_by_judge):
-    """
-    One judge's view of one candidate: position, raw scores, and its rank.
+def _table(headers, rows):
+    """Render a plain HTML table; cells are escaped unless already safe."""
+    return format_html(
+        "<table><tr>{}</tr>{}</table>",
+        format_html_join("", "<th>{}</th>", ((header,) for header in headers)),
+        format_html_join(
+            "",
+            "<tr>{}</tr>",
+            (
+                (format_html_join("", "<td>{}</td>", ((cell,) for cell in row)),)
+                for row in rows
+            ),
+        ),
+    )
 
-    An em dash for the whole cell means this judge never placed the
-    candidate; an em dash in the scores slot means ``_criteria_values``
-    found nothing to show.
-    """
-    position = row.positions.get(judge)
-    if position is None:
-        # This judge was dropped, or never placed this arm.
-        return "—"
-    rank = ranks_by_judge.get(judge, {}).get(row.candidate)
-    scores = ratings.get((judge, row.candidate), "—")
-    cell = f"{position:.1f} · {scores}"
-    return cell if rank is None else f"{cell} · #{rank}"
+
+def _verdict(comparative_rows, votes, ranking_judges):
+    """State the comparative pass's winner, or why there is none, in a sentence."""
+    winner, reason = pick_comparative_winner(comparative_rows)
+    if winner is None:
+        if comparative_rows:
+            # Ranked rows with no winner can only mean a tie for first.
+            best = comparative_rows[0].mean_rank
+            reason = "the best average place is tied between " + ", ".join(
+                str(row.candidate) for row in comparative_rows if row.mean_rank == best
+            )
+        return format_html("<p><b>No clear winner:</b> {}.</p>", reason)
+    return format_html(
+        "<p><b>Winner: {}</b><br>The judges ranked the candidates side by side. "
+        "It had the best average place ({}), and {} of {} ranking {} ranked it "
+        "alone in first.</p>",
+        winner,
+        f"{comparative_rows[0].mean_rank:.1f}",
+        votes.get(winner, 0),
+        ranking_judges,
+        "judge" if ranking_judges == 1 else "judges",
+    )
+
+
+def _final_ranking(comparative_rows):
+    """Render the comparative pass in the verdict's order."""
+    judges = sorted({judge for row in comparative_rows for judge in row.positions})
+    return format_html(
+        "<h3>Final ranking</h3><p>The judges compared these side by side. "
+        "Row 1 wins unless tied for first. Each judge column is the place "
+        "it gave.</p>{}",
+        _table(
+            ("#", "Candidate", "Avg place", *judges),
+            (
+                (
+                    index,
+                    row.candidate,
+                    f"{row.mean_rank:.1f}",
+                    *(
+                        f"#{row.positions[judge]:.0f}"
+                        if judge in row.positions
+                        else "—"
+                        for judge in judges
+                    ),
+                )
+                for index, row in enumerate(comparative_rows, start=1)
+            ),
+        ),
+    )
+
+
+def _initial_scoring(scoring_rows, overalls_by_judge, ratings, ranked):
+    """Render every candidate's 1-10 overall from each judge."""
+    judges = sorted(overalls_by_judge)
+
+    def cell(judge, candidate):
+        overall = overalls_by_judge[judge].get(candidate)
+        if overall is None:
+            # This judge was dropped, or never scored this arm.
+            return "—"
+        return format_html(
+            "{}<br><small>{}</small>", f"{overall:.1f}", ratings[(judge, candidate)]
+        )
+
+    return format_html(
+        "<h3>Initial scoring</h3><p>Each judge scored every candidate on its "
+        "own, 1-10. Rows are sorted by avg place, not avg score. Avg place "
+        "averages where each judge put the candidate among "
+        "its own scores (ties share a place), so every judge counts equally; "
+        "the best places went on to be ranked side by side. Under each score "
+        "are its accuracy / fluency / terminology.</p>{}",
+        _table(
+            ("Candidate", "Avg place", "Avg score", *judges, "Ranked side by side"),
+            (
+                (
+                    row.candidate,
+                    f"{row.mean_rank:.1f}",
+                    f"{row.mean_score:.2f}",
+                    *(cell(judge, row.candidate) for judge in judges),
+                    "✓" if row.candidate in ranked else "—",
+                )
+                for row in scoring_rows
+            ),
+        ),
+    )
 
 
 @admin.register(CourseTranslationLog)
@@ -80,31 +176,22 @@ class CourseTranslationLogAdmin(admin.ModelAdmin):
 
 
 class TranslationBenchmarkCandidateInline(admin.TabularInline):
-    """Candidates of a run, with each one's judge scores rendered in place."""
+    """Candidates of a run: which pairings ran and why any were excluded."""
 
     model = TranslationBenchmarkCandidate
+    verbose_name_plural = "Candidates (scores are in Results above)"
     extra = 0
     # The run can be deleted whole; dropping one candidate would silently
     # change its standings.
     can_delete = False
     # No candidate ModelAdmin is registered, so a change link would lead nowhere.
     show_change_link = False
-    fields = ("translator", "validator_display", "judge_scores", "error")
+    fields = ("translator", "validator_display", "error")
     readonly_fields = fields
 
     def get_queryset(self, request):
-        """
-        Pull each candidate's scores with it.
-
-        The inline gets its own queryset, so the parent's prefetch does not
-        reach here and judge_scores would otherwise query once per row.
-        """
-        return (
-            super()
-            .get_queryset(request)
-            .defer("translated_content")
-            .prefetch_related("scores")
-        )
+        """Skip the translated block: each one is large and none is shown."""
+        return super().get_queryset(request).defer("translated_content")
 
     def has_add_permission(self, request, obj=None):  # noqa: ARG002
         """Deny adding rows: runs are produced by the command, never by hand."""
@@ -119,27 +206,6 @@ class TranslationBenchmarkCandidateInline(admin.TabularInline):
         they must still read correctly.
         """
         return candidate.validator or "none"
-
-    @admin.display(description="Judge scores (accuracy/fluency/terminology)")
-    def judge_scores(self, candidate):
-        """
-        Render every judge's scores, with its comparative rank when it has one.
-
-        A row ``_criteria_values`` rejects reads as an em dash rather than
-        as "None/None/None".
-        """
-        return (
-            " · ".join(
-                f"{score.judge} {_criteria(_criteria_values(score))}"
-                + (
-                    f" [#{score.comparative_rank}]"
-                    if score.comparative_rank is not None
-                    else ""
-                )
-                for score in candidate.scores.all()
-            )
-            or "—"
-        )
 
 
 @admin.register(TranslationBenchmark)
@@ -166,6 +232,33 @@ class TranslationBenchmarkAdmin(admin.ModelAdmin):
         "completed_at",
         "report",
     )
+    fieldsets = (
+        (
+            "Summary",
+            {
+                "fields": (
+                    "target_language",
+                    "benchmark_block_id",
+                    "completed_at",
+                    "excluded_judges",
+                )
+            },
+        ),
+        ("Results", {"fields": ("report",)}),
+        (
+            "Run settings",
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    "comparative_only",
+                    "translators_arg",
+                    "judges_arg",
+                    "created_at",
+                    "updated_at",
+                ),
+            },
+        ),
+    )
     inlines = (TranslationBenchmarkCandidateInline,)
 
     def has_add_permission(self, request):  # noqa: ARG002
@@ -176,31 +269,20 @@ class TranslationBenchmarkAdmin(admin.ModelAdmin):
         """Deny edits: results are a record of what happened."""
         return False
 
-    @admin.display(description="Standings (by mean rank, best first)")
+    @admin.display(description="Results")
     def report(self, run):
         """
-        Render the ranked standings for this run, judge by judge.
+        Render the verdict, then the comparative pass, then the scoring pass.
 
-        Mean rank and spread are run-wide — a candidate's position depends on
-        every other candidate's scores — so they are computed here rather than
-        per row in the inline. Each judge also gets its own column, because
-        the aggregate hides the two things worth seeing: which judge a
-        candidate's placing came from, and whether the comparative pass
-        agreed with the scoring pass.
+        The final ranking comes first and in the verdict's order, so its top
+        row is the winner when there is one. The scoring pass follows in the
+        order that picked the shortlist; a candidate can lead it and still lose
+        head to head, which is why it is a separate table, not the headline.
 
         What the run set out to do is recorded on the run; what it actually
         produced is read from the rows, and this page renders the rows. The
-        two can disagree — a restored dump, a hand-fixed row — and a page
-        that believed the flag over its own data would either promise score
-        columns it cannot fill, or bury the scores it is holding under a
-        comparative table.
-
-        The judge columns are the union of the two passes, because a judge
-        that only ranked still decided the verdict. In a two-pass run the
-        two sets normally coincide — ``_rank`` is handed
-        ``scoring.excluded_judges`` and skips them, and ``handle`` aborts
-        when nothing scored at all — so the union usually adds nothing. A
-        mode that ranks an existing run is where it earns its keep.
+        two can disagree (a restored dump, a hand-fixed row), so each table
+        is shown when its rows exist, whatever ``comparative_only`` says.
         """
         overalls_by_judge: dict[str, dict[Candidate, float]] = {}
         ratings: dict[tuple[str, Candidate], str] = {}
@@ -226,73 +308,19 @@ class TranslationBenchmarkAdmin(admin.ModelAdmin):
                         score.comparative_rank
                     )
 
-        # The verdict is always the comparative pass's. When the scoring pass
-        # ran it orders the table; when it was skipped the comparative ranks
-        # are the table.
         comparative_rows = build_comparative_rows(ranks_by_judge)
-        # One question, asked once: did this run's rows record any scores?
-        # The table, the columns and the legend all follow that answer, so
-        # they cannot end up describing different runs from each other.
-        rows = build_rows(overalls_by_judge) or comparative_rows
-        if not rows:
+        scoring_rows = build_rows(overalls_by_judge)
+        if not comparative_rows and not scoring_rows:
             return "No scores recorded."
 
-        # Union, not a choice: a judge that only ranked still decided the
-        # verdict, and a page that gave it no column would name a winner
-        # nothing on it accounts for.
-        judges = sorted(overalls_by_judge.keys() | ranks_by_judge.keys())
-        verdict, reason = pick_comparative_winner(comparative_rows)
-
-        # Numbers are formatted before they reach format_html_join: it escapes
-        # each argument into a SafeString first, which no longer accepts a
-        # numeric format spec.
-        body = format_html_join(
-            "",
-            "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td>{}</tr>",
-            (
-                (
-                    position,
-                    row.candidate,
-                    f"{row.mean_rank:.2f}",
-                    "—" if row.mean_score is None else f"{row.mean_score:.2f}",
-                    f"{row.spread:.1f}",
-                    format_html_join(
-                        "",
-                        "<td>{}</td>",
-                        (
-                            (_judge_cell(row, judge, ratings, ranks_by_judge),)
-                            for judge in judges
-                        ),
-                    ),
-                )
-                for position, row in enumerate(rows, start=1)
-            ),
-        )
-        if overalls_by_judge:
-            legend = (
-                "Each judge column reads position · "
-                "accuracy/fluency/terminology · #comparative rank. Position is "
-                "where that judge placed the candidate when scoring it alone; "
-                "#rank is where it placed the candidate against the shortlist. "
-                "Only shortlisted candidates carry a #rank."
+        votes = rank_one_votes(ranks_by_judge)
+        sections = [_verdict(comparative_rows, votes, len(ranks_by_judge))]
+        if comparative_rows:
+            sections.append(_final_ranking(comparative_rows))
+        if scoring_rows:
+            ranked = {row.candidate for row in comparative_rows}
+            sections.append(
+                _initial_scoring(scoring_rows, overalls_by_judge, ratings, ranked)
             )
-        else:
-            # Nothing was scored alone and no shortlist was taken, so the
-            # two-pass wording would describe a pass this run never ran.
-            legend = (
-                "This run was ranked comparatively only. Each judge column "
-                "reads position · — · #comparative rank, where the position "
-                "is that rank: there are no scores, and every candidate was "
-                "ranked."
-            )
-
-        return format_html(
-            "<p><b>Verdict:</b> {} — {}</p><p>{}</p>"
-            "<table><tr><th>#</th><th>candidate</th><th>mean rank</th>"
-            "<th>mean score</th><th>spread</th>{}</tr>{}</table>",
-            verdict or "no clear winner",
-            reason,
-            legend,
-            format_html_join("", "<th>{}</th>", ((judge,) for judge in judges)),
-            body,
-        )
+        sections.append(_HOW_IT_WORKS)
+        return format_html_join("", "{}", ((section,) for section in sections))
