@@ -69,17 +69,22 @@ def _verdict(comparative_rows, votes, ranking_judges):
     """State the comparative pass's winner, or why there is none, in a sentence."""
     winner, reason = pick_comparative_winner(comparative_rows)
     if winner is None:
-        # The shared reason names the statistic; this page calls it avg place.
-        reason = reason.replace("mean comparative rank", "the best average place")
+        if comparative_rows:
+            # Ranked rows with no winner can only mean a tie for first.
+            best = comparative_rows[0].mean_rank
+            reason = "the best average place is tied between " + ", ".join(
+                str(row.candidate) for row in comparative_rows if row.mean_rank == best
+            )
         return format_html("<p><b>No clear winner:</b> {}.</p>", reason)
     return format_html(
         "<p><b>Winner: {}</b><br>The judges ranked the candidates side by side. "
-        "It had the best average place ({}), and {} of {} ranking judge(s) "
-        "ranked it alone in first.</p>",
+        "It had the best average place ({}), and {} of {} ranking {} ranked it "
+        "alone in first.</p>",
         winner,
         f"{comparative_rows[0].mean_rank:.1f}",
         votes.get(winner, 0),
         ranking_judges,
+        "judge" if ranking_judges == 1 else "judges",
     )
 
 
@@ -125,7 +130,8 @@ def _initial_scoring(scoring_rows, overalls_by_judge, ratings, ranked):
 
     return format_html(
         "<h3>Initial scoring</h3><p>Each judge scored every candidate on its "
-        "own, 1-10. Avg place averages where each judge put the candidate among "
+        "own, 1-10. Rows are sorted by avg place, not avg score. Avg place "
+        "averages where each judge put the candidate among "
         "its own scores (ties share a place), so every judge counts equally; "
         "the best places went on to be ranked side by side. Under each score "
         "are its accuracy / fluency / terminology.</p>{}",

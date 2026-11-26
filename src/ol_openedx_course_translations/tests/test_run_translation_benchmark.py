@@ -1066,8 +1066,8 @@ def test_the_admin_report_shows_each_judge_and_the_verdict():
 
     Initial scoring's avg place comes only from the scoring pass, so a
     candidate can lead that table while both judges ranked it low head to
-    head. The
-    per-judge columns and the verdict make that visible in the stored record.
+    head. The per-judge columns and the verdict make that visible in the
+    stored record.
     """
     _run(translators="openai,gemini", judges="openai,gemini")
     run = TranslationBenchmark.objects.get()
@@ -2509,7 +2509,7 @@ def test_the_standings_do_not_query_once_per_candidate(django_assert_num_queries
 
 
 @pytest.mark.django_db
-def test_a_half_scored_row_is_read_the_same_way_everywhere():
+def test_a_half_scored_row_appears_in_the_final_ranking_only():
     """
     The command writes all three criteria or none, so this row can only come
     from a hand edit or a restored dump. It counts as ranked but not scored,
@@ -2755,7 +2755,7 @@ def test_the_final_ranking_leads_with_the_winner_and_shows_each_judge():
     final, scoring = html.split("<h3>Initial scoring</h3>")
 
     assert "<b>Winner: b → v</b>" in html
-    assert "(1.5), and 1 of 2 ranking judge(s) ranked it alone in first" in html
+    assert "(1.5), and 1 of 2 ranking judges ranked it alone in first" in html
     # Row 1 of the final table is the verdict; a's split shows per judge.
     assert "<td>1</td><td>b → v</td><td>1.5</td><td>#1</td><td>#2</td>" in final
     assert "<td>2</td><td>a → v</td><td>2.5</td><td>#4</td><td>#1</td>" in final
