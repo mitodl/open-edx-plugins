@@ -29,43 +29,30 @@ Installation required in:
 
 * CMS
 
-Configuration
--------------
+Usage
+-----
 
-* ``OL_VIDEO_THUMBNAIL_COPY_SOURCE_BASE_URL``: public base URL of the source
-  instance's media storage, ending in ``media/``. For example
-  ``https://xpro-production-edxapp-storage.s3.amazonaws.com/media/``.
-  Optional when ``--source-base-url`` is passed to the command.
+Run on the target instance after importing the course, passing the public
+base URL of the source instance's media storage:
+
+.. code-block:: bash
+
+    ./manage.py cms copy_video_thumbnails "course-v1:ORG+NUMBER+RUN" \
+        https://xpro-production-edxapp-storage.s3.amazonaws.com/media/
 
 The source objects must be publicly readable. Every MIT OL edxapp storage
 bucket allows public reads on ``media/video-images/*``, so no AWS credentials
 are needed. Files are written through edx-val's configured image storage
 (``VIDEO_IMAGE_SETTINGS``).
 
-Usage
------
+For each thumbnail key of the course the command prints one line:
 
-Run on the target instance after importing the course:
+* ``skipped <key>``: already in local storage, never overwritten;
+* ``copied <key>``: downloaded from ``<source base URL><key>`` and saved under the same key;
+* ``missing <key>: ...``: the download failed, the response wasn't an image
+  (usually a wrong base URL), or storage rejected the key. Nothing is saved
+  and the other keys still run.
 
-.. code-block:: bash
-
-    ./manage.py cms copy_xpro_video_thumbnails "course-v1:ORG+NUMBER+RUN"
-
-Options:
-
-* ``--source-base-url URL``: overrides ``OL_VIDEO_THUMBNAIL_COPY_SOURCE_BASE_URL``.
-* ``--dry-run``: lists what would be copied without downloading or saving.
-
-For each thumbnail key of the course:
-
-* already present in local storage: skipped, never overwritten;
-* missing: downloaded from ``<source base URL><key>`` and saved under the same key;
-* download fails (404, server error, timeout), the response isn't a
-  complete image (a wrong base URL, or a truncated or corrupt file), or
-  storage rejects the key: reported as missing, nothing saved, and the
-  other keys still run.
-
-The command prints the copied, skipped and missing counts, then each missing
-key. If the course has no thumbnails at all it says so, which usually means
-the course key isn't the one on this instance. It is safe to run again, for
+If the course has no thumbnails at all it says so, which usually means the
+course key isn't the one on this instance. It is safe to run again, for
 example after a re-import.

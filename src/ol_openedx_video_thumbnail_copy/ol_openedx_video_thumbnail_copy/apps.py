@@ -1,8 +1,6 @@
 """App configuration for the ol-openedx-video-thumbnail-copy plugin."""
 
 from django.apps import AppConfig
-from edx_django_utils.plugins import PluginSettings
-from openedx.core.djangoapps.plugins.constants import ProjectType, SettingsType
 
 
 class OLOpenEdxVideoThumbnailCopyConfig(AppConfig):
@@ -11,13 +9,6 @@ class OLOpenEdxVideoThumbnailCopyConfig(AppConfig):
     name = "ol_openedx_video_thumbnail_copy"
     verbose_name = "OL Open edX Video Thumbnail Copy"
 
-    plugin_app = {
-        PluginSettings.CONFIG: {
-            ProjectType.CMS: {
-                SettingsType.PRODUCTION: {
-                    PluginSettings.RELATIVE_PATH: "settings.production"
-                },
-                SettingsType.COMMON: {PluginSettings.RELATIVE_PATH: "settings.common"},
-            },
-        },
-    }
+    # Empty, but it must be set: edx-django-utils skips apps without plugin_app
+    # when building INSTALLED_APPS, and then the command isn't found.
+    plugin_app: dict = {}

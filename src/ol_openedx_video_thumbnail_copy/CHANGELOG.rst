@@ -6,6 +6,6 @@ Changelog
 
 Added
 ~~~~~
-- ``copy_xpro_video_thumbnails`` management command: copies an imported
+- ``copy_video_thumbnails`` management command: copies an imported
   course's video thumbnails from the source instance's public storage into
   this instance's edx-val image storage, under the same keys.

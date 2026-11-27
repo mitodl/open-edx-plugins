@@ -10,9 +10,6 @@ readme = "README.rst"
 requires-python = ">=3.11"
 dependencies = [
   "Django>=5.2",
-  "edx-django-utils>=8.0.0",
-  "edx-opaque-keys",
-  "pillow",
   "requests",
 ]
 
