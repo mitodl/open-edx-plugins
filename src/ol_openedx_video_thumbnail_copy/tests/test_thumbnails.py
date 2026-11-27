@@ -1,5 +1,7 @@
 """Tests for copying a course's video thumbnails from the source storage."""
 
+from io import BytesIO
+
 import pytest
 import requests
 import responses
@@ -13,10 +15,22 @@ from ol_openedx_video_thumbnail_copy.thumbnails import (
     copy_course_thumbnails,
 )
 from opaque_keys.edx.keys import CourseKey
+from PIL import Image
 
 BASE = "https://xpro-qa-edxapp-storage.s3.amazonaws.com/media/"
 COURSE = CourseKey.from_string("course-v1:xPRO+T1+R1")
 OTHER_COURSE = "course-v1:xPRO+OTHER+R1"
+
+
+def image_bytes(image_format):
+    """Return a small, complete image encoded as ``image_format``."""
+    buffer = BytesIO()
+    Image.new("RGB", (16, 9), "red").save(buffer, image_format)
+    return buffer.getvalue()
+
+
+PNG = image_bytes("PNG")
+BMP = image_bytes("BMP")
 
 
 @pytest.fixture
@@ -42,14 +56,12 @@ def make_image(course_id, edx_video_id, name):
 def test_copies_missing_image_under_same_key(storage):
     """A thumbnail missing locally is downloaded and saved under its key."""
     make_image(str(COURSE), "vid-1", "video-images/a.png")
-    responses.get(
-        BASE + "video-images/a.png", body=b"PNGDATA", content_type="image/png"
-    )
+    responses.get(BASE + "video-images/a.png", body=PNG, content_type="image/png")
 
     result = copy_course_thumbnails(COURSE, BASE)
 
     assert result.copied == ["video-images/a.png"]
-    assert storage.open("video-images/a.png").read() == b"PNGDATA"
+    assert storage.open("video-images/a.png").read() == PNG
 
 
 @pytest.mark.django_db
@@ -83,7 +95,7 @@ def test_source_failure_is_missing_and_others_still_copy(storage, failure):
     make_image(str(COURSE), "vid-1", "video-images/bad.png")
     make_image(str(COURSE), "vid-2", "video-images/ok.png")
     responses.get(BASE + "video-images/bad.png", **failure)
-    responses.get(BASE + "video-images/ok.png", body=b"OK", content_type="image/png")
+    responses.get(BASE + "video-images/ok.png", body=PNG, content_type="image/png")
 
     result = copy_course_thumbnails(COURSE, BASE)
 
@@ -99,7 +111,7 @@ def test_shared_key_copied_once():
     """Videos sharing one image key (course reruns) cause a single copy."""
     make_image(str(COURSE), "vid-1", "video-images/a.png")
     make_image(str(COURSE), "vid-2", "video-images/a.png")
-    responses.get(BASE + "video-images/a.png", body=b"X", content_type="image/png")
+    responses.get(BASE + "video-images/a.png", body=PNG, content_type="image/png")
 
     result = copy_course_thumbnails(COURSE, BASE)
 
@@ -176,13 +188,13 @@ def test_key_with_url_syntax_fetches_that_object(storage):
     """A "#" in a key is part of the object name, not a URL fragment."""
     make_image(str(COURSE), "vid-1", "video-images/frame#1.png")
     responses.get(
-        BASE + "video-images/frame%231.png", body=b"PNG", content_type="image/png"
+        BASE + "video-images/frame%231.png", body=PNG, content_type="image/png"
     )
 
     result = copy_course_thumbnails(COURSE, BASE)
 
     assert result.copied == ["video-images/frame#1.png"]
-    assert storage.open("video-images/frame#1.png").read() == b"PNG"
+    assert storage.open("video-images/frame#1.png").read() == PNG
 
 
 @pytest.mark.django_db
@@ -190,8 +202,8 @@ def test_key_with_url_syntax_fetches_that_object(storage):
 def test_renamed_save_is_removed_and_reported_missing(storage, mocker):
     """If storage saves under another name, the stray file is removed."""
     make_image(str(COURSE), "vid-1", "video-images/a.png")
-    responses.get(BASE + "video-images/a.png", body=b"X", content_type="image/png")
-    storage.save("video-images/a_renamed.png", ContentFile(b"X"))
+    responses.get(BASE + "video-images/a.png", body=PNG, content_type="image/png")
+    storage.save("video-images/a_renamed.png", ContentFile(PNG))
     mocker.patch.object(storage, "save", return_value="video-images/a_renamed.png")
 
     result = copy_course_thumbnails(COURSE, BASE)
@@ -218,11 +230,37 @@ def test_non_image_response_is_missing_and_not_saved(storage):
 
 @pytest.mark.django_db
 @responses.activate
+@pytest.mark.parametrize(
+    ("body", "content_type"),
+    [
+        pytest.param(b"PNGDATA", "image/png", id="not-an-image"),
+        pytest.param(b"", "image/png", id="empty"),
+        pytest.param(PNG[: len(PNG) // 2], "image/png", id="truncated-png"),
+        # Image.verify() passes this one; only a full decode catches it.
+        pytest.param(BMP[: len(BMP) // 2], "image/bmp", id="truncated-bmp"),
+    ],
+)
+def test_broken_image_is_missing_and_not_saved(storage, body, content_type):
+    """An image Content-Type whose body doesn't decode is not stored.
+
+    Saving it would stick, since later runs skip keys that already exist.
+    """
+    make_image(str(COURSE), "vid-1", "video-images/a.png")
+    responses.get(BASE + "video-images/a.png", body=body, content_type=content_type)
+
+    result = copy_course_thumbnails(COURSE, BASE)
+
+    assert result.missing == ["video-images/a.png"]
+    assert not storage.exists("video-images/a.png")
+
+
+@pytest.mark.django_db
+@responses.activate
 def test_storage_error_on_one_key_does_not_stop_the_rest(storage, mocker):
     """A storage error (e.g. a traversal key from OLX) only affects that key."""
     make_image(str(COURSE), "vid-1", "video-images/../../x.png")
     make_image(str(COURSE), "vid-2", "video-images/ok.png")
-    responses.get(BASE + "video-images/ok.png", body=b"OK", content_type="image/png")
+    responses.get(BASE + "video-images/ok.png", body=PNG, content_type="image/png")
     real_exists = storage.exists
 
     def exists(name):

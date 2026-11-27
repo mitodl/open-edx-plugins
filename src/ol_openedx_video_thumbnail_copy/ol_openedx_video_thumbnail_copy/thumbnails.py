@@ -3,6 +3,7 @@
 import logging
 from dataclasses import dataclass, field
 from http import HTTPStatus
+from io import BytesIO
 from urllib.parse import quote
 
 import requests
@@ -10,6 +11,7 @@ from django.core.files.base import ContentFile
 from edxval.models import VideoImage
 from edxval.utils import get_video_image_storage
 from opaque_keys.edx.keys import CourseKey
+from PIL import Image
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +45,17 @@ def _course_image_keys(course_key: CourseKey) -> list[str]:
     return sorted({name for name in names if name})
 
 
+def _is_complete_image(content: bytes) -> bool:
+    """Return whether ``content`` decodes fully as an image."""
+    try:
+        with Image.open(BytesIO(content)) as image:
+            # load() decodes every pixel; verify() passes e.g. a truncated BMP.
+            image.load()
+    except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
+        return False
+    return True
+
+
 def _download(url: str) -> bytes | None:
     """Return the file at ``url``, or None if it can't be fetched."""
     try:
@@ -61,6 +74,10 @@ def _download(url: str) -> bytes | None:
         log.warning(
             "Not saving video thumbnail %s: Content-Type is %r", url, content_type
         )
+        return None
+    if not _is_complete_image(response.content):
+        # A truncated or corrupt body would stick the same way.
+        log.warning("Not saving video thumbnail %s: not a complete image", url)
         return None
     return response.content
 

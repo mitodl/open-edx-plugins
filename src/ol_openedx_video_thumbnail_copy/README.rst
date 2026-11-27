@@ -60,9 +60,10 @@ For each thumbnail key of the course:
 
 * already present in local storage: skipped, never overwritten;
 * missing: downloaded from ``<source base URL><key>`` and saved under the same key;
-* download fails (404, server error, timeout), the response isn't an
-  image (usually a wrong base URL), or storage rejects the key: reported
-  as missing, nothing saved, and the other keys still run.
+* download fails (404, server error, timeout), the response isn't a
+  complete image (a wrong base URL, or a truncated or corrupt file), or
+  storage rejects the key: reported as missing, nothing saved, and the
+  other keys still run.
 
 The command prints the copied, skipped and missing counts, then each missing
 key. If the course has no thumbnails at all it says so, which usually means
