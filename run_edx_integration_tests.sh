@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-if [ -n "$SHARD" ] && ! { [[ $SHARD =~ ^[0-9]+/[1-9][0-9]*$ ]] && ((${SHARD%/*} < ${SHARD#*/})); }; then
+if [ -n "$SHARD" ] && ! { [[ $SHARD =~ ^(0|[1-9][0-9]*)/[1-9][0-9]*$ ]] && ((${SHARD%/*} < ${SHARD#*/})); }; then
 	echo "Error: --shard must be <index>/<count> with 0 <= index < count, got '$SHARD'"
 	exit 1
 fi
