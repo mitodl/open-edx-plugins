@@ -175,5 +175,6 @@ The test script supports the following optional flags:
 - ``--plugin``: Specify the plugin directory (e.g., ``edx_sysadmin``) to run tests for a single plugin. If omitted, tests for **all plugins** will be run.
 - ``--mount-dir``: Use this if you're running the script from a different directory than the ``open-edx-plugins``.
 - ``--skip-build``: Skips the build step, which includes installing test dependencies and the UV tool. You can use this flag if dependencies have already been installed and you want to run tests directly.
+- ``--shard``: Takes ``<index>/<count>`` (e.g. ``0/3``) and runs only every ``count``-th plugin that has tests, starting at ``index``. CI uses this to split each Open edX branch across parallel jobs.
 
 The script generates coverage reports in XML format and exits with a non-zero status if any tests fail.

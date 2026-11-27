@@ -5,6 +5,7 @@ set -e
 PLUGIN_NAME=""
 MOUNT_DIR=""
 SKIP_BUILD=false
+SHARD=""
 
 # Parse named arguments
 while [[ $# -gt 0 ]]; do
@@ -17,6 +18,11 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--mount-dir)
 		MOUNT_DIR="$2"
+		shift
+		shift
+		;;
+	--shard)
+		SHARD="$2"
 		shift
 		shift
 		;;
@@ -35,6 +41,11 @@ while [[ $# -gt 0 ]]; do
 		;;
 	esac
 done
+
+if [ -n "$SHARD" ] && ! { [[ $SHARD =~ ^(0|[1-9][0-9]*)/[1-9][0-9]*$ ]] && ((${SHARD%/*} < ${SHARD#*/})); }; then
+	echo "Error: --shard must be <index>/<count> with 0 <= index < count, got '$SHARD'"
+	exit 1
+fi
 
 echo "Running edx integration tests with the following parameters:"
 
@@ -196,21 +207,14 @@ run_plugin_tests() {
 	fi
 
 	# Run the pytest command
-	local PYTEST_SUCCESS=0
-	$pytest_command --collect-only
-	local COLLECT_STATUS=$?
-	if [[ $COLLECT_STATUS -eq 0 ]]; then
-		$pytest_command
-		PYTEST_SUCCESS=$?
-	elif [[ $COLLECT_STATUS -eq 5 ]]; then
-		# Exit code 5 is pytest's own "no tests collected" -- benign for a
-		# plugin with no tests matching this settings module. Any other
-		# nonzero status is a real collection error (bad import, missing
-		# setting, etc.) and must fail the build, not be treated the same way.
-		echo "No tests found, skipping pytest."
-	else
-		echo "pytest collection failed with status $COLLECT_STATUS"
-		exit $COLLECT_STATUS
+	$pytest_command
+	local PYTEST_SUCCESS=$?
+	# Exit code 5 is pytest's own "no tests collected" -- benign for a
+	# plugin with no tests matching this settings module. Any other
+	# nonzero status, including a collection error, fails the build.
+	if [[ $PYTEST_SUCCESS -eq 5 ]]; then
+		echo "No tests found."
+		PYTEST_SUCCESS=0
 	fi
 
 	if [[ $PYTEST_SUCCESS -ne 0 ]]; then
@@ -257,10 +261,18 @@ if [ -n "$plugin" ]; then
 	fi
 else
 	# Run tests for all plugins
-	echo "Running tests for all plugins"
+	echo "Running tests for all plugins${SHARD:+ (shard $SHARD)}"
+	# --shard I/N runs every Nth plugin with tests, starting at index I.
+	# shortcut: round-robin, not timing-based; rebalance if one shard grows much slower.
+	shard_index="${SHARD%/*}"
+	shard_count="${SHARD#*/}"
+	i=0
 	for subdir in "src"/*; do
-		if [ -d "$subdir" ]; then
-			run_plugin_tests "$subdir"
+		if [ -d "$subdir/tests" ]; then
+			if [ -z "$SHARD" ] || ((i % shard_count == shard_index)); then
+				run_plugin_tests "$subdir"
+			fi
+			i=$((i + 1))
 		fi
 	done
 fi

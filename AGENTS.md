@@ -142,6 +142,7 @@ cd /openedx/open-edx-plugins
 - `--plugin <name>`: Test only specified plugin (e.g., `edx_sysadmin`)
 - `--mount-dir <path>`: Specify different mount directory
 - `--skip-build`: Skip UV installation and dependency setup (use after first run)
+- `--shard <index>/<count>`: Run only every `count`-th plugin with tests, starting at `index` (CI uses `0/3`, `1/3`, `2/3`)
 
 **Test script behavior:**
 - Activates edx-platform's venv
@@ -159,7 +160,7 @@ cd /openedx/open-edx-plugins
 
 **1. CI Workflow (`.github/workflows/ci.yml`)**
 - **Triggers:** Push to main, all PRs
-- **Matrix:** Open edX branches from `.github/edx-branches.json` (master, release/verawood, release/ulmo) — Python 3.11 for ulmo, 3.12 for the others
+- **Matrix:** Open edX branches from `.github/edx-branches.json` (master, release/verawood, release/ulmo) — Python 3.11 for ulmo, 3.12 for the others; each branch is split into 3 plugin shards
 - **Steps:**
   1. Build all packages once with `uv build --all-packages` and share `dist/` as an artifact
   2. Install Tutor for the edX branch (`.github/actions/setup-tutor`)
