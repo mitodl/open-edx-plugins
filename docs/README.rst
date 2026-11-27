@@ -42,6 +42,7 @@ ol-openedx-otel-monitoring                0.2.0                                 
 ol-openedx-rapid-response-reports         0.5.1                                     0.6.0
 ol-openedx-sentry                         0.4.0                                     0.5.0
 ol-openedx-uai-content-customization      0.3.0                                     0.4.0
+ol-openedx-video-thumbnail-copy           N/A                                       0.1.0
 ol-social-auth                            0.2.2                                     0.3.0
 openedx-companion-auth                    1.2.0                                     1.3.0
 rapid-response-xblock                     0.11.0                                    0.12.0

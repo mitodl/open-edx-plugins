@@ -31,6 +31,7 @@ members = [
     "ol-openedx-rapid-response-reports",
     "ol-openedx-sentry",
     "ol-openedx-uai-content-customization",
+    "ol-openedx-video-thumbnail-copy",
     "ol-social-auth",
     "open-edx-plugins",
     "openedx-companion-auth",
@@ -2844,6 +2845,21 @@ requires-dist = [
     { name = "django", specifier = ">=5.2" },
     { name = "edx-django-utils", specifier = ">=8.0.0" },
     { name = "edx-opaque-keys" },
+    { name = "requests" },
+]
+
+[[package]]
+name = "ol-openedx-video-thumbnail-copy"
+version = "0.1.0"
+source = { editable = "src/ol_openedx_video_thumbnail_copy" }
+dependencies = [
+    { name = "django" },
+    { name = "requests" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "django", specifier = ">=5.2" },
     { name = "requests" },
 ]
 
